@@ -16,7 +16,7 @@
  */
 package org.geotools.process.vector;
 
-import static junit.framework.Assert.*;
+import static org.junit.Assert.*;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
@@ -25,6 +25,7 @@ import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.process.ProcessException;
+import org.geotools.process.vector.PointStackerProcess.ClusterType;
 import org.geotools.process.vector.PointStackerProcess.PreserveLocation;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -74,7 +75,7 @@ public class PointStackerProcessTest {
                         null, // weightClusterPosition
                         null, // normalize
                         null, // preserve location
-                        bounds, // outputBBOX
+                        null, null, null, null, bounds, // outputBBOX
                         1000, // outputWidth
                         1000, // outputHeight
                         monitor);
@@ -109,7 +110,7 @@ public class PointStackerProcessTest {
                         false, // weighClusterPostion
                         true, // normalize
                         null, // preserve location
-                        bounds, // outputBBOX
+                        null, null, null, null, bounds, // outputBBOX
                         1000, // outputWidth
                         1000, // outputHeight
                         monitor);
@@ -146,6 +147,10 @@ public class PointStackerProcessTest {
                         false, // weightClusterPosition
                         true, // normalize
                         PreserveLocation.Single, // preserve location
+                        null, // collectClusterAttributeName
+                        ClusterType.GridCenter, // clusterType
+                        null, // computeBBox
+                        null, // computeBBoxType
                         bounds, // outputBBOX
                         1000, // outputWidth
                         1000, // outputHeight
@@ -184,6 +189,10 @@ public class PointStackerProcessTest {
                         false, // weightClusterPosition
                         true, // normalize
                         PreserveLocation.Superimposed, // preserve location
+                        null, // collectClusterAttributeName
+                        ClusterType.GridCenter, // clusterType
+                        null, // computeBBox
+                        null, // computeBBoxType
                         bounds, // outputBBOX
                         1000, // outputWidth
                         1000, // outputHeight
@@ -211,11 +220,6 @@ public class PointStackerProcessTest {
     /**
      * Tests point stacking when output CRS is different to data CRS. The result data should be
      * reprojected.
-     *
-     * @throws NoSuchAuthorityCodeException
-     * @throws FactoryException
-     * @throws TransformException
-     * @throws ProcessException
      */
     @Test
     public void testReprojected()
@@ -248,10 +252,15 @@ public class PointStackerProcessTest {
         PointStackerProcess psp = new PointStackerProcess();
         SimpleFeatureCollection result =
                 psp.execute(
-                        fc, 100, // cellSize
+                        fc,
+                        100, // cellSize
                         null, // weightClusterPosition
                         null, // normalize
                         null, // preserve location
+                        null, // collectClusterAttributeName
+                        ClusterType.GridCenter, // clusterType
+                        null, // computeBBox
+                        null, // computeBBoxType
                         outBounds, // outputBBOX
                         1810, // outputWidth
                         768, // outputHeight
@@ -297,10 +306,15 @@ public class PointStackerProcessTest {
         PointStackerProcess psp = new PointStackerProcess();
         SimpleFeatureCollection result =
                 psp.execute(
-                        fc, 100, // cellSize
+                        fc,
+                        100, // cellSize
                         true, // weightClusterPosition
                         null, // normalize
                         null, // preserve location
+                        null, // collectClusterAttributeName
+                        ClusterType.GridCenter, // clusterType
+                        null, // computeBBox
+                        null, // computeBBoxType
                         outBounds, // outputBBOX
                         1810, // outputWidth
                         768, // outputHeight
@@ -317,14 +331,7 @@ public class PointStackerProcessTest {
         return;
     }
 
-    /**
-     * Get the stacked point closest to the provided coordinate
-     *
-     * @param result
-     * @param coordinate
-     * @param i
-     * @param j
-     */
+    /** Get the stacked point closest to the provided coordinate */
     private SimpleFeature getResultPoint(SimpleFeatureCollection result, Coordinate testPt) {
         /** Find closest point to loc pt, then check that the attributes match */
         double minDist = Double.MAX_VALUE;
@@ -348,11 +355,6 @@ public class PointStackerProcessTest {
      * Check that a result set contains a stacked point in the right cell with expected attribute
      * values. Because it's not known in advance what the actual location of a stacked point will
      * be, a nearest-point strategy is used.
-     *
-     * @param result
-     * @param coordinate
-     * @param i
-     * @param j
      */
     private void checkResultPoint(
             SimpleFeatureCollection result,
