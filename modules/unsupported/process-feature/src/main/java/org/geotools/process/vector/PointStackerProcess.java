@@ -483,7 +483,7 @@ public class PointStackerProcess implements VectorProcess {
                     }
                 }
                 stkPt.add(pout);
-                if (returnClusteredAttribute != "") {
+                if (returnClusteredAttribute != null && returnClusteredAttribute != "") {
                     stkPt.addClusteredAttribute(feature.getAttribute(returnClusteredAttribute));
                 }
             }
@@ -764,7 +764,9 @@ public class PointStackerProcess implements VectorProcess {
             if (idsClustered == null) {
                 idsClustered = new JSONArray();
             }
-            idsClustered.add(id.toString());
+            if (id != null) {
+                idsClustered.add(id.toString());
+            }
         }
 
         /**
