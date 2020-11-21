@@ -481,9 +481,6 @@ public class PointStackerProcess implements VectorProcess {
     long ix = (long) ((griddedPt.x) / cellSize);
     long iy = (long) ((griddedPt.y) / cellSize);
 
-    griddedPt.x = ix;
-    griddedPt.y = iy;
-  }
 
   private SimpleFeatureType createType(CoordinateReferenceSystem crs, boolean stretch) {
     SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
@@ -724,6 +721,7 @@ public class PointStackerProcess implements VectorProcess {
       location = centerPt;
     }
 
+
     /**
      * Picks the first location encountered as the cell location. This is sub-optimal, since if the
      * first point is near the cell boundary it is likely to collide with neighboring points.
@@ -736,6 +734,7 @@ public class PointStackerProcess implements VectorProcess {
         location = new Coordinate(pt);
       }
     }
+
 
     private static Coordinate average(Coordinate p1, Coordinate p2) {
       double x = (p1.x + p2.x) / 2;
