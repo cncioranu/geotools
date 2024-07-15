@@ -46,6 +46,10 @@ import org.geotools.data.jdbc.datasource.ManageableDataSource;
  *
  * @author Justin Deoliveira, The Open Planning Project
  */
+@SuppressWarnings({
+    "PMD.JUnit4TestShouldUseAfterAnnotation",
+    "PMD.JUnit4TestShouldUseBeforeAnnotation"
+})
 public abstract class JDBCTestSetup {
     static final Logger LOGGER = org.geotools.util.logging.Logging.getLogger(JDBCTestSetup.class);
     protected Properties fixture = null;
@@ -63,6 +67,17 @@ public abstract class JDBCTestSetup {
     /** @see {@link OnlineTestCase#createExampleFixture} */
     protected Properties createExampleFixture() {
         return null;
+    }
+
+    /**
+     * If this test setup is used as a delegate, the return value controls whether the delegate's
+     * data source or the delegator's data source.
+     *
+     * @return True if the delegate's data source should be used, false if the delegator's data
+     *     source should be used.
+     */
+    protected boolean useDelegateDataSource() {
+        return false;
     }
 
     public DataSource getDataSource() throws IOException {

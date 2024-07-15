@@ -28,18 +28,23 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.io.IOUtils;
-import org.geotools.data.DataStore;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.spatial.BBOX;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.store.ContentFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -54,14 +59,9 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.spatial.BBOX;
 
 public class MBTilesFeatureSourceTest {
-    static final FilterFactory2 FF = CommonFactoryFinder.getFilterFactory2();
+    static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
     private static final PropertyName DEFAULT_GEOM = FF.property("");
 
     DataStore store;
@@ -174,7 +174,30 @@ public class MBTilesFeatureSourceTest {
                         .read(
                                 IOUtils.toString(
                                         getClass().getResourceAsStream("ocean_1_0_1.wkt"),
-                                        Charset.forName("UTF8")));
+                                        StandardCharsets.UTF_8));
+        Geometry actual = (Geometry) feature.getDefaultGeometry();
+        // there is some difference in size, but nothing major (200k square meters are a square
+        // with a side of less than 500 meters, against a tile that covers 1/4 of the planet
+        assertEquals(0, expected.difference(actual).getArea(), 200000);
+        assertEquals(0, actual.difference(expected).getArea(), 200000);
+    }
+
+    // make it work with clients passing the distance hint instead of the simplification one
+    @Test
+    public void testGetLowerResolutionDistance() throws IOException, ParseException {
+        MBTilesFeatureSource fs = getMadagascarSource("water");
+        Query query = new Query("water", FF.equal(FF.property("class"), FF.literal("ocean"), true));
+        query.setHints(new Hints(Hints.GEOMETRY_DISTANCE, 78271d));
+        ContentFeatureCollection fc = fs.getFeatures(query);
+        assertEquals(1, fc.size());
+        SimpleFeature feature = DataUtilities.first(fc);
+        // this one got from ogrinfo on the tile
+        Geometry expected =
+                new WKTReader()
+                        .read(
+                                IOUtils.toString(
+                                        getClass().getResourceAsStream("ocean_1_0_1.wkt"),
+                                        StandardCharsets.UTF_8));
         Geometry actual = (Geometry) feature.getDefaultGeometry();
         // there is some difference in size, but nothing major (200k square meters are a square
         // with a side of less than 500 meters, against a tile that covers 1/4 of the planet

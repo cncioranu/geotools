@@ -16,14 +16,15 @@
  */
 package org.geotools.gml;
 
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.XMLFilterImpl;
@@ -62,9 +63,9 @@ public class GMLFilterFeature extends XMLFilterImpl implements GMLHandlerJTS {
     // private Feature currentFeature; // = new FeatureFlat();
 
     /** Stores current feature attributes. */
-    private Vector<Object> attributes = new Vector<>();
+    private List<Object> attributes = new ArrayList<>();
 
-    private Vector<String> attributeNames = new Vector<>();
+    private List<String> attributeNames = new ArrayList<>();
     private String fid = null;
 
     /** Stores current feature attributes. */
@@ -113,17 +114,18 @@ public class GMLFilterFeature extends XMLFilterImpl implements GMLHandlerJTS {
      *
      * @param geometry The geometry from the child.
      */
+    @Override
     public void geometry(Geometry geometry) {
         // insideGeometry = true;
         // _log.debug("adding geometry with name "+attName);
         if (insideFeature) {
             if (attName.equals("")) {
-                attributeNames.addElement("geometry");
+                attributeNames.add("geometry");
             } else {
-                attributeNames.addElement(attName);
+                attributeNames.add(attName);
             }
 
-            attributes.addElement(geometry);
+            attributes.add(geometry);
             endAttribute();
 
             // currentFeature.setGeometry(geometry);
@@ -146,6 +148,7 @@ public class GMLFilterFeature extends XMLFilterImpl implements GMLHandlerJTS {
      * @throws SAXException Some parsing error occured while reading coordinates.
      * @task HACK:The method for determining if something is a feature or not is too crude.
      */
+    @Override
     public void startElement(String namespaceURI, String localName, String qName, Attributes atts)
             throws SAXException {
         characters.setLength(0);
@@ -159,8 +162,8 @@ public class GMLFilterFeature extends XMLFilterImpl implements GMLHandlerJTS {
         // if it ends with Member we'll assume it's a feature for the time being
         // nasty hack to fix members of multi lines and polygons
         if (isFeatureMember(localName)) {
-            attributes = new Vector<>();
-            attributeNames = new Vector<>();
+            attributes = new ArrayList<>();
+            attributeNames = new ArrayList<>();
 
             // currentFeature = new FeatureFlat();
             insideFeature = true;
@@ -221,6 +224,7 @@ public class GMLFilterFeature extends XMLFilterImpl implements GMLHandlerJTS {
      * @param length Length of the character string.
      * @throws SAXException Some parsing error occurred while reading coordinates.
      */
+    @Override
     public void characters(char[] ch, int start, int length) throws SAXException {
         characters.append(ch, start, length);
     }
@@ -256,6 +260,7 @@ public class GMLFilterFeature extends XMLFilterImpl implements GMLHandlerJTS {
      * @param qName Full name of the element, including namespace prefix.
      * @throws SAXException Parsing error occurred while reading coordinates.
      */
+    @Override
     public void endElement(String namespaceURI, String localName, String qName)
             throws SAXException {
         handleCharacters();
@@ -290,7 +295,7 @@ public class GMLFilterFeature extends XMLFilterImpl implements GMLHandlerJTS {
             //            }
             //            insideFeature = false;
             for (int i = 0, ii = attributes.size(); i < ii; i++) {
-                String name = (String) attributeNames.get(i);
+                String name = attributeNames.get(i);
                 Class clazz = attributes.get(i).getClass();
                 tb.add(name, clazz);
             }

@@ -34,7 +34,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.SingleCRS;
 import org.geotools.data.hana.wkb.HanaWKBParser;
 import org.geotools.data.hana.wkb.HanaWKBParserException;
 import org.geotools.data.hana.wkb.HanaWKBWriter;
@@ -43,6 +50,7 @@ import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.PreparedFilterToSQL;
 import org.geotools.jdbc.PreparedStatementSQLDialect;
 import org.geotools.referencing.CRS;
+import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -53,13 +61,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.SingleCRS;
 
 /**
  * A prepared statement SQL dialect for SAP HANA.
@@ -133,6 +134,12 @@ public class HanaDialect extends PreparedStatementSQLDialect {
         CLASS_TO_SQL_TYPE.put(GeometryCollection.class, GEOMETRY_TYPE_CODE);
     }
 
+    private static final Map<Integer, String> SQL_TYPE_TO_SQL_TYPE_NAME = new HashMap<>();
+
+    static {
+        SQL_TYPE_TO_SQL_TYPE_NAME.put(Types.CLOB, "CLOB");
+    }
+
     private static final String GEOMETRY_TYPE_NAME = "ST_Geometry";
 
     public HanaDialect(JDBCDataStore dataStore) {
@@ -141,12 +148,24 @@ public class HanaDialect extends PreparedStatementSQLDialect {
 
     private boolean functionEncodingEnabled;
 
+    private boolean simplifyDisabled;
+
+    private String selectHints;
+
     private HanaVersion hanaVersion;
 
     private SchemaCache currentSchemaCache = new SchemaCache();
 
     public void setFunctionEncodingEnabled(boolean enabled) {
         functionEncodingEnabled = enabled;
+    }
+
+    public void setSimplifyDisabled(boolean disabled) {
+        simplifyDisabled = disabled;
+    }
+
+    public void setSelectHints(String selectHints) {
+        this.selectHints = selectHints;
     }
 
     @Override
@@ -195,6 +214,12 @@ public class HanaDialect extends PreparedStatementSQLDialect {
     }
 
     @Override
+    public void registerSqlTypeToSqlTypeNameOverrides(Map<Integer, String> overrides) {
+        super.registerSqlTypeToSqlTypeNameOverrides(overrides);
+        overrides.putAll(SQL_TYPE_TO_SQL_TYPE_NAME);
+    }
+
+    @Override
     public String getGeometryTypeName(Integer type) {
         return GEOMETRY_TYPE_NAME;
     }
@@ -222,6 +247,7 @@ public class HanaDialect extends PreparedStatementSQLDialect {
             rs = ps.executeQuery();
             if (!rs.next()) return null;
             int srid = rs.getInt(1);
+            if (rs.wasNull()) return null;
             if (rs.next()) return null;
             return srid;
         } finally {
@@ -418,8 +444,27 @@ public class HanaDialect extends PreparedStatementSQLDialect {
     @Override
     public void encodeGeometryColumnSimplified(
             GeometryDescriptor gatt, String prefix, int srid, StringBuffer sql, Double distance) {
-        // TODO Enable once ST_Simplify is available
-        throw new UnsupportedOperationException("Geometry simplification not supported");
+        encodeColumnName(prefix, gatt.getLocalName(), sql);
+        if ((distance != null)
+                && (distance >= 0.0)
+                && !simplifyDisabled
+                && isPlanarCRS(gatt.getCoordinateReferenceSystem())) {
+            sql.append(".ST_Simplify(");
+            sql.append(distance.toString());
+            sql.append(")");
+        }
+        sql.append(".ST_AsBinary()");
+    }
+
+    private boolean isPlanarCRS(CoordinateReferenceSystem crs) {
+        if (crs == null) {
+            return false;
+        }
+        CoordinateReferenceSystem hcrs = CRS.getHorizontalCRS(crs);
+        if (hcrs == null) {
+            return false;
+        }
+        return !(hcrs instanceof GeographicCRS);
     }
 
     @Override
@@ -761,7 +806,12 @@ public class HanaDialect extends PreparedStatementSQLDialect {
 
     @Override
     protected void addSupportedHints(Set<org.geotools.util.factory.Hints.Key> hints) {
-        // TODO Add Hints#GEOMETRY_SIMPLIFICATION as soon as it is available
+        if (!simplifyDisabled) {
+            if ((hanaVersion.getVersion() > 2)
+                    || ((hanaVersion.getVersion() == 2) && (hanaVersion.getRevision() >= 40))) {
+                hints.add(Hints.GEOMETRY_SIMPLIFICATION);
+            }
+        }
     }
 
     @Override
@@ -776,7 +826,17 @@ public class HanaDialect extends PreparedStatementSQLDialect {
 
     @Override
     public void handleSelectHints(StringBuffer sql, SimpleFeatureType featureType, Query query) {
-        // TODO Maybe apply estimation samples hint
+        if ((selectHints == null) || selectHints.trim().isEmpty()) {
+            return;
+        }
+        sql.append(" WITH HINT( ");
+        sql.append(selectHints);
+        sql.append(" )");
+    }
+
+    @Override
+    public boolean applyHintsOnVirtualTables() {
+        return true;
     }
 
     @Override
@@ -785,7 +845,6 @@ public class HanaDialect extends PreparedStatementSQLDialect {
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
     public void prepareGeometryValue(
             Class<? extends Geometry> gClass,
             int dimension,
@@ -798,7 +857,6 @@ public class HanaDialect extends PreparedStatementSQLDialect {
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
     public void setGeometryValue(
             Geometry g, int dimension, int srid, Class binding, PreparedStatement ps, int column)
             throws SQLException {
@@ -816,24 +874,28 @@ public class HanaDialect extends PreparedStatementSQLDialect {
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
     public void setValue(
-            Object value, Class binding, PreparedStatement ps, int column, Connection cx)
+            Object value,
+            Class<?> binding,
+            AttributeDescriptor att,
+            PreparedStatement ps,
+            int column,
+            Connection cx)
             throws SQLException {
         if (value == null) {
-            super.setValue(value, binding, ps, column, cx);
+            super.setValue(value, binding, att, ps, column, cx);
             return;
         }
-        Integer sqlType = dataStore.getMapping(binding);
+        Integer sqlType = dataStore.getMapping(binding, att);
         switch (sqlType) {
             case Types.TIME:
                 // HANA cannot deal with time instances where the date part is before 1970.
                 // We re-create the time with a proper date part.
-                Time time = Time.valueOf(((Time) convert(value, Time.class)).toString());
+                Time time = Time.valueOf(convert(value, Time.class).toString());
                 ps.setTime(column, time);
                 break;
             default:
-                super.setValue(value, binding, ps, column, cx);
+                super.setValue(value, binding, att, ps, column, cx);
         }
     }
 
@@ -899,8 +961,8 @@ public class HanaDialect extends PreparedStatementSQLDialect {
 
     private void encodeIdentifiers(StringBuffer sb, String... ids) {
         boolean first = true;
-        for (int i = 0; i < ids.length; ++i) {
-            if (ids[i] == null) {
+        for (String id : ids) {
+            if (id == null) {
                 continue;
             }
             if (first) {
@@ -908,7 +970,7 @@ public class HanaDialect extends PreparedStatementSQLDialect {
             } else {
                 sb.append('.');
             }
-            sb.append(HanaUtil.encodeIdentifier(ids[i]));
+            sb.append(HanaUtil.encodeIdentifier(id));
         }
     }
 

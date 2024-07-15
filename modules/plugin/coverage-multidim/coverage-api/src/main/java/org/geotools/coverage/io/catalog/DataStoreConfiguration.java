@@ -22,9 +22,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import org.geotools.data.DataStoreFactorySpi;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.Repository;
 import org.geotools.data.h2.H2DataStoreFactory;
-import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.util.URLs;
 import org.geotools.util.Utilities;
 
@@ -37,8 +37,8 @@ import org.geotools.util.Utilities;
  * different readers/files. A new attribute LOCATION is used to distinguish granules coming from
  * specific file/reader instances.
  *
- * <p>Starting with 19.x, it is also possible to use a {@link org.geotools.data.Repository}
- * providing an externally managed store identified by name
+ * <p>Starting with 19.x, it is also possible to use a {@link Repository} providing an externally
+ * managed store identified by name
  *
  * @author Daniele Romagnoli, GeoSolutions
  */
@@ -112,7 +112,6 @@ public class DataStoreConfiguration {
         Utilities.ensureNonNull("database", database);
         Utilities.ensureNonNull("parentLocation", parentLocation);
         final Map<String, Serializable> params = new HashMap<>();
-        params.put(Utils.SCAN_FOR_TYPENAMES, "true");
         final String url = URLs.fileToUrl(parentLocation).toExternalForm();
         String updatedDB;
         try {

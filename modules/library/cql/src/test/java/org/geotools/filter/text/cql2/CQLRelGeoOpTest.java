@@ -17,18 +17,18 @@
 
 package org.geotools.filter.text.cql2;
 
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.DWithin;
+import org.geotools.api.filter.spatial.DistanceBufferOperator;
 import org.geotools.filter.text.commons.CompilerUtil;
 import org.geotools.filter.text.commons.Language;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.locationtech.jts.geom.Point;
-import org.opengis.filter.Filter;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.DWithin;
-import org.opengis.filter.spatial.DistanceBufferOperator;
 
 /**
  * Test RelGeo Operations
@@ -65,11 +65,11 @@ public class CQLRelGeoOpTest {
 
     @Test
     public void dwithin() throws CQLException {
-        Filter resultFilter;
 
         // DWITHIN
-        resultFilter =
-                CompilerUtil.parseFilter(language, "DWITHIN(ATTR1, POINT(1 2), 10, kilometers)");
+        Filter resultFilter =
+                CompilerUtil.parseFilter(
+                        language, "DWITHIN(ATTR1, POINT(1 2), 10, " + "kilometers)");
 
         Assert.assertTrue(resultFilter instanceof DistanceBufferOperator);
 
@@ -91,9 +91,8 @@ public class CQLRelGeoOpTest {
 
     @Test
     public void beyon() throws CQLException {
-        Filter resultFilter;
         // Beyond
-        resultFilter =
+        Filter resultFilter =
                 CompilerUtil.parseFilter(
                         language, "BEYOND(ATTR1, POINT(1.0 2.0), 10.0, kilometers)");
         Assert.assertTrue(resultFilter instanceof Beyond);
@@ -155,6 +154,7 @@ public class CQLRelGeoOpTest {
      * </pre>
      */
     @Ignore
+    @Test
     public void testRoutineInvocationGeneric() throws Exception {
         // TODO (Mauricio Comments) This case is not implemented because the filter
         // model has not a

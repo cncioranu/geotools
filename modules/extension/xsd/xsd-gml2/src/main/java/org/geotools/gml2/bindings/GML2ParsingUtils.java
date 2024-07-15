@@ -20,15 +20,23 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
 import org.eclipse.xsd.XSDElementDeclaration;
 import org.eclipse.xsd.XSDParticle;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.gml2.FeatureTypeCache;
 import org.geotools.gml2.GML;
@@ -51,14 +59,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Utility methods used by gml2 bindings when parsing.
@@ -204,8 +204,7 @@ public class GML2ParsingUtils {
         }
 
         // application schema defined attributes
-        for (Iterator c = node.getChildren().iterator(); c.hasNext(); ) {
-            Node child = (Node) c.next();
+        for (Node child : node.getChildren()) {
             String name = child.getComponent().getName();
             Object value = child.getValue();
 
@@ -254,8 +253,8 @@ public class GML2ParsingUtils {
         // actual xml schema type
         List children = Schemas.getChildElementParticles(element.getType(), true);
 
-        for (Iterator itr = children.iterator(); itr.hasNext(); ) {
-            XSDParticle particle = (XSDParticle) itr.next();
+        for (Object child : children) {
+            XSDParticle particle = (XSDParticle) child;
             XSDElementDeclaration property = (XSDElementDeclaration) particle.getContent();
 
             if (property.isElementDeclarationReference()) {
@@ -263,12 +262,7 @@ public class GML2ParsingUtils {
             }
 
             final List<Binding> bindings = new ArrayList<>();
-            BindingWalker.Visitor visitor =
-                    new BindingWalker.Visitor() {
-                        public void visit(Binding binding) {
-                            bindings.add(binding);
-                        }
-                    };
+            BindingWalker.Visitor visitor = binding -> bindings.add(binding);
 
             bwFactory.walk(property, visitor);
 
@@ -282,7 +276,7 @@ public class GML2ParsingUtils {
             }
 
             // get the last binding in the chain to execute
-            Binding last = ((Binding) bindings.get(bindings.size() - 1));
+            Binding last = bindings.get(bindings.size() - 1);
             Class theClass = last.getType();
 
             if (theClass == null) {
@@ -428,9 +422,7 @@ public class GML2ParsingUtils {
         // extended by multi geometries, dont reference members by element name
         List<Geometry> geoms = new ArrayList<>();
 
-        for (Iterator itr = node.getChildren().iterator(); itr.hasNext(); ) {
-            Node cnode = (Node) itr.next();
-
+        for (Node cnode : node.getChildren()) {
             if (cnode.getValue() instanceof Geometry) {
                 geoms.add((Geometry) cnode.getValue());
             }
@@ -439,17 +431,13 @@ public class GML2ParsingUtils {
         GeometryCollection gc = null;
 
         if (MultiPoint.class.isAssignableFrom(clazz)) {
-            gc = gFactory.createMultiPoint((Point[]) geoms.toArray(new Point[geoms.size()]));
+            gc = gFactory.createMultiPoint(geoms.toArray(new Point[geoms.size()]));
         } else if (MultiLineString.class.isAssignableFrom(clazz)) {
-            gc =
-                    gFactory.createMultiLineString(
-                            (LineString[]) geoms.toArray(new LineString[geoms.size()]));
+            gc = gFactory.createMultiLineString(geoms.toArray(new LineString[geoms.size()]));
         } else if (MultiPolygon.class.isAssignableFrom(clazz)) {
-            gc = gFactory.createMultiPolygon((Polygon[]) geoms.toArray(new Polygon[geoms.size()]));
+            gc = gFactory.createMultiPolygon(geoms.toArray(new Polygon[geoms.size()]));
         } else {
-            gc =
-                    gFactory.createGeometryCollection(
-                            (Geometry[]) geoms.toArray(new Geometry[geoms.size()]));
+            gc = gFactory.createGeometryCollection(geoms.toArray(new Geometry[geoms.size()]));
         }
 
         // set an srs if there is one
@@ -473,7 +461,7 @@ public class GML2ParsingUtils {
 
     static Object GeometryCollectionType_getProperty(Object object, QName name) {
         if ("srsName".equals(name.getLocalPart())) {
-            CoordinateReferenceSystem crs = GML2EncodingUtils.getCRS((GeometryCollection) object);
+            CoordinateReferenceSystem crs = JTS.getCRS((GeometryCollection) object);
             if (crs != null) {
                 return GML2EncodingUtils.toURI(crs, true);
             }

@@ -18,17 +18,17 @@ package org.geotools.referencing.operation;
 
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.CoordinateOperationFactory;
+import org.geotools.api.referencing.operation.OperationMethod;
+import org.geotools.api.referencing.operation.OperationNotFoundException;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.BufferedFactory;
 import org.geotools.util.factory.Hints;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.CoordinateOperationFactory;
-import org.opengis.referencing.operation.OperationMethod;
-import org.opengis.referencing.operation.OperationNotFoundException;
 
 /**
  * Caches the {@linkplain CoordinateOperation coordinate operations} created by an other factory.
@@ -220,14 +220,14 @@ public class BufferedCoordinateOperationFactory extends AbstractCoordinateOperat
      *     {@code targetCRS}.
      * @throws FactoryException if the operation creation failed for some other reason.
      */
+    @Override
     public CoordinateOperation createOperation(
             final CoordinateReferenceSystem sourceCRS, final CoordinateReferenceSystem targetCRS)
             throws OperationNotFoundException, FactoryException {
         ensureNonNull("sourceCRS", sourceCRS);
         ensureNonNull("targetCRS", targetCRS);
         final CRSPair key = new CRSPair(sourceCRS, targetCRS);
-        CoordinateOperation op;
-        op = pool.get(key);
+        CoordinateOperation op = pool.get(key);
         if (op == null) {
             op = getBackingFactory().createOperation(sourceCRS, targetCRS);
             pool.put(key, op);
@@ -261,6 +261,7 @@ public class BufferedCoordinateOperationFactory extends AbstractCoordinateOperat
      * CoordinateOperationFactory coordinate operation factory} specified at construction time with
      * no caching.
      */
+    @Override
     public CoordinateOperation createOperation(
             final CoordinateReferenceSystem sourceCRS,
             final CoordinateReferenceSystem targetCRS,

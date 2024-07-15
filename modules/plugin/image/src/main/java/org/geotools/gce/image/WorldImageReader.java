@@ -23,7 +23,6 @@ import java.awt.image.renderable.ParameterBlock;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
@@ -43,6 +42,17 @@ import javax.imageio.spi.ImageReaderSpi;
 import javax.imageio.stream.ImageInputStream;
 import javax.media.jai.JAI;
 import javax.media.jai.RenderedOp;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.FileGroupProvider.FileGroup;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
@@ -52,27 +62,15 @@ import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.OverviewPolicy;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.FileGroupProvider.FileGroup;
 import org.geotools.data.PrjFileReader;
 import org.geotools.data.WorldFileReader;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.image.io.ImageIOExt;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.referencing.operation.transform.ProjectiveTransform;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.geometry.Envelope;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Reads a GridCoverage from a given source. WorldImage sources only support one GridCoverage so
@@ -252,10 +250,7 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
 
             // release the stream
             if (closeMe) inStream.close();
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
-            throw new DataSourceException(e);
-        } catch (TransformException e) {
+        } catch (IOException | TransformException e) {
             LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
             throw new DataSourceException(e);
         }
@@ -313,7 +308,7 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
                 originalEnvelope =
                         CRS.transform(
                                 ProjectiveTransform.create(tempTransform),
-                                new GeneralEnvelope(actualDim));
+                                new GeneralBounds(actualDim));
                 originalEnvelope.setCoordinateReferenceSystem(crs);
                 highestRes = new double[2];
                 highestRes[0] = XAffineTransform.getScaleX0(tempTransform);
@@ -354,6 +349,7 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
      *
      * @return a new WorldImageFormat class
      */
+    @Override
     public Format getFormat() {
         return new WorldImageFormat();
     }
@@ -367,6 +363,7 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
      * @param params WorldImageReader supports no parameters, it just ignores them.
      * @return a new GridCoverage read from the source.
      */
+    @Override
     public GridCoverage2D read(GeneralParameterValue[] params)
             throws IllegalArgumentException, IOException {
 
@@ -375,7 +372,7 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
         // do we have parameters to use for reading from the specified source
         //
         // /////////////////////////////////////////////////////////////////////
-        GeneralEnvelope requestedEnvelope = null;
+        GeneralBounds requestedEnvelope = null;
         Rectangle dim = null;
         OverviewPolicy overviewPolicy = null;
         // /////////////////////////////////////////////////////////////////////
@@ -384,12 +381,12 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
         //
         // /////////////////////////////////////////////////////////////////////
         if (params != null) {
-            for (int i = 0; i < params.length; i++) {
-                final ParameterValue param = (ParameterValue) params[i];
+            for (GeneralParameterValue generalParameterValue : params) {
+                final ParameterValue param = (ParameterValue) generalParameterValue;
                 final String name = param.getDescriptor().getName().getCode();
                 if (name.equals(AbstractGridFormat.READ_GRIDGEOMETRY2D.getName().toString())) {
                     final GridGeometry2D gg = (GridGeometry2D) param.getValue();
-                    requestedEnvelope = new GeneralEnvelope((Envelope) gg.getEnvelope2D());
+                    requestedEnvelope = new GeneralBounds((Bounds) gg.getEnvelope2D());
                     dim = gg.getGridRange2D().getBounds();
                     continue;
                 }
@@ -491,12 +488,10 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
                 final String[] pairs = query.split("&");
 
                 // parse each pair
-                final int numPairs = pairs.length;
                 String[] kvp = null;
-
-                for (int i = 0; i < numPairs; i++) {
+                for (String pair : pairs) {
                     // splitting the pairs
-                    kvp = pairs[i].split("=");
+                    kvp = pair.split("=");
 
                     // checking the fields
                     // BBOX
@@ -504,7 +499,7 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
                         // splitting fields
                         kvp = kvp[1].split(",");
                         originalEnvelope =
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {
                                             Double.parseDouble(kvp[0]), Double.parseDouble(kvp[1])
                                         },
@@ -524,20 +519,10 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
                     }
                 }
 
-            } catch (IOException e) {
-                // TODO how to handle this?
-                return false;
-
-            } catch (NoSuchAuthorityCodeException e) {
-                // TODO how to handle this?
-                return false;
-            } catch (MismatchedDimensionException e) {
-                // TODO how to handle this?
-                return false;
-            } catch (IndexOutOfBoundsException e) {
-                // TODO how to handle this?
-                return false;
-            } catch (FactoryException e) {
+            } catch (IndexOutOfBoundsException
+                    | MismatchedDimensionException
+                    | IOException
+                    | FactoryException e) {
                 // TODO how to handle this?
                 return false;
             }
@@ -585,15 +570,7 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
                 try (FileChannel channel = new FileInputStream(prjFile).getChannel();
                         PrjFileReader projReader = new PrjFileReader(channel)) {
                     crs = projReader.getCoordinateReferenceSystem();
-                } catch (FileNotFoundException e) {
-                    // warn about the error but proceed, it is not fatal
-                    // we have at least the default crs to use
-                    LOGGER.log(Level.INFO, e.getLocalizedMessage(), e);
-                } catch (IOException e) {
-                    // warn about the error but proceed, it is not fatal
-                    // we have at least the default crs to use
-                    LOGGER.log(Level.INFO, e.getLocalizedMessage(), e);
-                } catch (FactoryException e) {
+                } catch (FactoryException | IOException e) {
                     // warn about the error but proceed, it is not fatal
                     // we have at least the default crs to use
                     LOGGER.log(Level.INFO, e.getLocalizedMessage(), e);
@@ -725,8 +702,7 @@ public final class WorldImageReader extends AbstractGridCoverage2DReader
         }
 
         // building up envelope of this coverage
-        originalEnvelope =
-                new GeneralEnvelope(new double[] {xMin, yMin}, new double[] {xMax, yMax});
+        originalEnvelope = new GeneralBounds(new double[] {xMin, yMin}, new double[] {xMax, yMax});
         originalEnvelope.setCoordinateReferenceSystem(crs);
     }
 

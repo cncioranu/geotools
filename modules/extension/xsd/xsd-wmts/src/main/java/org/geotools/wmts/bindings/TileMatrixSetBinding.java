@@ -104,6 +104,7 @@ public class TileMatrixSetBinding extends DescriptionTypeBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WMTS.TileMatrixSet;
     }
@@ -115,6 +116,7 @@ public class TileMatrixSetBinding extends DescriptionTypeBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class<TileMatrixSetType> getType() {
         return TileMatrixSetType.class;
     }
@@ -126,12 +128,13 @@ public class TileMatrixSetBinding extends DescriptionTypeBinding {
      *
      * @generated modifiable
      */
+    @Override
     @SuppressWarnings("unchecked")
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
 
         if (node.getChildren().isEmpty()) {
             // we are in a Contents/Layer/TileMatrixSetLink/TileMatrixSet (simple) element
-            return (String) value;
+            return value;
         }
 
         // we are in a Contents/TileMatrixSet (complex) element
@@ -145,8 +148,7 @@ public class TileMatrixSetBinding extends DescriptionTypeBinding {
         ((TileMatrixSetType) value)
                 .setBoundingBox((BoundingBoxType) node.getChildValue("BoundingBox"));
         ((TileMatrixSetType) value).setIdentifier((CodeType) node.getChildValue("Identifier"));
-        ((TileMatrixSetType) value)
-                .setSupportedCRS(((URI) node.getChildValue("SupportedCRS")).toString());
+        ((TileMatrixSetType) value).setSupportedCRS(node.getChildValue("SupportedCRS").toString());
 
         URI wkss = (URI) node.getChildValue("WellKnownScaleSet");
         if (wkss != null) {

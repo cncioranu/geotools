@@ -23,7 +23,12 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import junit.framework.TestCase;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.data.memory.MemoryDataStore;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
@@ -36,20 +41,18 @@ import org.geotools.image.test.ImageAssert;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
 import org.geotools.test.TestData;
 import org.geotools.xml.styling.SLDParser;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Tests the StreamingRenderer labelling algorithms
@@ -57,7 +60,7 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  * @author jeichar
  * @since 0.9.0
  */
-public class LabelingTest extends TestCase {
+public class LabelingTest {
 
     private long timout = 3000;
     private static final int CENTERX = 130;
@@ -66,21 +69,22 @@ public class LabelingTest extends TestCase {
     /*
      * Setting up the Vera fonts
      */
-    protected void setUp() throws Exception {
+    @Before
+    public void setUp() throws Exception {
         RendererBaseTest.setupVeraFonts();
     }
 
     /*
      * @see TestCase#tearDown()
      */
-    protected void tearDown() throws Exception {
-        super.tearDown();
-    }
+    @After
+    public void tearDown() throws Exception {}
 
+    @Test
     public void testPointLabeling() throws Exception {
         FeatureCollection collection = createPointFeatureCollection();
         Style style = loadStyle("PointStyle.sld");
-        assertNotNull(style);
+        Assert.assertNotNull(style);
         MapContent map = new MapContent();
         map.addLayer(new FeatureLayer(collection, style));
 
@@ -143,10 +147,11 @@ public class LabelingTest extends TestCase {
         return SimpleFeatureBuilder.build(type, new Object[] {point, name}, null);
     }
 
+    @Test
     public void testLineLabeling() throws Exception {
         FeatureCollection collection = createLineFeatureCollection();
         Style style = loadStyle("LineStyle.sld");
-        assertNotNull(style);
+        Assert.assertNotNull(style);
         MapContent map = new MapContent();
         map.addLayer(new FeatureLayer(collection, style));
 
@@ -170,10 +175,11 @@ public class LabelingTest extends TestCase {
      * something 0 < size < 1. in this case, an infinite loop used to occur, see
      * https://jira.codehaus.org/browse/GEOT-4284
      */
+    @Test
     public void testLineLabelingUom() throws Exception {
         FeatureCollection collection = createLineFeatureCollection();
         Style style = loadStyle("LineStyleUom.sld");
-        assertNotNull(style);
+        Assert.assertNotNull(style);
         MapContent map = new MapContent();
         map.addLayer(new FeatureLayer(collection, style));
 
@@ -193,10 +199,11 @@ public class LabelingTest extends TestCase {
     }
 
     /** Checks we won't label a feature with a sharp U turn, when using a large font */
+    @Test
     public void testLineLabelingSharpTurn() throws Exception {
         FeatureCollection collection = createTightUTurnLineCollection();
         Style style = loadStyle("LineStyleLarge.sld");
-        assertNotNull(style);
+        Assert.assertNotNull(style);
         MapContent map = new MapContent();
         map.addLayer(new FeatureLayer(collection, style));
 
@@ -221,10 +228,11 @@ public class LabelingTest extends TestCase {
     }
 
     /** Checks we won't label a feature with a sharp U turn, when using a large font */
+    @Test
     public void testLineLabelingSharpTurn2() throws Exception {
         FeatureCollection collection = createTightUTurnLineCollection2();
         Style style = loadStyle("LineStyleLarge2.sld");
-        assertNotNull(style);
+        Assert.assertNotNull(style);
         MapContent map = new MapContent();
         map.addLayer(new FeatureLayer(collection, style));
 
@@ -249,10 +257,11 @@ public class LabelingTest extends TestCase {
     }
 
     /** Checks we won't label a feature with an almost 90 degrees change in the last segment */
+    @Test
     public void testSharpChangeLastSegment() throws Exception {
         FeatureCollection collection = createSharpTurnLineCollection();
         Style style = loadStyle("LineStyleLarge.sld");
-        assertNotNull(style);
+        Assert.assertNotNull(style);
         MapContent map = new MapContent();
         map.addLayer(new FeatureLayer(collection, style));
 
@@ -341,10 +350,11 @@ public class LabelingTest extends TestCase {
         return SimpleFeatureBuilder.build(type, new Object[] {line, name}, null);
     }
 
+    @Test
     public void testPolyLabeling() throws Exception {
         FeatureCollection collection = createPolyFeatureCollection();
         Style style = loadStyle("PolyStyle.sld");
-        assertNotNull(style);
+        Assert.assertNotNull(style);
         MapContent map = new MapContent();
         map.addLayer(new FeatureLayer(collection, style));
         StreamingRenderer renderer = new StreamingRenderer();
@@ -397,13 +407,12 @@ public class LabelingTest extends TestCase {
             CoordinateReferenceSystem crs,
             GeometryFactory geomFac)
             throws Exception {
-        Coordinate[] c =
-                new Coordinate[] {
-                    new Coordinate(startx, starty),
-                    new Coordinate(startx + width, starty),
-                    new Coordinate(startx + width, starty + height),
-                    new Coordinate(startx, starty),
-                };
+        Coordinate[] c = {
+            new Coordinate(startx, starty),
+            new Coordinate(startx + width, starty),
+            new Coordinate(startx + width, starty + height),
+            new Coordinate(startx, starty),
+        };
         LinearRing line = geomFac.createLinearRing(c);
         Polygon poly = geomFac.createPolygon(line, null);
 

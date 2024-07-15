@@ -89,11 +89,11 @@ public class TableColumnDef implements DataTypesDefinition {
      *
      * @return a <code>String</code> value
      */
+    @Override
     public String toString() {
         String emptyStr = "";
         StringBuffer buff = new StringBuffer();
-        StringBuffer sb = null;
-        sb = new StringBuffer(emptyStr + name);
+        StringBuffer sb = new StringBuffer(emptyStr + name);
         sb.setLength(16);
         buff.append(sb);
         sb = new StringBuffer(emptyStr + type);

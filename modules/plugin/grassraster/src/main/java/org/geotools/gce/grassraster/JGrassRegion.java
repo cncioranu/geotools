@@ -29,13 +29,13 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.StringTokenizer;
-import org.geotools.geometry.Envelope2D;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Represents the geographic region used in the jGrass engines.
@@ -190,7 +190,7 @@ public class JGrassRegion {
      *
      * @param envelope2D the envelope2D from which to take the setting from.
      */
-    public JGrassRegion(Envelope2D envelope2D) {
+    public JGrassRegion(ReferencedEnvelope envelope2D) {
         west = envelope2D.getMinX();
         east = envelope2D.getMaxX();
         south = envelope2D.getMinY();
@@ -284,7 +284,7 @@ public class JGrassRegion {
         return new Rectangle2D.Double(west, south, east - west, north - south);
     }
 
-    @SuppressWarnings("nls")
+    @Override
     public String toString() {
         return ("region:\nwest="
                 + west
@@ -506,13 +506,10 @@ public class JGrassRegion {
      * @param filePath the path to the region file.
      * @param region the region to be set to the region file informations.
      */
-    @SuppressWarnings("nls")
     private void readRegionFromFile(String filePath, JGrassRegion region) throws IOException {
-        String line;
-
-        BufferedReader windReader = new BufferedReader(new FileReader(filePath));
-        try {
+        try (BufferedReader windReader = new BufferedReader(new FileReader(filePath))) {
             LinkedHashMap<String, String> store = new LinkedHashMap<>();
+            String line;
             while ((line = windReader.readLine()) != null) {
                 if (line.matches(".*reclass.*")) {
                     /*
@@ -534,9 +531,9 @@ public class JGrassRegion {
                         throw new IOException(
                                 "The reclass cellhead file doesn't seem to exist. Unable to read the file region.");
                     }
-                    windReader.close();
-                    windReader = new BufferedReader(new FileReader(reclassMap));
-                    line = windReader.readLine();
+                    try (BufferedReader rmReader = new BufferedReader(new FileReader(reclassMap))) {
+                        line = rmReader.readLine();
+                    }
                 }
 
                 if (line == null) {
@@ -615,9 +612,6 @@ public class JGrassRegion {
             // what is not needed in JGrass is needed in GRASS, so keep it
             region.setAdditionalGrassEntries(store);
             store = null;
-        } finally {
-            windReader.close();
-            windReader = null;
         }
     }
 
@@ -682,7 +676,6 @@ public class JGrassRegion {
      * @param west the west string.
      * @return the array of the bounds in doubles.
      */
-    @SuppressWarnings("nls")
     private double[] nsewStringsToNumbers(String north, String south, String east, String west) {
 
         double no = -1.0;
@@ -788,18 +781,14 @@ public class JGrassRegion {
              * Now overwrite the window region entries using the values in the
              * supplied window object.
              */
-            store.put("north", Double.valueOf(region.getNorth()).toString()); // $NON-NLS-1$
-            store.put("south", Double.valueOf(region.getSouth()).toString()); // $NON-NLS-1$
-            store.put("east", Double.valueOf(region.getEast()).toString()); // $NON-NLS-1$
-            store.put("west", Double.valueOf(region.getWest()).toString()); // $NON-NLS-1$
-            store.put(
-                    "n-s resol",
-                    Double.valueOf(region.getNSResolution()).toString()); // $NON-NLS-1$
-            store.put(
-                    "e-w resol",
-                    Double.valueOf(region.getWEResolution()).toString()); // $NON-NLS-1$
-            store.put("cols", Integer.valueOf(region.getCols()).toString()); // $NON-NLS-1$
-            store.put("rows", Integer.valueOf(region.getRows()).toString()); // $NON-NLS-1$
+            store.put("north", String.valueOf(region.getNorth())); // $NON-NLS-1$
+            store.put("south", String.valueOf(region.getSouth())); // $NON-NLS-1$
+            store.put("east", String.valueOf(region.getEast())); // $NON-NLS-1$
+            store.put("west", String.valueOf(region.getWest())); // $NON-NLS-1$
+            store.put("n-s resol", String.valueOf(region.getNSResolution())); // $NON-NLS-1$
+            store.put("e-w resol", String.valueOf(region.getWEResolution())); // $NON-NLS-1$
+            store.put("cols", String.valueOf(region.getCols())); // $NON-NLS-1$
+            store.put("rows", String.valueOf(region.getRows())); // $NON-NLS-1$
         }
 
         /* Now write the data back to the file */

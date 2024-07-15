@@ -16,10 +16,13 @@
  */
 package org.geotools.xs.bindings;
 
+import static org.junit.Assert.assertEquals;
+
 import java.math.BigInteger;
 import javax.xml.namespace.QName;
 import org.geotools.xs.TestSchema;
 import org.geotools.xs.XS;
+import org.junit.Test;
 
 public class XSNegativeIntegerStrategyTest extends TestSchema {
     /**
@@ -47,18 +50,20 @@ public class XSNegativeIntegerStrategyTest extends TestSchema {
     }
 
     public Number number(String number) {
-        return BigInteger.valueOf(Integer.valueOf(number).longValue());
+        return BigInteger.valueOf(Long.parseLong(number));
     }
 
     /*
      * Test method for 'org.geotools.xs.strategies.XSNegativeIntegerStrategy.parse(Element, Node[], Object)'
      */
+    @Test
     public void testParse() throws Exception {
         validateValues("-1", new BigInteger("-1"));
         validateValues("-12678967543233", new BigInteger("-12678967543233"));
         validateValues("-100000", new BigInteger("-100000"));
     }
 
+    @Override
     protected QName getQName() {
         return XS.NEGATIVEINTEGER;
     }

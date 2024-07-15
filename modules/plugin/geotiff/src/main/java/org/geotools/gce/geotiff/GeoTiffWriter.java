@@ -19,6 +19,7 @@ package org.geotools.gce.geotiff;
 import it.geosolutions.imageio.plugins.tiff.TIFFImageWriteParam;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageMetadata;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageWriter;
+import it.geosolutions.io.output.adapter.OutputStreamAdapter;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.image.RenderedImage;
@@ -40,6 +41,15 @@ import javax.imageio.ImageWriter;
 import javax.imageio.metadata.IIOInvalidTreeException;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageOutputStream;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
@@ -61,15 +71,6 @@ import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.util.ProgressListener;
 import org.w3c.dom.Node;
 
 /**
@@ -118,9 +119,12 @@ public class GeoTiffWriter extends AbstractGridCoverageWriter implements GridCov
             }
 
         } else if (destination instanceof OutputStream) {
-
-            this.outStream = ImageIOExt.createImageOutputStream(null, (OutputStream) destination);
-
+            if (destination instanceof OutputStreamAdapter) {
+                this.outStream = ((OutputStreamAdapter) destination).getWrappedStream();
+                this.destination = outStream;
+            } else {
+                this.outStream = ImageIOExt.createImageOutputStream(null, destination);
+            }
         } else if (destination instanceof ImageOutputStream)
             this.outStream = (ImageOutputStream) destination;
         else throw new IllegalArgumentException("The provided destination canno be used!");
@@ -141,8 +145,9 @@ public class GeoTiffWriter extends AbstractGridCoverageWriter implements GridCov
     /*
      * (non-Javadoc)
      *
-     * @see org.opengis.coverage.grid.GridCoverageWriter#getFormat()
+     * @see org.geotools.api.coverage.grid.GridCoverageWriter#getFormat()
      */
+    @Override
     public Format getFormat() {
         return new GeoTiffFormat();
     }
@@ -150,10 +155,10 @@ public class GeoTiffWriter extends AbstractGridCoverageWriter implements GridCov
     /*
      * (non-Javadoc)
      *
-     * @see org.opengis.coverage.grid.GridCoverageWriter#write(org.opengis.coverage.grid.GridCoverage,
-     *      org.opengis.parameter.GeneralParameterValue[])
+     * @see org.geotools.api.coverage.grid.GridCoverageWriter#write(org.geotools.api.coverage.grid.GridCoverage,
+     *      org.geotools.api.parameter.GeneralParameterValue[])
      */
-    @SuppressWarnings("rawtypes")
+    @Override
     public void write(final GridCoverage gc, final GeneralParameterValue[] params)
             throws IllegalArgumentException, IOException, IndexOutOfBoundsException {
 
@@ -169,9 +174,8 @@ public class GeoTiffWriter extends AbstractGridCoverageWriter implements GridCov
         // /////////////////////////////////////////////////////////////////////
         if (params != null) {
             Parameter<?> param;
-            final int length = params.length;
-            for (int i = 0; i < length; i++) {
-                param = (Parameter) params[i];
+            for (GeneralParameterValue generalParameterValue : params) {
+                param = (Parameter) generalParameterValue;
                 final ReferenceIdentifier name = param.getDescriptor().getName();
                 if (name.equals(AbstractGridFormat.GEOTOOLS_WRITE_PARAMS.getName())) {
                     gtParams = (GeoToolsWriteParams) param.getValue();
@@ -239,12 +243,7 @@ public class GeoTiffWriter extends AbstractGridCoverageWriter implements GridCov
         //
         // write image
         //
-        writeImage(
-                ((GridCoverage2D) gc).getRenderedImage(),
-                this.outStream,
-                metadata,
-                gtParams,
-                listener);
+        writeImage(gc.getRenderedImage(), this.outStream, metadata, gtParams, listener);
 
         //
         // write tfw

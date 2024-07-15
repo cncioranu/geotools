@@ -19,6 +19,8 @@ package org.geotools.geometry.jts;
 import java.awt.Rectangle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -28,8 +30,6 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Accepts geometries and collapses all the vertices that will be rendered to the same pixel. This
@@ -181,7 +181,7 @@ public final class Decimator {
     /** Computes the real world distance of a one pixel segment centered in the specified point */
     static double[] getGeneralizationSpans(double x, double y, MathTransform transform)
             throws TransformException {
-        double[] original = new double[] {x - 0.5, y - 0.5, x + 0.5, y + 0.5};
+        double[] original = {x - 0.5, y - 0.5, x + 0.5, y + 0.5};
         double[] transformed = new double[4];
         transform.transform(original, 0, transformed, 0, 2);
         double[] spans = new double[2];
@@ -263,7 +263,7 @@ public final class Decimator {
                     if (holes == null) {
                         holes = new LinearRing[length];
                         for (int j = 0; j < i; j++) {
-                            holes[j] = (LinearRing) polygon.getInteriorRingN(j);
+                            holes[j] = polygon.getInteriorRingN(j);
                         }
                     }
                     holes[i] = generalized;
@@ -417,7 +417,7 @@ public final class Decimator {
             throws TransformException {
         // decimates before XFORM
         int ncoords = seq.size();
-        double coords[] = null;
+        double[] coords = null;
         int sourceDimensions = 2;
         if (transform != null) {
             sourceDimensions = transform.getSourceDimensions();

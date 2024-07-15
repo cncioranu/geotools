@@ -18,6 +18,12 @@
 package org.geotools.process.vector;
 
 import java.util.logging.Logger;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.PropertyDescriptor;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
@@ -33,17 +39,10 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.linearref.LengthIndexedLine;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.PropertyDescriptor;
 
 @DescribeProcess(
-    title = "Geocode point in LRS",
-    description = "Extracts points at a given measure from LRS features"
-)
+        title = "Geocode point in LRS",
+        description = "Extracts points at a given measure from LRS features")
 public class LRSGeocodeProcess implements VectorProcess {
     private static final Logger LOGGER = Logging.getLogger(LRSGeocodeProcess.class);
 
@@ -60,19 +59,16 @@ public class LRSGeocodeProcess implements VectorProcess {
             @DescribeParameter(name = "features", description = "Input feature collection")
                     FeatureCollection<? extends FeatureType, ? extends Feature> featureCollection,
             @DescribeParameter(
-                        name = "from_measure_attb",
-                        description = "Attribute providing start measure of feature"
-                    )
+                            name = "from_measure_attb",
+                            description = "Attribute providing start measure of feature")
                     String fromMeasureAttb,
             @DescribeParameter(
-                        name = "to_measure_attb",
-                        description = "Attribute providing end measure of feature"
-                    )
+                            name = "to_measure_attb",
+                            description = "Attribute providing end measure of feature")
                     String toMeasureAttb,
             @DescribeParameter(
-                        name = "measure",
-                        description = "Measure of the point along the feature to be computed"
-                    )
+                            name = "measure",
+                            description = "Measure of the point along the feature to be computed")
                     Double measure)
             throws ProcessException {
         DefaultFeatureCollection results = new DefaultFeatureCollection();
@@ -96,9 +92,8 @@ public class LRSGeocodeProcess implements VectorProcess {
             SimpleFeatureType targetFeatureType =
                     createTargetFeatureType(featureCollection.getSchema());
 
-            FeatureIterator<? extends Feature> featureIterator = null;
-            try {
-                featureIterator = featureCollection.features();
+            try (FeatureIterator<? extends Feature> featureIterator =
+                    featureCollection.features()) {
                 Feature feature = featureIterator.next();
                 Double featureFromMeasure =
                         (Double) feature.getProperty(fromMeasureAttb).getValue();
@@ -121,8 +116,6 @@ public class LRSGeocodeProcess implements VectorProcess {
                 Coordinate point =
                         lengthIndexedLine.extractPoint(startOffset * calcLength / featureLength);
                 results.add(createTargetFeature(feature, targetFeatureType, point));
-            } finally {
-                if (featureIterator != null) featureIterator.close();
             }
             return results;
         } catch (ProcessException e) {

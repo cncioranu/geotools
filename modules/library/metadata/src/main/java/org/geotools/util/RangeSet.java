@@ -28,15 +28,15 @@ import static org.geotools.util.Classes.wrapperToPrimitive;
 
 import java.io.Serializable;
 import java.lang.reflect.Array;
+import java.text.MessageFormat;
 import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.NoSuchElementException;
 import java.util.SortedSet;
+import org.geotools.api.util.Cloneable;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
-import org.opengis.util.Cloneable;
 
 /**
  * An ordered set of ranges. {@code RangeSet} objects store an arbitrary number of {@linkplain Range
@@ -64,23 +64,19 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
      * The comparator for ranges. Defined only in order to comply to {@link #comparator} contract,
      * but not used for internal working in this class.
      */
+    @SuppressWarnings("unchecked")
     private static final Comparator<Range> COMPARATOR =
-            new Comparator<Range>() {
-                @SuppressWarnings("unchecked")
-                public int compare(final Range r1, final Range r2) {
-                    int cmin = r1.getMinValue().compareTo(r2.getMinValue());
-                    int cmax = r1.getMaxValue().compareTo(r2.getMaxValue());
-                    if (cmin == 0)
-                        cmin = (r1.isMinIncluded() ? -1 : 0) - (r2.isMinIncluded() ? -1 : 0);
-                    if (cmax == 0)
-                        cmax = (r1.isMaxIncluded() ? +1 : 0) - (r2.isMaxIncluded() ? +1 : 0);
-                    if (cmin == cmax)
-                        return cmax; // Easy case: min and max are both greater, smaller or eq.
-                    if (cmin == 0) return cmax; // Easy case: only max value differ.
-                    if (cmax == 0) return cmin; // Easy case: only min value differ.
-                    // One range is included in the other.
-                    throw new IllegalArgumentException("Unordered ranges");
-                }
+            (r1, r2) -> {
+                int cmin = r1.getMinValue().compareTo(r2.getMinValue());
+                int cmax = r1.getMaxValue().compareTo(r2.getMaxValue());
+                if (cmin == 0) cmin = (r1.isMinIncluded() ? -1 : 0) - (r2.isMinIncluded() ? -1 : 0);
+                if (cmax == 0) cmax = (r1.isMaxIncluded() ? +1 : 0) - (r2.isMaxIncluded() ? +1 : 0);
+                if (cmin == cmax)
+                    return cmax; // Easy case: min and max are both greater, smaller or eq.
+                if (cmin == 0) return cmax; // Easy case: only max value differ.
+                if (cmax == 0) return cmin; // Easy case: only min value differ.
+                // One range is included in the other.
+                throw new IllegalArgumentException("Unordered ranges");
             };
 
     /** The {@linkplain #getElementClass element class} of ranges. */
@@ -157,7 +153,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
     public RangeSet(final Class<T> type) throws IllegalArgumentException {
         if (!Comparable.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.NOT_COMPARABLE_CLASS_$1, type));
+                    MessageFormat.format(ErrorKeys.NOT_COMPARABLE_CLASS_$1, type));
         }
         Class<?> elementType = ClassChanger.getTransformedClass(type); // e.g. change Date --> Long
         useClassChanger = (elementType != type);
@@ -175,8 +171,8 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
         if (!relaxedClass.isInstance(value)) {
             throw new IllegalArgumentException(
                     value == null
-                            ? Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "value")
-                            : Errors.format(
+                            ? MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "value")
+                            : MessageFormat.format(
                                     ErrorKeys.ILLEGAL_CLASS_$2, value.getClass(), elementClass));
         }
         if (useClassChanger)
@@ -189,7 +185,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
                  */
                 final ClassCastException exception =
                         new ClassCastException(
-                                Errors.format(
+                                MessageFormat.format(
                                         ErrorKeys.ILLEGAL_CLASS_$2,
                                         value.getClass(),
                                         elementClass));
@@ -200,6 +196,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
     }
 
     /** Returns the comparator associated with this sorted set. */
+    @Override
     @SuppressWarnings("unchecked") // Because we share the same static COMPARATOR instance.
     public Comparator<Range<T>> comparator() {
         return (Comparator) COMPARATOR;
@@ -213,6 +210,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
     }
 
     /** Returns the number of ranges in this set. */
+    @Override
     public int size() {
         return (array != null) ? Array.getLength(array) / 2 : 0;
     }
@@ -251,7 +249,8 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
         Comparable lower = toArrayElement(min);
         Comparable upper = toArrayElement(max);
         if (lower.compareTo(upper) > 0) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.BAD_RANGE_$2, min, max));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.BAD_RANGE_$2, min, max));
         }
         if (array == null) {
             modCount++;
@@ -467,7 +466,8 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
         Comparable lower = toArrayElement(min);
         Comparable upper = toArrayElement(max);
         if (lower.compareTo(upper) >= 0) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.BAD_RANGE_$2, min, max));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.BAD_RANGE_$2, min, max));
         }
         // if already empty, or range outside the current set, nothing to change
         if (array == null) {
@@ -784,7 +784,8 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
         final Range<T> range = (Range<T>) object;
         if (elementClass.equals(range.elementClass)) {
             if (range.isMinIncluded() && range.isMaxIncluded()) {
-                final int index = binarySearch(toArrayElement((Comparable<T>) range.getMinValue()));
+                final int index =
+                        binarySearch(toArrayElement((Comparable<? super T>) range.getMinValue()));
                 if (index >= 0 && (index & 1) == 0) {
                     final int c = get(index + 1).compareTo(range.getMaxValue());
                     return c == 0;
@@ -799,6 +800,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
      *
      * @throws NoSuchElementException if the set is empty.
      */
+    @Override
     public Range<T> first() throws NoSuchElementException {
         if (array != null && Array.getLength(array) != 0) {
             return newRange(get(0), get(1));
@@ -811,6 +813,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
      *
      * @throws NoSuchElementException if the set is empty.
      */
+    @Override
     public Range<T> last() throws NoSuchElementException {
         if (array != null) {
             final int length = Array.getLength(array);
@@ -829,6 +832,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
      * @param upper High endpoint (exclusive) of the sub set.
      * @return A view of the specified range within this sorted set.
      */
+    @Override
     public SortedSet<Range<T>> subSet(final Range<T> lower, final Range<T> upper) {
         throw new UnsupportedOperationException("Not yet implemented");
     }
@@ -840,6 +844,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
      * @param upper High endpoint (exclusive) of the headSet.
      * @return A view of the specified initial range of this sorted set.
      */
+    @Override
     public SortedSet<Range<T>> headSet(final Range<T> upper) {
         throw new UnsupportedOperationException("Not yet implemented");
     }
@@ -851,6 +856,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
      * @param lower Low endpoint (inclusive) of the tailSet.
      * @return A view of the specified final range of this sorted set.
      */
+    @Override
     public SortedSet<Range<T>> tailSet(final Range<T> lower) {
         throw new UnsupportedOperationException("Not yet implemented");
     }
@@ -882,11 +888,13 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
         private int position;
 
         /** Returns {@code true} if the iteration has more elements. */
+        @Override
         public boolean hasNext() {
             return position < length;
         }
 
         /** Returns the next element in the iteration. */
+        @Override
         public Range<T> next() {
             if (hasNext()) {
                 final T lower = get(position++);
@@ -902,6 +910,7 @@ public class RangeSet<T extends Comparable<? super T>> extends AbstractSet<Range
         }
 
         /** Removes from the underlying collection the last element returned by the iterator. */
+        @Override
         public void remove() {
             if (position != 0) {
                 if (RangeSet.this.modCount == modCount) {

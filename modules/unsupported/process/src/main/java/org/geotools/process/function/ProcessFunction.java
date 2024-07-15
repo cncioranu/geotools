@@ -28,25 +28,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.process.Process;
 import org.geotools.process.ProcessException;
 import org.geotools.process.Processors;
 import org.geotools.util.Converters;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /**
  * A wrapper allowing a {@link Process} with a single output to be called as a {@link Function}.
  * Since Function parameters are positional and Process parameters are named, the following strategy
  * is used to allow specifying named Process parameters as function inputs. All inputs to the
- * function must evaluate to Map<String, Object>, with a single entry where the key is the name of a
- * process parameter and the value is the argument value
+ * function must evaluate to Map&lt;String, Object&gt;, with a single entry where the key is the
+ * name of a process parameter and the value is the argument value
  *
  * @author Andrea Aime - GeoSolutions
  */
@@ -85,7 +85,7 @@ public class ProcessFunction implements Function {
         this.fallbackValue = fallbackValue;
 
         // build the function name
-        List<org.opengis.parameter.Parameter<?>> inputParams = new ArrayList<>();
+        List<org.geotools.api.parameter.Parameter<?>> inputParams = new ArrayList<>();
         Map<String, Parameter<?>> parameterInfo = Processors.getParameterInfo(processName);
         if (parameterInfo instanceof LinkedHashMap) {
             // predictable order so we can assume parameter order
@@ -99,20 +99,22 @@ public class ProcessFunction implements Function {
             for (String pn : paramNames) {
                 // we do not specify the parameter type to avoid validation issues with the
                 // different positional/named conventions
-                org.opengis.parameter.Parameter param =
+                org.geotools.api.parameter.Parameter param =
                         FunctionNameImpl.parameter(pn, Object.class, 0, 1);
                 inputParams.add(param);
             }
         }
         Map<String, Parameter<?>> resultParams = Processors.getResultInfo(processName, null);
-        org.opengis.parameter.Parameter result = resultParams.values().iterator().next();
+        org.geotools.api.parameter.Parameter result = resultParams.values().iterator().next();
         functionName = new FunctionNameImpl(name, result, inputParams);
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallbackValue;
     }
 
+    @Override
     public String getName() {
         return name;
     }
@@ -121,23 +123,28 @@ public class ProcessFunction implements Function {
         return processName;
     }
 
+    @Override
     public FunctionName getFunctionName() {
         return functionName;
     }
 
+    @Override
     public List<Expression> getParameters() {
         return inputExpressions;
     }
 
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public <T> T evaluate(Object object, Class<T> context) {
         Object o = evaluate(object);
         return Converters.convert(o, context);
     }
 
+    @Override
     public Object evaluate(Object object) {
         Map<String, Object> processInputs = evaluateInputs(object);
 
@@ -203,68 +210,7 @@ public class ProcessFunction implements Function {
                         // if the value is not null, convert to the param target type and add
                         // to the process invocation params
                         if (paramValue != null) {
-                            Object converted;
-                            if (param.maxOccurs > 1) {
-                                // converter will work if the have to convert the array type, but
-                                // not if
-                                // they have to deal with two conversions, from single to multi,
-                                // from type to type
-                                if (!(paramValue instanceof Collection)
-                                        && !(paramValue.getClass().isArray())) {
-                                    List<Object> collection = Collections.singletonList(paramValue);
-                                    converted =
-                                            Converters.convert(
-                                                    collection,
-                                                    Array.newInstance(param.type, 0).getClass());
-                                } else {
-                                    converted =
-                                            Converters.convert(
-                                                    paramValue,
-                                                    Array.newInstance(param.type, 0).getClass());
-                                }
-                            } else {
-                                converted = Converters.convert(paramValue, param.type);
-                            }
-                            if (converted == null) {
-                                if (param.maxOccurs > 1
-                                        && Collection.class.isAssignableFrom(
-                                                paramValue.getClass())) {
-                                    final Collection collection = (Collection) paramValue;
-                                    Collection<Object> convertedCollection =
-                                            new ArrayList<>(collection.size());
-                                    for (Object original : collection) {
-                                        Object convertedItem =
-                                                Converters.convert(original, param.type);
-                                        if (original != null && convertedItem == null) {
-                                            throw new InvalidParameterException(
-                                                    "Could not convert the value "
-                                                            + original
-                                                            + " into the expected type "
-                                                            + param.type
-                                                            + " for parameter "
-                                                            + paramName);
-                                        }
-                                        convertedCollection.add(convertedItem);
-                                    }
-                                    Object array =
-                                            Array.newInstance(
-                                                    param.type, convertedCollection.size());
-                                    int i = 0;
-                                    for (Object item : convertedCollection) {
-                                        Array.set(array, i, item);
-                                        i++;
-                                    }
-                                    converted = array;
-                                } else {
-                                    throw new InvalidParameterException(
-                                            "Could not convert the value "
-                                                    + paramValue
-                                                    + " into the expected type "
-                                                    + param.type
-                                                    + " for parameter "
-                                                    + paramName);
-                                }
-                            }
+                            Object converted = convertParameter(paramName, paramValue, param);
                             processInputs.put(paramName, converted);
                         }
                     }
@@ -272,6 +218,61 @@ public class ProcessFunction implements Function {
             }
         }
         return processInputs;
+    }
+
+    private Object convertParameter(String paramName, Object paramValue, Parameter<?> param) {
+        Object converted;
+        if (param.maxOccurs > 1) {
+            // converter will work if the have to convert the array type, but
+            // not if
+            // they have to deal with two conversions, from single to multi,
+            // from type to type
+            if (!(paramValue instanceof Collection) && !(paramValue.getClass().isArray())) {
+                List<Object> collection = Collections.singletonList(paramValue);
+                converted =
+                        Converters.convert(collection, Array.newInstance(param.type, 0).getClass());
+            } else {
+                converted =
+                        Converters.convert(paramValue, Array.newInstance(param.type, 0).getClass());
+            }
+        } else {
+            converted = Converters.convert(paramValue, param.type);
+        }
+        if (converted == null) {
+            if (param.maxOccurs > 1 && Collection.class.isAssignableFrom(paramValue.getClass())) {
+                final Collection collection = (Collection) paramValue;
+                Collection<Object> convertedCollection = new ArrayList<>(collection.size());
+                for (Object original : collection) {
+                    Object convertedItem = Converters.convert(original, param.type);
+                    if (original != null && convertedItem == null) {
+                        throw new InvalidParameterException(
+                                "Could not convert the value "
+                                        + original
+                                        + " into the expected type "
+                                        + param.type
+                                        + " for parameter "
+                                        + paramName);
+                    }
+                    convertedCollection.add(convertedItem);
+                }
+                Object array = Array.newInstance(param.type, convertedCollection.size());
+                int i = 0;
+                for (Object item : convertedCollection) {
+                    Array.set(array, i, item);
+                    i++;
+                }
+                converted = array;
+            } else {
+                throw new InvalidParameterException(
+                        "Could not convert the value "
+                                + paramValue
+                                + " into the expected type "
+                                + param.type
+                                + " for parameter "
+                                + paramName);
+            }
+        }
+        return converted;
     }
 
     @Override

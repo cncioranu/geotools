@@ -23,19 +23,18 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.net.URL;
-import java.util.Iterator;
 import java.util.Set;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.ProjectedCRS;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.WKT;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.ProjectedCRS;
 
 /**
  * Checks the exception thrown by the fallback system do report actual errors when the code is
@@ -45,9 +44,6 @@ import org.opengis.referencing.crs.ProjectedCRS;
  * @author Andrea Aime (TOPP)
  */
 public final class FallbackAuthorityFactoryTest {
-    /** Set to {@code true} for printing debugging information. */
-    private static final boolean VERBOSE = false;
-
     /** The extra factory. */
     private FactoryEPSGExtra extra;
 
@@ -78,17 +74,10 @@ public final class FallbackAuthorityFactoryTest {
     public void testFactoryOrdering() {
         Set<CRSAuthorityFactory> factories =
                 ReferencingFactoryFinder.getCRSAuthorityFactories(null);
-        for (CRSAuthorityFactory factory : factories) {
-            // System.out.println("--> " + factory.getClass().getSimpleName());
-        }
         boolean foundWkt = false;
         boolean foundExtra = false;
-        for (Iterator<CRSAuthorityFactory> it = factories.iterator(); it.hasNext(); ) {
-            CRSAuthorityFactory factory = (CRSAuthorityFactory) it.next();
+        for (CRSAuthorityFactory factory : factories) {
             Class<?> type = factory.getClass();
-            if (VERBOSE) {
-                // System.out.println(type);
-            }
             if (type == FactoryEPSGExtra.class) {
                 foundExtra = true;
             } else if (type == FactoryUsingWKT.class) {

@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -51,6 +52,16 @@ import org.eclipse.xsd.XSDSchema;
 import org.eclipse.xsd.XSDTypeDefinition;
 import org.eclipse.xsd.util.XSDConstants;
 import org.eclipse.xsd.util.XSDResourceImpl;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.feature.type.Schema;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
@@ -78,16 +89,6 @@ import org.geotools.xsd.StreamingParser;
 import org.geotools.xsd.XSD;
 import org.geotools.xsd.impl.ParserHandler.ContextCustomizer;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.feature.type.Schema;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.picocontainer.MutablePicoContainer;
 import org.xml.sax.SAXException;
 
@@ -148,7 +149,7 @@ public class GML {
         }
     }
 
-    private Charset encoding = Charset.forName("UTF-8");
+    private Charset encoding = StandardCharsets.UTF_8;
 
     private URL baseURL;
 
@@ -289,19 +290,16 @@ public class GML {
         // sort by isAssignable so we get the most specific match possible
         //
         Comparator<Entry<Name, AttributeType>> sort =
-                new Comparator<Entry<Name, AttributeType>>() {
-                    public int compare(
-                            Entry<Name, AttributeType> o1, Entry<Name, AttributeType> o2) {
-                        Class<?> binding1 = o1.getValue().getBinding();
-                        Class<?> binding2 = o2.getValue().getBinding();
-                        if (binding1.equals(binding2)) {
-                            return 0;
-                        }
-                        if (binding1.isAssignableFrom(binding2)) {
-                            return 1;
-                        } else {
-                            return 0;
-                        }
+                (o1, o2) -> {
+                    Class<?> binding1 = o1.getValue().getBinding();
+                    Class<?> binding2 = o2.getValue().getBinding();
+                    if (binding1.equals(binding2)) {
+                        return 0;
+                    }
+                    if (binding1.isAssignableFrom(binding2)) {
+                        return 1;
+                    } else {
+                        return 0;
                     }
                 };
         List<Entry<Name, AttributeType>> match = new ArrayList<>();
@@ -473,6 +471,7 @@ public class GML {
                             addDependency(gmlConfiguration); // use our GML configuration
                         }
 
+                        @Override
                         protected void registerBindings(java.util.Map bindings) {
                             // we have no special bindings
                         }
@@ -695,6 +694,7 @@ public class GML {
 
             Object next;
 
+            @Override
             public boolean hasNext() {
                 if (next != null) {
                     return true;
@@ -703,6 +703,7 @@ public class GML {
                 return next != null;
             }
 
+            @Override
             public SimpleFeature next() {
                 if (next == null) {
                     next = parser.parse();
@@ -722,6 +723,7 @@ public class GML {
                 }
             }
 
+            @Override
             public void close() {
                 schema = null;
             }
@@ -798,7 +800,7 @@ public class GML {
         }
         if (obj instanceof Map<?, ?>) {
             Map<?, ?> map = (Map<?, ?>) obj;
-            Object values[] = new Object[schema.getAttributeCount()];
+            Object[] values = new Object[schema.getAttributeCount()];
             for (int i = 0; i < schema.getAttributeCount(); i++) {
                 AttributeDescriptor descriptor = schema.getDescriptor(i);
                 String key = descriptor.getLocalName();
@@ -820,7 +822,6 @@ public class GML {
         return null; // not available as a feature!
     }
 
-    @SuppressWarnings("unchecked")
     protected XSDSchema xsd(SimpleFeatureType simpleFeatureType) throws IOException {
         XSDFactory factory = XSDFactory.eINSTANCE;
         XSDSchema xsd = factory.createXSDSchema();
@@ -887,7 +888,6 @@ public class GML {
      * @param BASE_TYPE definition to use as the base type, or null
      * @return XSDComplexTypeDefinition generated for the provided type
      */
-    @SuppressWarnings("unchecked")
     protected XSDComplexTypeDefinition xsd(
             XSDSchema xsd, ComplexType type, final XSDComplexTypeDefinition BASE_TYPE) {
         XSDFactory factory = XSDFactory.eINSTANCE;

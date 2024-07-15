@@ -25,13 +25,14 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCDataStoreFactory;
 import org.geotools.jdbc.SQLDialect;
 import org.locationtech.jts.io.ByteArrayInStream;
 import org.locationtech.jts.io.ByteOrderDataInStream;
 import org.locationtech.jts.io.ByteOrderValues;
+import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBConstants;
 
 /**
@@ -40,7 +41,6 @@ import org.locationtech.jts.io.WKBConstants;
  * @author Christian Mueller
  */
 // temporary work around, the factory parameters map will be fixed separately
-@SuppressWarnings("unchecked")
 public class DB2NGDataStoreFactory extends JDBCDataStoreFactory {
 
     public static String GetCurrentSchema = "select current sqlid from sysibm.sysdummy1";
@@ -79,22 +79,27 @@ public class DB2NGDataStoreFactory extends JDBCDataStoreFactory {
 
     public static final String DriverClassName = "com.ibm.db2.jcc.DB2Driver";
 
+    @Override
     protected SQLDialect createSQLDialect(JDBCDataStore dataStore) {
         return new DB2SQLDialectPrepared(dataStore, new DB2DialectInfo());
     }
 
+    @Override
     public String getDisplayName() {
         return "DB2 NG";
     }
 
+    @Override
     protected String getDriverClassName() {
         return DriverClassName;
     }
 
+    @Override
     protected String getDatabaseID() {
         return (String) DBTYPE.sample;
     }
 
+    @Override
     public String getDescription() {
         return "DB2 Database";
     }
@@ -145,6 +150,7 @@ public class DB2NGDataStoreFactory extends JDBCDataStoreFactory {
         return super.getJDBCUrl(params);
     }
 
+    @Override
     protected void setupParameters(Map<String, Object> parameters) {
         super.setupParameters(parameters);
         parameters.put(DBTYPE.key, DBTYPE);
@@ -206,7 +212,7 @@ public class DB2NGDataStoreFactory extends JDBCDataStoreFactory {
                 int geometryType = dis.readInt();
                 if (geometryType == 1001) di.setHasOGCWkbZTyps(true);
             }
-        } catch (SQLException e) {
+        } catch (ParseException | SQLException e) {
             throw new IOException(e.getMessage());
         } finally {
             dataStore.closeSafe(con);

@@ -20,7 +20,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.awt.geom.Point2D;
 import java.awt.image.RenderedImage;
-import java.util.stream.IntStream;
+import org.geotools.api.geometry.MismatchedDimensionException;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoordinates2D;
 import org.geotools.coverage.grid.GridCoverage2D;
@@ -28,13 +28,12 @@ import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.factory.GeoTools;
 import org.junit.Test;
-import org.opengis.geometry.MismatchedDimensionException;
 
 public class GridCoverageUtilTest {
 
     @Test
     public void testExactUpScale() {
-        float[][] grid = new float[][] {{1, 2}, {3, 4}};
+        float[][] grid = {{1, 2}, {3, 4}};
         final GridCoverageFactory coverageFactory =
                 CoverageFactoryFinder.getGridCoverageFactory(GeoTools.getDefaultHints());
         final GridCoverage2D coverage =
@@ -44,25 +43,18 @@ public class GridCoverageUtilTest {
         final RenderedImage renderedImage = scaled.getRenderedImage();
         assertEquals(4, renderedImage.getWidth());
         assertEquals(4, renderedImage.getHeight());
-        float[][] expected = new float[][] {{1, 1, 2, 2}, {1, 1, 2, 2}, {3, 3, 4, 4}, {3, 3, 4, 4}};
-        IntStream.range(0, 4)
-                .forEach(
-                        i ->
-                                IntStream.range(0, 4)
-                                        .forEach(
-                                                j -> {
-                                                    float actual =
-                                                            scaled.evaluate(
-                                                                            new GridCoordinates2D(
-                                                                                    j, i),
-                                                                            new float[1])[0];
-                                                    assertEquals(expected[i][j], actual, 1e-10);
-                                                }));
+        float[][] expected = {{1, 1, 2, 2}, {1, 1, 2, 2}, {3, 3, 4, 4}, {3, 3, 4, 4}};
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                float actual = scaled.evaluate(new GridCoordinates2D(j, i), new float[1])[0];
+                assertEquals(expected[i][j], actual, 1e-10);
+            }
+        }
     }
 
     @Test
     public void testExactDownScale() {
-        float[][] grid = new float[][] {{1, 1, 2, 2}, {1, 1, 2, 2}, {3, 3, 4, 4}, {3, 3, 4, 4}};
+        float[][] grid = {{1, 1, 2, 2}, {1, 1, 2, 2}, {3, 3, 4, 4}, {3, 3, 4, 4}};
         final GridCoverageFactory coverageFactory =
                 CoverageFactoryFinder.getGridCoverageFactory(GeoTools.getDefaultHints());
         final GridCoverage2D coverage =
@@ -72,25 +64,18 @@ public class GridCoverageUtilTest {
         final RenderedImage renderedImage = scaled.getRenderedImage();
         assertEquals(2, renderedImage.getWidth());
         assertEquals(2, renderedImage.getHeight());
-        float[][] expected = new float[][] {{1, 2}, {3, 4}};
-        IntStream.range(0, 2)
-                .forEach(
-                        i ->
-                                IntStream.range(0, 2)
-                                        .forEach(
-                                                j -> {
-                                                    float actual =
-                                                            scaled.evaluate(
-                                                                            new GridCoordinates2D(
-                                                                                    j, i),
-                                                                            new float[1])[0];
-                                                    assertEquals(expected[i][j], actual, 1e-10);
-                                                }));
+        float[][] expected = {{1, 2}, {3, 4}};
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                float actual = scaled.evaluate(new GridCoordinates2D(j, i), new float[1])[0];
+                assertEquals(expected[i][j], actual, 1e-10);
+            }
+        }
     }
 
     @Test
     public void testInexactScale() {
-        float[][] grid = new float[][] {{1, 2}, {3, 4}};
+        float[][] grid = {{1, 2}, {3, 4}};
         final GridCoverageFactory coverageFactory =
                 CoverageFactoryFinder.getGridCoverageFactory(GeoTools.getDefaultHints());
         final GridCoverage2D coverage =
@@ -132,7 +117,7 @@ public class GridCoverageUtilTest {
 
     @Test
     public void testCrop() throws MismatchedDimensionException {
-        float[][] grid = new float[][] {{3, 4}, {1, 2}};
+        float[][] grid = {{3, 4}, {1, 2}};
         final GridCoverageFactory coverageFactory =
                 CoverageFactoryFinder.getGridCoverageFactory(GeoTools.getDefaultHints());
         final GridCoverage2D coverage =

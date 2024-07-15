@@ -26,6 +26,7 @@ import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.http.HTTPResponse;
 import org.geotools.image.io.ImageIOExt;
 import org.geotools.util.logging.Logging;
 
@@ -40,7 +41,8 @@ import org.geotools.util.logging.Logging;
  */
 public abstract class Tile implements ImageLoader {
 
-    protected static final Logger LOGGER = Logging.getLogger(Tile.class);
+    protected static final Logger LOGGER = Logging.getLogger("org.geotools.tile.loader");
+    public static final String DEBUG_FLAG = "SHOW_DEBUG_TILES";
 
     /**
      * These are the states of the tile. This state represents if the tile needs to be re-rendered
@@ -112,6 +114,9 @@ public abstract class Tile implements ImageLoader {
     /** A delegate to proved direct loading or load from a disk (cache). */
     private ImageLoader imageLoader = this;
 
+    /** The initiating service */
+    protected TileService service = null;
+
     public void setImageLoader(ImageLoader imageLoader) {
         if (imageLoader == null) {
             throw new IllegalArgumentException("ImageLoader cannot be null");
@@ -119,9 +124,7 @@ public abstract class Tile implements ImageLoader {
         this.imageLoader = imageLoader;
     }
 
-    /** for locking on the SWT image to prevent creating it multiple times */
-    // private Object SWTLock = new Object();
-
+    /** Creates a tile for the identity given by tileId. Will use this instance as imageLoader. */
     public Tile(TileIdentifier tileId, ReferencedEnvelope env, int tileSize) {
 
         if (env == null) {
@@ -134,6 +137,13 @@ public abstract class Tile implements ImageLoader {
             throw new IllegalArgumentException("TileIdentifier cannot be null");
         }
         this.tileIdentifier = tileId;
+    }
+
+    /** Creates a new tile. This constructor will use the service as imageLoader. */
+    public Tile(TileIdentifier tileId, ReferencedEnvelope env, int tileSize, TileService service) {
+        this(tileId, env, tileSize);
+        imageLoader = service;
+        this.service = service;
     }
 
     public void setStateChangedListener(TileStateChangedListener listener) {
@@ -171,13 +181,26 @@ public abstract class Tile implements ImageLoader {
         }
     }
 
+    /**
+     * Implementation of ImageLoader. Has been moved to {@link
+     * @see org.geotools.tile.TileService#loadImageTileImage(Tile)}
+     */
+    @Override
     public BufferedImage loadImageTileImage(Tile tile) throws IOException {
-        return ImageIOExt.readBufferedImage(getUrl());
+        if (service == null) {
+            throw new IllegalStateException("service cannot be null.");
+        }
+        final HTTPResponse response = service.getHttpClient().get(tile.getUrl());
+        try {
+            return ImageIOExt.readBufferedImage(response.getResponseStream());
+        } finally {
+            response.dispose();
+        }
     }
 
     /**
      * Returns true if the image has been correctly loaded and the render state is {@link
-     * RenderState.RENDERED}.
+     * RenderState}.
      *
      * @return the tile image
      */
@@ -187,21 +210,24 @@ public abstract class Tile implements ImageLoader {
 
     /** Gets an image showing an error, possibly indicating a failure to load the tile image. */
     protected BufferedImage createErrorImage(final String message) {
-        BufferedImage buffImage = null;
 
+        String flag = System.getProperty(DEBUG_FLAG);
+        boolean showMessage = flag == null || !"no".equalsIgnoreCase(flag);
         final int size = getTileSize();
-        buffImage = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage buffImage = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
 
         Graphics2D graphics = buffImage.createGraphics();
-        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) 0.5));
+        if (showMessage) {
+            graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) 0.5));
 
-        graphics.setColor(Color.WHITE);
-        graphics.fillRect(0, 0, size, size);
-        graphics.setColor(Color.RED);
-        graphics.drawLine(0, 0, size, size);
-        graphics.drawLine(0, size, size, 0);
-        int mesgWidth = graphics.getFontMetrics().stringWidth(message);
-        graphics.drawString(message, (size - mesgWidth) / 2, size / 2);
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, size, size);
+            graphics.setColor(Color.RED);
+            graphics.drawLine(0, 0, size, size);
+            graphics.drawLine(0, size, size, 0);
+            int mesgWidth = graphics.getFontMetrics().stringWidth(message);
+            graphics.drawString(message, (size - mesgWidth) / 2, size / 2);
+        }
         graphics.dispose();
 
         return buffImage;
@@ -372,9 +398,11 @@ public abstract class Tile implements ImageLoader {
         return getUrl().equals(((Tile) other).getUrl());
     }
 
+    @Override
     public String toString() {
         return this.getId(); // this.getUrl().toString();
     }
 
+    /** A unique url for every tile */
     public abstract URL getUrl();
 }

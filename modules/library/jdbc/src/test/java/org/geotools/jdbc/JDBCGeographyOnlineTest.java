@@ -1,36 +1,43 @@
 package org.geotools.jdbc;
 
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
+
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.DWithin;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
+import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.DWithin;
 
 public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
 
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+    FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
     GeometryFactory gf = new GeometryFactory();
 
     @Override
     protected abstract JDBCGeographyTestSetup createTestSetup();
 
+    @SuppressWarnings("PMD.SystemPrintln")
     protected boolean isGeographySupportAvailable() throws Exception {
         boolean available = ((JDBCGeographyTestSetup) setup).isGeographySupportAvailable();
         if (!available) {
@@ -40,10 +47,9 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         return available;
     }
 
+    @Test
     public void testSchema() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         SimpleFeatureType ft = dataStore.getFeatureSource(tname("geopoint")).getSchema();
         assertNotNull(ft);
@@ -59,10 +65,9 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         assertEquals(4326, epsg);
     }
 
+    @Test
     public void testReader() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         Query q = new Query(tname("geopoint"));
 
@@ -75,10 +80,9 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testBBoxLargerThanWorld() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         BBOX bbox = ff.bbox("", -200, -200, 200, 200, "EPSG:4326");
@@ -94,10 +98,9 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testOutsideWorld() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         BBOX bbox = ff.bbox("", -300, -40, -200, 40, "EPSG:4326");
@@ -109,10 +112,9 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testLargerThanHalfWorld() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         BBOX bbox = ff.bbox("", -140, -50, 140, 50, "EPSG:4326");
@@ -128,10 +130,9 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testUpdate() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         Point p = gf.createPoint(new Coordinate(1, 1));
         try (FeatureWriter fw =
@@ -153,10 +154,9 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testAppend() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         Point point = gf.createPoint(new Coordinate(10, 10));
         try (FeatureWriter fw =
@@ -181,21 +181,18 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testBounds() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         ReferencedEnvelope env = dataStore.getFeatureSource(tname("geopoint")).getBounds();
-        ReferencedEnvelope expected =
-                new ReferencedEnvelope(-110, 0, 29, 49, CRS.decode("EPSG:4326"));
+        ReferencedEnvelope expected = new ReferencedEnvelope(-110, 0, 29, 49, decodeEPSG(4326));
         assertEquals(expected, env);
     }
 
+    @Test
     public void testBboxFilter() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         // should match only "r2"
         BBOX bbox = ff.bbox(aname("geo"), -120, 25, -100, 40, "EPSG:4326");
@@ -204,10 +201,9 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         assertEquals(2, features.size());
     }
 
+    @Test
     public void testDistanceMeters() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         // where does that 74000 come from? Here:
         // GeodeticCalculator gc = new GeodeticCalculator();
@@ -228,10 +224,9 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         assertEquals(1, features.size());
     }
 
+    @Test
     public void testDistanceGreatCircle() throws Exception {
-        if (!isGeographySupportAvailable()) {
-            return;
-        }
+        assumeTrue(isGeographySupportAvailable());
 
         // This is the example reported in the PostGIS example:
         //
@@ -269,6 +264,7 @@ public abstract class JDBCGeographyOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testVirtualTable() throws Exception {
         // geopoint( id:Integer; name:String; geo:Geography(Point) )
         StringBuffer sb = new StringBuffer();

@@ -24,13 +24,14 @@ import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.Repository;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
-import org.geotools.data.Repository;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.jdbc.JDBCDataStore;
+import org.geotools.util.Converters;
 import org.geotools.util.URLs;
 import org.geotools.util.decorate.Wrapper;
 import org.geotools.util.factory.Hints;
@@ -51,6 +52,7 @@ public abstract class GranuleCatalogFactory {
 
     public static GranuleCatalog createGranuleCatalog(
             final Properties params,
+            final CatalogConfigurationBeans configurations,
             final boolean caching,
             final boolean create,
             final DataStoreFactorySpi spi,
@@ -68,26 +70,49 @@ public abstract class GranuleCatalogFactory {
             } else {
                 gtCatalog =
                         new RepositoryDataStoreCatalog(
-                                params, create, repository, storeName, spi, hints);
+                                params, configurations, create, repository, storeName, spi, hints);
             }
         } else {
-            gtCatalog = new GTDataStoreGranuleCatalog(params, create, spi, hints);
+            gtCatalog = new GTDataStoreGranuleCatalog(params, configurations, create, spi, hints);
         }
         DataStore store = gtCatalog.getTileIndexStore();
 
         // caching wrappers
         GranuleCatalog catalog;
         if (caching) {
+            if (configurations.size() != 1)
+                throw new IllegalArgumentException(
+                        "Cannot perform in complete memory caching of granules when having multiple coverages");
             catalog = new STRTreeGranuleCatalog(params, gtCatalog, hints);
         } else {
-            catalog = new CachingDataStoreGranuleCatalog(gtCatalog);
+            Integer maxAge =
+                    Converters.convert(params.get(Utils.Prop.QUERY_CACHE_MAX_AGE), Integer.class);
+            Integer maxFeatures =
+                    Converters.convert(
+                            params.get(Utils.Prop.QUERY_CACHE_MAX_FEATURES), Integer.class);
+            if (maxAge != null && maxFeatures != null) {
+                GranuleCatalog queryCache =
+                        new QueryCacheGranuleCatalog(gtCatalog, maxFeatures, maxAge);
+                catalog = new CachingDataStoreGranuleCatalog(queryCache);
+            } else {
+                catalog = new CachingDataStoreGranuleCatalog(gtCatalog);
+            }
         }
 
         // locking wrappers
         if (store instanceof Wrapper) {
-            store =
-                    Optional.ofNullable((DataStore) ((Wrapper) store).unwrap(JDBCDataStore.class))
-                            .orElse(store);
+            try {
+                store =
+                        Optional.ofNullable(
+                                        (DataStore) ((Wrapper) store).unwrap(JDBCDataStore.class))
+                                .orElse(store);
+            } catch (IllegalArgumentException e) {
+                LOGGER.log(
+                        Level.FINER,
+                        "The store is a wrapper but does not wrap a JDBCDataStore "
+                                + "(not a problem per se, just a note)",
+                        e);
+            }
         }
         if (!(store instanceof JDBCDataStore)) {
             catalog = new LockingGranuleCatalog(catalog, hints);
@@ -98,7 +123,7 @@ public abstract class GranuleCatalogFactory {
 
     public static GranuleCatalog createGranuleCatalog(
             final URL sourceURL,
-            final CatalogConfigurationBean catalogConfigurationBean,
+            final CatalogConfigurationBeans configurations,
             final Properties overrideParams,
             final Hints hints) {
         final File sourceFile = URLs.urlToFile(sourceURL);
@@ -107,34 +132,10 @@ public abstract class GranuleCatalogFactory {
         // STANDARD PARAMS
         final Properties params = new Properties();
 
-        params.put(Utils.Prop.PATH_TYPE, catalogConfigurationBean.getPathType());
-
-        if (catalogConfigurationBean.getLocationAttribute() != null)
-            params.put(
-                    Utils.Prop.LOCATION_ATTRIBUTE, catalogConfigurationBean.getLocationAttribute());
-
-        if (catalogConfigurationBean.getSuggestedSPI() != null)
-            params.put(Utils.Prop.SUGGESTED_SPI, catalogConfigurationBean.getSuggestedSPI());
-
-        if (catalogConfigurationBean.getSuggestedFormat() != null)
-            params.put(Utils.Prop.SUGGESTED_FORMAT, catalogConfigurationBean.getSuggestedFormat());
-
-        if (catalogConfigurationBean.getSuggestedIsSPI() != null)
-            params.put(Utils.Prop.SUGGESTED_IS_SPI, catalogConfigurationBean.getSuggestedIsSPI());
-
-        params.put(Utils.Prop.HETEROGENEOUS, catalogConfigurationBean.isHeterogeneous());
-        params.put(Utils.Prop.COG, catalogConfigurationBean.getCogConfiguration() != null);
-
-        params.put(Utils.Prop.WRAP_STORE, catalogConfigurationBean.isWrapStore());
         if (sourceURL != null) {
             File parentDirectory = URLs.urlToFile(sourceURL);
             if (parentDirectory.isFile()) parentDirectory = parentDirectory.getParentFile();
             params.put(Utils.Prop.PARENT_LOCATION, URLs.fileToUrl(parentDirectory).toString());
-        }
-        // add typename
-        String typeName = catalogConfigurationBean.getTypeName();
-        if (typeName != null) {
-            params.put(Utils.Prop.TYPENAME, catalogConfigurationBean.getTypeName());
         }
         // SPI
         DataStoreFactorySpi spi = null;
@@ -184,6 +185,6 @@ public abstract class GranuleCatalogFactory {
             params.putAll(overrideParams);
         }
         return createGranuleCatalog(
-                params, catalogConfigurationBean.isCaching(), false, spi, hints);
+                params, configurations, configurations.first().isCaching(), false, spi, hints);
     }
 }

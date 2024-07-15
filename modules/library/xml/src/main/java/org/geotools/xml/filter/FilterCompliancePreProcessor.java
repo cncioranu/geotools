@@ -19,64 +19,63 @@ package org.geotools.xml.filter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.BinaryLogicOperator;
+import org.geotools.api.filter.ExcludeFilter;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.IncludeFilter;
+import org.geotools.api.filter.NativeFilter;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsGreaterThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNil;
+import org.geotools.api.filter.PropertyIsNotEqualTo;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.identity.FeatureId;
+import org.geotools.api.filter.identity.Identifier;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.Contains;
+import org.geotools.api.filter.spatial.Crosses;
+import org.geotools.api.filter.spatial.DWithin;
+import org.geotools.api.filter.spatial.Disjoint;
+import org.geotools.api.filter.spatial.DistanceBufferOperator;
+import org.geotools.api.filter.spatial.Equals;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.filter.spatial.Overlaps;
+import org.geotools.api.filter.spatial.Touches;
+import org.geotools.api.filter.spatial.Within;
+import org.geotools.api.filter.temporal.After;
+import org.geotools.api.filter.temporal.AnyInteracts;
+import org.geotools.api.filter.temporal.Before;
+import org.geotools.api.filter.temporal.Begins;
+import org.geotools.api.filter.temporal.BegunBy;
+import org.geotools.api.filter.temporal.BinaryTemporalOperator;
+import org.geotools.api.filter.temporal.During;
+import org.geotools.api.filter.temporal.EndedBy;
+import org.geotools.api.filter.temporal.Ends;
+import org.geotools.api.filter.temporal.Meets;
+import org.geotools.api.filter.temporal.MetBy;
+import org.geotools.api.filter.temporal.OverlappedBy;
+import org.geotools.api.filter.temporal.TContains;
+import org.geotools.api.filter.temporal.TEquals;
+import org.geotools.api.filter.temporal.TOverlaps;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.FilterType;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.xml.XMLHandlerHints;
-import org.opengis.filter.And;
-import org.opengis.filter.BinaryLogicOperator;
-import org.opengis.filter.ExcludeFilter;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.Id;
-import org.opengis.filter.IncludeFilter;
-import org.opengis.filter.NativeFilter;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNil;
-import org.opengis.filter.PropertyIsNotEqualTo;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.identity.FeatureId;
-import org.opengis.filter.identity.Identifier;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.Contains;
-import org.opengis.filter.spatial.Crosses;
-import org.opengis.filter.spatial.DWithin;
-import org.opengis.filter.spatial.Disjoint;
-import org.opengis.filter.spatial.DistanceBufferOperator;
-import org.opengis.filter.spatial.Equals;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.filter.spatial.Overlaps;
-import org.opengis.filter.spatial.Touches;
-import org.opengis.filter.spatial.Within;
-import org.opengis.filter.temporal.After;
-import org.opengis.filter.temporal.AnyInteracts;
-import org.opengis.filter.temporal.Before;
-import org.opengis.filter.temporal.Begins;
-import org.opengis.filter.temporal.BegunBy;
-import org.opengis.filter.temporal.BinaryTemporalOperator;
-import org.opengis.filter.temporal.During;
-import org.opengis.filter.temporal.EndedBy;
-import org.opengis.filter.temporal.Ends;
-import org.opengis.filter.temporal.Meets;
-import org.opengis.filter.temporal.MetBy;
-import org.opengis.filter.temporal.OverlappedBy;
-import org.opengis.filter.temporal.TContains;
-import org.opengis.filter.temporal.TEquals;
-import org.opengis.filter.temporal.TOverlaps;
 
 /**
  * Prepares a filter for xml encoded for interoperability with another system. It will behave
@@ -138,7 +137,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
     /** Data collected during traversal */
     private Stack<Data> current = new Stack<>();
 
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+    FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
     private boolean requiresPostProcessing = false;
 
@@ -162,8 +161,8 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
             Set<FeatureId> empty = Collections.emptySet();
             return ff.id(empty);
         }
-        Data data = (Data) current.peek();
-        if (data.fids.size() > 0) {
+        Data data = current.peek();
+        if (!data.fids.isEmpty()) {
             Set<FeatureId> set = new HashSet<>();
             Set<String> fids = data.fids;
             for (String fid : fids) {
@@ -181,66 +180,77 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
      *
      * @return the filter that can be encoded.
      */
-    public org.opengis.filter.Filter getFilter() {
+    public org.geotools.api.filter.Filter getFilter() {
         if (current.isEmpty()) {
             return Filter.EXCLUDE;
         }
-        return ((Data) this.current.peek()).filter;
+        return this.current.peek().filter;
     }
 
     // between
+    @Override
     public Object visit(PropertyIsBetween filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
     // BinaryComparisonOperator
+    @Override
     public Object visit(PropertyIsEqualTo filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(PropertyIsGreaterThan filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(PropertyIsGreaterThanOrEqualTo filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(PropertyIsLessThan filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(PropertyIsLessThanOrEqualTo filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(PropertyIsNotEqualTo filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
     // GeometryFilter
+    @Override
     public Object visit(BBOX filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(Contains filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(Crosses filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(Disjoint filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
@@ -251,48 +261,57 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
         return extraData;
     }
 
+    @Override
     public Object visit(Equals filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(Intersects filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(Overlaps filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(Touches filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(Within filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(Beyond filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visit(DWithin filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
     // LikeFilter
+    @Override
     public Object visit(PropertyIsLike filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
     // LogicFilter
+    @Override
     public Object visit(And filter, Object extraData) {
         int startSize = current.size();
         try {
@@ -331,6 +350,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
         return extraData;
     }
 
+    @Override
     public Object visit(Or filter, Object extraData) {
         int startSize = current.size();
         try {
@@ -369,6 +389,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
         return extraData;
     }
 
+    @Override
     public Object visit(Not filter, Object extraData) {
         int startSize = 1;
         Filter child;
@@ -449,7 +470,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
         Set<String> set = new HashSet<>();
 
         for (int i = startOfFilterStack; i < current.size(); i++) {
-            Data data = (Data) current.get(i);
+            Data data = current.get(i);
 
             if (!data.fids.isEmpty()) {
                 set.addAll(data.fids);
@@ -469,7 +490,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
         boolean doRemove = true;
 
         for (int i = startOfFilterStack; i < current.size(); i++) {
-            Data data = (Data) current.get(i);
+            Data data = current.get(i);
 
             if (data.fids.isEmpty()) {
                 toRemove.add(data);
@@ -485,7 +506,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
             current.removeAll(toRemove);
         }
 
-        if (fidSet.size() == 0) {
+        if (fidSet.isEmpty()) {
             return Collections.emptySet();
         }
 
@@ -495,8 +516,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
 
         HashSet<String> set = new HashSet<>();
 
-        for (int i = 0; i < fidSet.size(); i++) {
-            Set<String> tmp = fidSet.get(i);
+        for (Set<String> tmp : fidSet) {
             for (String fid : tmp) {
                 if (allContain(fid, fidSet)) {
                     set.add(fid);
@@ -531,13 +551,13 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
         }
 
         if (current.size() == (startOfFilterStack + 1)) {
-            return (Data) current.pop();
+            return current.pop();
         }
 
         List<Filter> filterList = new ArrayList<>();
 
         while (current.size() > startOfFilterStack) {
-            Data data = (Data) current.pop();
+            Data data = current.pop();
             if (data.filter != Filter.EXCLUDE) {
                 filterList.add(data.filter);
             }
@@ -558,7 +578,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
     private Filter compressFilter(short filterType, Filter f) throws IllegalFilterException {
         Filter result;
         int added = 0;
-        List<org.opengis.filter.Filter> resultList = new ArrayList<>();
+        List<org.geotools.api.filter.Filter> resultList = new ArrayList<>();
 
         switch (filterType) {
             case FilterType.LOGIC_AND:
@@ -567,7 +587,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
                 }
 
                 for (Filter item : ((And) f).getChildren()) {
-                    org.opengis.filter.Filter filter = (org.opengis.filter.Filter) item;
+                    org.geotools.api.filter.Filter filter = item;
                     if (filter == Filter.INCLUDE) {
                         continue;
                     }
@@ -588,8 +608,8 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
                 }
 
                 for (Object item : ((Or) f).getChildren()) {
-                    org.opengis.filter.Filter filter = (org.opengis.filter.Filter) item;
-                    if (filter == org.opengis.filter.Filter.EXCLUDE) {
+                    org.geotools.api.filter.Filter filter = (org.geotools.api.filter.Filter) item;
+                    if (filter == org.geotools.api.filter.Filter.EXCLUDE) {
                         continue;
                     }
                     added++;
@@ -623,9 +643,9 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
         }
     }
 
-    private boolean contains(BinaryLogicOperator f, org.opengis.filter.Filter toFind) {
-        for (Iterator iter = f.getChildren().iterator(); iter.hasNext(); ) {
-            if (toFind.equals(iter.next())) {
+    private boolean contains(BinaryLogicOperator f, org.geotools.api.filter.Filter toFind) {
+        for (Filter filter : f.getChildren()) {
+            if (toFind.equals(filter)) {
                 return true;
             }
         }
@@ -636,7 +656,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
         if (current.size() > (startOfFilterStack + 1)) {
             throw new UnsupportedFilterException("A not filter cannot have more than one filter");
         } else {
-            Data tmp = (Data) current.pop();
+            Data tmp = current.pop();
 
             Data data = new Data(ff.not(tmp.filter));
 
@@ -698,7 +718,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
 
     private boolean hasNonFidFilter(int startOfFilterStack) {
         for (int i = startOfFilterStack; i < current.size(); i++) {
-            Data data = (Data) current.get(i);
+            Data data = current.get(i);
 
             if (data.filter != Filter.EXCLUDE) {
                 return true;
@@ -710,7 +730,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
 
     private boolean hasFidFilter(int startOfFilterStack) {
         for (int i = startOfFilterStack; i < current.size(); i++) {
-            Data data = (Data) current.get(i);
+            Data data = current.get(i);
 
             if (!data.fids.isEmpty()) {
                 return true;
@@ -721,18 +741,21 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
     }
 
     // NullFilter
+    @Override
     public Object visit(PropertyIsNull filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     };
 
     // NilFilter
+    @Override
     public Object visit(PropertyIsNil filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
     // FidFilter
+    @Override
     public Object visit(Id filter, Object extraData) {
         Data data = new Data();
         for (Identifier identifier : filter.getIdentifiers()) {
@@ -743,74 +766,91 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
         return extraData;
     }
     // Include
+    @Override
     public Object visit(IncludeFilter filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
     // Exclude
+    @Override
     public Object visit(ExcludeFilter filter, Object extraData) {
         current.push(new Data(filter));
         return extraData;
     }
 
+    @Override
     public Object visitNullFilter(Object extraData) {
         // we will ignore null!
         return extraData;
     }
 
     // Temporal
+    @Override
     public Object visit(After after, Object extraData) {
         return visit((BinaryTemporalOperator) after, extraData);
     }
 
+    @Override
     public Object visit(AnyInteracts anyInteracts, Object extraData) {
         return visit((BinaryTemporalOperator) anyInteracts, extraData);
     }
 
+    @Override
     public Object visit(Before before, Object extraData) {
         return visit((BinaryTemporalOperator) before, extraData);
     }
 
+    @Override
     public Object visit(Begins begins, Object extraData) {
         return visit((BinaryTemporalOperator) begins, extraData);
     }
 
+    @Override
     public Object visit(BegunBy begunBy, Object extraData) {
         return visit((BinaryTemporalOperator) begunBy, extraData);
     }
 
+    @Override
     public Object visit(During during, Object extraData) {
         return visit((BinaryTemporalOperator) during, extraData);
     }
 
+    @Override
     public Object visit(EndedBy endedBy, Object extraData) {
         return visit((BinaryTemporalOperator) endedBy, extraData);
     }
 
+    @Override
     public Object visit(Ends ends, Object extraData) {
         return visit((BinaryTemporalOperator) ends, extraData);
     }
 
+    @Override
     public Object visit(Meets meets, Object extraData) {
         return visit((BinaryTemporalOperator) meets, extraData);
     }
 
+    @Override
     public Object visit(MetBy metBy, Object extraData) {
         return visit((BinaryTemporalOperator) metBy, extraData);
     }
 
+    @Override
     public Object visit(OverlappedBy overlappedBy, Object extraData) {
         return visit((BinaryTemporalOperator) overlappedBy, extraData);
     }
 
+    @Override
     public Object visit(TContains contains, Object extraData) {
         return visit((BinaryTemporalOperator) contains, extraData);
     }
 
+    @Override
     public Object visit(TEquals equals, Object extraData) {
         return visit((BinaryTemporalOperator) equals, extraData);
     }
 
+    @Override
     public Object visit(TOverlaps contains, Object extraData) {
         return visit((BinaryTemporalOperator) contains, extraData);
     }
@@ -827,7 +867,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
 
         final Set<String> fids = new HashSet<>();
 
-        org.opengis.filter.Filter filter;
+        org.geotools.api.filter.Filter filter;
 
         public Data() {
             this(Filter.EXCLUDE);
@@ -837,6 +877,7 @@ public class FilterCompliancePreProcessor implements FilterVisitor {
             filter = f;
         }
 
+        @Override
         public String toString() {
             return filter + ":" + fids;
         }

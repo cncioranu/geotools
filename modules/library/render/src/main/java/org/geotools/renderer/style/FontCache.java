@@ -107,14 +107,44 @@ public class FontCache {
     /** Tries to load the specified font name as a URL. Does not cache the result. */
     public static java.awt.Font loadFromUrl(String fontUrl) {
         // may be its a file or url
-        InputStream is = null;
+        try (InputStream is = getInputStream(fontUrl)) {
+            // make sure we have anything to load
+            if (is == null) {
+                if (LOGGER.isLoggable(Level.INFO)) {
+                    LOGGER.info("null input stream, could not load the font");
+                }
 
+                return null;
+            }
+
+            if (LOGGER.isLoggable(Level.FINEST)) {
+                LOGGER.finest("about to load");
+            }
+
+            return java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, is);
+        } catch (FontFormatException ffe) {
+            if (LOGGER.isLoggable(Level.INFO)) {
+                LOGGER.info("Font format error in FontCache " + fontUrl + "\n" + ffe);
+            }
+
+            return null;
+        } catch (IOException ioe) {
+            // we'll ignore this for the moment
+            if (LOGGER.isLoggable(Level.INFO)) {
+                LOGGER.info("IO error in FontCache " + fontUrl + "\n" + ioe);
+            }
+
+            return null;
+        }
+    }
+
+    private static InputStream getInputStream(String fontUrl) {
         if (fontUrl.startsWith("http")
                 || fontUrl.startsWith("file:")
                 || fontUrl.startsWith("jar:")) {
             try {
                 URL url = new URL(fontUrl);
-                is = url.openStream();
+                return url.openStream();
             } catch (MalformedURLException mue) {
                 // this may be ok - but we should mention it
                 if (LOGGER.isLoggable(Level.INFO)) {
@@ -135,7 +165,7 @@ public class FontCache {
 
             if (file.exists()) {
                 try {
-                    is = new FileInputStream(file);
+                    return new FileInputStream(file);
                 } catch (FileNotFoundException fne) {
                     // this may be ok - but we should mention it
                     if (LOGGER.isLoggable(Level.INFO)) {
@@ -144,44 +174,7 @@ public class FontCache {
                 }
             }
         }
-
-        // make sure we have anything to load
-        if (is == null) {
-            if (LOGGER.isLoggable(Level.INFO)) {
-                LOGGER.info("null input stream, could not load the font");
-            }
-
-            return null;
-        }
-
-        if (LOGGER.isLoggable(Level.FINEST)) {
-            LOGGER.finest("about to load");
-        }
-
-        try {
-            return java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, is);
-        } catch (FontFormatException ffe) {
-            if (LOGGER.isLoggable(Level.INFO)) {
-                LOGGER.info("Font format error in FontCache " + fontUrl + "\n" + ffe);
-            }
-
-            return null;
-        } catch (IOException ioe) {
-            // we'll ignore this for the moment
-            if (LOGGER.isLoggable(Level.INFO)) {
-                LOGGER.info("IO error in FontCache " + fontUrl + "\n" + ioe);
-            }
-
-            return null;
-        } finally {
-            if (is != null) {
-                try {
-                    is.close();
-                } catch (IOException e) {
-                    LOGGER.info("IO error in FontCache" + fontUrl + "\n" + e);
-                }
-            }
-        }
+        return null;
     }
 
     /**
@@ -211,9 +204,9 @@ public class FontCache {
     /** Lazily loads up the system fonts cache */
     private Set<String> getSystemFonts() {
         // make sure we load the known font families once.
-        if (systemFonts.size() == 0) {
+        if (systemFonts.isEmpty()) {
             synchronized (systemFonts) {
-                if (systemFonts.size() == 0) {
+                if (systemFonts.isEmpty()) {
                     GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
                     Set<String> fontset = new HashSet<>();
 
@@ -262,9 +255,7 @@ public class FontCache {
         List<String> result = alternatives.get(name);
         if (result == null) {
             result =
-                    FontCache.getDefaultInstance()
-                            .getAvailableFonts()
-                            .stream()
+                    FontCache.getDefaultInstance().getAvailableFonts().stream()
                             .filter(f -> f.startsWith(name))
                             .filter(
                                     f -> { // leave out alterations, use base fonts

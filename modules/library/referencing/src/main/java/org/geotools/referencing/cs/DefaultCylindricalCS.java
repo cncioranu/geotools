@@ -20,9 +20,9 @@
 package org.geotools.referencing.cs;
 
 import java.util.Map;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.CylindricalCS;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.CylindricalCS;
 
 /**
  * A three-dimensional coordinate system consisting of a {@linkplain DefaultPolarCS polar coordinate
@@ -69,7 +69,7 @@ public class DefaultCylindricalCS extends AbstractCS implements CylindricalCS {
             final CoordinateSystemAxis axis0,
             final CoordinateSystemAxis axis1,
             final CoordinateSystemAxis axis2) {
-        super(name, new CoordinateSystemAxis[] {axis0, axis1, axis2});
+        super(name, axis0, axis1, axis2);
     }
 
     /**
@@ -87,7 +87,7 @@ public class DefaultCylindricalCS extends AbstractCS implements CylindricalCS {
             final CoordinateSystemAxis axis0,
             final CoordinateSystemAxis axis1,
             final CoordinateSystemAxis axis2) {
-        super(properties, new CoordinateSystemAxis[] {axis0, axis1, axis2});
+        super(properties, axis0, axis1, axis2);
     }
 
     /**

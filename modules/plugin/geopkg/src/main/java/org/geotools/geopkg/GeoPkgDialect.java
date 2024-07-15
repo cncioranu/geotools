@@ -24,22 +24,33 @@ import static org.geotools.geopkg.GeoPackage.SPATIAL_REF_SYS;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.logging.Level;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.feature.FeatureTypes;
 import org.geotools.filter.FilterAttributeExtractor;
 import org.geotools.filter.visitor.ExtractBoundsFilterVisitor;
@@ -68,16 +79,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * The GeoPackage SQL Dialect.
@@ -137,16 +138,13 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
         Statement st = cx.createStatement();
 
         try {
-            ResultSet rs =
+            try (ResultSet rs =
                     st.executeQuery(
                             String.format(
                                     "SELECT * FROM gpkg_contents WHERE"
                                             + " table_name = '%s' AND data_type = '%s'",
-                                    tableName, DataType.Feature.value()));
-            try {
+                                    tableName, DataType.Feature.value()))) {
                 return rs.next();
-            } finally {
-                rs.close();
             }
         } finally {
             dataStore.closeSafe(st);
@@ -271,6 +269,9 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
         // but will allow GeoTools to handle some usual java.sql.Types
         // not mapped to raw SQL types by org.sqlite.jdbc3.JDBC3DatabaseMetaData.getTypeInfo()
 
+        // Strings
+        overrides.put(Types.CLOB, "TEXT");
+
         // Numbers
         overrides.put(Types.BOOLEAN, "BOOLEAN");
         overrides.put(Types.TINYINT, "TINYINT");
@@ -283,8 +284,9 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
 
         // Temporal
         overrides.put(Types.DATE, "DATE");
-        overrides.put(Types.TIME, "TIME");
-        overrides.put(Types.TIMESTAMP, "TIMESTAMP");
+        // NOTE: geopkg doesn't actually support TIME (cf geopkg spec, table 1)
+        overrides.put(Types.TIME, "DATETIME");
+        overrides.put(Types.TIMESTAMP, "DATETIME");
     }
 
     @Override
@@ -429,14 +431,8 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
             if (DefaultEngineeringCRS.GENERIC_2D == crs) {
                 fe.setSrid(GeoPackage.GENERIC_PROJECTED_SRID);
             } else {
-                try {
-                    Integer epsgCode = CRS.lookupEpsgCode(crs, true);
-                    if (epsgCode != null) {
-                        fe.setSrid(epsgCode);
-                    }
-                } catch (FactoryException e) {
-                    LOGGER.log(Level.WARNING, "Error looking up epsg code for " + crs, e);
-                }
+                int srid = getSRIDFromDescriptor(cx, featureType.getGeometryDescriptor());
+                if (srid > 0) fe.setSrid(srid);
             }
         }
 
@@ -511,6 +507,19 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
         }
     }
 
+    private static int getSRIDFromDescriptor(Connection cx, GeometryDescriptor gd) {
+        // lookup or reverse engineer the srid
+        CoordinateReferenceSystem crs = gd.getCoordinateReferenceSystem();
+        if (gd.getUserData().get(JDBCDataStore.JDBC_NATIVE_SRID) != null)
+            return (Integer) gd.getUserData().get(JDBCDataStore.JDBC_NATIVE_SRID);
+
+        if (crs != null) {
+            return GeoPackage.findSRID(cx, crs);
+        }
+
+        return -1;
+    }
+
     @Override
     public void postDropTable(String schemaName, SimpleFeatureType featureType, Connection cx)
             throws SQLException {
@@ -532,6 +541,7 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
         }
     }
 
+    @Override
     public Integer getGeometrySRID(
             String schemaName, String tableName, String columnName, Connection cx)
             throws SQLException {
@@ -559,16 +569,17 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
         }
     }
 
+    @Override
     public CoordinateReferenceSystem createCRS(int srid, Connection cx) throws SQLException {
         try {
-            return GeoPackage.decodeSRID(srid);
+            return GeoPackage.decodeCRS(cx, srid);
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Unable to create CRS from epsg code " + srid, e);
 
             // try looking up in spatial ref sys
             String sql =
                     String.format(
-                            "SELECT definition FROM %s WHERE auth_srid = %d",
+                            "SELECT definition FROM %s WHERE organization_coordsys_id = %d",
                             SPATIAL_REF_SYS, srid);
             LOGGER.fine(sql);
 
@@ -657,10 +668,17 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
 
     @Override
     public void setValue(
-            Object value, Class binding, PreparedStatement ps, int column, Connection cx)
+            Object value,
+            Class<?> binding,
+            AttributeDescriptor att,
+            PreparedStatement ps,
+            int column,
+            Connection cx)
             throws SQLException {
-        // get the sql type
-        Integer sqlType = dataStore.getMapping(binding);
+        // get the sql type: sqlite's metadata currently seems wrong (contains sqlType INTEGER for
+        // TINYINT, SMALLINT columns) which breaks mapping. So do not rely on attributDescriptor
+        // native type here, but on the GT registered binding
+        Integer sqlType = dataStore.getMapping(binding, null);
 
         // handle null case
         if (value == null) {
@@ -670,18 +688,22 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
 
         switch (sqlType) {
             case Types.DATE:
-                ps.setString(column, ((Date) value).toString());
+                ps.setString(column, value.toString());
                 break;
             case Types.TIME:
-                ps.setString(column, ((Time) value).toString());
+                var time = value.toString();
+                ps.setString(column, time);
                 break;
             case Types.TIMESTAMP:
-                // 2020-02-19 23:00:00.0  --> 2020-02-19 23:00:00.0Z
+                // 2020-02-19 23:00:00.0  --> 2020-02-19T23:00:00.0Z
                 // We need the "Z" or sql lite will interpret the value as local time
-                ps.setString(column, ((Timestamp) value).toString() + "Z");
+                // geopkg - format will be ISO-8601 - YYYY-MM-DDTHH:MM[:SS.SSS]Z
+                var v = ((Timestamp) value).toInstant().toString();
+                ps.setString(column, v);
                 break;
             default:
-                super.setValue(value, binding, ps, column, cx);
+                // null: see comment regarding native type above
+                super.setValue(value, binding, null, ps, column, cx);
         }
     }
 
@@ -834,7 +856,7 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
                                 envelope.getMaxX(),
                                 envelope.getMaxY(),
                                 null);
-                split[0] = ff.and(split[0], bbox);
+                split[0] = Filter.INCLUDE.equals(split[0]) ? bbox : ff.and(split[0], bbox);
 
                 return split;
             }
@@ -861,7 +883,7 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
             }
             // check if geometris
             if (ad instanceof GeometryDescriptor) {
-                if (geometryAttribute != null) {
+                if (geometryAttribute != null && !geometryAttribute.equals(ad)) {
                     // two different attributes found
                     return null;
                 }
@@ -982,6 +1004,41 @@ public class GeoPkgDialect extends PreparedStatementSQLDialect {
                     ad.getType().getBinding().getComponentType(),
                     (EnumMapper) ad.getUserData().get(GPKG_ARRAY_ENUM_MAP));
         }
+        if (ad.getType().getBinding() == Timestamp.class) {
+            if (value == null) {
+                return null;
+            }
+            // geopkg - format will be ISO-8601 - YYYY-MM-DDTHH:MM[:SS.SSS]Z
+            var strValue = (String) value;
+            // this is for support with "bad" geopkgs
+            if (!strValue.endsWith("Z")) {
+                strValue += "Z";
+            }
+            try {
+                Instant instant = Instant.parse(strValue);
+                Timestamp timestamp = Timestamp.from(instant);
+                return timestamp; // this will be in local time
+            } catch (Exception e) {
+                // could be an old GT datetime i.e. '2024-02-27 00:13:00.0Z'
+                try {
+                    var dateFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss");
+                    dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                    java.util.Date date = dateFormat.parse(strValue);
+                    Instant dateInstant = date.toInstant();
+                    Timestamp timestamp = Timestamp.from(dateInstant);
+                    return timestamp;
+                } catch (ParseException ex) {
+                    // couldnt parse - fallback to standard GT converters
+                    return super.convertValue(value, ad);
+                }
+            }
+        }
+
         return super.convertValue(value, ad);
+    }
+
+    @Override
+    public boolean canGroupOnGeometry() {
+        return true;
     }
 }

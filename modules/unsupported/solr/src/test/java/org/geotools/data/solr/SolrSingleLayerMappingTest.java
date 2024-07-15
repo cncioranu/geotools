@@ -19,14 +19,14 @@ package org.geotools.data.solr;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
 
 public class SolrSingleLayerMappingTest extends SolrTestSupport {
 
@@ -68,12 +68,13 @@ public class SolrSingleLayerMappingTest extends SolrTestSupport {
         assertEquals(13, featureSource.getCount(Query.ALL));
 
         SimpleFeatureCollection features = featureSource.getFeatures(Query.ALL);
-        SimpleFeatureIterator it = features.features();
-        while (it.hasNext()) {
-            SimpleFeature f = it.next();
-            assertTrue(f.getAttribute("geo") instanceof Geometry);
-            assertTrue(f.getAttribute("geo2") instanceof Geometry);
-            assertTrue(f.getAttribute("geo3") instanceof Geometry);
+        try (SimpleFeatureIterator it = features.features()) {
+            while (it.hasNext()) {
+                SimpleFeature f = it.next();
+                assertTrue(f.getAttribute("geo") instanceof Geometry);
+                assertTrue(f.getAttribute("geo2") instanceof Geometry);
+                assertTrue(f.getAttribute("geo3") instanceof Geometry);
+            }
         }
     }
 

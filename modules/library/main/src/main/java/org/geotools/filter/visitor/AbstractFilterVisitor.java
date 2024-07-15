@@ -16,56 +16,55 @@
  */
 package org.geotools.filter.visitor;
 
-import java.util.Iterator;
-import org.opengis.filter.And;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.BinaryLogicOperator;
-import org.opengis.filter.ExcludeFilter;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.Id;
-import org.opengis.filter.IncludeFilter;
-import org.opengis.filter.NativeFilter;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNil;
-import org.opengis.filter.PropertyIsNotEqualTo;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.BinarySpatialOperator;
-import org.opengis.filter.spatial.Contains;
-import org.opengis.filter.spatial.Crosses;
-import org.opengis.filter.spatial.DWithin;
-import org.opengis.filter.spatial.Disjoint;
-import org.opengis.filter.spatial.Equals;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.filter.spatial.Overlaps;
-import org.opengis.filter.spatial.Touches;
-import org.opengis.filter.spatial.Within;
-import org.opengis.filter.temporal.After;
-import org.opengis.filter.temporal.AnyInteracts;
-import org.opengis.filter.temporal.Before;
-import org.opengis.filter.temporal.Begins;
-import org.opengis.filter.temporal.BegunBy;
-import org.opengis.filter.temporal.BinaryTemporalOperator;
-import org.opengis.filter.temporal.During;
-import org.opengis.filter.temporal.EndedBy;
-import org.opengis.filter.temporal.Ends;
-import org.opengis.filter.temporal.Meets;
-import org.opengis.filter.temporal.MetBy;
-import org.opengis.filter.temporal.OverlappedBy;
-import org.opengis.filter.temporal.TContains;
-import org.opengis.filter.temporal.TEquals;
-import org.opengis.filter.temporal.TOverlaps;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.BinaryLogicOperator;
+import org.geotools.api.filter.ExcludeFilter;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.IncludeFilter;
+import org.geotools.api.filter.NativeFilter;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsGreaterThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNil;
+import org.geotools.api.filter.PropertyIsNotEqualTo;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
+import org.geotools.api.filter.spatial.Contains;
+import org.geotools.api.filter.spatial.Crosses;
+import org.geotools.api.filter.spatial.DWithin;
+import org.geotools.api.filter.spatial.Disjoint;
+import org.geotools.api.filter.spatial.Equals;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.filter.spatial.Overlaps;
+import org.geotools.api.filter.spatial.Touches;
+import org.geotools.api.filter.spatial.Within;
+import org.geotools.api.filter.temporal.After;
+import org.geotools.api.filter.temporal.AnyInteracts;
+import org.geotools.api.filter.temporal.Before;
+import org.geotools.api.filter.temporal.Begins;
+import org.geotools.api.filter.temporal.BegunBy;
+import org.geotools.api.filter.temporal.BinaryTemporalOperator;
+import org.geotools.api.filter.temporal.During;
+import org.geotools.api.filter.temporal.EndedBy;
+import org.geotools.api.filter.temporal.Ends;
+import org.geotools.api.filter.temporal.Meets;
+import org.geotools.api.filter.temporal.MetBy;
+import org.geotools.api.filter.temporal.OverlappedBy;
+import org.geotools.api.filter.temporal.TContains;
+import org.geotools.api.filter.temporal.TEquals;
+import org.geotools.api.filter.temporal.TOverlaps;
 
 /**
  * Base implementation of the FilterVisitor used for inorder traversal of expressions.
@@ -102,16 +101,19 @@ public class AbstractFilterVisitor implements FilterVisitor {
     }
 
     /** Does nothing; will return provided data unmodified. */
+    @Override
     public Object visit(IncludeFilter filter, Object data) {
         return data;
     }
 
     /** Does nothing; will return provided data unmodified. */
+    @Override
     public Object visit(ExcludeFilter filter, Object data) {
         return data;
     }
 
     /** Does nothing. */
+    @Override
     public Object visitNullFilter(Object data) {
         return null;
     }
@@ -120,6 +122,7 @@ public class AbstractFilterVisitor implements FilterVisitor {
      * Visits filter.getLowerBoundary(),filter.getExpression(),filter.getUpperBoundary() if an
      * expression visitor was set.
      */
+    @Override
     public Object visit(PropertyIsBetween filter, Object data) {
         if (filter.getLowerBoundary() != null) {
             filter.getLowerBoundary().accept(expressionVisitor, data);
@@ -151,41 +154,48 @@ public class AbstractFilterVisitor implements FilterVisitor {
     /**
      * Visits filter.getExpression1(), and filter.getExpression2() if an expression visitor was set.
      */
+    @Override
     public Object visit(PropertyIsEqualTo filter, Object data) {
         return visit((BinaryComparisonOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(), and filter.getExpression2() if an expression visitor was set.
      */
+    @Override
     public Object visit(PropertyIsNotEqualTo filter, Object data) {
         return visit((BinaryComparisonOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(), and filter.getExpression2() if an expression visitor was set.
      */
+    @Override
     public Object visit(PropertyIsLessThan filter, Object data) {
         return visit((BinaryComparisonOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(), and filter.getExpression2() if an expression visitor was set.
      */
+    @Override
     public Object visit(PropertyIsLessThanOrEqualTo filter, Object data) {
         return visit((BinaryComparisonOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(), and filter.getExpression2() if an expression visitor was set.
      */
+    @Override
     public Object visit(PropertyIsGreaterThan filter, Object data) {
         return visit((BinaryComparisonOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(), and filter.getExpression2() if an expression visitor was set.
      */
+    @Override
     public Object visit(PropertyIsGreaterThanOrEqualTo filter, Object data) {
         return visit((BinaryComparisonOperator) filter, data);
     }
 
     /** does nothing */
+    @Override
     public Object visit(BBOX filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
@@ -208,65 +218,76 @@ public class AbstractFilterVisitor implements FilterVisitor {
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(Beyond filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(Contains filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(Crosses filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(Disjoint filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(DWithin filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(Equals filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(Intersects filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(Overlaps filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(Touches filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
     /**
      * Visits filter.getExpression1(),filter.getExpression2() if an expression visitor has been set.
      */
+    @Override
     public Object visit(Within filter, Object data) {
         return visit((BinarySpatialOperator) filter, data);
     }
 
     /** Visits filter.getExpression() if an expression visitor was set. */
+    @Override
     public Object visit(PropertyIsLike filter, Object data) {
         if (expressionVisitor != null) {
             if (filter.getExpression() != null) {
@@ -279,8 +300,7 @@ public class AbstractFilterVisitor implements FilterVisitor {
     /** Visits elements of filter.getChildren(). */
     protected Object visit(BinaryLogicOperator filter, Object data) {
         if (filter.getChildren() != null) {
-            for (Iterator<Filter> i = filter.getChildren().iterator(); i.hasNext(); ) {
-                Filter child = i.next();
+            for (Filter child : filter.getChildren()) {
                 child.accept(this, data);
             }
         }
@@ -288,15 +308,18 @@ public class AbstractFilterVisitor implements FilterVisitor {
     }
 
     /** Visits elements of filter.getChildren(). */
+    @Override
     public Object visit(And filter, Object data) {
         return visit((BinaryLogicOperator) filter, data);
     }
     /** Visits elements of filter.getChildren(). */
+    @Override
     public Object visit(Or filter, Object data) {
         return visit((BinaryLogicOperator) filter, data);
     }
 
     /** Visits filter.getFilter(). */
+    @Override
     public Object visit(Not filter, Object data) {
         if (filter.getFilter() != null) {
             filter.getFilter().accept(this, data);
@@ -306,6 +329,7 @@ public class AbstractFilterVisitor implements FilterVisitor {
     }
 
     /** Visits filter.getExpression() if an expression visitor was set. */
+    @Override
     public Object visit(PropertyIsNull filter, Object data) {
         if (expressionVisitor != null) {
             if (filter.getExpression() != null) {
@@ -316,6 +340,7 @@ public class AbstractFilterVisitor implements FilterVisitor {
     }
 
     /** Visits filter.getExpression() if an expression visitor was set. */
+    @Override
     public Object visit(PropertyIsNil filter, Object extraData) {
         if (expressionVisitor != null) {
             if (filter.getExpression() != null) {
@@ -326,63 +351,78 @@ public class AbstractFilterVisitor implements FilterVisitor {
     }
 
     /** Does nothing. */
+    @Override
     public Object visit(Id filter, Object data) {
         // do nothing
         return filter;
     }
 
+    @Override
     public Object visit(After after, Object extraData) {
         return visit((BinaryTemporalOperator) after, extraData);
     }
 
+    @Override
     public Object visit(AnyInteracts anyInteracts, Object extraData) {
         return visit((BinaryTemporalOperator) anyInteracts, extraData);
     }
 
+    @Override
     public Object visit(Before before, Object extraData) {
         return visit((BinaryTemporalOperator) before, extraData);
     }
 
+    @Override
     public Object visit(Begins begins, Object extraData) {
         return visit((BinaryTemporalOperator) begins, extraData);
     }
 
+    @Override
     public Object visit(BegunBy begunBy, Object extraData) {
         return visit((BinaryTemporalOperator) begunBy, extraData);
     }
 
+    @Override
     public Object visit(During during, Object extraData) {
         return visit((BinaryTemporalOperator) during, extraData);
     }
 
+    @Override
     public Object visit(EndedBy endedBy, Object extraData) {
         return visit((BinaryTemporalOperator) endedBy, extraData);
     }
 
+    @Override
     public Object visit(Ends ends, Object extraData) {
         return visit((BinaryTemporalOperator) ends, extraData);
     }
 
+    @Override
     public Object visit(Meets meets, Object extraData) {
         return visit((BinaryTemporalOperator) meets, extraData);
     }
 
+    @Override
     public Object visit(MetBy metBy, Object extraData) {
         return visit((BinaryTemporalOperator) metBy, extraData);
     }
 
+    @Override
     public Object visit(OverlappedBy overlappedBy, Object extraData) {
         return visit((BinaryTemporalOperator) overlappedBy, extraData);
     }
 
+    @Override
     public Object visit(TContains contains, Object extraData) {
         return visit((BinaryTemporalOperator) contains, extraData);
     }
 
+    @Override
     public Object visit(TEquals equals, Object extraData) {
         return visit((BinaryTemporalOperator) equals, extraData);
     }
 
+    @Override
     public Object visit(TOverlaps contains, Object extraData) {
         return visit((BinaryTemporalOperator) contains, extraData);
     }

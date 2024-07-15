@@ -64,6 +64,7 @@ public class MultiCurveTypeBinding extends AbstractComplexBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return GML.MultiCurveType;
     }
@@ -75,10 +76,12 @@ public class MultiCurveTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return MultiLineString.class;
     }
 
+    @Override
     public int getExecutionMode() {
         return BEFORE;
     }
@@ -90,6 +93,7 @@ public class MultiCurveTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         // &lt;element maxOccurs="unbounded" minOccurs="0" ref="gml:curveMember"/&gt;
         List<LineString> curves = node.getChildValues(LineString.class);
@@ -97,8 +101,7 @@ public class MultiCurveTypeBinding extends AbstractComplexBinding {
         // &lt;element minOccurs="0" ref="gml:curveMembers"/&gt;
         if (node.hasChild(MultiLineString[].class)) {
             // this is a hack but we map curve itself to multi line string
-            MultiLineString[] lines =
-                    (MultiLineString[]) node.getChildValue(MultiLineString[].class);
+            MultiLineString[] lines = node.getChildValue(MultiLineString[].class);
             for (MultiLineString mline : lines) {
                 if (mline.getNumGeometries() == 1) {
                     curves.add((LineString) mline.getGeometryN(0));
@@ -110,10 +113,10 @@ public class MultiCurveTypeBinding extends AbstractComplexBinding {
             }
         }
 
-        return gf.createMultiLineString(
-                (LineString[]) curves.toArray(new LineString[curves.size()]));
+        return gf.createMultiLineString(curves.toArray(new LineString[curves.size()]));
     }
 
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         if ("curveMember".equals(name.getLocalPart())) {
             MultiLineString multiCurve = (MultiLineString) object;

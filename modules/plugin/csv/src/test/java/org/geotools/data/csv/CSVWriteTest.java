@@ -28,20 +28,24 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.geotools.TestData;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFinder;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFinder;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.FileDataStore;
+import org.geotools.api.data.FileDataStoreFinder;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.FileDataStore;
-import org.geotools.data.FileDataStoreFinder;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
@@ -52,10 +56,6 @@ import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
 
 /**
  * Informal test used to document expected functionality for workshop.
@@ -95,10 +95,10 @@ public class CSVWriteTest {
 
     @After
     public void removeTemporaryLocations() throws IOException {
-        File list[] = tmp.listFiles();
+        File[] list = tmp.listFiles();
         if (list != null) {
-            for (int i = 0; i < list.length; i++) {
-                list[i].delete();
+            for (File file : list) {
+                file.delete();
             }
         }
         tmp.delete();
@@ -106,10 +106,10 @@ public class CSVWriteTest {
 
     // Make sure any temp files were cleaned up.
     public boolean cleanedup() {
-        File list[] = tmp.listFiles((dir, name) -> name.endsWith(".csv"));
+        File[] list = tmp.listFiles((dir, name) -> name.endsWith(".csv"));
         if (list != null) {
-            for (int i = 0; i < list.length; i++) {
-                if (list[i].getName().equalsIgnoreCase("locations.csv")) {
+            for (File file : list) {
+                if (file.getName().equalsIgnoreCase("locations.csv")) {
                     continue;
                 }
                 return false;
@@ -233,6 +233,7 @@ public class CSVWriteTest {
     }
 
     @Test
+    @SuppressWarnings("PMD.UseTryWithResources") // need transaction in catch for rollback
     public void removeAllExample() throws Exception {
         Map<String, Serializable> params = new HashMap<>();
         params.put("file", statesfile);
@@ -240,16 +241,13 @@ public class CSVWriteTest {
 
         Transaction t = new DefaultTransaction("locations");
         try {
-            FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
-                    store.getFeatureWriter("locations", Filter.INCLUDE, t);
 
-            try {
+            try (FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                    store.getFeatureWriter("locations", Filter.INCLUDE, t)) {
                 while (writer.hasNext()) {
                     writer.next();
                     writer.remove(); // marking contents for removal
                 }
-            } finally {
-                writer.close();
             }
 
             // Test the contents have been removed
@@ -278,13 +276,12 @@ public class CSVWriteTest {
         DataStore store = DataStoreFinder.getDataStore(params);
 
         final SimpleFeatureType type = store.getSchema("locations");
-        SimpleFeature f;
         DefaultFeatureCollection collection = new DefaultFeatureCollection();
 
         // 45.52, -122.681944, Portland, 800, 2014
         GeometryFactory gf = JTSFactoryFinder.getGeometryFactory();
         Point portland = gf.createPoint(new Coordinate(45.52, -122.681944));
-        f =
+        SimpleFeature f =
                 SimpleFeatureBuilder.build(
                         type, new Object[] {portland, "Portland", 800, 2014}, "locations.1");
         collection.add(f);
@@ -340,15 +337,12 @@ public class CSVWriteTest {
         DataStore duplicate = factory.createNewDataStore(params2);
         duplicate.createSchema(featureType);
 
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader;
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer;
         SimpleFeature feature, newFeature;
-
         Query query = new Query(featureType.getTypeName(), Filter.INCLUDE);
-        reader = store.getFeatureReader(query, Transaction.AUTO_COMMIT);
-
-        writer = duplicate.getFeatureWriterAppend("duplicate", Transaction.AUTO_COMMIT);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader =
+                        store.getFeatureReader(query, Transaction.AUTO_COMMIT);
+                FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                        duplicate.getFeatureWriterAppend("duplicate", Transaction.AUTO_COMMIT)) {
             while (reader.hasNext()) {
                 feature = reader.next();
                 newFeature = writer.next();
@@ -356,9 +350,6 @@ public class CSVWriteTest {
                 newFeature.setAttributes(feature.getAttributes());
                 writer.write();
             }
-        } finally {
-            reader.close();
-            writer.close();
         }
         assertTrue("Temp files being left behind", cleanedup());
         // Test that content was appended
@@ -398,16 +389,12 @@ public class CSVWriteTest {
 
         duplicate.createSchema(featureType);
 
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader;
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer;
         SimpleFeature feature, newFeature;
 
-        reader = store.getFeatureReader();
-
-        writer =
-                duplicate.getFeatureWriterAppend(
-                        duplicate.getTypeNames()[0], Transaction.AUTO_COMMIT);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader = store.getFeatureReader();
+                FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                        duplicate.getFeatureWriterAppend(
+                                duplicate.getTypeNames()[0], Transaction.AUTO_COMMIT)) {
             while (reader.hasNext()) {
                 feature = reader.next();
                 newFeature = writer.next();
@@ -415,9 +402,6 @@ public class CSVWriteTest {
                 newFeature.setAttributes(feature.getAttributes());
                 writer.write();
             }
-        } finally {
-            reader.close();
-            writer.close();
         }
         assertTrue("Temp files being left behind", cleanedup());
         String contents = getFileContents(file2);
@@ -444,13 +428,12 @@ public class CSVWriteTest {
 
         final SimpleFeatureType type = store.getSchema("locations");
 
-        SimpleFeature f;
         DefaultFeatureCollection collection = new DefaultFeatureCollection();
 
         // 45.52, -122.681944, Portland, 800, 2014
         GeometryFactory gf = JTSFactoryFinder.getGeometryFactory();
         Point portland = gf.createPoint(new Coordinate(45.52, -122.681944));
-        f =
+        SimpleFeature f =
                 SimpleFeatureBuilder.build(
                         type, new Object[] {portland, "Portland", 800, 2014}, "locations.1");
         collection.add(f);
@@ -467,16 +450,13 @@ public class CSVWriteTest {
 
         duplicate.createSchema(featureType);
 
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader;
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer;
         SimpleFeature feature, newFeature;
 
-        reader = store.getFeatureReader(new Query("locations"), Transaction.AUTO_COMMIT);
-
-        writer =
-                duplicate.getFeatureWriterAppend(
-                        duplicate.getTypeNames()[0], Transaction.AUTO_COMMIT);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader =
+                        store.getFeatureReader(new Query("locations"), Transaction.AUTO_COMMIT);
+                FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                        duplicate.getFeatureWriterAppend(
+                                duplicate.getTypeNames()[0], Transaction.AUTO_COMMIT)) {
             while (reader.hasNext()) {
                 feature = reader.next();
                 newFeature = writer.next();
@@ -484,9 +464,6 @@ public class CSVWriteTest {
                 newFeature.setAttributes(feature.getAttributes());
                 writer.write();
             }
-        } finally {
-            reader.close();
-            writer.close();
         }
         assertTrue("Temp files being left behind", cleanedup());
         String contents = getFileContents(file2);
@@ -552,16 +529,12 @@ public class CSVWriteTest {
 
         duplicate.createSchema(featureType);
 
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader;
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer;
         SimpleFeature feature, newFeature;
 
-        reader = store.getFeatureReader();
-
-        writer =
-                duplicate.getFeatureWriterAppend(
-                        duplicate.getTypeNames()[0], Transaction.AUTO_COMMIT);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader = store.getFeatureReader();
+                FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                        duplicate.getFeatureWriterAppend(
+                                duplicate.getTypeNames()[0], Transaction.AUTO_COMMIT)) {
             while (reader.hasNext()) {
                 feature = reader.next();
                 newFeature = writer.next();
@@ -569,9 +542,6 @@ public class CSVWriteTest {
                 newFeature.setAttributes(feature.getAttributes());
                 writer.write();
             }
-        } finally {
-            reader.close();
-            writer.close();
         }
         assertTrue("Temp files being left behind", cleanedup());
         String contents = getFileContents(file2);

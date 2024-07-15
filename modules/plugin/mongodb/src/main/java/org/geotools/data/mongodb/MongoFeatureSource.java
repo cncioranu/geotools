@@ -23,38 +23,34 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureReader;
 import org.geotools.data.FilteringFeatureReader;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
 import org.geotools.data.ReTypeFeatureReader;
-import org.geotools.data.mongodb.complex.JsonSelectAllFunction;
-import org.geotools.data.mongodb.complex.JsonSelectFunction;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.feature.visitor.MaxVisitor;
 import org.geotools.feature.visitor.MinVisitor;
+import org.geotools.filter.FilterCapabilities;
 import org.geotools.filter.SortByImpl;
-import org.geotools.filter.visitor.PostPreProcessFilterSplittingVisitor;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.Filter;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
 
 public class MongoFeatureSource extends ContentFeatureSource {
 
@@ -107,8 +103,7 @@ public class MongoFeatureSource extends ContentFeatureSource {
     @Override
     protected ReferencedEnvelope getBoundsInternal(Query query) throws IOException {
         // TODO: crs?
-        FeatureReader<SimpleFeatureType, SimpleFeature> r = getReader(query);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> r = getReader(query)) {
             ReferencedEnvelope e = new ReferencedEnvelope();
             if (r.hasNext()) {
                 e.init(r.next().getBounds());
@@ -117,8 +112,6 @@ public class MongoFeatureSource extends ContentFeatureSource {
                 e.include(r.next().getBounds());
             }
             return e;
-        } finally {
-            r.close();
         }
     }
 
@@ -143,6 +136,7 @@ public class MongoFeatureSource extends ContentFeatureSource {
     }
 
     @Override
+    @SuppressWarnings("PMD.CloseResource") // r is re-assigned, but also wrapped
     protected FeatureReader<SimpleFeatureType, SimpleFeature> getReaderInternal(Query query)
             throws IOException {
 
@@ -187,7 +181,7 @@ public class MongoFeatureSource extends ContentFeatureSource {
             SortBy sortBy = new SortByImpl(propertyName, SortOrder.ASCENDING);
 
             Query newQuery = new Query(query);
-            newQuery.setSortBy(new SortBy[] {sortBy});
+            newQuery.setSortBy(sortBy);
 
             // Sorting to get min only need to get one result
             newQuery.setMaxFeatures(1);
@@ -210,7 +204,7 @@ public class MongoFeatureSource extends ContentFeatureSource {
             SortBy sortBy = new SortByImpl(propertyName, SortOrder.DESCENDING);
 
             Query newQuery = new Query(query);
-            newQuery.setSortBy(new SortBy[] {sortBy});
+            newQuery.setSortBy(sortBy);
 
             // Sorting to get max only need to get one result
             newQuery.setMaxFeatures(1);
@@ -230,27 +224,27 @@ public class MongoFeatureSource extends ContentFeatureSource {
     }
 
     @Override
-    protected boolean canOffset() {
+    protected boolean canOffset(Query query) {
         return true;
     }
 
     @Override
-    protected boolean canLimit() {
+    protected boolean canLimit(Query query) {
         return true;
     }
 
     @Override
-    protected boolean canRetype() {
+    protected boolean canRetype(Query query) {
         return true;
     }
 
     @Override
-    protected boolean canSort() {
+    protected boolean canSort(Query query) {
         return true;
     }
 
     @Override
-    protected boolean canFilter() {
+    protected boolean canFilter(Query query) {
         return true;
     }
 
@@ -333,64 +327,27 @@ public class MongoFeatureSource extends ContentFeatureSource {
         return f == null || f == Filter.INCLUDE;
     }
 
-    @SuppressWarnings("deprecation")
     Filter[] splitFilter(Filter f) {
-        PostPreProcessFilterSplittingVisitor splitter =
-                new PostPreProcessFilterSplittingVisitor(
-                        getDataStore().getFilterCapabilities(), null, null) {
-
-                    @Override
-                    protected void visitBinaryComparisonOperator(BinaryComparisonOperator filter) {
-                        Expression expression1 = filter.getExpression1();
-                        Expression expression2 = filter.getExpression2();
-                        if ((expression1 instanceof JsonSelectFunction
-                                        || expression1 instanceof JsonSelectAllFunction)
-                                && expression2 instanceof Literal) {
-                            preStack.push(filter);
-                        } else if ((expression2 instanceof JsonSelectFunction
-                                        || expression2 instanceof JsonSelectAllFunction)
-                                && expression1 instanceof Literal) {
-                            preStack.push(filter);
-                        }
-                    }
-
-                    public Object visit(PropertyIsLike filter, Object notUsed) {
-                        if (original == null) original = filter;
-
-                        if (!fcs.supports(PropertyIsLike.class)) {
-                            // MongoDB can only encode like expressions using propertyName
-                            postStack.push(filter);
-                            return null;
-                        }
-                        if (!(filter.getExpression() instanceof PropertyName)) {
-                            // MongoDB can only encode like expressions using propertyName
-                            postStack.push(filter);
-                            return null;
-                        }
-
-                        int i = postStack.size();
-                        filter.getExpression().accept(this, null);
-
-                        if (i < postStack.size()) {
-                            postStack.pop();
-                            postStack.push(filter);
-
-                            return null;
-                        }
-
-                        preStack.pop(); // value
-                        preStack.push(filter);
-                        return null;
-                    }
-
-                    @Override
-                    public Object visit(PropertyIsNull filter, Object notUsed) {
-                        preStack.push(filter);
-                        return null;
-                    }
-                };
+        FilterCapabilities filterCapabilities = getDataStore().getFilterCapabilities();
+        MongoFilterSplitter splitter =
+                new MongoFilterSplitter(
+                        filterCapabilities,
+                        null,
+                        null,
+                        new MongoCollectionMeta(getIndexesInfoMap()));
         f.accept(splitter, null);
         return new Filter[] {splitter.getFilterPre(), splitter.getFilterPost()};
+    }
+
+    private Map<String, String> getIndexesInfoMap() {
+        Map<String, String> indexes = new HashMap<>();
+        for (DBObject object : collection.getIndexInfo()) {
+            BasicDBObject key = (BasicDBObject) object.get("key");
+            for (Map.Entry entry : key.entrySet()) {
+                indexes.put(entry.getKey().toString(), entry.getValue().toString());
+            }
+        }
+        return indexes;
     }
 
     @Override

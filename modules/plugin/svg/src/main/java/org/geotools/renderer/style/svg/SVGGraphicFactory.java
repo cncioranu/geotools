@@ -38,12 +38,13 @@ import java.util.stream.Collectors;
 import javax.swing.Icon;
 import org.apache.batik.anim.dom.SAXSVGDocumentFactory;
 import org.apache.batik.util.XMLResourceDescriptor;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.data.ows.URLCheckers;
 import org.geotools.renderer.style.ExternalGraphicFactory;
 import org.geotools.renderer.style.GraphicCache;
 import org.geotools.util.CanonicalSet;
 import org.geotools.util.factory.Factory;
-import org.opengis.feature.Feature;
-import org.opengis.filter.expression.Expression;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -92,6 +93,7 @@ public class SVGGraphicFactory implements Factory, ExternalGraphicFactory, Graph
         return implementationHints;
     }
 
+    @Override
     public Icon getIcon(Feature feature, Expression url, String format, int size) throws Exception {
         // check we do support the declared format
         if (format == null || !formats.contains(format.toLowerCase())) return null;
@@ -103,7 +105,6 @@ public class SVGGraphicFactory implements Factory, ExternalGraphicFactory, Graph
 
     protected RenderableSVG toRenderableSVG(String svgfile, URL svgUrl)
             throws SAXException, IOException {
-        RenderableSVG svg;
         String parser = XMLResourceDescriptor.getXMLParserClassName();
         SAXSVGDocumentFactory f = new SAXSVGDocumentFactory(parser);
         String svgUri = svgfile;
@@ -114,12 +115,17 @@ public class SVGGraphicFactory implements Factory, ExternalGraphicFactory, Graph
                 svgUri = svgfile.substring(0, idx);
             }
         }
+
+        // validate the icon can actually be fetched, it may go to a random
+        // local filesystem location, or a remote server
+        URLCheckers.confirm(svgUri);
+
         Document doc = f.createDocument(svgUri);
         Map<String, String> parameters = getParametersFromUrl(svgfile);
         if (!parameters.isEmpty() || hasParameters(doc.getDocumentElement())) {
             replaceParameters(doc.getDocumentElement(), parameters);
         }
-        svg = new RenderableSVG(doc);
+        RenderableSVG svg = new RenderableSVG(doc);
         return svg;
     }
 
@@ -266,14 +272,17 @@ public class SVGGraphicFactory implements Factory, ExternalGraphicFactory, Graph
             this.height = (int) Math.round(targetHeight);
         }
 
+        @Override
         public int getIconHeight() {
             return height;
         }
 
+        @Override
         public int getIconWidth() {
             return width;
         }
 
+        @Override
         public void paintIcon(Component c, Graphics g, int x, int y) {
             svg.paint((Graphics2D) g, width, height, x, y);
         }

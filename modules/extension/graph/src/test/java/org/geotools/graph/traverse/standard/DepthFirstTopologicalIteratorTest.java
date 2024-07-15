@@ -16,8 +16,6 @@
  */
 package org.geotools.graph.traverse.standard;
 
-import java.util.Iterator;
-import junit.framework.TestCase;
 import org.geotools.graph.GraphTestUtil;
 import org.geotools.graph.build.GraphBuilder;
 import org.geotools.graph.build.basic.BasicGraphBuilder;
@@ -27,16 +25,15 @@ import org.geotools.graph.structure.Node;
 import org.geotools.graph.traverse.GraphTraversal;
 import org.geotools.graph.traverse.basic.BasicGraphTraversal;
 import org.geotools.graph.traverse.basic.CountingWalker;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
-public class DepthFirstTopologicalIteratorTest extends TestCase {
+public class DepthFirstTopologicalIteratorTest {
     private GraphBuilder m_builder;
 
-    public DepthFirstTopologicalIteratorTest(String name) {
-        super(name);
-    }
-
-    protected void setUp() throws Exception {
-        super.setUp();
+    @Before
+    public void setUp() throws Exception {
 
         m_builder = createBuilder();
     }
@@ -46,12 +43,14 @@ public class DepthFirstTopologicalIteratorTest extends TestCase {
      * <br>
      * Expected: 1. Nodes should be visited from one end to other in order.
      */
+    @Test
     public void test_0() {
         int nnodes = 100;
         GraphTestUtil.buildNoBifurcations(builder(), nnodes);
 
         CountingWalker walker =
                 new CountingWalker() {
+                    @Override
                     public int visit(Graphable element, GraphTraversal traversal) {
                         element.setCount(getCount());
                         return super.visit(element, traversal);
@@ -63,22 +62,20 @@ public class DepthFirstTopologicalIteratorTest extends TestCase {
         traversal.init();
         traversal.traverse();
 
-        assertTrue(walker.getCount() == nnodes);
+        Assert.assertEquals(walker.getCount(), nnodes);
 
         boolean flip = false;
 
-        for (Iterator itr = builder().getGraph().getNodes().iterator(); itr.hasNext(); ) {
-            Node node = (Node) itr.next();
+        for (Node node : builder().getGraph().getNodes()) {
             if (node.getID() == 0 && node.getCount() != 0) {
                 flip = true;
                 break;
             }
         }
 
-        for (Iterator itr = builder().getGraph().getNodes().iterator(); itr.hasNext(); ) {
-            Node node = (Node) itr.next();
-            if (flip) assertTrue(node.getCount() == 100 - 1 - node.getID());
-            else assertTrue(node.getCount() == node.getID());
+        for (Node node : builder().getGraph().getNodes()) {
+            if (flip) Assert.assertEquals(node.getCount(), 100 - 1 - node.getID());
+            else Assert.assertEquals(node.getCount(), node.getID());
         }
     }
 
@@ -87,6 +84,7 @@ public class DepthFirstTopologicalIteratorTest extends TestCase {
      * <br>
      * Expected: 1. No nodes should be visited.
      */
+    @Test
     public void test_1() {
         int nnodes = 100;
         GraphTestUtil.buildCircular(builder(), nnodes);
@@ -100,15 +98,13 @@ public class DepthFirstTopologicalIteratorTest extends TestCase {
         traversal.traverse();
 
         GraphVisitor visitor =
-                new GraphVisitor() {
-                    public int visit(Graphable component) {
-                        assertTrue(!component.isVisited());
-                        return 0;
-                    }
+                component -> {
+                    Assert.assertFalse(component.isVisited());
+                    return 0;
                 };
         builder().getGraph().visitNodes(visitor);
 
-        assertTrue(walker.getCount() == 0);
+        Assert.assertEquals(0, walker.getCount());
     }
 
     protected GraphBuilder createBuilder() {

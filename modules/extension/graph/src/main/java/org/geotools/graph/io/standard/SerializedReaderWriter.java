@@ -23,7 +23,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.Iterator;
 import org.geotools.graph.build.GraphBuilder;
 import org.geotools.graph.io.GraphReaderWriter;
 import org.geotools.graph.structure.Edge;
@@ -43,6 +42,7 @@ import org.geotools.graph.structure.Node;
  *
  * @author Justin Deoliveira, Refractions Research Inc, jdeolive@refractions.net
  */
+@SuppressWarnings("BanSerializableRead")
 public class SerializedReaderWriter extends AbstractReaderWriter implements FileReaderWriter {
 
     /**
@@ -50,6 +50,7 @@ public class SerializedReaderWriter extends AbstractReaderWriter implements File
      *
      * @see GraphReaderWriter#read()
      */
+    @Override
     public Graph read() throws Exception {
         // read builder property
         GraphBuilder builder = (GraphBuilder) getProperty(BUILDER);
@@ -75,9 +76,7 @@ public class SerializedReaderWriter extends AbstractReaderWriter implements File
             }
 
             // rebuild node collection
-            for (Iterator itr = builder.getGraph().getEdges().iterator(); itr.hasNext(); ) {
-                Edge e = (Edge) itr.next();
-
+            for (Edge e : builder.getGraph().getEdges()) {
                 if (!e.getNodeA().isVisited()) {
                     e.getNodeA().setVisited(true);
                     builder.addNode(e.getNodeA());
@@ -111,6 +110,7 @@ public class SerializedReaderWriter extends AbstractReaderWriter implements File
      *
      * @see GraphReaderWriter#write()
      */
+    @Override
     public void write(Graph graph) throws Exception {
         // create file output stream
         try (ObjectOutputStream objout =
@@ -125,14 +125,12 @@ public class SerializedReaderWriter extends AbstractReaderWriter implements File
             objout.writeInt(graph.getEdges().size());
 
             // write out edges (note: nodes do not write out adjacent edges)
-            for (Iterator itr = graph.getEdges().iterator(); itr.hasNext(); ) {
-                Edge e = (Edge) itr.next();
+            for (Edge e : graph.getEdges()) {
                 objout.writeObject(e);
             }
 
             // write out any nodes that have no adjacent edges
-            for (Iterator itr = graph.getNodesOfDegree(0).iterator(); itr.hasNext(); ) {
-                Node n = (Node) itr.next();
+            for (Node n : graph.getNodesOfDegree(0)) {
                 objout.writeObject(n);
             }
 

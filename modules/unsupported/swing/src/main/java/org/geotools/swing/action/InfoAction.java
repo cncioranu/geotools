@@ -18,7 +18,6 @@
 package org.geotools.swing.action;
 
 /** @author Michael Bedward */
-
 import java.awt.event.ActionEvent;
 import org.geotools.swing.MapPane;
 import org.geotools.swing.tool.InfoTool;
@@ -60,6 +59,7 @@ public class InfoAction extends MapAction {
      *
      * @param ev the event (not used)
      */
+    @Override
     public void actionPerformed(ActionEvent ev) {
         getMapPane().setCursorTool(new InfoTool());
     }

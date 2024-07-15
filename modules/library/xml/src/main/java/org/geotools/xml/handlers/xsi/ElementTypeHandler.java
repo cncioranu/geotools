@@ -70,6 +70,7 @@ public class ElementTypeHandler extends ElementGroupingHandler {
     }
 
     /** @see java.lang.Object#hashCode() */
+    @Override
     @SuppressWarnings("PMD.OverrideBothEqualsAndHashcode")
     public int hashCode() {
         return (LOCALNAME.hashCode()
@@ -80,6 +81,7 @@ public class ElementTypeHandler extends ElementGroupingHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getHandler(java.lang.String, java.lang.String) */
+    @Override
     public XSIElementHandler getHandler(String namespaceURI, String localName) throws SAXException {
         if (SchemaHandler.namespaceURI.equalsIgnoreCase(namespaceURI)) {
             // child types
@@ -145,19 +147,29 @@ public class ElementTypeHandler extends ElementGroupingHandler {
      * @see org.geotools.xml.XSIElementHandler#startElement(java.lang.String, java.lang.String,
      *     org.xml.sax.Attributes)
      */
+    @Override
     public void startElement(String namespaceURI, String localName, Attributes atts)
             throws SAXException {
         // abstract
-        String abstracT1 = atts.getValue("", "abstracT");
+        String abstracT1 = atts.getValue("", "abstract");
 
         if (abstracT1 == null) {
-            abstracT1 = atts.getValue(namespaceURI, "abstracT");
+            abstracT1 = atts.getValue(namespaceURI, "abstract");
         }
 
         if ((abstracT1 == null) || "".equalsIgnoreCase(abstracT1)) {
             this.abstracT = false;
         } else {
-            this.abstracT = Boolean.getBoolean(abstracT1);
+            if ("true".equals(abstracT1)) {
+                this.abstracT = true;
+            } else if ("false".equals(abstracT1)) {
+                this.abstracT = false;
+            } else {
+                throw new SAXException(
+                        String.format(
+                                "Schema element declaration supports 'abstract' \"true\" or \"false\" only (abstract=\"%s\")",
+                                abstracT1));
+            }
         }
 
         // block
@@ -255,7 +267,7 @@ public class ElementTypeHandler extends ElementGroupingHandler {
         if ((nillable1 == null) || "".equalsIgnoreCase(nillable1)) {
             this.nillable = false;
         } else {
-            this.nillable = Boolean.valueOf(nillable1).booleanValue();
+            this.nillable = Boolean.parseBoolean(nillable1);
         }
 
         // ref
@@ -299,6 +311,7 @@ public class ElementTypeHandler extends ElementGroupingHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getLocalName() */
+    @Override
     public String getLocalName() {
         return LOCALNAME;
     }
@@ -312,6 +325,7 @@ public class ElementTypeHandler extends ElementGroupingHandler {
      * @see
      *     org.geotools.xml.XSIHandlers.ElementGroupingHandler#compress(org.geotools.xml.XSIHandlers.SchemaHandler)
      */
+    @Override
     protected ElementGrouping compress(SchemaHandler parent) throws SAXException {
 
         synchronized (this) {
@@ -384,11 +398,13 @@ public class ElementTypeHandler extends ElementGroupingHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getHandlerType() */
+    @Override
     public int getHandlerType() {
         return DEFAULT;
     }
 
     /** @see org.geotools.xml.XSIElementHandler#endElement(java.lang.String, java.lang.String) */
+    @Override
     public void endElement(String namespaceURI, String localName) {
         // do nothing
     }
@@ -415,6 +431,7 @@ public class ElementTypeHandler extends ElementGroupingHandler {
         Type type;
 
         /** @see org.geotools.xml.xsi.ElementGrouping#findChildElement(java.lang.String) */
+        @Override
         public Element findChildElement(String name1) {
             if (this.name != null) {
                 if (this.name.equalsIgnoreCase(name1)) {
@@ -426,79 +443,95 @@ public class ElementTypeHandler extends ElementGroupingHandler {
         }
 
         /** @see org.geotools.xml.xsi.Element#isAbstract() */
+        @Override
         public boolean isAbstract() {
             return abstracT;
         }
 
         /** @see org.geotools.xml.xsi.Element#getBlock() */
+        @Override
         public int getBlock() {
             return block;
         }
 
         /** @see org.geotools.xml.xsi.Element#getDefault() */
+        @Override
         public String getDefault() {
             return defaulT;
         }
 
         /** @see org.geotools.xml.xsi.Element#getFinal() */
+        @Override
         public int getFinal() {
             return finaL;
         }
 
         /** @see org.geotools.xml.xsi.Element#getFixed() */
+        @Override
         public String getFixed() {
             return fixed;
         }
 
         /** @see org.geotools.xml.xsi.Element#isForm() */
+        @Override
         public boolean isForm() {
             return form;
         }
 
         /** @see org.geotools.xml.xsi.ElementGrouping#getMaxOccurs() */
+        @Override
         public int getMaxOccurs() {
             return maxOccurs;
         }
 
         /** @see org.geotools.xml.xsi.ElementGrouping#getMinOccurs() */
+        @Override
         public int getMinOccurs() {
             return minOccurs;
         }
 
         /** @see org.geotools.xml.xsi.Element#getLocalName() */
+        @Override
         public String getName() {
             return name;
         }
 
         /** @see org.geotools.xml.xsi.Element#isNillable() */
+        @Override
         public boolean isNillable() {
             return nillable;
         }
 
         /** @see org.geotools.xml.xsi.Element#getSubstitutionGroup() */
+        @Override
         public Element getSubstitutionGroup() {
             return substitutionGroup;
         }
 
         /** @see org.geotools.xml.xsi.Element#getBinding() */
+        @Override
         public Type getType() {
             return type;
         }
 
+        @Override
         public int getGrouping() {
             return ELEMENT;
         }
 
         /** @see org.geotools.xml.xsi.Element#getId() */
+        @Override
         public String getId() {
             return id;
         }
 
         /** @see org.geotools.xml.schema.Element#getNamespace() */
+        @Override
         public URI getNamespace() {
             return namespace;
         }
 
+        @Override
         public Element findChildElement(String localName, URI namespaceURI) {
             if (this.name != null) {
                 if (this.name.equalsIgnoreCase(localName) && getNamespace().equals(namespaceURI)) {

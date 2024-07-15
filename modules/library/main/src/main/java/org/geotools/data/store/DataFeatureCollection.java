@@ -26,9 +26,14 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
 import org.geotools.data.collection.DelegateFeatureReader;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
@@ -40,11 +45,6 @@ import org.geotools.feature.FeatureReaderIterator;
 import org.geotools.feature.collection.DelegateSimpleFeatureIterator;
 import org.geotools.feature.collection.SubFeatureCollection;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.sort.SortBy;
 
 /**
  * A starting point for implementing FeatureCollection's backed onto a FeatureReader.
@@ -91,8 +91,8 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
     protected void fireChange(SimpleFeature[] features, int type) {
         CollectionEvent cEvent = new CollectionEvent(this, features, type);
 
-        for (int i = 0, ii = listeners.size(); i < ii; i++) {
-            ((CollectionListener) listeners.get(i)).collectionChanged(cEvent);
+        for (CollectionListener listener : listeners) {
+            listener.collectionChanged(cEvent);
         }
     }
 
@@ -116,6 +116,7 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
     // To be implemented by subclass
     //
 
+    @Override
     public abstract ReferencedEnvelope getBounds();
 
     public abstract int getCount() throws IOException;;
@@ -163,6 +164,7 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
      *
      * <p>So when we implement FeatureCollection.iterator() this will work out of the box.
      */
+    @Override
     public SimpleFeatureIterator features() {
         SimpleFeatureIterator iterator = new DelegateSimpleFeatureIterator(iterator());
         open.add(iterator);
@@ -235,6 +237,7 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
     }
 
     /** Default implementation based on getCount() - this may be expensive */
+    @Override
     public int size() {
         try {
             return getCount();
@@ -274,10 +277,9 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
      * <p>For once the Collections API does not give us an escape route, we *have* to check the
      * data.
      */
+    @Override
     public boolean isEmpty() {
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader = null;
-        try {
-            reader = reader();
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader = reader()) {
             try {
                 return !reader.hasNext();
             } catch (IOException e) {
@@ -285,25 +287,16 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
             }
         } catch (IOException e) {
             return true;
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    // return value already set
-                }
-            }
         }
     }
 
+    @Override
     public boolean contains(Object o) {
         if (!(o instanceof SimpleFeature)) return false;
         SimpleFeature value = (SimpleFeature) o;
         String ID = value.getID();
 
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader = null;
-        try {
-            reader = reader();
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader = reader()) {
             try {
                 while (reader.hasNext()) {
                     SimpleFeature feature = reader.next();
@@ -313,30 +306,20 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
                     if (value.equals(feature)) return true;
                 }
                 return false; // not found
-            } catch (IOException e) {
-                return false; // error seems like no features are available
-            } catch (NoSuchElementException e) {
-                return false; // error seems like no features are available
-            } catch (IllegalAttributeException e) {
+            } catch (IOException | IllegalAttributeException | NoSuchElementException e) {
                 return false; // error seems like no features are available
             }
         } catch (IOException e) {
             return false;
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    // return value already set
-                }
-            }
         }
     }
 
+    @Override
     public Object[] toArray() {
         return toArray(new SimpleFeature[size()]);
     }
 
+    @Override
     public <T> T[] toArray(T[] array) {
         List<T> list = new ArrayList<>();
         Iterator<SimpleFeature> i = iterator();
@@ -360,6 +343,7 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
         return false;
     }
 
+    @Override
     public boolean containsAll(Collection<?> collection) {
         for (Object o : collection) {
             if (contains(o) == false) return false;
@@ -419,8 +403,10 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
 
     public void clear() {}
 
+    @Override
     public void accepts(
-            org.opengis.feature.FeatureVisitor visitor, org.opengis.util.ProgressListener progress)
+            org.geotools.api.feature.FeatureVisitor visitor,
+            org.geotools.api.util.ProgressListener progress)
             throws IOException {
         DataUtilities.visit(this, visitor, progress);
     }
@@ -439,6 +425,7 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
      * @param filter Filter used to determine sub collection.
      * @since GeoTools 2.2, Filter 1.1
      */
+    @Override
     public SimpleFeatureCollection subCollection(Filter filter) {
         if (filter == Filter.INCLUDE) {
             return this;
@@ -456,10 +443,12 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
      * @since GeoTools 2.2, Filter 1.1
      * @return FeatureList sorted according to provided order
      */
+    @Override
     public SimpleFeatureCollection sort(SortBy order) {
         return null; // new OrderedFeatureList( this, order );
     }
 
+    @Override
     public String getID() {
         return id;
     }
@@ -472,6 +461,7 @@ public abstract class DataFeatureCollection implements SimpleFeatureCollection {
         listeners.remove(listener);
     }
 
+    @Override
     public SimpleFeatureType getSchema() {
         return schema;
     }

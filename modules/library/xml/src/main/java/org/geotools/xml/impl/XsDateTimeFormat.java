@@ -93,10 +93,12 @@ public class XsDateTimeFormat extends Format {
         return result;
     }
 
+    @Override
     public Object parseObject(String pString, ParsePosition pParsePosition) {
         return parseObject(pString, pParsePosition, false);
     }
 
+    @SuppressWarnings("PMD.CognitiveComplexity")
     public Object parseObject(String pString, ParsePosition pParsePosition, boolean lenient) {
         if (pString == null) {
             throw new NullPointerException("The String argument must not be null.");
@@ -372,6 +374,7 @@ public class XsDateTimeFormat extends Format {
         pBuffer.append(s);
     }
 
+    @Override
     public StringBuffer format(Object pCalendar, StringBuffer pBuffer, FieldPosition pPos) {
         if (pCalendar == null) {
             throw new NullPointerException("The Calendar argument must not be null.");

@@ -42,43 +42,43 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
+import org.geotools.api.style.AnchorPoint;
+import org.geotools.api.style.Displacement;
+import org.geotools.api.style.ExternalGraphic;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Fill;
+import org.geotools.api.style.Font;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.GraphicalSymbol;
+import org.geotools.api.style.Halo;
+import org.geotools.api.style.LabelPlacement;
+import org.geotools.api.style.LinePlacement;
+import org.geotools.api.style.LineSymbolizer;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.PointPlacement;
+import org.geotools.api.style.PointSymbolizer;
+import org.geotools.api.style.PolygonSymbolizer;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.Symbolizer;
+import org.geotools.api.style.TextSymbolizer;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.renderer.VendorOptionParser;
 import org.geotools.renderer.composite.BlendComposite;
 import org.geotools.renderer.composite.BlendComposite.BlendingMode;
 import org.geotools.renderer.style.RandomFillBuilder.PositionRandomizer;
-import org.geotools.styling.AnchorPoint;
-import org.geotools.styling.Displacement;
-import org.geotools.styling.ExternalGraphic;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Fill;
-import org.geotools.styling.Font;
-import org.geotools.styling.Graphic;
-import org.geotools.styling.Halo;
-import org.geotools.styling.LabelPlacement;
-import org.geotools.styling.LinePlacement;
-import org.geotools.styling.LineSymbolizer;
-import org.geotools.styling.Mark;
 import org.geotools.styling.MarkImpl;
-import org.geotools.styling.PointPlacement;
-import org.geotools.styling.PointSymbolizer;
-import org.geotools.styling.PolygonSymbolizer;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.Symbolizer;
-import org.geotools.styling.TextSymbolizer;
-import org.geotools.styling.TextSymbolizer2;
+import org.geotools.styling.PointPlacementImpl;
 import org.geotools.util.Range;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
-import org.opengis.style.GraphicalSymbol;
 
 /**
  * Factory object that converts SLD style into rendered styles.
@@ -279,10 +279,9 @@ public class SLDStyleFactory {
      * @return A rendered style equivalent to the symbolizer
      */
     public Style2D createStyle(Object drawMe, Symbolizer symbolizer, Range scaleRange) {
-        Style2D style = null;
 
         SymbolizerKey key = new SymbolizerKey(symbolizer, scaleRange);
-        style = (Style2D) staticSymbolizers.get(key);
+        Style2D style = staticSymbolizers.get(key);
 
         requests++;
 
@@ -306,7 +305,7 @@ public class SLDStyleFactory {
                 sae.visit(symbolizer);
 
                 Set nameSet = sae.getAttributeNameSet();
-                boolean noAttributes = (nameSet == null) || (nameSet.size() == 0);
+                boolean noAttributes = (nameSet == null) || (nameSet.isEmpty());
                 if (noAttributes && !sae.isUsingVolatileFunctions()) {
                     staticSymbolizers.put(key, style);
                 } else {
@@ -599,7 +598,9 @@ public class SLDStyleFactory {
         if (retval == null) {
             // vendor option to turn off fallback
             if (!voParser.getBooleanOption(
-                    symbolizer, PointSymbolizer.FALLBACK_ON_DEFAULT_MARK, true)) {
+                    symbolizer,
+                    org.geotools.api.style.PointSymbolizer.FALLBACK_ON_DEFAULT_MARK,
+                    true)) {
                 return null;
             }
 
@@ -707,9 +708,13 @@ public class SLDStyleFactory {
         // compute label position, anchor, rotation and displacement
         LabelPlacement placement = symbolizer.getLabelPlacement();
         double anchorX =
-                PointPlacement.DEFAULT_ANCHOR_POINT.getAnchorPointX().evaluate(null, Double.class);
+                PointPlacementImpl.DEFAULT_ANCHOR_POINT
+                        .getAnchorPointX()
+                        .evaluate(null, Double.class);
         double anchorY =
-                PointPlacement.DEFAULT_ANCHOR_POINT.getAnchorPointY().evaluate(null, Double.class);
+                PointPlacementImpl.DEFAULT_ANCHOR_POINT
+                        .getAnchorPointY()
+                        .evaluate(null, Double.class);
         double rotation = 0;
         double dispX = 0;
         double dispY = 0;
@@ -738,8 +743,8 @@ public class SLDStyleFactory {
             }
 
             // rotation
-            if ((symbolizer instanceof TextSymbolizer2)
-                    && (((TextSymbolizer2) symbolizer).getGraphic() != null)) {
+            if ((symbolizer instanceof TextSymbolizer)
+                    && (((TextSymbolizer) symbolizer).getGraphic() != null)) {
                 // don't rotate labels that are being placed on shields.
                 rotation = 0.0;
             } else {
@@ -779,8 +784,8 @@ public class SLDStyleFactory {
         }
 
         Graphic graphicShield = null;
-        if (symbolizer instanceof TextSymbolizer2) {
-            graphicShield = ((TextSymbolizer2) symbolizer).getGraphic();
+        if (symbolizer instanceof TextSymbolizer) {
+            graphicShield = symbolizer.getGraphic();
             if (graphicShield != null) {
                 Style2D shieldStyle =
                         createPointStyle(feature, symbolizer, graphicShield, scaleRange, true);
@@ -864,7 +869,7 @@ public class SLDStyleFactory {
         int styleCode;
 
         if (FONT_STYLE_LOOKUP.containsKey(reqStyle)) {
-            styleCode = ((Integer) FONT_STYLE_LOOKUP.get(reqStyle)).intValue();
+            styleCode = FONT_STYLE_LOOKUP.get(reqStyle).intValue();
         } else {
             styleCode = java.awt.Font.PLAIN;
         }
@@ -883,15 +888,17 @@ public class SLDStyleFactory {
         // check vendor options
         boolean kerning =
                 voParser.getBooleanOption(
-                        symbolizer, TextSymbolizer.KERNING_KEY, TextSymbolizer.DEFAULT_KERNING);
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.KERNING_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_KERNING);
         if (kerning) {
             javaFont = applyKerning(javaFont);
         }
         double spacing =
                 voParser.getDoubleOption(
                         symbolizer,
-                        TextSymbolizer.CHAR_SPACING_KEY,
-                        TextSymbolizer.DEFAULT_CHAR_SPACING);
+                        org.geotools.api.style.TextSymbolizer.CHAR_SPACING_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_CHAR_SPACING);
         if (spacing != 0) {
             javaFont = applySpacing(javaFont, spacing);
         }
@@ -912,7 +919,7 @@ public class SLDStyleFactory {
     // be needed during rendering
     private Style2D getGraphicStroke(
             Symbolizer symbolizer,
-            org.geotools.styling.Stroke stroke,
+            org.geotools.api.style.Stroke stroke,
             Object feature,
             Range scaleRange) {
         if ((stroke == null) || (stroke.getGraphicStroke() == null)) {
@@ -923,31 +930,29 @@ public class SLDStyleFactory {
         return createPointStyle(feature, symbolizer, stroke.getGraphicStroke(), scaleRange, false);
     }
 
-    Stroke getStroke(org.geotools.styling.Stroke stroke, Object feature) {
+    Stroke getStroke(org.geotools.api.style.Stroke stroke, Object feature) {
         if (stroke == null) {
             return null;
         }
 
         // resolve join type into a join code
-        String joinType;
         int joinCode;
 
-        joinType = evalToString(stroke.getLineJoin(), feature, "miter");
+        String joinType = evalToString(stroke.getLineJoin(), feature, "miter");
 
         if (JOIN_LOOKUP.containsKey(joinType)) {
-            joinCode = ((Integer) JOIN_LOOKUP.get(joinType)).intValue();
+            joinCode = JOIN_LOOKUP.get(joinType).intValue();
         } else {
             joinCode = java.awt.BasicStroke.JOIN_MITER;
         }
 
         // resolve cap type into a cap code
-        String capType;
         int capCode;
 
-        capType = evalToString(stroke.getLineCap(), feature, "square");
+        String capType = evalToString(stroke.getLineCap(), feature, "square");
 
         if (CAP_LOOKUP.containsKey(capType)) {
-            capCode = ((Integer) CAP_LOOKUP.get(capType)).intValue();
+            capCode = CAP_LOOKUP.get(capType).intValue();
         } else {
             capCode = java.awt.BasicStroke.CAP_SQUARE;
         }
@@ -983,7 +988,7 @@ public class SLDStyleFactory {
         return true;
     }
 
-    public static float[] evaluateDashArray(org.geotools.styling.Stroke stroke, Object feature)
+    public static float[] evaluateDashArray(org.geotools.api.style.Stroke stroke, Object feature)
             throws NumberFormatException {
         if (stroke.dashArray() != null && !stroke.dashArray().isEmpty()) {
             List<Float> dashArrayValues = new ArrayList<>();
@@ -1014,7 +1019,7 @@ public class SLDStyleFactory {
         return dashValues;
     }
 
-    private Paint getStrokePaint(org.geotools.styling.Stroke stroke, Object feature) {
+    private Paint getStrokePaint(org.geotools.api.style.Stroke stroke, Object feature) {
         if (stroke == null) {
             return null;
         }
@@ -1023,7 +1028,7 @@ public class SLDStyleFactory {
         Paint contourPaint = evalToColor(stroke.getColor(), feature, Color.BLACK);
 
         // if a graphic fill is to be used, prepare the paint accordingly....
-        org.geotools.styling.Graphic gr = stroke.getGraphicFill();
+        org.geotools.api.style.Graphic gr = stroke.getGraphicFill();
 
         if (gr != null && gr.graphicalSymbols() != null && gr.graphicalSymbols().size() > 0) {
             contourPaint = getTexturePaint(gr, feature, null);
@@ -1032,7 +1037,7 @@ public class SLDStyleFactory {
         return contourPaint;
     }
 
-    private Composite getStrokeComposite(org.geotools.styling.Stroke stroke, Object feature) {
+    private Composite getStrokeComposite(org.geotools.api.style.Stroke stroke, Object feature) {
         if (stroke == null) {
             return null;
         }
@@ -1053,7 +1058,7 @@ public class SLDStyleFactory {
         Paint fillPaint = evalToColor(fill.getColor(), feature, null);
 
         // if a graphic fill is to be used, prepare the paint accordingly....
-        org.geotools.styling.Graphic gr = fill.getGraphicFill();
+        org.geotools.api.style.Graphic gr = fill.getGraphicFill();
 
         if (gr != null && gr.graphicalSymbols() != null && gr.graphicalSymbols().size() > 0) {
             fillPaint = getTexturePaint(gr, feature, symbolizer);
@@ -1076,7 +1081,7 @@ public class SLDStyleFactory {
     }
 
     TexturePaint getTexturePaint(
-            org.geotools.styling.Graphic gr, Object feature, Symbolizer symbolizer) {
+            org.geotools.api.style.Graphic gr, Object feature, Symbolizer symbolizer) {
         // -1 to have the image use its natural size if none was provided by the
         // user
         double graphicSize = evalToDouble(gr.getSize(), feature, -1);
@@ -1126,30 +1131,30 @@ public class SLDStyleFactory {
                 if (LOGGER.isLoggable(Level.FINER)) {
                     LOGGER.finer("got an image in graphic fill");
                 }
+                if (margin != null) {
+                    // apply the margin around the image
+                    int extraY = margin[0] + margin[2];
+                    int extraX = margin[1] + margin[3];
+                    int type =
+                            image.getType() == 0 ? BufferedImage.TYPE_4BYTE_ABGR : image.getType();
+                    BufferedImage imageWithMargin =
+                            new BufferedImage(
+                                    image.getWidth() + extraX, image.getHeight() + extraY, type);
+                    int tx = margin[1];
+                    int ty = margin[0];
+                    AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
+                    Graphics2D graphics = imageWithMargin.createGraphics();
+                    graphics.drawRenderedImage(image, at);
+                    graphics.dispose();
+
+                    image = imageWithMargin;
+                }
             } else {
                 if (LOGGER.isLoggable(Level.FINER)) {
                     LOGGER.finer("going for the mark from graphic fill");
                 }
 
-                image = markToTilableImage(gr, feature, mark, shape);
-            }
-
-            if (margin != null) {
-                // apply the margin around the image
-                int extraY = margin[0] + margin[2];
-                int extraX = margin[1] + margin[3];
-                int type = image.getType() == 0 ? BufferedImage.TYPE_4BYTE_ABGR : image.getType();
-                BufferedImage imageWithMargin =
-                        new BufferedImage(
-                                image.getWidth() + extraX, image.getHeight() + extraY, type);
-                int tx = margin[1];
-                int ty = margin[0];
-                AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
-                Graphics2D graphics = imageWithMargin.createGraphics();
-                graphics.drawRenderedImage(image, at);
-                graphics.dispose();
-
-                image = imageWithMargin;
+                image = markToTilableImage(gr, feature, mark, shape, margin);
             }
         }
 
@@ -1165,8 +1170,11 @@ public class SLDStyleFactory {
     }
 
     private BufferedImage markToTilableImage(
-            org.geotools.styling.Graphic gr, Object feature, Mark mark, Shape shape) {
-        BufferedImage image;
+            org.geotools.api.style.Graphic gr,
+            Object feature,
+            Mark mark,
+            Shape shape,
+            int[] margin) {
         Rectangle2D shapeBounds = shape.getBounds2D();
 
         // The aspect ratio is the relation between the width and height of
@@ -1214,28 +1222,45 @@ public class SLDStyleFactory {
                 repeat = 1;
             }
         }
-        image =
+        if (margin == null) {
+            margin = new int[] {0, 0, 0, 0};
+        }
+        BufferedImage image =
                 new BufferedImage(
-                        (int) Math.ceil(sizeX * repeat),
-                        (int) Math.ceil(sizeY * repeat),
+                        (int) Math.ceil((sizeX + margin[1] + margin[3]) * repeat),
+                        (int) Math.ceil((sizeY + margin[0] + margin[2]) * repeat),
                         BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = image.createGraphics();
         g2d.setRenderingHints(renderingHints);
         double rotation =
                 Math.toRadians(evalToDouble(gr.getRotation(), feature, 0.0)); // fix for GEOS-6217
         for (int i = -1; i < 2; i++) {
+            double marginX = margin[1] + 2 * margin[3];
+            if (i == -1) {
+                marginX -= (margin[1] + margin[3]);
+            } else if (i == 1) {
+                marginX += (margin[1] + margin[3]);
+            }
             for (int j = -1; j < 2; j++) {
-                double tx = sizeX * (repeat / 2.0) + sizeX * i;
-                double ty = sizeY * (repeat / 2.0) + sizeY * j;
+                double marginY = 2 * margin[0] + margin[2];
+                if (j == -1) {
+                    marginY -= (margin[0] + margin[2]);
+                } else if (j == 1) {
+                    marginY += (margin[0] + margin[2]);
+                }
+                double tx = sizeX * (repeat / 2.0) + sizeX * i + marginX;
+                double ty = sizeY * (repeat / 2.0) + sizeY * j + marginY;
                 fillDrawMark(g2d, tx, ty, mark, size, rotation, feature);
             }
         }
         g2d.dispose();
 
-        int iSizeX = (int) Math.floor(sizeX);
-        int iSizeY = (int) Math.floor(sizeY);
+        int iSizeX = (int) Math.floor(sizeX + margin[1] + margin[3]);
+        int iSizeY = (int) Math.floor(sizeY + margin[0] + margin[2]);
+        int upperLeftX = (int) Math.floor(sizeX + margin[1] + margin[3]);
+        int upperLeftY = (int) Math.floor(sizeY + margin[0] + margin[2]);
         // updated to use the new sizes
-        image = image.getSubimage(iSizeX, iSizeY, Math.max(iSizeX, 1), Math.max(iSizeY, 1));
+        image = image.getSubimage(upperLeftX, upperLeftY, Math.max(iSizeX, 1), Math.max(iSizeY, 1));
         return image;
     }
 
@@ -1363,7 +1388,8 @@ public class SLDStyleFactory {
             if (expression != null) name = ExpressionExtractor.extractCqlExpressions(expression);
         }
 
-        Iterator<MarkFactory> it = DynamicSymbolFactoryFinder.getMarkFactories();
+        Iterator<MarkFactory> it =
+                DynamicSymbolFactoryFinder.getMarkFactories(new Hints(renderingHints));
         while (it.hasNext()) {
             MarkFactory factory = it.next();
             try {
@@ -1379,6 +1405,7 @@ public class SLDStyleFactory {
 
         return null;
     }
+
     /**
      * @param g2d graphics context
      * @param tx x offset
@@ -1438,7 +1465,7 @@ public class SLDStyleFactory {
     /** */
     public static int lookUpJoin(String joinType) {
         if (SLDStyleFactory.JOIN_LOOKUP.containsKey(joinType)) {
-            return ((Integer) JOIN_LOOKUP.get(joinType)).intValue();
+            return JOIN_LOOKUP.get(joinType).intValue();
         } else {
             return java.awt.BasicStroke.JOIN_MITER;
         }
@@ -1447,7 +1474,7 @@ public class SLDStyleFactory {
     /** */
     public static int lookUpCap(String capType) {
         if (SLDStyleFactory.CAP_LOOKUP.containsKey(capType)) {
-            return ((Integer) CAP_LOOKUP.get(capType)).intValue();
+            return CAP_LOOKUP.get(capType).intValue();
         } else {
             return java.awt.BasicStroke.CAP_SQUARE;
         }
@@ -1467,7 +1494,7 @@ public class SLDStyleFactory {
      */
     public static Composite getComposite(Map<String, String> options, float defaultOpacity) {
         // get the spec, if no spec, no composite
-        String spec = options.get(FeatureTypeStyle.COMPOSITE);
+        String spec = options.get(org.geotools.api.style.FeatureTypeStyle.COMPOSITE);
         if (spec == null) {
             return null;
         }
@@ -1480,7 +1507,7 @@ public class SLDStyleFactory {
             if (split.length != 2) {
                 throw new IllegalArgumentException(
                         "Invalid syntax for "
-                                + FeatureTypeStyle.COMPOSITE
+                                + org.geotools.api.style.FeatureTypeStyle.COMPOSITE
                                 + " key, expecting 'name' or 'name,opacity' but got "
                                 + spec);
             }
@@ -1603,6 +1630,7 @@ public class SLDStyleFactory {
         }
 
         /** @see java.lang.Object#equals(java.lang.Object) */
+        @Override
         public boolean equals(Object obj) {
             if (!(obj instanceof SymbolizerKey)) {
                 return false;
@@ -1616,6 +1644,7 @@ public class SLDStyleFactory {
         }
 
         /** @see java.lang.Object#hashCode() */
+        @Override
         public int hashCode() {
             return ((((17 + System.identityHashCode(symbolizer)) * 37) + doubleHash(minScale)) * 37)
                     + doubleHash(maxScale);
@@ -1705,7 +1734,7 @@ public class SLDStyleFactory {
         if (!Boolean.parseBoolean(
                 symbolizer.getOptions().getOrDefault(MarkAlongLine.VENDOR_OPTION_NAME, "false")))
             return false;
-        org.geotools.styling.Stroke stroke = symbolizer.getStroke();
+        org.geotools.api.style.Stroke stroke = symbolizer.getStroke();
         if (stroke == null) return false;
         if (stroke.getGraphicStroke() == null) return false;
         if (stroke.getGraphicStroke().graphicalSymbols().isEmpty()) return false;

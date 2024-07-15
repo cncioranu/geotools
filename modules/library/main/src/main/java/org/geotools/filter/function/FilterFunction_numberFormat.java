@@ -23,11 +23,11 @@ import java.text.DecimalFormatSymbols;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.logging.Logger;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.util.logging.Logging;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Formats a number into a string given a certain pattern (specified in the format accepted by
@@ -39,8 +39,6 @@ public class FilterFunction_numberFormat extends FunctionExpressionImpl {
     static final Logger LOGGER = Logging.getLogger(FilterFunction_numberFormat.class);
 
     static HashSet<String> languages = new HashSet<>();
-
-    Locale locale = Locale.ENGLISH;
 
     static {
         for (Locale loc : Locale.getAvailableLocales()) {
@@ -60,6 +58,7 @@ public class FilterFunction_numberFormat extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         String format;
         Double number;
@@ -95,6 +94,7 @@ public class FilterFunction_numberFormat extends FunctionExpressionImpl {
             throw new IllegalArgumentException(
                     "Filter Function problem for function NumberFormat argument #2 - expected type String");
         }
+        Locale locale = null;
         if (languages.contains(localeString)) {
             if (localeString != null && !localeString.isEmpty()) {
                 locale = Locale.forLanguageTag(localeString);
@@ -104,7 +104,9 @@ public class FilterFunction_numberFormat extends FunctionExpressionImpl {
             throw new IllegalArgumentException(
                     "Unknown language code '" + localeString + "' in numberFormat function");
         }
-
+        if (locale == null) {
+            locale = Locale.getDefault();
+        }
         DecimalFormatSymbols decimalFormatSymbols = DecimalFormatSymbols.getInstance(locale);
 
         DecimalFormat numberFormat = new DecimalFormat(format, decimalFormatSymbols);

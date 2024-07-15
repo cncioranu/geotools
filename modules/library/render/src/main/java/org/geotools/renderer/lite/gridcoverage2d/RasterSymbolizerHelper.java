@@ -24,24 +24,23 @@ import java.awt.image.SampleModel;
 import java.util.HashMap;
 import java.util.Map;
 import javax.media.jai.ROI;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.ChannelSelection;
+import org.geotools.api.style.ColorMap;
+import org.geotools.api.style.ContrastEnhancement;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.ShadedRelief;
+import org.geotools.api.style.StyleVisitor;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.TypeMap;
 import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.image.ImageWorker;
 import org.geotools.renderer.i18n.Vocabulary;
 import org.geotools.renderer.i18n.VocabularyKeys;
-import org.geotools.styling.ChannelSelection;
-import org.geotools.styling.ColorMap;
-import org.geotools.styling.ContrastEnhancement;
-import org.geotools.styling.RasterSymbolizer;
-import org.geotools.styling.ShadedRelief;
-import org.geotools.styling.StyleVisitor;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.filter.expression.Expression;
 
 /**
  * A helper class for rendering {@link GridCoverage} objects. It supports almost all
@@ -60,6 +59,7 @@ public class RasterSymbolizerHelper extends SubchainStyleVisitorCoverageProcessi
      *
      * @return {@link GridCoverage2D} the result of this operation
      */
+    @Override
     public GridCoverage2D execute() {
         ///////////////////////////////////////////////////////////////////////
         //
@@ -96,7 +96,7 @@ public class RasterSymbolizerHelper extends SubchainStyleVisitorCoverageProcessi
         final SampleModel outputImageSampleModel = outputImage.getSampleModel();
         int numBands = outputImageSampleModel.getNumBands();
         final int dataType = outputImageSampleModel.getDataType();
-        GridSampleDimension sd[];
+        GridSampleDimension[] sd;
         if (numBands > 4) {
             // get the visible band
             final int visibleBand = CoverageUtilities.getVisibleBand(outputImage);
@@ -105,10 +105,7 @@ public class RasterSymbolizerHelper extends SubchainStyleVisitorCoverageProcessi
                             .setRenderingHints(this.getHints())
                             .retainBands(new int[] {visibleBand})
                             .getRenderedImage();
-            sd =
-                    new GridSampleDimension[] {
-                        (GridSampleDimension) output.getSampleDimension(visibleBand)
-                    };
+            sd = new GridSampleDimension[] {output.getSampleDimension(visibleBand)};
         } else {
             sd = output.getSampleDimensions();
         }
@@ -174,7 +171,7 @@ public class RasterSymbolizerHelper extends SubchainStyleVisitorCoverageProcessi
                     .create(
                             output.getName(),
                             finalImage,
-                            (GridGeometry2D) output.getGridGeometry(),
+                            output.getGridGeometry(),
                             sd,
                             new GridCoverage[] {output},
                             properties);
@@ -185,7 +182,7 @@ public class RasterSymbolizerHelper extends SubchainStyleVisitorCoverageProcessi
                 .create(
                         output.getName(),
                         outputImage,
-                        (GridGeometry2D) output.getGridGeometry(),
+                        output.getGridGeometry(),
                         sd,
                         new GridCoverage[] {output},
                         properties);
@@ -208,8 +205,9 @@ public class RasterSymbolizerHelper extends SubchainStyleVisitorCoverageProcessi
     /*
      * (non-Javadoc)
      *
-     * @see org.geotools.renderer.lite.gridcoverage2d.StyleVisitorAdapter#visit(org.geotools.styling.RasterSymbolizer)
+     * @see org.geotools.renderer.lite.gridcoverage2d.StyleVisitorAdapter#visit(org.geotools.api.style.RasterSymbolizer)
      */
+    @Override
     public void visit(RasterSymbolizer rs) {
 
         ColorMapUtilities.ensureNonNull("RasterSymbolizer", rs);
@@ -224,7 +222,6 @@ public class RasterSymbolizerHelper extends SubchainStyleVisitorCoverageProcessi
         // final RootNode sourceNode = new RootNode(sourceCoverage, adopt,
         // hints);
 
-        CoverageProcessingNode currNode;
         CoverageProcessingNode prevNode = this.getSource(0);
 
         // /////////////////////////////////////////////////////////////////////
@@ -234,7 +231,7 @@ public class RasterSymbolizerHelper extends SubchainStyleVisitorCoverageProcessi
         // /////////////////////////////////////////////////////////////////////
 
         final ChannelSelectionNode csNode = new ChannelSelectionNode();
-        currNode = csNode;
+        CoverageProcessingNode currNode = csNode;
 
         currNode.addSource(prevNode);
         prevNode = currNode;
@@ -312,7 +309,7 @@ public class RasterSymbolizerHelper extends SubchainStyleVisitorCoverageProcessi
         /////////////////////////////////////////////////////////////////////
         final Expression op = rs.getOpacity();
         if (op != null) {
-            final Number number = (Number) op.evaluate(null, Float.class);
+            final Number number = op.evaluate(null, Float.class);
             if (number != null) {
                 opacity = number.floatValue();
             }

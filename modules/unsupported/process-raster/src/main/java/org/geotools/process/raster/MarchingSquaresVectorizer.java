@@ -37,6 +37,12 @@ import javax.media.jai.JAI;
 import javax.media.jai.ROIShape;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.geometry.jts.JTS;
@@ -59,12 +65,6 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Algorithm computing the image footprint. Some optimizations are made. When running along the
@@ -233,7 +233,7 @@ public final class MarchingSquaresVectorizer {
         private void isFullyInvalid(
                 List<Polygon> geometriesList, RenderedImage inputRI, RenderingHints localHints)
                 throws Exception {
-            if (geometriesList.size() == 0) {
+            if (geometriesList.isEmpty()) {
                 // Must be a fully "invalid-Pixels" image, or an error occurred
                 ImageWorker w = new ImageWorker(inputRI);
 
@@ -584,7 +584,7 @@ public final class MarchingSquaresVectorizer {
      * any valid points (isAllZeros), then return an empty GeometryCollection
      */
     private boolean noGeometries(final List<Polygon> geometriesList, final boolean isAllZeros) {
-        if (geometriesList.size() == 0) {
+        if (geometriesList.isEmpty()) {
             if (isAllZeros) {
                 footprint = EMPTY_GEOMETRY;
                 simplifiedFootprint = EMPTY_GEOMETRY;
@@ -603,10 +603,9 @@ public final class MarchingSquaresVectorizer {
      * aren't) by also removing holes.
      */
     private List<Polygon> validateGeometries(List<Polygon> geometriesList) {
-        if (forceValid && (geometriesList.size() > 0)) {
+        if (forceValid && (!geometriesList.isEmpty())) {
             List<Polygon> validated = new ArrayList<>(geometriesList.size());
-            for (int i = 0; i < geometriesList.size(); i++) {
-                Polygon polygon = geometriesList.get(i);
+            for (Polygon polygon : geometriesList) {
                 if (!polygon.isValid()) {
                     List<Polygon> validPolygons = JTS.makeValid(polygon, true);
                     validated.addAll(validPolygons);
@@ -640,7 +639,7 @@ public final class MarchingSquaresVectorizer {
         // Compute the ROIShape
         if (!innerGeometry.isEmpty()) {
             LiteShape2 shape = new LiteShape2(innerGeometry, TRANSLATED_TX, null, false);
-            roiShape = (ROIShape) new ROIShape(shape);
+            roiShape = new ROIShape(shape);
         }
     }
 
@@ -720,7 +719,6 @@ public final class MarchingSquaresVectorizer {
         } else if (sampleDataType == DataBuffer.TYPE_BYTE) {
             scanInfo.fullyCovered = checkFullyCovered(iter, I_VALUE, geometriesList);
         }
-        boolean firstRef = true;
         java.awt.Polygon awtPolygon = new java.awt.Polygon();
 
         // Looking for polygons
@@ -732,114 +730,23 @@ public final class MarchingSquaresVectorizer {
 
         if (!scanInfo.fullyCovered) {
             // Initialize search area
-            final int minX = imageProperties.minX;
-            final int minY = imageProperties.minY;
-            final int maxX = imageProperties.maxX;
-            final int maxY = imageProperties.maxY;
             final int minTileY = imageProperties.minTileY;
             final int minTileX = imageProperties.minTileX;
             final int maxTileY = imageProperties.maxTileY;
             final int maxTileX = imageProperties.maxTileX;
-            final int tileWidth = imageProperties.tileWidth;
-            final int tileHeight = imageProperties.tileHeight;
 
             if (sampleDataType == DataBuffer.TYPE_DOUBLE) {
                 for (int tileY = minTileY; tileY <= maxTileY; tileY++) {
                     for (int tileX = minTileX; tileX <= maxTileX; tileX++) {
-                        for (int trow = 0; trow < tileHeight; trow++) {
-                            int row = (tileY * tileHeight) + trow;
-                            if ((row >= minY) && (row <= maxY)) {
-                                for (int tcol = 0; tcol < tileWidth; tcol++) {
-                                    int col = (tileX * tileWidth) + tcol;
-                                    if ((col >= minX) && (col <= maxX)) {
-                                        double value = iter.getSampleDouble(col, row, 0);
-                                        if (!bitSet.get(col - minX, row - minY)
-                                                && !Double.isNaN(value)) {
-                                            if (areEqual(value, D_VALUE)) {
-                                                Polygon polygon =
-                                                        identifyPerimeter(
-                                                                iter,
-                                                                col,
-                                                                row,
-                                                                awtPolygon,
-                                                                sampleDataType,
-                                                                scanInfo);
-                                                if (polygon != null) {
-                                                    if (removeCollinear) {
-                                                        if (LOGGER.isLoggable(Level.FINE)) {
-                                                            LOGGER.fine(
-                                                                    "Removing collinear points");
-                                                        }
-                                                        polygon =
-                                                                (Polygon)
-                                                                        JTS.removeCollinearVertices(
-                                                                                polygon);
-                                                    }
-                                                    bitSet.set(polygon);
-                                                    geometriesList.add(polygon);
-                                                } else if (scanInfo.firstFound && firstRef) {
-                                                    // Taking note of the coordinates of the
-                                                    // first polygon found which is smaller
-                                                    // than the threshold area
-                                                    scanInfo.refColumn = col;
-                                                    scanInfo.refRow = row;
-                                                    firstRef = false;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        identifyGeometryDouble(
+                                iter, geometriesList, scanInfo, awtPolygon, tileY, tileX);
                     }
                 }
             } else if (sampleDataType == DataBuffer.TYPE_BYTE) {
                 for (int tileY = minTileY; tileY <= maxTileY; tileY++) {
                     for (int tileX = minTileX; tileX <= maxTileX; tileX++) {
-                        for (int trow = 0; trow < tileHeight; trow++) {
-                            int row = (tileY * tileHeight) + trow;
-                            if ((row >= minY) && (row <= maxY)) {
-                                for (int tcol = 0; tcol < tileWidth; tcol++) {
-                                    int col = (tileX * tileWidth) + tcol;
-                                    if ((col >= minX) && (col <= maxX)) {
-                                        int value = iter.getSample(col, row, 0);
-                                        if (!bitSet.get(col - minX, row - minY)) {
-                                            if (value == I_VALUE) {
-                                                Polygon polygon =
-                                                        identifyPerimeter(
-                                                                iter,
-                                                                col,
-                                                                row,
-                                                                awtPolygon,
-                                                                sampleDataType,
-                                                                scanInfo);
-                                                if (polygon != null) {
-                                                    if (removeCollinear) {
-                                                        if (LOGGER.isLoggable(Level.FINE)) {
-                                                            LOGGER.fine(
-                                                                    "Removing collinear points");
-                                                        }
-                                                        polygon =
-                                                                (Polygon)
-                                                                        JTS.removeCollinearVertices(
-                                                                                polygon);
-                                                    }
-                                                    geometriesList.add(polygon);
-                                                    bitSet.set(polygon);
-                                                } else if (scanInfo.firstFound && firstRef) {
-                                                    // Taking note of the coordinates of the
-                                                    // first polygon found which is smaller
-                                                    // than the threshold area
-                                                    scanInfo.refColumn = col;
-                                                    scanInfo.refRow = row;
-                                                    firstRef = false;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        identifyGeometryByte(
+                                iter, geometriesList, scanInfo, awtPolygon, tileY, tileX);
                     }
                 }
             }
@@ -862,6 +769,120 @@ public final class MarchingSquaresVectorizer {
                             sampleDataType,
                             scanInfo);
             geometriesList.add(polygon);
+        }
+    }
+
+    private final void identifyGeometryByte(
+            RandomIter iter,
+            List<Polygon> geometriesList,
+            ScanInfo scanInfo,
+            java.awt.Polygon awtPolygon,
+            int tileY,
+            int tileX)
+            throws TransformException {
+        boolean firstRef = true;
+        final int minX = imageProperties.minX;
+        final int minY = imageProperties.minY;
+        final int maxX = imageProperties.maxX;
+        final int maxY = imageProperties.maxY;
+        final int tileWidth = imageProperties.tileWidth;
+        final int tileHeight = imageProperties.tileHeight;
+        for (int trow = 0; trow < tileHeight; trow++) {
+            int row = (tileY * tileHeight) + trow;
+            if ((row >= minY) && (row <= maxY)) {
+                for (int tcol = 0; tcol < tileWidth; tcol++) {
+                    int col = (tileX * tileWidth) + tcol;
+                    if ((col >= minX) && (col <= maxX)) {
+                        int value = iter.getSample(col, row, 0);
+                        if (!bitSet.get(col - minX, row - minY)) {
+                            if (value == I_VALUE) {
+                                Polygon polygon =
+                                        identifyPerimeter(
+                                                iter,
+                                                col,
+                                                row,
+                                                awtPolygon,
+                                                DataBuffer.TYPE_BYTE,
+                                                scanInfo);
+                                if (polygon != null) {
+                                    if (removeCollinear) {
+                                        if (LOGGER.isLoggable(Level.FINE)) {
+                                            LOGGER.fine("Removing collinear points");
+                                        }
+                                        polygon = (Polygon) JTS.removeCollinearVertices(polygon);
+                                    }
+                                    geometriesList.add(polygon);
+                                    bitSet.set(polygon);
+                                } else if (scanInfo.firstFound && firstRef) {
+                                    // Taking note of the coordinates of the
+                                    // first polygon found which is smaller
+                                    // than the threshold area
+                                    scanInfo.refColumn = col;
+                                    scanInfo.refRow = row;
+                                    firstRef = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private final void identifyGeometryDouble(
+            RandomIter iter,
+            List<Polygon> geometriesList,
+            ScanInfo scanInfo,
+            java.awt.Polygon awtPolygon,
+            int tileY,
+            int tileX)
+            throws TransformException {
+        boolean firstRef = true;
+        final int minX = imageProperties.minX;
+        final int minY = imageProperties.minY;
+        final int maxX = imageProperties.maxX;
+        final int maxY = imageProperties.maxY;
+        final int tileWidth = imageProperties.tileWidth;
+        final int tileHeight = imageProperties.tileHeight;
+        for (int trow = 0; trow < tileHeight; trow++) {
+            int row = (tileY * tileHeight) + trow;
+            if ((row >= minY) && (row <= maxY)) {
+                for (int tcol = 0; tcol < tileWidth; tcol++) {
+                    int col = (tileX * tileWidth) + tcol;
+                    if ((col >= minX) && (col <= maxX)) {
+                        double value = iter.getSampleDouble(col, row, 0);
+                        if (!bitSet.get(col - minX, row - minY) && !Double.isNaN(value)) {
+                            if (areEqual(value, D_VALUE)) {
+                                Polygon polygon =
+                                        identifyPerimeter(
+                                                iter,
+                                                col,
+                                                row,
+                                                awtPolygon,
+                                                DataBuffer.TYPE_DOUBLE,
+                                                scanInfo);
+                                if (polygon != null) {
+                                    if (removeCollinear) {
+                                        if (LOGGER.isLoggable(Level.FINE)) {
+                                            LOGGER.fine("Removing collinear points");
+                                        }
+                                        polygon = (Polygon) JTS.removeCollinearVertices(polygon);
+                                    }
+                                    bitSet.set(polygon);
+                                    geometriesList.add(polygon);
+                                } else if (scanInfo.firstFound && firstRef) {
+                                    // Taking note of the coordinates of the
+                                    // first polygon found which is smaller
+                                    // than the threshold area
+                                    scanInfo.refColumn = col;
+                                    scanInfo.refRow = row;
+                                    firstRef = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -927,7 +948,7 @@ public final class MarchingSquaresVectorizer {
     /** Check if the image is fully covered by only valid values */
     private boolean checkFullyCovered(
             RandomIter iter, final int refValue, final List<Polygon> geometriesList) {
-        int[] yvals = new int[] {imageProperties.minY, imageProperties.maxY};
+        int[] yvals = {imageProperties.minY, imageProperties.maxY};
         for (int y : yvals) {
             for (int x = imageProperties.minX; x <= imageProperties.maxX; x++) {
                 int value = iter.getSample(x, y, 0);
@@ -937,7 +958,7 @@ public final class MarchingSquaresVectorizer {
             }
         }
 
-        int[] xvals = new int[] {imageProperties.minX, imageProperties.maxX};
+        int[] xvals = {imageProperties.minX, imageProperties.maxX};
         for (int x : xvals) {
             for (int y = imageProperties.minY; y <= imageProperties.maxY; y++) {
                 int value = iter.getSample(x, y, 0);
@@ -1153,7 +1174,7 @@ public final class MarchingSquaresVectorizer {
         coordinateList.add(startCoordinate);
 
         Coordinate[] coordinateArray =
-                (Coordinate[]) coordinateList.toArray(new Coordinate[coordinateList.size()]);
+                coordinateList.toArray(new Coordinate[coordinateList.size()]);
 
         LinearRing linearRing = GF.createLinearRing(coordinateArray);
         Polygon polygon = GF.createPolygon(linearRing, null);

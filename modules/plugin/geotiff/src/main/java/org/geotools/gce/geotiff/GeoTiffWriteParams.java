@@ -133,8 +133,9 @@ public class GeoTiffWriteParams extends GeoToolsWriteParams {
         return ((TIFFImageWriteParam) adaptee).getTIFFCompressor();
     }
 
+    @Override
     public boolean isCompressionLossless() {
-        return ((TIFFImageWriteParam) adaptee).isCompressionLossless();
+        return adaptee.isCompressionLossless();
     }
 
     /**

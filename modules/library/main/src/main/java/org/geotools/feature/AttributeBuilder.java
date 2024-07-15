@@ -22,27 +22,28 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.feature.Association;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.FeatureFactory;
+import org.geotools.api.feature.GeometryAttribute;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.AssociationDescriptor;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.GeometryType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.feature.type.AttributeDescriptorImpl;
 import org.geotools.feature.type.ComplexTypeImpl;
 import org.geotools.feature.type.Types;
+import org.geotools.geometry.jts.JTS;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.Association;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureFactory;
-import org.opengis.feature.GeometryAttribute;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.AssociationDescriptor;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.GeometryType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Builder for attributes.
@@ -198,7 +199,7 @@ public class AttributeBuilder {
      */
     public void setDescriptor(AttributeDescriptor descriptor) {
         this.descriptor = descriptor;
-        this.type = (AttributeType) descriptor.getType();
+        this.type = descriptor.getType();
     }
 
     /** @return The type of the attribute being built. */
@@ -214,15 +215,15 @@ public class AttributeBuilder {
 
     /** @return The coordinate reference system of the feature, or null if not set. */
     public CoordinateReferenceSystem getCRS(Object geom) {
-        if (crs != null) {
-            return crs;
-        } else if (geom != null && geom instanceof Geometry) {
-            Object userData = ((Geometry) geom).getUserData();
-            if (userData != null && userData instanceof CoordinateReferenceSystem) {
-                return (CoordinateReferenceSystem) userData;
+        if (geom != null && geom instanceof Geometry) {
+            // the CRS in the geometry itself is preferred
+            // to support multiple geometries/CRS
+            CoordinateReferenceSystem featureCrs = JTS.getCRS((Geometry) geom);
+            if (featureCrs != null) {
+                return featureCrs;
             }
         }
-        return null;
+        return crs;
     }
 
     /** Sets the default geometry of the feature. */
@@ -423,7 +424,7 @@ public class AttributeBuilder {
     protected Attribute create(
             Object value, AttributeType type, AttributeDescriptor descriptor, String id) {
         if (descriptor != null) {
-            type = (AttributeType) descriptor.getType();
+            type = descriptor.getType();
         }
         // if (type instanceof FeatureCollectionType) {
         // attribute = descriptor != null ? attributeFactory.createFeatureCollection(

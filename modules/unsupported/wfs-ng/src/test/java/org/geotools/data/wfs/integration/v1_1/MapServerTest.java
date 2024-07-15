@@ -24,21 +24,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import org.apache.commons.io.IOUtils;
-import org.geotools.data.ows.HTTPClient;
-import org.geotools.data.ows.HTTPResponse;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.wfs.AbstractTestHTTPClient;
 import org.geotools.data.wfs.TestHttpResponse;
 import org.geotools.data.wfs.WFSDataStore;
 import org.geotools.data.wfs.WFSTestData;
 import org.geotools.data.wfs.internal.WFSClient;
 import org.geotools.feature.NameImpl;
+import org.geotools.http.AbstractHttpClient;
+import org.geotools.http.HTTPClient;
+import org.geotools.http.HTTPResponse;
 import org.geotools.ows.ServiceException;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
 
 public class MapServerTest {
 
@@ -61,7 +62,7 @@ public class MapServerTest {
 
         WFSDataStore wfs =
                 getWFSDataStore(
-                        new AbstractTestHTTPClient() {
+                        new AbstractHttpClient() {
 
                             @Override
                             public HTTPResponse get(URL url) throws IOException {
@@ -80,7 +81,9 @@ public class MapServerTest {
                                     URL url, InputStream postContent, String postContentType)
                                     throws IOException {
                                 String request =
-                                        new String(IOUtils.toByteArray(postContent), "UTF-8");
+                                        new String(
+                                                IOUtils.toByteArray(postContent),
+                                                StandardCharsets.UTF_8);
                                 if (request.contains("<wfs:DescribeFeatureType")) {
                                     return new TestHttpResponse(
                                             url(
@@ -99,9 +102,8 @@ public class MapServerTest {
                         new NameImpl(
                                 "http://mapserver.gis.umn.edu/mapserver", "ms_GovernmentalUnitCE"));
         SimpleFeatureCollection features = source.getFeatures();
-        SimpleFeatureIterator reader = features.features();
-        SimpleFeature sf = null;
-        try {
+        try (SimpleFeatureIterator reader = features.features()) {
+            SimpleFeature sf = null;
             if (reader.hasNext()) {
                 sf = reader.next();
                 assertNotNull(sf);
@@ -110,8 +112,6 @@ public class MapServerTest {
                 assertTrue(sf.getAttribute("doubleNumber") instanceof Double);
             }
             assertNotNull(sf);
-        } finally {
-            reader.close();
         }
     }
 }

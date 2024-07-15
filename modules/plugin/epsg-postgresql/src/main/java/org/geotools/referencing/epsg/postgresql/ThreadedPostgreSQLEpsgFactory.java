@@ -93,9 +93,9 @@ import org.postgresql.ds.common.BaseDataSource;
  * </TABLE>
  *
  * <p>The database version is given in the {@linkplain
- * org.opengis.metadata.citation.Citation#getEdition edition attribute} of the {@linkplain
- * org.opengis.referencing.AuthorityFactory#getAuthority authority}. The postgreSQL database should
- * be read only.
+ * org.geotools.api.metadata.citation.Citation#getEdition edition attribute} of the {@linkplain
+ * org.geotools.api.referencing.AuthorityFactory#getAuthority authority}. The postgreSQL database
+ * should be read only.
  *
  * <p>Just having this class accessible in the classpath, together with the registration in the
  * {@code META-INF/services/} directory, is sufficient to get a working EPSG authority factory
@@ -164,6 +164,7 @@ public class ThreadedPostgreSQLEpsgFactory extends ThreadedEpsgFactory {
     }
 
     /** Returns a data source for the PostgreSQL database. */
+    @Override
     protected DataSource createDataSource() throws SQLException {
         DataSource candidate = super.createDataSource();
         if (candidate instanceof BaseDataSource) {
@@ -196,6 +197,7 @@ public class ThreadedPostgreSQLEpsgFactory extends ThreadedEpsgFactory {
      * @return The EPSG factory using PostgreSQL syntax.
      * @throws SQLException if connection to the database failed.
      */
+    @Override
     protected AbstractAuthorityFactory createBackingStore(final Hints hints) throws SQLException {
         final FactoryUsingAnsiSQL factory = new FactoryUsingAnsiSQL(hints, getDataSource());
         factory.setValidationQuery("select now()");

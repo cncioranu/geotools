@@ -21,10 +21,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.geotools.api.style.TextSymbolizer;
 import org.geotools.geometry.jts.LiteShape2;
 import org.geotools.renderer.style.TextStyle2D;
-import org.geotools.styling.TextSymbolizer;
-import org.geotools.styling.TextSymbolizer.PolygonAlignOptions;
 import org.locationtech.jts.geom.Geometry;
 
 /**
@@ -81,7 +80,8 @@ public class LabelCacheItem implements Comparable<LabelCacheItem> {
 
     double goodnessOfFit = 0;
 
-    PolygonAlignOptions polygonAlign = PolygonAlignOptions.NONE;
+    TextSymbolizer.PolygonAlignOptions polygonAlign =
+            org.geotools.api.style.TextSymbolizer.PolygonAlignOptions.NONE;
 
     GraphicResize graphicsResize = GraphicResize.NONE;
 
@@ -207,7 +207,7 @@ public class LabelCacheItem implements Comparable<LabelCacheItem> {
 
     /** Returns an example geometry from the list of geometries. */
     public Geometry getGeometry() {
-        return (Geometry) geoms.get(0);
+        return geoms.get(0);
     }
 
     /**
@@ -315,6 +315,7 @@ public class LabelCacheItem implements Comparable<LabelCacheItem> {
      *
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
+    @Override
     public int compareTo(LabelCacheItem other) {
         return Double.compare(this.getPriority(), other.getPriority());
     }
@@ -360,11 +361,11 @@ public class LabelCacheItem implements Comparable<LabelCacheItem> {
         this.graphicMargin = graphicMargin;
     }
 
-    void setPolygonAlign(PolygonAlignOptions polygonAlign) {
+    void setPolygonAlign(TextSymbolizer.PolygonAlignOptions polygonAlign) {
         this.polygonAlign = polygonAlign;
     }
 
-    PolygonAlignOptions getPolygonAlign() {
+    TextSymbolizer.PolygonAlignOptions getPolygonAlign() {
         return polygonAlign;
     }
 
@@ -409,7 +410,9 @@ public class LabelCacheItem implements Comparable<LabelCacheItem> {
     }
 
     public TextSymbolizer.GraphicPlacement getGraphicPlacement() {
-        return graphicPlacement == null ? TextSymbolizer.GraphicPlacement.LABEL : graphicPlacement;
+        return graphicPlacement == null
+                ? org.geotools.api.style.TextSymbolizer.GraphicPlacement.LABEL
+                : graphicPlacement;
     }
 
     public void setGraphicPlacement(TextSymbolizer.GraphicPlacement graphicPlacement) {

@@ -227,7 +227,7 @@ public class SLDMockData {
 
         Element channel = element(SLD.REDCHANNEL, document, channelSelection);
         Element sourceChannelName = element(SLD.SOURCECHANNELNAME, document, channel);
-        Element expression = envFuntionfilter(document, sourceChannelName);
+        envFuntionfilter(document, sourceChannelName);
 
         channel = element(SLD.GREENCHANNEL, document, channelSelection);
         sourceChannelName = element(SLD.SOURCECHANNELNAME, document, channel);
@@ -273,8 +273,7 @@ public class SLDMockData {
 
         Element gammaValue = element(SLD.GAMMAVALUE, document, contrastEnhancement);
         gammaValue.appendChild(document.createTextNode("1.23"));
-
-        Element histogram = element(SLD.HISTOGRAM, document, contrastEnhancement);
+        element(SLD.HISTOGRAM, document, contrastEnhancement);
 
         return contrastEnhancement;
     }
@@ -317,7 +316,13 @@ public class SLDMockData {
         contrastEnhancement(document, rasterSymbolizer);
         shadedRelief(document, rasterSymbolizer);
         imageOutline(document, rasterSymbolizer);
+        return rasterSymbolizer;
+    }
 
+    static Element rasterSymbolizerWithVendorOptions(Document document, Node parent) {
+        Element rasterSymbolizer = rasterSymbolizer(document, parent);
+        vendorOption(document, rasterSymbolizer, "name", "value");
+        vendorOption(document, rasterSymbolizer, "name2", "value2");
         return rasterSymbolizer;
     }
 
@@ -459,6 +464,13 @@ public class SLDMockData {
         rasterSymbolizer(document, rule);
         textSymbolizer(document, rule);
 
+        return rule;
+    }
+
+    static Element ruleWithVendorOptions(Document document, Node parent) {
+        Element rule = rule(document, parent);
+        vendorOption(document, rule, "name", "value");
+        vendorOption(document, rule, "name2", "value2");
         return rule;
     }
 

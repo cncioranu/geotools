@@ -20,18 +20,18 @@ import java.io.IOException;
 import java.io.Writer;
 import java.sql.Time;
 import java.sql.Timestamp;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
 import org.geotools.data.jdbc.FilterToSQLException;
 import org.geotools.filter.FilterCapabilities;
 import org.geotools.jdbc.PreparedFilterToSQL;
 import org.geotools.jdbc.PrimaryKeyColumn;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.BinarySpatialOperator;
 
 /** @author ian */
 public class GeoPkgFilterToSQL extends PreparedFilterToSQL {
@@ -72,11 +72,11 @@ public class GeoPkgFilterToSQL extends PreparedFilterToSQL {
             Class<?> binding = desc.getType().getBinding();
             // utc -- everything must be consistent -- see literal visitor
             if (Time.class.isAssignableFrom(binding)) {
-                return "time(" + super_result + ",'utc')";
+                return "time(" + super_result + ")";
             } else if (Timestamp.class.isAssignableFrom(binding)) {
                 return "datetime("
                         + super_result
-                        + ",'utc')"; // utc -- everything must be consistent -- see
+                        + ",'utc' )"; // utc -- everything must be consistent -- see
                 // literal visitor
             } else if (java.sql.Date.class.isAssignableFrom(binding)) {
                 return "date(" + super_result + ")";
@@ -88,6 +88,7 @@ public class GeoPkgFilterToSQL extends PreparedFilterToSQL {
      * Override done to ensure we don't complain if there is a BBOX filter, even if we claim not to
      * support it
      */
+    @Override
     public void encode(Filter filter) throws FilterToSQLException {
         if (out == null) throw new FilterToSQLException("Can't encode to a null writer.");
         // hack, we lied about being able to support BBOX, because the implementation is
@@ -147,9 +148,9 @@ public class GeoPkgFilterToSQL extends PreparedFilterToSQL {
                     dialect.prepareGeometryValue(
                             (Geometry) literalValue, dimension, srid, Geometry.class, sb);
                 } else if (Time.class.isAssignableFrom(literalValue.getClass())) {
-                    sb.append("time(?,'utc')");
+                    sb.append("time(?)");
                 } else if (Timestamp.class.isAssignableFrom(literalValue.getClass())) {
-                    sb.append("datetime(?,'utc')");
+                    sb.append("datetime(?,'utc' )");
                 } else if (java.sql.Date.class.isAssignableFrom(literalValue.getClass())) {
                     sb.append("date(?)");
                 } else if (encodingFunction) {

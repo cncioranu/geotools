@@ -23,6 +23,10 @@ import java.io.IOException;
 import java.net.URL;
 import javax.media.jai.PlanarImage;
 import javax.swing.JFrame;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
@@ -34,10 +38,6 @@ import org.geotools.parameter.Parameter;
 import org.geotools.referencing.CRS;
 import org.geotools.util.factory.Hints;
 import org.junit.Assert;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 
 /** @author Simone Giannecchini, GeoSolutions SAS */
 final class TestUtils extends Assert {
@@ -108,7 +108,7 @@ final class TestUtils extends Assert {
             GeneralParameterValue[] values,
             final boolean checkForNull)
             throws IOException {
-        final GridCoverage2D coverage = (GridCoverage2D) reader.read(values);
+        final GridCoverage2D coverage = reader.read(values);
         if (checkForNull) {
             Assert.assertNotNull(coverage);
         }
@@ -127,8 +127,7 @@ final class TestUtils extends Assert {
         final Hints hints =
                 new Hints(Hints.DEFAULT_COORDINATE_REFERENCE_SYSTEM, CRS.decode("EPSG:4326", true));
         // Get format
-        final AbstractGridFormat format =
-                (AbstractGridFormat) GridFormatFinder.findFormat(testURL, hints);
+        final AbstractGridFormat format = GridFormatFinder.findFormat(testURL, hints);
         Assert.assertNotNull(format);
         Assert.assertFalse("UknownFormat", format instanceof UnknownFormat);
         return format;

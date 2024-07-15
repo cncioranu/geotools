@@ -17,10 +17,10 @@
 package org.geotools.temporal.object;
 
 import java.util.Arrays;
+import org.geotools.api.temporal.ClockTime;
+import org.geotools.api.temporal.IndeterminateValue;
+import org.geotools.api.temporal.TemporalReferenceSystem;
 import org.geotools.util.Utilities;
-import org.opengis.temporal.ClockTime;
-import org.opengis.temporal.IndeterminateValue;
-import org.opengis.temporal.TemporalReferenceSystem;
 
 /**
  * A data type that shall be used to identify a temporal position within a day. Because {@linkplain
@@ -38,7 +38,7 @@ public class DefaultClockTime extends DefaultTemporalPosition implements ClockTi
     public DefaultClockTime(
             TemporalReferenceSystem frame,
             IndeterminateValue indeterminatePosition,
-            Number[] clockTime) {
+            Number... clockTime) {
         super(frame, indeterminatePosition);
         this.clockTime = clockTime;
     }
@@ -50,11 +50,12 @@ public class DefaultClockTime extends DefaultTemporalPosition implements ClockTi
      * the unit used at the next lower level, and so on. All but the last number in the sequence
      * shall be integers; the last number may be integer or real.
      */
+    @Override
     public Number[] getClockTime() {
         return clockTime;
     }
 
-    public void setClockTime(Number[] clockTime) {
+    public void setClockTime(Number... clockTime) {
         this.clockTime = clockTime;
     }
 

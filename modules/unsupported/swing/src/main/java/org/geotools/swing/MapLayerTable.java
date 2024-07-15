@@ -20,8 +20,6 @@ package org.geotools.swing;
 import java.awt.BorderLayout;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.lang.ref.WeakReference;
@@ -35,12 +33,12 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
+import org.geotools.api.style.Style;
 import org.geotools.map.Layer;
 import org.geotools.map.MapContent;
 import org.geotools.map.MapLayerListEvent;
 import org.geotools.map.MapLayerListListener;
 import org.geotools.map.StyleLayer;
-import org.geotools.styling.Style;
 import org.geotools.swing.control.DnDList;
 import org.geotools.swing.control.DnDListModel;
 import org.geotools.swing.event.MapPaneAdapter;
@@ -129,15 +127,15 @@ public class MapLayerTable extends JPanel {
         doSetMapPane(mapPane);
     }
 
-    /**
-     * Helper for {@link #setMapPane(MapPane). This is just defined so that
-     * it can be called from the constructor without a warning from the compiler
-     * about calling a public overridable method.
-     *
-     * @param mapPane the map pane
-     */
     private Listener listener;
 
+    /**
+     * Helper for {@link #setMapPane(MapPane)}. This is just defined so that it can be called from
+     * the constructor without a warning from the compiler about calling a public overridable
+     * method.
+     *
+     * @param newMapPane the map pane
+     */
     private void doSetMapPane(MapPane newMapPane) {
         listener.disconnectFromMapPane();
         mapPane = newMapPane;
@@ -162,8 +160,22 @@ public class MapLayerTable extends JPanel {
      *
      * @param layer the map layer
      */
-    void onRemoveLayer(Layer layer) {
+    public void onRemoveLayer(Layer layer) {
         listModel.removeItem(layer);
+    }
+
+    /**
+     * Move a layer from those listed in the table. This method will be called by the associated map
+     * pane automatically as part of the event sequence when a new MapLayer isremoved from the
+     * pane's MapContext.
+     *
+     * @param layer the map layer
+     */
+    public void onMoveLayer(Layer layer) {
+        listModel.removeItem(layer);
+        int curContextPos = mapPane.getMapContent().layers().indexOf(layer);
+        int newListModelPos = listModel.getSize() - curContextPos;
+        listModel.insertItem(newListModelPos, layer);
     }
 
     /**
@@ -269,53 +281,28 @@ public class MapLayerTable extends JPanel {
 
         JPanel btnPanel = new JPanel();
         Icon showIcon = MapLayerTableCellRenderer.LayerControlItem.VISIBLE.getIcon();
-        JButton btn = null;
 
-        btn = new JButton(showIcon);
+        JButton btn = new JButton(showIcon);
         btn.setToolTipText(SHOW_ALL_LAYERS);
-        btn.addActionListener(
-                new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        onShowAllLayers();
-                    }
-                });
+        btn.addActionListener(e -> onShowAllLayers());
         btnPanel.add(btn);
 
         Icon hideIcon = MapLayerTableCellRenderer.LayerControlItem.VISIBLE.getOffIcon();
         btn = new JButton(hideIcon);
         btn.setToolTipText(HIDE_ALL_LAYERS);
-        btn.addActionListener(
-                new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        onHideAllLayers();
-                    }
-                });
+        btn.addActionListener(e -> onHideAllLayers());
         btnPanel.add(btn);
 
         Icon onIcon = MapLayerTableCellRenderer.LayerControlItem.SELECTED.getIcon();
         btn = new JButton(onIcon);
         btn.setToolTipText(SELECT_ALL_LAYERS);
-        btn.addActionListener(
-                new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        onSelectAllLayers();
-                    }
-                });
+        btn.addActionListener(e -> onSelectAllLayers());
         btnPanel.add(btn);
 
         Icon offIcon = MapLayerTableCellRenderer.LayerControlItem.SELECTED.getOffIcon();
         btn = new JButton(offIcon);
         btn.setToolTipText(DESELECT_ALL_LAYERS);
-        btn.addActionListener(
-                new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        onUnselectAllLayers();
-                    }
-                });
+        btn.addActionListener(e -> onUnselectAllLayers());
         btnPanel.add(btn);
 
         setLayout(new BorderLayout());
@@ -565,7 +552,9 @@ public class MapLayerTable extends JPanel {
         }
 
         @Override
-        public void layerMoved(MapLayerListEvent event) {}
+        public void layerMoved(MapLayerListEvent event) {
+            table.onMoveLayer(event.getLayer());
+        }
 
         @Override
         public void layerPreDispose(MapLayerListEvent event) {}

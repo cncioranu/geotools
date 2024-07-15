@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.net.URL;
 import javax.media.jai.iterator.RectIter;
 import javax.media.jai.iterator.RectIterFactory;
-import junit.framework.TestCase;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
@@ -32,16 +34,16 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.parameter.Parameter;
 import org.geotools.referencing.CRS;
 import org.geotools.util.URLs;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Reader tests for different active region cases.
  *
  * @author Andrea Antonello (www.hydrologis.com)
  */
-public class AdvancedReaderTest extends TestCase {
+public class AdvancedReaderTest {
 
     private CoordinateReferenceSystem crs = null;
     private CoordinateReferenceSystem crs32632 = null;
@@ -49,7 +51,8 @@ public class AdvancedReaderTest extends TestCase {
     private File pitFile;
     private File grassFile;
 
-    protected void setUp() throws Exception {
+    @Before
+    public void setUp() throws Exception {
         URL pitUrl = this.getClass().getClassLoader().getResource("testlocation/test/cell/pit");
         pitFile = URLs.urlToFile(pitUrl);
         crs = CRS.decode("EPSG:3004");
@@ -60,6 +63,7 @@ public class AdvancedReaderTest extends TestCase {
     }
 
     /** Read the whole Image (at file region and resolution) */
+    @Test
     public void testReadFromFileRegion() throws Exception {
         double n = 5140020.0;
         double s = 5139780.0;
@@ -73,6 +77,7 @@ public class AdvancedReaderTest extends TestCase {
     }
 
     /** Read a region which is bigger, in all direction, than the file region. */
+    @Test
     public void testReadFromWrappingRegion() throws IOException {
         JGrassRegion r = new JGrassRegion(1640590.0, 1641010.0, 5139720.0, 5140080.0, 30.0, 30.0);
 
@@ -82,6 +87,7 @@ public class AdvancedReaderTest extends TestCase {
     }
 
     /** Read a region which dimension is smaller and completely contained in thefile region. */
+    @Test
     public void testReadFromContainedRegion() throws IOException {
         JGrassRegion r = new JGrassRegion(1640710.0, 1640890.0, 5139840.0, 5139960.0, 30.0, 30.0);
 
@@ -104,6 +110,7 @@ public class AdvancedReaderTest extends TestCase {
      * </tr>
      * </table>
      */
+    @Test
     public void testReadFromRegion12() throws IOException {
         JGrassRegion r = new JGrassRegion(1640710.0, 1641010.0, 5139840.0, 5140080.0, 30.0, 30.0);
         GridCoverage2D gc = read(pitFile, r, crs);
@@ -125,6 +132,7 @@ public class AdvancedReaderTest extends TestCase {
      * </tr>
      * </table>
      */
+    @Test
     public void testReadFromRegion21() throws IOException {
         JGrassRegion r = new JGrassRegion(1640590.0, 1640890.0, 5139720.0, 5139960.0, 30.0, 30.0);
         GridCoverage2D gc = read(pitFile, r, crs);
@@ -146,6 +154,7 @@ public class AdvancedReaderTest extends TestCase {
      * </tr>
      * </table>
      */
+    @Test
     public void testReadFromRegion22() throws IOException {
         JGrassRegion r = new JGrassRegion(1640710.0, 1641010.0, 5139720.0, 5139960.0, 30.0, 30.0);
         GridCoverage2D gc = read(pitFile, r, crs);
@@ -167,6 +176,7 @@ public class AdvancedReaderTest extends TestCase {
      * </tr>
      * </table>
      */
+    @Test
     public void testReadFromRegion11() throws IOException {
         JGrassRegion r = new JGrassRegion(1640590.0, 1640830.0, 5139840.0, 5140080.0, 30.0, 30.0);
         GridCoverage2D gc = read(pitFile, r, crs);
@@ -175,6 +185,7 @@ public class AdvancedReaderTest extends TestCase {
     }
 
     /** Read the whole Image with a different resolution than the original map. */
+    @Test
     public void testDifferentResolution() throws IOException {
         JGrassRegion r = new JGrassRegion(1640650.0, 1640950.0, 5139780.0, 5140020.0, 60.0, 60.0);
         GridCoverage2D gc = read(pitFile, r, crs);
@@ -182,16 +193,16 @@ public class AdvancedReaderTest extends TestCase {
         checkMatrixEqual(gc.getRenderedImage(), TestMaps.matrixDifferentResolution, 0);
     }
 
+    @Test
     public void testRasterReaderBoundsOnly() throws Exception {
-        double[][] mapData =
-                new double[][] { //
-                    {1000, 1000, 1200, 1250, 1300, 1350, 1450}, //
-                    {750, 850, 860, 900, 1000, 1200, 1250}, //
-                    {700, 750, 800, 850, 900, 1000, 1100}, //
-                    {650, 700, 750, 800, 850, 490, 450}, //
-                    {430, 500, 600, 700, 800, 500, 450}, //
-                    {700, 750, 760, 770, 850, 1000, 1150} //
-                };
+        double[][] mapData = { //
+            {1000, 1000, 1200, 1250, 1300, 1350, 1450}, //
+            {750, 850, 860, 900, 1000, 1200, 1250}, //
+            {700, 750, 800, 850, 900, 1000, 1100}, //
+            {650, 700, 750, 800, 850, 490, 450}, //
+            {430, 500, 600, 700, 800, 500, 450}, //
+            {700, 750, 760, 770, 850, 1000, 1150} //
+        };
 
         double n = 5140020.0;
         double s = 5139840.0;
@@ -204,14 +215,14 @@ public class AdvancedReaderTest extends TestCase {
         checkMatrixEqual(readCoverage.getRenderedImage(), mapData, 0);
     }
 
+    @Test
     public void testRasterReaderResOnly() throws Exception {
-        double[][] mapData =
-                new double[][] { //
-                    {800.0, 1000.0, 1200.0, 1300.0, 1450.0}, //
-                    {500.0, 700.0, 800.0, 900.0, 1100.0}, //
-                    {450.0, 430.0, 600.0, 800.0, 450.0}, //
-                    {600.0, 750.0, 780.0, 1000.0, 1250.0} //
-                };
+        double[][] mapData = { //
+            {800.0, 1000.0, 1200.0, 1300.0, 1450.0}, //
+            {500.0, 700.0, 800.0, 900.0, 1100.0}, //
+            {450.0, 430.0, 600.0, 800.0, 450.0}, //
+            {600.0, 750.0, 780.0, 1000.0, 1250.0} //
+        };
         double n = 5140020.0;
         double s = 5139780.0;
         double w = 1640650.0;
@@ -223,14 +234,14 @@ public class AdvancedReaderTest extends TestCase {
         checkMatrixEqual(readCoverage.getRenderedImage(), mapData, 0);
     }
 
+    @Test
     public void testRasterReaderBoundsAndRes() throws Exception {
-        double[][] mapData =
-                new double[][] { //
-                    {1000.0, 1200.0, 1250.0, 1300.0, 1450.0}, //
-                    {700.0, 800.0, 850.0, 900.0, 1100.0}, //
-                    {650.0, 750.0, 800.0, 850.0, 450.0}, //
-                    {700.0, 760.0, 770.0, 850.0, 1150.0} //
-                };
+        double[][] mapData = { //
+            {1000.0, 1200.0, 1250.0, 1300.0, 1450.0}, //
+            {700.0, 800.0, 850.0, 900.0, 1100.0}, //
+            {650.0, 750.0, 800.0, 850.0, 450.0}, //
+            {700.0, 760.0, 770.0, 850.0, 1150.0} //
+        };
 
         double n = 5140020.0;
         double s = 5139840.0;
@@ -243,22 +254,6 @@ public class AdvancedReaderTest extends TestCase {
         checkMatrixEqual(readCoverage.getRenderedImage(), mapData, 0);
     }
 
-    protected void printImage(RenderedImage image) {
-        RectIter rectIter = RectIterFactory.create(image, null);
-        int y = 0;
-        do {
-            int x = 0;
-            do {
-                double value = rectIter.getSampleDouble();
-                // System.out.print(value + " ");
-                x++;
-            } while (!rectIter.nextPixelDone());
-            rectIter.startPixels();
-            y++;
-            // System.out.println();
-        } while (!rectIter.nextLineDone());
-    }
-
     private GridCoverage2D read(File file, JGrassRegion r, CoordinateReferenceSystem crs)
             throws IOException {
         GeneralParameterValue[] readParams = new GeneralParameterValue[1];
@@ -269,8 +264,7 @@ public class AdvancedReaderTest extends TestCase {
         readGG.setValue(new GridGeometry2D(gridEnvelope, env));
         readParams[0] = readGG;
 
-        AbstractGridFormat format =
-                (AbstractGridFormat) new GrassCoverageFormatFactory().createFormat();
+        AbstractGridFormat format = new GrassCoverageFormatFactory().createFormat();
         GridCoverageReader reader = format.getReader(file);
         GridCoverage2D gc = ((GridCoverage2D) reader.read(readParams));
         return gc;
@@ -302,8 +296,7 @@ public class AdvancedReaderTest extends TestCase {
         readGG.setValue(new GridGeometry2D(gridEnvelope, env));
         readParams[0] = readGG;
         // do the reading
-        AbstractGridFormat format =
-                (AbstractGridFormat) new GrassCoverageFormatFactory().createFormat();
+        AbstractGridFormat format = new GrassCoverageFormatFactory().createFormat();
         GridCoverageReader reader = format.getReader(file);
         GridCoverage2D gc = ((GridCoverage2D) reader.read(readParams));
 
@@ -320,9 +313,9 @@ public class AdvancedReaderTest extends TestCase {
                 double value = rectIter.getSampleDouble();
                 double expectedResult = matrix[y][x];
                 if (Double.isNaN(value)) {
-                    assertTrue(x + " " + y, Double.isNaN(expectedResult));
+                    Assert.assertTrue(x + " " + y, Double.isNaN(expectedResult));
                 } else {
-                    assertEquals(x + " " + y, expectedResult, value, delta);
+                    Assert.assertEquals(x + " " + y, expectedResult, value, delta);
                 }
                 x++;
             } while (!rectIter.nextPixelDone());

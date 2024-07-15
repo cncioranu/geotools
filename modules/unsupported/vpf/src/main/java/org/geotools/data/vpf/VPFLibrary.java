@@ -34,10 +34,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 import java.util.logging.Level;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.store.ContentDataStore;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
@@ -46,11 +50,6 @@ import org.geotools.data.vpf.file.VPFFileFactory;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.SchemaException;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /*
  * A data store for a VPF library. A library is identified by
@@ -105,7 +104,7 @@ public class VPFLibrary extends ContentDataStore {
     /** The name of the library */
     private final String libraryName;
     /** The coverages that are in the library */
-    private final List<VPFCoverage> coverages = new Vector<>();
+    private final List<VPFCoverage> coverages = new ArrayList<>();
     /** The coordinate reference system used through this library */
     private CoordinateReferenceSystem crs;
     /** Signals if an error has already been logged for a CRS related exception */
@@ -181,7 +180,7 @@ public class VPFLibrary extends ContentDataStore {
         try {
             lhtFile.readFeature(); // check for errors
         } catch (IllegalAttributeException exc) {
-            exc.printStackTrace();
+            LOGGER.log(Level.FINE, "", exc);
             throw new IOException("Illegal values in library attribute table");
         }
         if (libraryFeature != null) {
@@ -248,8 +247,8 @@ public class VPFLibrary extends ContentDataStore {
 
                 List featureTypes = coverage.getFeatureTypes();
 
-                for (int ift = 0; ift < featureTypes.size(); ift++) {
-                    VPFFeatureType featureType = (VPFFeatureType) featureTypes.get(ift);
+                for (Object type : featureTypes) {
+                    VPFFeatureType featureType = (VPFFeatureType) type;
                     VPFFeatureClass featureClass = featureType.getFeatureClass();
                     String featureTypeName = featureType.getTypeName();
                     if (debug) {
@@ -266,8 +265,8 @@ public class VPFLibrary extends ContentDataStore {
                         VPFLogger.log("   file count :   " + fileList.size());
                     }
 
-                    for (int ifl = 0; ifl < fileList.size(); ifl++) {
-                        VPFFile vpfClassFile = (VPFFile) fileList.get(ifl);
+                    for (Object o : fileList) {
+                        VPFFile vpfClassFile = (VPFFile) o;
                         if (debug) {
                             if (vpfClassFile == null) {
                                 VPFLogger.log("null");
@@ -359,7 +358,7 @@ public class VPFLibrary extends ContentDataStore {
     private void createTilingSchema(VPFCoverage coverage) throws IOException {
         //            File tilefile = new File(directory, "tilereft.tft");
 
-        VPFFeatureType tileType = (VPFFeatureType) coverage.getFeatureTypes().get(0);
+        VPFFeatureType tileType = coverage.getFeatureTypes().get(0);
 
         // VPFFile tileFile = (VPFFile) tileType.getFeatureClass().getFileList().get(0);
         // Iterator rowsIter = tileFile.readAllRows().iterator();
@@ -581,7 +580,7 @@ public class VPFLibrary extends ContentDataStore {
             } catch (Exception ex) {
                 // Don't know what else can be done here, just dump it
                 if (!loggedCRSException) {
-                    ex.printStackTrace();
+                    LOGGER.log(Level.SEVERE, "", ex);
                     loggedCRSException = true;
                 }
             }

@@ -18,6 +18,7 @@ package org.geotools.referencing.operation.builder;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -30,10 +31,13 @@ import static org.junit.Assert.fail;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
-import java.util.Arrays;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.coverage.grid.GeneralGridEnvelope;
 import org.geotools.coverage.grid.GridEnvelope2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -43,10 +47,6 @@ import org.geotools.referencing.datum.DefaultGeodeticDatum;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.junit.Test;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Tests {@link GridToEnvelopeMapper}. This test appears in the coverage module instead of the
@@ -98,10 +98,10 @@ public final class GridToEnvelopeMapperTest {
         ///  Tests the setting of grid range and envelope.
         ///
         Point2D.Double point = new Point2D.Double();
-        GeneralGridEnvelope gridRange;
-        GeneralEnvelope envelope;
-        gridRange = new GeneralGridEnvelope(new int[] {10, 20}, new int[] {110, 220}, false);
-        envelope = new GeneralEnvelope(new double[] {1, 4, 6}, new double[] {11, 44, 66});
+        GeneralGridEnvelope gridRange =
+                new GeneralGridEnvelope(new int[] {10, 20}, new int[] {110, 220}, false);
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {1, 4, 6}, new double[] {11, 44, 66});
         mapper.setGridRange(gridRange);
         assertSame(gridRange, mapper.getGridRange());
         try {
@@ -161,7 +161,7 @@ public final class GridToEnvelopeMapperTest {
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         mapper.setEnvelope(envelope);
         assertFalse(mapper.getSwapXY());
-        assertTrue(Arrays.equals(new boolean[] {false, true}, mapper.getReverseAxis()));
+        assertArrayEquals(new boolean[] {false, true}, mapper.getReverseAxis());
         final AffineTransform tr2 = mapper.createAffineTransform();
         assertNotSame("Should be a new transform", tr1, tr2);
         assertEquals(
@@ -194,7 +194,7 @@ public final class GridToEnvelopeMapperTest {
                                 DefaultCoordinateSystemAxis.LONGITUDE)));
         mapper.setEnvelope(envelope);
         assertTrue(mapper.getSwapXY());
-        assertTrue(Arrays.equals(new boolean[] {true, false}, mapper.getReverseAxis()));
+        assertArrayEquals(new boolean[] {true, false}, mapper.getReverseAxis());
         final AffineTransform tr3 = mapper.createAffineTransform();
         assertNotSame("Should be a new transform", tr2, tr3);
         assertEquals(
@@ -269,8 +269,8 @@ public final class GridToEnvelopeMapperTest {
         // the x axis should not be reversed, the y one does to account for different grid/screen
         // orientation (grid goes upwards, screen goes downwards)
         boolean[] reverseAxis = mapper.getReverseAxis();
-        assertEquals(false, reverseAxis[0]);
-        assertEquals(true, reverseAxis[1]);
+        assertFalse(reverseAxis[0]);
+        assertTrue(reverseAxis[1]);
 
         MathTransform mt = mapper.createTransform();
         assertThat(mt, instanceOf(AffineTransform2D.class));

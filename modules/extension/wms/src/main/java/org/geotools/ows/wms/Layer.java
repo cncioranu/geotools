@@ -21,14 +21,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.ows.wms.xml.Attribution;
 import org.geotools.ows.wms.xml.Dimension;
 import org.geotools.ows.wms.xml.Extent;
@@ -36,10 +40,6 @@ import org.geotools.ows.wms.xml.MetadataURL;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.logging.Logging;
-import org.opengis.geometry.Envelope;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Nested list of zero or more map Layers offered by this server. It contains only fields for
@@ -73,7 +73,7 @@ public class Layer implements Comparable<Layer> {
      * A set of Strings representing SRSs. These are the SRSs contributed by this layer. For the
      * complete list you need to consider these values and those defined by its parent.
      */
-    protected Set<String> srs = new HashSet<>();
+    protected Set<String> srs = new LinkedHashSet<>();
 
     /**
      * The bounding boxes on each layer; usually this matches the actual data coordinate reference
@@ -89,7 +89,7 @@ public class Layer implements Comparable<Layer> {
      */
     private CRSEnvelope latLonBoundingBox = null;
 
-    /** A list of type org.opengis.layer.Style */
+    /** A list of type org.geotools.api.layer.Style */
     private List<StyleImpl> styles;
 
     /** Indicates if this layer responds to a GetFeatureInfo query */
@@ -144,7 +144,7 @@ public class Layer implements Comparable<Layer> {
      * This is where we try and go from our rather lame CRSEnvelope data structure to an actual
      * ReferencedEnvelope with a real CoordinateReferenceSystem.
      */
-    private Map<CoordinateReferenceSystem, Envelope> envelopeCache =
+    private Map<CoordinateReferenceSystem, Bounds> envelopeCache =
             Collections.synchronizedMap(new WeakHashMap<>());
 
     private List<MetadataURL> metadataURL;
@@ -202,16 +202,18 @@ public class Layer implements Comparable<Layer> {
      */
     public synchronized Map<String, CRSEnvelope> getBoundingBoxes() {
         if (allBoundingBoxesCache == null) {
-            allBoundingBoxesCache = new HashMap<>();
+            allBoundingBoxesCache = new LinkedHashMap<>();
 
             for (CRSEnvelope bbox : getLayerBoundingBoxes()) {
                 allBoundingBoxesCache.put(bbox.getSRSName(), bbox);
             }
 
             Layer parent = this.getParent();
-            while (parent != null && allBoundingBoxesCache.size() == 0) {
+            while (parent != null && allBoundingBoxesCache.isEmpty()) {
                 for (CRSEnvelope bbox : parent.getLayerBoundingBoxes()) {
-                    allBoundingBoxesCache.put(bbox.getSRSName(), bbox);
+                    if (!allBoundingBoxesCache.containsKey(bbox.getSRSName())) {
+                        allBoundingBoxesCache.put(bbox.getSRSName(), bbox);
+                    }
                 }
                 parent = parent.getParent();
             }
@@ -233,7 +235,18 @@ public class Layer implements Comparable<Layer> {
      */
     public void setBoundingBoxes(Map<String, CRSEnvelope> boundingBoxes) {
         this.boundingBoxes.clear();
-        this.boundingBoxes.addAll(boundingBoxes.values());
+        // prioritize CRS order available already on SRS set
+        LinkedHashMap<String, CRSEnvelope> bboxesInternal = new LinkedHashMap<>(boundingBoxes);
+        List<CRSEnvelope> prioritizedBboxes = new ArrayList<>();
+        for (String esrs : srs) {
+            if (bboxesInternal.containsKey(esrs)) {
+                prioritizedBboxes.add(bboxesInternal.get(esrs));
+                bboxesInternal.remove(esrs);
+            }
+        }
+        // add all remaining bboxes
+        prioritizedBboxes.addAll(bboxesInternal.values());
+        this.boundingBoxes.addAll(prioritizedBboxes);
     }
 
     /**
@@ -403,7 +416,7 @@ public class Layer implements Comparable<Layer> {
     public Set<String> getSrs() {
         synchronized (this) {
             if (allSRSCache == null) {
-                allSRSCache = new HashSet<>(srs);
+                allSRSCache = new LinkedHashSet<>(srs);
                 // Get my ancestor's srs/crs
                 Layer parent = this.getParent();
                 if (parent != null) {
@@ -428,8 +441,8 @@ public class Layer implements Comparable<Layer> {
      * Accumulates all of the styles specified for this layer and all styles inherited from its
      * ancestors. No duplicates are returned.
      *
-     * <p>The List that is returned is of type List<org.opengis.layer.Style>. Before 2.2-RC0 it was
-     * of type List<java.lang.String>.
+     * <p>The List that is returned is of type List<org.geotools.api.layer.Style>. Before 2.2-RC0 it
+     * was of type List<java.lang.String>.
      *
      * @return List of all styles for this layer and its ancestors
      */
@@ -448,8 +461,7 @@ public class Layer implements Comparable<Layer> {
         // inherited from a parent. A child may define a new Style with a new Name that is
         // not available for the parent Layer."
         if ((styles != null) && !styles.isEmpty()) {
-            for (Iterator<StyleImpl> iter = styles.iterator(); iter.hasNext(); ) {
-                StyleImpl style = iter.next();
+            for (StyleImpl style : styles) {
                 if (!allStyles.contains(style)) allStyles.add(style);
             }
         }
@@ -506,6 +518,7 @@ public class Layer implements Comparable<Layer> {
      *
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
+    @Override
     public int compareTo(Layer layer) {
         if ((this.getName() != null) && (layer.getName() != null)) {
             return this.getName().compareTo(layer.getName());
@@ -723,12 +736,12 @@ public class Layer implements Comparable<Layer> {
      *
      * @return GeneralEnvelope matching the provided crs; or null if unavailable.
      */
-    public GeneralEnvelope getEnvelope(CoordinateReferenceSystem crs) {
+    public GeneralBounds getEnvelope(CoordinateReferenceSystem crs) {
         if (crs == null) {
             return null;
         }
         // Check the cache!
-        GeneralEnvelope found = (GeneralEnvelope) envelopeCache.get(crs);
+        GeneralBounds found = (GeneralBounds) envelopeCache.get(crs);
         if (found != null) {
             return found;
         }
@@ -739,7 +752,7 @@ public class Layer implements Comparable<Layer> {
             // Locate an exact bounding box if we can (searches all bounding boxes associated with
             // layer)
             Map<String, CRSEnvelope> boxes = getBoundingBoxes(); // extents for layer and parents
-            tempBBox = (CRSEnvelope) boxes.get(srsName);
+            tempBBox = boxes.get(srsName);
             if (tempBBox != null) {
                 break;
             }
@@ -757,18 +770,18 @@ public class Layer implements Comparable<Layer> {
         // TODO Attempt to figure out the valid area of the CRS and use that.
 
         // last attempt grab the first thing (and we will transform it)
-        if (tempBBox == null && getBoundingBoxes() != null && getBoundingBoxes().size() > 0) {
-            tempBBox = (CRSEnvelope) getBoundingBoxes().values().iterator().next();
+        if (tempBBox == null && getBoundingBoxes() != null && !getBoundingBoxes().isEmpty()) {
+            tempBBox = getBoundingBoxes().values().iterator().next();
         }
 
         if (tempBBox != null) {
-            GeneralEnvelope env;
+            GeneralBounds env;
             try {
-                Envelope fixed = CRS.transform(tempBBox, crs);
-                env = new GeneralEnvelope(fixed);
+                Bounds fixed = CRS.transform(tempBBox, crs);
+                env = new GeneralBounds(fixed);
             } catch (TransformException e) {
                 env =
-                        new GeneralEnvelope(
+                        new GeneralBounds(
                                 new double[] {tempBBox.getMinX(), tempBBox.getMinY()},
                                 new double[] {tempBBox.getMaxX(), tempBBox.getMaxY()});
                 env.setCoordinateReferenceSystem(crs);

@@ -19,18 +19,18 @@ package org.geotools.filter.v1_0.capabilities;
 import java.util.ArrayList;
 import java.util.List;
 import javax.xml.namespace.QName;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.capability.ArithmeticOperators;
+import org.geotools.api.filter.capability.ComparisonOperators;
+import org.geotools.api.filter.capability.FilterCapabilities;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.capability.Functions;
+import org.geotools.api.filter.capability.Operator;
+import org.geotools.api.filter.capability.ScalarCapabilities;
+import org.geotools.api.filter.capability.SpatialCapabilities;
+import org.geotools.api.filter.capability.SpatialOperator;
+import org.geotools.api.filter.capability.SpatialOperators;
 import org.geotools.factory.CommonFactoryFinder;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.capability.ArithmeticOperators;
-import org.opengis.filter.capability.ComparisonOperators;
-import org.opengis.filter.capability.FilterCapabilities;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.capability.Functions;
-import org.opengis.filter.capability.Operator;
-import org.opengis.filter.capability.ScalarCapabilities;
-import org.opengis.filter.capability.SpatialCapabilities;
-import org.opengis.filter.capability.SpatialOperator;
-import org.opengis.filter.capability.SpatialOperators;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -146,7 +146,7 @@ public class FilterMockData {
         o.add(ff.operator("Between"));
         o.add(ff.operator("NullCheck"));
 
-        return ff.comparisonOperators((Operator[]) o.toArray(new Operator[o.size()]));
+        return ff.comparisonOperators(o.toArray(new Operator[o.size()]));
     }
 
     static Element scalarCapabilities(Document document, Node parent) {
@@ -206,7 +206,7 @@ public class FilterMockData {
         o.add(ff.spatialOperator("Beyond", null));
         o.add(ff.spatialOperator("DWithin", null));
 
-        return ff.spatialOperators((SpatialOperator[]) o.toArray(new SpatialOperator[o.size()]));
+        return ff.spatialOperators(o.toArray(new SpatialOperator[o.size()]));
     }
 
     static SpatialCapabilities spatialCapabilities() {

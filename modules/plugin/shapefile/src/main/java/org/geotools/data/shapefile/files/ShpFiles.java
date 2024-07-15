@@ -22,22 +22,24 @@ import static org.geotools.data.shapefile.files.ShpFileType.SHP;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLDecoder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -48,6 +50,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.GZIPInputStream;
+import org.apache.commons.lang3.SystemUtils;
 import org.geotools.util.URLs;
 import org.geotools.util.logging.Logging;
 
@@ -64,6 +68,8 @@ import org.geotools.util.logging.Logging;
  * @author jesse
  */
 public class ShpFiles {
+
+    public static final boolean DEFAULT_SKIP_SCAN = false;
 
     static final Logger LOGGER = Logging.getLogger(ShpFiles.class);
 
@@ -87,19 +93,24 @@ public class ShpFiles {
 
     private boolean memoryMapCacheEnabled;
 
+    public ShpFiles(String fileName) throws MalformedURLException {
+        this(fileName, DEFAULT_SKIP_SCAN);
+    }
+
     /**
      * Searches for all the files and adds then to the map of files.
      *
      * @param fileName the filename or url of any one of the shapefile files
+     * @param skipScan skip the scan for alternative shapefile extensions (i.e. .SHP, .shp.XML, ...)
      * @throws MalformedURLException if it isn't possible to create a URL from string. It will be
      *     used to create a file and create a URL from that if both fail this exception is thrown
      */
-    public ShpFiles(String fileName) throws MalformedURLException {
+    public ShpFiles(String fileName, boolean skipScan) throws MalformedURLException {
         try {
             URL url = new URL(fileName);
-            init(url);
+            init(url, skipScan);
         } catch (MalformedURLException e) {
-            init(new File(fileName).toURI().toURL());
+            init(new File(fileName).toURI().toURL(), skipScan);
         }
     }
 
@@ -110,7 +121,11 @@ public class ShpFiles {
      * @throws FileNotFoundException if the shapefile associated with file is not found
      */
     public ShpFiles(File file) throws MalformedURLException {
-        init(file.toURI().toURL());
+        this(file, DEFAULT_SKIP_SCAN);
+    }
+
+    public ShpFiles(File file, boolean skipScan) throws MalformedURLException {
+        init(file.toURI().toURL(), skipScan);
     }
 
     /**
@@ -119,10 +134,20 @@ public class ShpFiles {
      * @param url any one of the shapefile files
      */
     public ShpFiles(URL url) throws IllegalArgumentException {
-        init(url);
+        this(url, DEFAULT_SKIP_SCAN);
     }
 
-    private void init(URL url) {
+    /**
+     * Searches for all the files and adds then to the map of files.
+     *
+     * @param url any one of the shapefile files
+     * @param skipScan avoid searching for other extensions when missing.
+     */
+    public ShpFiles(URL url, boolean skipScan) throws IllegalArgumentException {
+        init(url, skipScan);
+    }
+
+    private void init(URL url, boolean skipScan) {
         String base = baseName(url);
         if (base == null) {
             throw new IllegalArgumentException(
@@ -134,9 +159,11 @@ public class ShpFiles {
         char lastChar = urlString.charAt(urlString.length() - 1);
         boolean upperCase = Character.isUpperCase(lastChar);
 
+        boolean isGz = urlString.toLowerCase().endsWith(".gz");
         for (ShpFileType type : ShpFileType.values()) {
 
-            String extensionWithPeriod = type.extensionWithPeriod;
+            String extensionWithPeriod =
+                    isGz ? type.gzExtensionWithPeriod : type.extensionWithPeriod;
             if (upperCase) {
                 extensionWithPeriod = extensionWithPeriod.toUpperCase();
             } else {
@@ -157,8 +184,9 @@ public class ShpFiles {
         // if the files are local check each file to see if it exists
         // if not then search for a file of the same name but try all combinations of the
         // different cases that the extension can be made up of.
-        // IE Shp, SHP, Shp, ShP etc...
-        if (isLocal()) {
+        // IE Shp, SHP, shp, ShP etc...
+        // Note that WINDOWS is case-insensitive, so we can skip the search in that case
+        if (!SystemUtils.IS_OS_WINDOWS && isLocal() && !skipScan) {
             Set<Entry<ShpFileType, URL>> entries = urls.entrySet();
             Map<ShpFileType, URL> toUpdate = new HashMap<>();
             for (Entry<ShpFileType, URL> entry : entries) {
@@ -183,12 +211,9 @@ public class ShpFiles {
         }
         File[] files =
                 directory.listFiles(
-                        new FilenameFilter() {
-
-                            public boolean accept(File dir, String name) {
-                                return file.getName().equalsIgnoreCase(name);
-                            }
-                        });
+                        (dir, name) ->
+                                file.getName().equalsIgnoreCase(name)
+                                        || (file.getName() + ".gz").equalsIgnoreCase(name));
         if (files != null && files.length > 0) {
             try {
                 return files[0].toURI().toURL();
@@ -394,16 +419,21 @@ public class ShpFiles {
         if (requestor == null) {
             throw new NullPointerException("requestor cannot be null");
         }
-
+        LOGGER.fine(() -> "Read lock: " + url + " by " + requestor.id());
         Collection<ShpFilesLocker> threadLockers = getCurrentThreadLockers();
-        boolean removed = threadLockers.remove(new ShpFilesLocker(url, requestor));
-        if (!removed) {
-            throw new IllegalArgumentException(
-                    "Expected requestor "
-                            + requestor
-                            + " to have locked the url but it does not hold the lock for the URL");
-        }
-        if (threadLockers.size() == 0) lockers.remove(Thread.currentThread());
+        ShpFilesLocker requestedLocker =
+                threadLockers.stream()
+                        .filter(l -> l.compare(url, requestor))
+                        .findAny()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Expected requestor "
+                                                        + requestor
+                                                        + " to have locked the url but it does not hold the lock for the URL"));
+
+        threadLockers.remove(requestedLocker);
+        if (threadLockers.isEmpty()) lockers.remove(Thread.currentThread());
         readWriteLock.readLock().unlock();
     }
 
@@ -497,7 +527,7 @@ public class ShpFiles {
     }
 
     /**
-     * Unlocks a read lock. The file and requestor must be the the same as the one of the lockers.
+     * Unlocks a write lock. The file and requestor must be the the same as the one of the lockers.
      *
      * @param file file that was locked
      * @param requestor the class that requested the file
@@ -512,7 +542,7 @@ public class ShpFiles {
     }
 
     /**
-     * Unlocks a read lock. The requestor must be have previously obtained a lock for the url.
+     * Unlocks a write lock. The requestor must be have previously obtained a lock for the url.
      *
      * @param url url that was locked
      * @param requestor the class that requested the url
@@ -524,16 +554,21 @@ public class ShpFiles {
         if (requestor == null) {
             throw new NullPointerException("requestor cannot be null");
         }
+        LOGGER.fine(() -> "Write lock: " + url + " by " + requestor.id());
         Collection<ShpFilesLocker> threadLockers = getCurrentThreadLockers();
-        boolean removed = threadLockers.remove(new ShpFilesLocker(url, requestor));
-        if (!removed) {
-            throw new IllegalArgumentException(
-                    "Expected requestor "
-                            + requestor
-                            + " to have locked the url but it does not hold the lock for the URL");
-        }
+        ShpFilesLocker requestedLocker =
+                threadLockers.stream()
+                        .filter(l -> l.compare(url, requestor))
+                        .findAny()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Expected requestor "
+                                                        + requestor
+                                                        + " to have locked the url but it does not hold the lock for the URL"));
+        threadLockers.remove(requestedLocker);
 
-        if (threadLockers.size() == 0) {
+        if (threadLockers.isEmpty()) {
             lockers.remove(Thread.currentThread());
         } else {
             // get back read locks before giving up the write one
@@ -543,7 +578,7 @@ public class ShpFiles {
     }
 
     /** Returns the list of lockers attached to a given thread, or creates it if missing */
-    private Collection<ShpFilesLocker> getCurrentThreadLockers() {
+    Collection<ShpFilesLocker> getCurrentThreadLockers() {
         Collection<ShpFilesLocker> threadLockers = lockers.get(Thread.currentThread());
         if (threadLockers == null) {
             threadLockers = new ArrayList<>();
@@ -581,9 +616,14 @@ public class ShpFiles {
         return urls.get(ShpFileType.SHP).toExternalForm().toLowerCase().startsWith("file:");
     }
 
+    /** @return whether the files are gzip-ped. */
+    public boolean isGz() {
+        return urls.get(ShpFileType.SHP).toExternalForm().toLowerCase().endsWith(".gz");
+    }
+
     /** Returns true if the files are writable */
     public boolean isWritable() {
-        if (!isLocal()) {
+        if (!isLocal() || isGz()) {
             return false;
         }
         return URLs.urlToFile(urls.get(SHP)).canWrite() && URLs.urlToFile(urls.get(DBF)).canWrite();
@@ -738,7 +778,7 @@ public class ShpFiles {
         URL url = acquireRead(type, requestor);
         ReadableByteChannel channel = null;
         try {
-            if (isLocal()) {
+            if (isLocal() && !isGz()) {
                 File file = URLs.urlToFile(url);
 
                 @SuppressWarnings("resource")
@@ -746,6 +786,9 @@ public class ShpFiles {
                 channel = new FileChannelDecorator(raf.getChannel(), this, url, requestor);
             } else {
                 InputStream in = url.openConnection().getInputStream();
+                if (isGz()) {
+                    in = new GZIPInputStream(in);
+                }
                 channel =
                         new ReadableByteChannelDecorator(
                                 Channels.newChannel(in), this, url, requestor);
@@ -847,7 +890,17 @@ public class ShpFiles {
     public String getTypeName() {
         String path = SHP.toBase(urls.get(SHP));
         int slash = Math.max(0, path.lastIndexOf('/') + 1);
-        return path.substring(slash);
+        String typeName = path.substring(slash);
+        try {
+            // ensure that special characters are correctly decoded
+            typeName = URLDecoder.decode(typeName, StandardCharsets.UTF_8.name());
+        } catch (UnsupportedEncodingException e) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "Failed to decode shp file url using UTF-8. "
+                            + " Retrieving the Type Name from the not decoded url");
+        }
+        return typeName;
     }
 
     /**

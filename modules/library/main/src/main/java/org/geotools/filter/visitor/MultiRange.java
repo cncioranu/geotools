@@ -20,11 +20,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.TreeSet;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsNotEqualTo;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.util.Range;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.PropertyIsNotEqualTo;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Represents the domain of a variable as a set of ranges
@@ -160,7 +160,7 @@ public class MultiRange<T extends Comparable<? super T>> {
     }
 
     public Filter toFilter(FilterFactory ff, Expression variable) {
-        if (ranges.size() == 0) {
+        if (ranges.isEmpty()) {
             return Filter.EXCLUDE;
         } else if (ranges.size() == 1
                 && ranges.first().getMinValue() == null
@@ -181,7 +181,7 @@ public class MultiRange<T extends Comparable<? super T>> {
                 if (next.getMinValue().equals(curr.getMaxValue())) {
                     // do we have a hole?
                     if (!next.isMinIncluded() && !curr.isMaxIncluded()) {
-                        exclusions.add((T) curr.getMaxValue());
+                        exclusions.add(curr.getMaxValue());
                     }
                     i++;
                     curr = next;
@@ -193,16 +193,15 @@ public class MultiRange<T extends Comparable<? super T>> {
                 // no exclusions, this range is isolated
                 filters.add(toFilter(ff, variable, range));
             } else {
-                @SuppressWarnings("unchecked")
                 Range<T> union =
                         new Range<>(
                                 range.getElementClass(),
-                                (T) range.getMinValue(),
+                                range.getMinValue(),
                                 range.isMinIncluded(),
-                                (T) curr.getMaxValue(),
+                                curr.getMaxValue(),
                                 curr.isMaxIncluded());
                 Filter filter = toFilter(ff, variable, union);
-                if (exclusions.size() == 0) {
+                if (exclusions.isEmpty()) {
                     filters.add(filter);
                 } else {
                     List<Filter> exclusionFilters = new ArrayList<>();
@@ -223,7 +222,7 @@ public class MultiRange<T extends Comparable<? super T>> {
             }
         }
 
-        if (filters.size() == 0) {
+        if (filters.isEmpty()) {
             return Filter.EXCLUDE;
         } else if (filters.size() == 1) {
             return filters.get(0);

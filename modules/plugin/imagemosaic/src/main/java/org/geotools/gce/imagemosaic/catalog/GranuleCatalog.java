@@ -22,28 +22,30 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.geometry.BoundingBox;
 import org.geotools.coverage.grid.io.footprint.MultiLevelROI;
 import org.geotools.coverage.grid.io.footprint.MultiLevelROIProvider;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
-import org.geotools.data.Transaction;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.visitor.FeatureCalc;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.geometry.BoundingBox;
 
 public abstract class GranuleCatalog {
 
     protected final Hints hints;
+    protected final CatalogConfigurationBeans configurations;
 
     protected MultiLevelROIProvider multiScaleROIProvider;
 
-    /** @param hints */
-    public GranuleCatalog(Hints hints) {
+    /** */
+    public GranuleCatalog(Hints hints, CatalogConfigurationBeans configurations) {
         this.hints = hints;
+        this.configurations = configurations;
     }
 
     public void addGranule(
@@ -103,7 +105,6 @@ public abstract class GranuleCatalog {
     @Deprecated
     public abstract int removeGranules(Query query);
 
-    @SuppressWarnings("deprecation")
     public int removeGranules(Query query, Transaction transaction) {
         if (transaction == null || transaction == Transaction.AUTO_COMMIT) {
             return removeGranules(query);
@@ -171,4 +172,14 @@ public abstract class GranuleCatalog {
      * @throws IOException in case something bad happens
      */
     public abstract void drop() throws IOException;
+
+    protected CatalogConfigurationBeans getConfigurations() {
+        return configurations;
+    }
+
+    protected abstract String getParentLocation();
+
+    public Hints getHints() {
+        return hints;
+    }
 }

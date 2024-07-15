@@ -23,21 +23,21 @@ import java.awt.image.ColorModel;
 import java.awt.image.ComponentColorModel;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
+import java.text.MessageFormat;
 import java.util.List;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.style.SelectedChannelType;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.coverage.processing.operation.SelectSampleDimension;
 import org.geotools.renderer.i18n.ErrorKeys;
-import org.geotools.renderer.i18n.Errors;
 import org.geotools.renderer.i18n.Vocabulary;
 import org.geotools.renderer.i18n.VocabularyKeys;
-import org.geotools.styling.SelectedChannelType;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.Hints;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.util.InternationalString;
 
 /**
  * This {@link CoverageProcessingNode} has been built for taking care of the band select operation
@@ -52,6 +52,7 @@ class BandSelectionNode extends StyleVisitorCoverageProcessingNodeAdapter
      * (non-Javadoc)
      * @see CoverageProcessingNode#getName()
      */
+    @Override
     public InternationalString getName() {
         return Vocabulary.formatInternational(VocabularyKeys.BAND_SELECTION);
     }
@@ -93,6 +94,7 @@ class BandSelectionNode extends StyleVisitorCoverageProcessingNodeAdapter
      *
      * @see org.geotools.renderer.lite.gridcoverage2d.BaseCoverageProcessingNode#execute()
      */
+    @Override
     protected GridCoverage2D execute() {
         // preconditions
         assert this.getSources().size() <= 1;
@@ -123,7 +125,7 @@ class BandSelectionNode extends StyleVisitorCoverageProcessingNodeAdapter
                 final int numSampleDimensions = source.getNumSampleDimensions();
                 if (bandIndex < 1 || bandIndex > numSampleDimensions)
                     throw new IllegalArgumentException(
-                            Errors.format(
+                            MessageFormat.format(
                                     ErrorKeys.BAD_BAND_NUMBER_$1, Integer.valueOf(bandIndex)));
 
                 // //
@@ -192,6 +194,7 @@ class BandSelectionNode extends StyleVisitorCoverageProcessingNodeAdapter
         throw new IllegalStateException("No source was set for this Node.");
     }
 
+    @Override
     public void visit(SelectedChannelType sct) {
         // /////////////////////////////////////////////////////////////////////
         //
@@ -205,7 +208,7 @@ class BandSelectionNode extends StyleVisitorCoverageProcessingNodeAdapter
                 // something bad happened
                 final IllegalArgumentException iee =
                         new IllegalArgumentException(
-                                Errors.format(
+                                MessageFormat.format(
                                         ErrorKeys.BAD_BAND_NUMBER_$1, Integer.valueOf(bandIndex)));
                 iee.initCause(e);
                 throw iee;

@@ -13,6 +13,10 @@ import java.io.InvalidClassException;
 import java.util.ArrayList;
 import java.util.Collection;
 import org.geotools.ExceptionChecker;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.Property;
 import org.geotools.data.complex.feature.wrapper.FeatureWrapper;
 import org.geotools.feature.AttributeImpl;
 import org.geotools.feature.ComplexAttributeImpl;
@@ -22,10 +26,6 @@ import org.geotools.filter.identity.FeatureIdImpl;
 import org.geotools.filter.identity.GmlObjectIdImpl;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Feature;
-import org.opengis.feature.Property;
 
 public class FeatureWrapperTest {
     private static Feature getFeature() {
@@ -124,15 +124,6 @@ public class FeatureWrapperTest {
 
     @Test(expected = InvalidClassException.class)
     public void wrap_invalidFeatureMissingAttribute_throwsInvalidClassException() throws Exception {
-        // Arrange
-        // AttributeImpl:mineName<string id=mineName_1>=Pieces of Eight -
-        // Admiral Hill
-        Attribute mineName =
-                new AttributeImpl(
-                        "Pieces of Eight - Admiral Hill",
-                        Mine.mineNAME_DESCRIPTOR,
-                        new GmlObjectIdImpl("mineName"));
-
         // AttributeImpl:isPreferred<boolean id=isPreferred_1>=true,
         Attribute isPreferred =
                 new AttributeImpl(

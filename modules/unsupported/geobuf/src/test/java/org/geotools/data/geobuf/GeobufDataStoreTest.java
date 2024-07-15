@@ -18,19 +18,22 @@ package org.geotools.data.geobuf;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFinder;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFinder;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.util.URLs;
@@ -40,8 +43,6 @@ import org.junit.rules.TemporaryFolder;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.io.WKTReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 public class GeobufDataStoreTest {
 
@@ -65,8 +66,7 @@ public class GeobufDataStoreTest {
                 DataUtilities.encodeType(featureSource.getSchema()));
         SimpleFeatureCollection featureCollection = featureSource.getFeatures();
         assertEquals(2, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
@@ -84,8 +84,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -121,15 +119,13 @@ public class GeobufDataStoreTest {
                             2
                         },
                         "location.2");
-        SimpleFeatureCollection collection =
-                DataUtilities.collection(new SimpleFeature[] {feature1, feature2});
+        SimpleFeatureCollection collection = DataUtilities.collection(feature1, feature2);
         featureStore.addFeatures(collection);
 
         // Read
         SimpleFeatureCollection featureCollection = featureStore.getFeatures();
         assertEquals(2, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature f = it.next();
@@ -144,8 +140,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -168,21 +162,22 @@ public class GeobufDataStoreTest {
                 DataUtilities.encodeType(featureSource.getSchema()));
         SimpleFeatureCollection featureCollection = featureSource.getFeatures();
         assertEquals(3, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
                 if (c == 0) {
                     assertEquals(
-                            "LINESTRING (94.570313 63.233627, 70.3125 58.263287, 47.460937 57.515823, "
+                            "LINESTRING (94.570313 63.233627, 70.3125 58.263287, 47.460937 57"
+                                    + ".515823, "
                                     + "24.609374 50.513427)",
                             feature.getDefaultGeometry().toString());
                     assertEquals(1, feature.getAttribute("id"));
                     assertEquals("number 1", feature.getAttribute("name"));
                 } else if (c == 1) {
                     assertEquals(
-                            "LINESTRING (-89.296875 40.446947, -61.171875 20.303417, -47.460938 44.339565, "
+                            "LINESTRING (-89.296875 40.446947, -61.171875 20.303417, -47.460938 "
+                                    + "44.339565, "
                                     + "-76.992188 58.447733, -107.226563 50.289339)",
                             feature.getDefaultGeometry().toString());
                     assertEquals(2, feature.getAttribute("id"));
@@ -196,8 +191,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -241,15 +234,13 @@ public class GeobufDataStoreTest {
                             2
                         },
                         "location.2");
-        SimpleFeatureCollection collection =
-                DataUtilities.collection(new SimpleFeature[] {feature1, feature2});
+        SimpleFeatureCollection collection = DataUtilities.collection(feature1, feature2);
         featureStore.addFeatures(collection);
 
         // Read
         SimpleFeatureCollection featureCollection = featureStore.getFeatures();
         assertEquals(2, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature f = it.next();
@@ -265,8 +256,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -289,29 +278,33 @@ public class GeobufDataStoreTest {
                 DataUtilities.encodeType(featureSource.getSchema()));
         SimpleFeatureCollection featureCollection = featureSource.getFeatures();
         assertEquals(4, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
                 if (c == 0) {
                     assertEquals(
-                            "POLYGON ((59.0625 57.704147, 37.617187 24.527135, 98.789062 36.031332, "
+                            "POLYGON ((59.0625 57.704147, 37.617187 24.527135, 98.789062 36"
+                                    + ".031332, "
                                     + "59.062499 57.704147, 59.0625 57.704147))",
                             feature.getDefaultGeometry().toString());
                     assertEquals(1, feature.getAttribute("id"));
                     assertEquals("name 1", feature.getAttribute("name"));
                 } else if (c == 1) {
                     assertEquals(
-                            "POLYGON ((-72.773438 58.077876, -89.296876 17.644022, -37.265626 -2.460181, "
-                                    + "-2.109376 42.811522, -15.117189 60.413853, -50.976564 29.840645, -64.687502 39.909737, "
-                                    + "-58.71094 56.365251, -72.77344 58.077877, -72.773438 58.077876))",
+                            "POLYGON ((-72.773438 58.077876, -89.296876 17.644022, -37.265626 -2"
+                                    + ".460181, "
+                                    + "-2.109376 42.811522, -15.117189 60.413853, -50.976564 29"
+                                    + ".840645, -64.687502 39.909737, "
+                                    + "-58.71094 56.365251, -72.77344 58.077877, -72.773438 58"
+                                    + ".077876))",
                             feature.getDefaultGeometry().toString());
                     assertEquals(2, feature.getAttribute("id"));
                     assertEquals("name 2", feature.getAttribute("name"));
                 } else if (c == 2) {
                     assertEquals(
-                            "POLYGON ((12.65625 63.548552, 12.65625 69.534517, 29.179687 69.534517, "
+                            "POLYGON ((12.65625 63.548552, 12.65625 69.534517, 29.179687 69"
+                                    + ".534517, "
                                     + "29.179687 63.548552, 12.65625 63.548552))",
                             feature.getDefaultGeometry().toString());
                     assertEquals(3, feature.getAttribute("id"));
@@ -326,8 +319,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -391,36 +382,39 @@ public class GeobufDataStoreTest {
                         },
                         "location.4");
         SimpleFeatureCollection collection =
-                DataUtilities.collection(
-                        new SimpleFeature[] {feature1, feature2, feature3, feature4});
+                DataUtilities.collection(feature1, feature2, feature3, feature4);
         featureStore.addFeatures(collection);
 
         // Read
         SimpleFeatureCollection featureCollection = featureStore.getFeatures();
         assertEquals(4, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
                 if (c == 0) {
                     assertEquals(
-                            "POLYGON ((59.0625 57.704147, 37.617187 24.527135, 98.789062 36.031332, "
+                            "POLYGON ((59.0625 57.704147, 37.617187 24.527135, 98.789062 36"
+                                    + ".031332, "
                                     + "59.062499 57.704147, 59.0625 57.704147))",
                             feature.getDefaultGeometry().toString());
                     assertEquals("1", feature.getAttribute("id"));
                     assertEquals("ABC", feature.getAttribute("name"));
                 } else if (c == 1) {
                     assertEquals(
-                            "POLYGON ((-72.773438 58.077876, -89.296876 17.644022, -37.265626 -2.460181, "
-                                    + "-2.109376 42.811522, -15.117189 60.413853, -50.976564 29.840645, -64.687502 39.909737, "
-                                    + "-58.71094 56.365251, -72.77344 58.077877, -72.773438 58.077876))",
+                            "POLYGON ((-72.773438 58.077876, -89.296876 17.644022, -37.265626 -2"
+                                    + ".460181, "
+                                    + "-2.109376 42.811522, -15.117189 60.413853, -50.976564 29"
+                                    + ".840645, -64.687502 39.909737, "
+                                    + "-58.71094 56.365251, -72.77344 58.077877, -72.773438 58"
+                                    + ".077876))",
                             feature.getDefaultGeometry().toString());
                     assertEquals("2", feature.getAttribute("id"));
                     assertEquals("DEF", feature.getAttribute("name"));
                 } else if (c == 2) {
                     assertEquals(
-                            "POLYGON ((12.65625 63.548552, 12.65625 69.534517, 29.179687 69.534517, "
+                            "POLYGON ((12.65625 63.548552, 12.65625 69.534517, 29.179687 69"
+                                    + ".534517, "
                                     + "29.179687 63.548552, 12.65625 63.548552))",
                             feature.getDefaultGeometry().toString());
                     assertEquals("3", feature.getAttribute("id"));
@@ -435,8 +429,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -459,8 +451,7 @@ public class GeobufDataStoreTest {
                 DataUtilities.encodeType(featureSource.getSchema()));
         SimpleFeatureCollection featureCollection = featureSource.getFeatures();
         assertEquals(2, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
@@ -479,8 +470,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -514,15 +503,13 @@ public class GeobufDataStoreTest {
                         featureType,
                         new Object[] {reader.read("MULTIPOINT ((100 0), (101 1))"), "TYU", 56},
                         "location.2");
-        SimpleFeatureCollection collection =
-                DataUtilities.collection(new SimpleFeature[] {feature1, feature2});
+        SimpleFeatureCollection collection = DataUtilities.collection(feature1, feature2);
         featureStore.addFeatures(collection);
 
         // Read
         SimpleFeatureCollection featureCollection = featureStore.getFeatures();
         assertEquals(2, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
@@ -541,8 +528,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -565,8 +550,7 @@ public class GeobufDataStoreTest {
                 DataUtilities.encodeType(featureSource.getSchema()));
         SimpleFeatureCollection featureCollection = featureSource.getFeatures();
         assertEquals(2, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
@@ -586,8 +570,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -625,15 +607,13 @@ public class GeobufDataStoreTest {
                             56
                         },
                         "location.2");
-        SimpleFeatureCollection collection =
-                DataUtilities.collection(new SimpleFeature[] {feature1, feature2});
+        SimpleFeatureCollection collection = DataUtilities.collection(feature1, feature2);
         featureStore.addFeatures(collection);
 
         // Read
         SimpleFeatureCollection featureCollection = featureStore.getFeatures();
         assertEquals(2, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature f = it.next();
@@ -653,8 +633,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -677,8 +655,7 @@ public class GeobufDataStoreTest {
                 DataUtilities.encodeType(featureSource.getSchema()));
         SimpleFeatureCollection featureCollection = featureSource.getFeatures();
         assertEquals(1, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
@@ -693,8 +670,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -754,15 +729,13 @@ public class GeobufDataStoreTest {
                         },
                         "location.3");
 
-        SimpleFeatureCollection collection =
-                DataUtilities.collection(new SimpleFeature[] {feature1, feature2, feature3});
+        SimpleFeatureCollection collection = DataUtilities.collection(feature1, feature2, feature3);
         featureStore.addFeatures(collection);
 
         // Read
         SimpleFeatureCollection featureCollection = featureStore.getFeatures();
         assertEquals(3, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature f = it.next();
@@ -797,8 +770,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -821,8 +792,7 @@ public class GeobufDataStoreTest {
                 DataUtilities.encodeType(featureSource.getSchema()));
         SimpleFeatureCollection featureCollection = featureSource.getFeatures();
         assertEquals(1, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int c = 0;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
@@ -835,8 +805,6 @@ public class GeobufDataStoreTest {
                 }
                 c++;
             }
-        } finally {
-            it.close();
         }
         store.dispose();
     }
@@ -860,20 +828,19 @@ public class GeobufDataStoreTest {
                         featureType,
                         new Object[] {
                             reader.read(
-                                    "GEOMETRYCOLLECTION (POINT (100 0), LINESTRING (101 0, 102 1))"),
+                                    "GEOMETRYCOLLECTION (POINT (100 0), LINESTRING (101 0, 102 1)"
+                                            + ")"),
                             "ABC",
                             9
                         },
                         "location.1");
-        SimpleFeatureCollection collection =
-                DataUtilities.collection(new SimpleFeature[] {feature1});
+        SimpleFeatureCollection collection = DataUtilities.collection(feature1);
         featureStore.addFeatures(collection);
 
         // Read
         SimpleFeatureCollection featureCollection = featureStore.getFeatures();
         assertEquals(1, featureCollection.size());
-        SimpleFeatureIterator it = featureCollection.features();
-        try {
+        try (SimpleFeatureIterator it = featureCollection.features()) {
             int i = 1;
             while (it.hasNext()) {
                 SimpleFeature feature = it.next();
@@ -886,8 +853,93 @@ public class GeobufDataStoreTest {
                 }
                 i++;
             }
-        } finally {
-            it.close();
+        }
+        store.dispose();
+    }
+
+    @Test
+    public void readPointsWithNegativeIntegerOrNullProperties() throws Exception {
+        File file =
+                URLs.urlToFile(
+                        getClass()
+                                .getClassLoader()
+                                .getResource(
+                                        "org/geotools/data/geobuf/negint_and_null_values.pbf"));
+        Map<String, Serializable> params = new HashMap<>();
+        params.put("file", file);
+        DataStore store = DataStoreFinder.getDataStore(params);
+        assertEquals(1, store.getTypeNames().length);
+        assertEquals("negint_and_null_values", store.getTypeNames()[0]);
+        SimpleFeatureSource featureSource = store.getFeatureSource("negint_and_null_values");
+        assertEquals(
+                "geom:Point,id:Integer,name:String",
+                DataUtilities.encodeType(featureSource.getSchema()));
+        SimpleFeatureCollection featureCollection = featureSource.getFeatures();
+        assertEquals(3, featureCollection.size());
+        try (SimpleFeatureIterator it = featureCollection.features()) {
+            int c = 0;
+            while (it.hasNext()) {
+                SimpleFeature feature = it.next();
+                if (c == 0) {
+                    assertEquals(
+                            "POINT (24.257813 49.61071)", feature.getDefaultGeometry().toString());
+                    assertEquals(-1, feature.getAttribute("id"));
+                    assertEquals("number -1", feature.getAttribute("name"));
+                } else if (c == 1) {
+                    assertEquals(
+                            "POINT (-92.460937 40.178873)",
+                            feature.getDefaultGeometry().toString());
+                    assertEquals(-2, feature.getAttribute("id"));
+                    assertEquals("number -2", feature.getAttribute("name"));
+                } else if (c == 3) {
+                    assertEquals(
+                            "POINT (-92.460937 40.178873)",
+                            feature.getDefaultGeometry().toString());
+                    assertNull(feature.getAttribute("id"));
+                    assertEquals("number null", feature.getAttribute("name"));
+                }
+                c++;
+            }
+        }
+        store.dispose();
+    }
+
+    @Test
+    public void readGeobufWrittenByLegacyGeotools() throws Exception {
+        File file =
+                URLs.urlToFile(
+                        getClass()
+                                .getClassLoader()
+                                .getResource("org/geotools/data/geobuf/geobuf_legacy.pbf"));
+        Map<String, Serializable> params = new HashMap<>();
+        params.put("file", file);
+        DataStore store = DataStoreFinder.getDataStore(params);
+        assertEquals(1, store.getTypeNames().length);
+        assertEquals("geobuf_legacy", store.getTypeNames()[0]);
+        SimpleFeatureSource featureSource = store.getFeatureSource("geobuf_legacy");
+        assertEquals(
+                "geom:Point,name:String,id:Integer",
+                DataUtilities.encodeType(featureSource.getSchema()));
+        SimpleFeatureCollection featureCollection = featureSource.getFeatures();
+        assertEquals(2, featureCollection.size());
+        try (SimpleFeatureIterator it = featureCollection.features()) {
+            int c = 0;
+            while (it.hasNext()) {
+                SimpleFeature feature = it.next();
+                if (c == 0) {
+                    assertEquals(
+                            "POINT (-8.349609 14.349548)", feature.getDefaultGeometry().toString());
+                    assertEquals(1, feature.getAttribute("id"));
+                    assertEquals("ABC", feature.getAttribute("name"));
+                } else if (c == 1) {
+                    assertEquals(
+                            "POINT (-18.349609 24.349548)",
+                            feature.getDefaultGeometry().toString());
+                    assertEquals(-2, feature.getAttribute("id"));
+                    assertEquals("DEF", feature.getAttribute("name"));
+                }
+                c++;
+            }
         }
         store.dispose();
     }

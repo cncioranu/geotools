@@ -16,11 +16,10 @@
  */
 package org.geotools.data.shapefile;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.MalformedURLException;
@@ -28,14 +27,14 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import org.geotools.TestData;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.junit.Test;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * @version $Id$
@@ -93,11 +92,11 @@ public class ShapefileReadWriteTest extends TestCaseSupport {
         final File file = getTempFile();
         Runnable reader =
                 new Runnable() {
+                    @Override
                     public void run() {
                         int cutoff = 0;
-                        FileInputStream fr = null;
-                        try {
-                            fr = new FileInputStream(file);
+
+                        try (FileInputStream fr = new FileInputStream(file)) {
                             try {
                                 fr.read();
                             } catch (IOException e1) {
@@ -124,17 +123,8 @@ public class ShapefileReadWriteTest extends TestCaseSupport {
                                     }
                                 }
                             }
-                        } catch (FileNotFoundException e) {
-                            assertTrue(false);
-                        } finally {
-                            if (fr != null) {
-                                try {
-                                    fr.close();
-                                } catch (IOException e) {
-                                    exception = e;
-                                    return;
-                                }
-                            }
+                        } catch (Exception e) {
+                            fail();
                         }
                     }
                 };
@@ -159,19 +149,19 @@ public class ShapefileReadWriteTest extends TestCaseSupport {
         if (charset != null) {
             s.setCharset(charset);
         }
-        String typeName = s.getTypeNames()[0];
-        SimpleFeatureSource source = s.getFeatureSource(typeName);
-        SimpleFeatureType type = source.getSchema();
-        SimpleFeatureCollection one = source.getFeatures();
-        File tmp = getTempFile();
+        try {
+            String typeName = s.getTypeNames()[0];
+            SimpleFeatureSource source = s.getFeatureSource(typeName);
+            SimpleFeatureType type = source.getSchema();
+            SimpleFeatureCollection one = source.getFeatures();
+            ShapefileDataStoreFactory maker = new ShapefileDataStoreFactory();
+            test(type, one, getTempFile(), maker, true, charset);
 
-        ShapefileDataStoreFactory maker = new ShapefileDataStoreFactory();
-        test(type, one, tmp, maker, true, charset);
-
-        File tmp2 = getTempFile(); // TODO consider reuse tmp results in
-        // failure
-        test(type, one, tmp2, maker, false, charset);
-        s.dispose();
+            // failure
+            test(type, one, getTempFile(), maker, false, charset);
+        } finally {
+            s.dispose();
+        }
     }
 
     private void test(
@@ -183,37 +173,41 @@ public class ShapefileReadWriteTest extends TestCaseSupport {
             Charset charset)
             throws IOException, MalformedURLException, Exception {
 
-        ShapefileDataStore shapefile;
-        String typeName;
         Map<String, Serializable> params = new HashMap<>();
         params.put(ShapefileDataStoreFactory.URLP.key, tmp.toURI().toURL());
         params.put(ShapefileDataStoreFactory.MEMORY_MAPPED.key, memorymapped);
-        shapefile = (ShapefileDataStore) maker.createDataStore(params);
-        if (charset != null) shapefile.setCharset(charset);
 
-        shapefile.createSchema(type);
-
-        SimpleFeatureStore store = (SimpleFeatureStore) shapefile.getFeatureSource();
-
-        store.addFeatures(original);
-
-        SimpleFeatureCollection copy = store.getFeatures();
-        compare(original, copy);
-
-        ShapefileDataStore review = new ShapefileDataStore(tmp.toURI().toURL());
-        review.setMemoryMapped(memorymapped);
+        ShapefileDataStore shapefile = (ShapefileDataStore) maker.createDataStore(params);
         if (charset != null) {
-            review.setCharset(charset);
+            shapefile.setCharset(charset);
         }
-        typeName = review.getTypeNames()[0];
-        SimpleFeatureSource featureSource = review.getFeatureSource(typeName);
-        SimpleFeatureCollection again = featureSource.getFeatures();
+        try {
+            shapefile.createSchema(type);
 
-        compare(copy, again);
-        compare(original, again);
-        review.dispose();
+            SimpleFeatureStore store = (SimpleFeatureStore) shapefile.getFeatureSource();
+            store.addFeatures(original);
 
-        shapefile.dispose();
+            SimpleFeatureCollection copy = store.getFeatures();
+            compare(original, copy);
+
+            ShapefileDataStore review = new ShapefileDataStore(tmp.toURI().toURL());
+            review.setMemoryMapped(memorymapped);
+            if (charset != null) {
+                review.setCharset(charset);
+            }
+            try {
+                String typeName = review.getTypeNames()[0];
+                SimpleFeatureSource featureSource = review.getFeatureSource(typeName);
+                SimpleFeatureCollection again = featureSource.getFeatures();
+
+                compare(copy, again);
+                compare(original, again);
+            } finally {
+                review.dispose();
+            }
+        } finally {
+            shapefile.dispose();
+        }
     }
 
     static void compare(SimpleFeatureCollection one, SimpleFeatureCollection two) throws Exception {
@@ -222,16 +216,15 @@ public class ShapefileReadWriteTest extends TestCaseSupport {
             throw new Exception("Number of Features unequal : " + one.size() + " != " + two.size());
         }
 
-        SimpleFeatureIterator iterator1 = one.features();
-        SimpleFeatureIterator iterator2 = two.features();
+        try (SimpleFeatureIterator iterator1 = one.features();
+                SimpleFeatureIterator iterator2 = two.features()) {
 
-        while (iterator1.hasNext()) {
-            SimpleFeature f1 = iterator1.next();
-            SimpleFeature f2 = iterator2.next();
-            compare(f1, f2);
+            while (iterator1.hasNext()) {
+                SimpleFeature f1 = iterator1.next();
+                SimpleFeature f2 = iterator2.next();
+                compare(f1, f2);
+            }
         }
-        iterator1.close();
-        iterator2.close();
     }
 
     static void compare(SimpleFeature f1, SimpleFeature f2) throws Exception {
@@ -258,10 +251,5 @@ public class ShapefileReadWriteTest extends TestCaseSupport {
                 }
             }
         }
-    }
-
-    public static final void main(String[] args) throws Exception {
-        // verbose = true;
-        junit.textui.TestRunner.run(suite(ShapefileReadWriteTest.class));
     }
 }

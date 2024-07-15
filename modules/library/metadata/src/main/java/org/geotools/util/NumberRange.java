@@ -19,8 +19,8 @@ package org.geotools.util;
 import static org.geotools.util.ClassChanger.getFinestClass;
 import static org.geotools.util.ClassChanger.getWidestClass;
 
+import java.text.MessageFormat;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 
 /**
  * A range of numbers. {@linkplain #union Union} and {@linkplain #intersect intersection} are
@@ -299,9 +299,9 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
         // TODO: remove the (Number) casts when we will be allowed to compile for Java 6.
         this(
                 type,
-                ClassChanger.cast((Number) range.getMinValue(), type),
+                ClassChanger.cast(range.getMinValue(), type),
                 range.isMinIncluded(),
-                ClassChanger.cast((Number) range.getMaxValue(), type),
+                ClassChanger.cast(range.getMaxValue(), type),
                 range.isMaxIncluded());
     }
 
@@ -363,7 +363,7 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
     private static void ensureNumberClass(final Class<?> type) throws IllegalArgumentException {
         if (!Number.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ILLEGAL_CLASS_$2, type, Number.class));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_CLASS_$2, type, Number.class));
         }
     }
 
@@ -400,10 +400,7 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
             final Range<? extends Number> range, final Class<N> type)
             throws IllegalArgumentException {
         if (type.equals(range.getElementClass())) {
-            @SuppressWarnings({
-                "unchecked",
-                "rawtypes"
-            }) // Safe because we checked in the line just above.
+            @SuppressWarnings("unchecked") // Safe because we checked in the line just above.
             final NumberRange<N> cast = (NumberRange) wrap((Range) range);
             return cast;
         }
@@ -441,7 +438,7 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
     public boolean contains(final Number value) throws IllegalArgumentException {
         if (value != null && !(value instanceof Comparable)) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.NOT_COMPARABLE_CLASS_$1, value.getClass()));
+                    MessageFormat.format(ErrorKeys.NOT_COMPARABLE_CLASS_$1, value.getClass()));
         }
         return contains((Comparable<?>) value);
     }
@@ -453,8 +450,7 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
      * @throws IllegalArgumentException if the given value is not a subclass of {@link Number}.
      */
     @Override
-    public boolean contains(@SuppressWarnings("rawtypes") Comparable<?> value)
-            throws IllegalArgumentException {
+    public boolean contains(Comparable<?> value) throws IllegalArgumentException {
         if (value == null) {
             return false;
         }
@@ -472,14 +468,14 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
          * signature expect a Comparable and we have additionnaly casted to a Number.  However I
          * have not found a way to express that safely in a local variable with Java 6.
          */
-        @SuppressWarnings({"unchecked", "rawtypes"})
+        @SuppressWarnings("unchecked")
         final boolean contains = castTo((Class) type).containsNC((Comparable) number);
         return contains;
     }
 
     /** Returns {@code true} if the supplied range is fully contained within this range. */
     @Override
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public boolean contains(Range<?> range) {
         final Class<? extends Number> type = getWidestClass(elementClass, getElementClass(range));
         /*
@@ -489,12 +485,12 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
          * throw an exception otherwise.
          */
         range = convertAndCast((Range) range, (Class) type);
-        return castTo((Class) type).containsNC((Range) range);
+        return castTo((Class) type).containsNC(range);
     }
 
     /** Returns {@code true} if this range intersects the given range. */
     @Override
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public boolean intersects(Range<?> range) {
         final Class<? extends Number> type = getWidestClass(elementClass, getElementClass(range));
         /*
@@ -504,7 +500,7 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
          * throw an exception otherwise.
          */
         range = convertAndCast((Range) range, (Class) type);
-        return castTo((Class) type).intersectsNC((Range) range);
+        return castTo((Class) type).intersectsNC(range);
     }
 
     /**
@@ -512,11 +508,11 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
      * needed.
      */
     @Override
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public NumberRange<?> union(Range<?> range) {
         final Class<? extends Number> type = getWidestClass(elementClass, getElementClass(range));
         range = convertAndCast((Range) range, (Class) type);
-        return (NumberRange<?>) castTo((Class) type).unionNC((Range) range);
+        return (NumberRange<?>) castTo((Class) type).unionNC(range);
     }
 
     /**
@@ -524,7 +520,7 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
      * applied as needed.
      */
     @Override
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public NumberRange<?> intersect(Range<?> range) {
         final Class<? extends Number> rangeType = getElementClass(range);
         Class<? extends Number> type = getWidestClass(elementClass, rangeType);
@@ -546,7 +542,7 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
 
     /** Returns the range of values that are in this range but not in the given range. */
     @Override
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public NumberRange<?>[] subtract(Range<?> range) {
         Class<? extends Number> type = getWidestClass(elementClass, getElementClass(range));
         return (NumberRange[])
@@ -560,7 +556,7 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
      * @return The minimum value.
      */
     public double getMinimum() {
-        final Number value = (Number) getMinValue();
+        final Number value = getMinValue();
         return (value != null) ? value.doubleValue() : Double.NEGATIVE_INFINITY;
     }
 
@@ -588,7 +584,7 @@ public class NumberRange<T extends Number & Comparable<? super T>> extends Range
      * @return The maximum value.
      */
     public double getMaximum() {
-        final Number value = (Number) getMaxValue();
+        final Number value = getMaxValue();
         return (value != null) ? value.doubleValue() : Double.POSITIVE_INFINITY;
     }
 

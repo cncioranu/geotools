@@ -3,23 +3,25 @@ package org.geotools.renderer.lite;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-import junit.framework.TestCase;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.style.Style;
 import org.geotools.data.property.PropertyDataStore;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.renderer.RenderListener;
-import org.geotools.styling.Style;
 import org.geotools.test.TestData;
-import org.opengis.feature.simple.SimpleFeature;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Tests the optimized data loading does merge the filters properly (was never released, but a
  * certain point in time only the first one was passed down to the datastore)
  */
-public class QueryOptimizeTest extends TestCase {
+public class QueryOptimizeTest {
 
     private static final long TIME = 2000;
 
@@ -29,8 +31,8 @@ public class QueryOptimizeTest extends TestCase {
     MapContent context;
     int count = 0;
 
-    @Override
-    protected void setUp() throws Exception {
+    @Before
+    public void setUp() throws Exception {
         // setup data
         File property = new File(TestData.getResource(this, "square.properties").toURI());
         PropertyDataStore ds = new PropertyDataStore(property.getParentFile());
@@ -48,6 +50,7 @@ public class QueryOptimizeTest extends TestCase {
         //        System.setProperty("org.geotools.test.interactive", "true");
     }
 
+    @Test
     public void testLessFilters() throws Exception {
         Style style = RendererBaseTest.loadStyle(this, "fillSolidTwoRules.sld");
 
@@ -58,14 +61,16 @@ public class QueryOptimizeTest extends TestCase {
         renderer.addRenderListener(
                 new RenderListener() {
 
+                    @Override
                     public void featureRenderer(SimpleFeature feature) {
                         count++;
                     }
 
+                    @Override
                     public void errorOccurred(Exception e) {}
                 });
 
         RendererBaseTest.showRender("OneSquare", renderer, TIME, bounds);
-        assertEquals(2, count);
+        Assert.assertEquals(2, count);
     }
 }

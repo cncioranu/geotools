@@ -17,10 +17,10 @@
 package org.geotools.referencing.operation.matrix;
 
 import java.awt.geom.AffineTransform;
+import java.text.MessageFormat;
+import org.geotools.api.referencing.operation.Matrix;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.Utilities;
-import org.opengis.referencing.operation.Matrix;
 
 /**
  * An affine matrix of fixed {@value #SIZE}&times;{@value #SIZE} size. Here, the term "affine" means
@@ -62,7 +62,7 @@ public class AffineTransform2D extends AffineTransform implements Matrix {
      */
     public AffineTransform2D(final Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         for (int i = 0; i < SIZE; i++) {
             checkLastRow(i, matrix.getElement(SIZE - 1, i));
@@ -88,6 +88,7 @@ public class AffineTransform2D extends AffineTransform implements Matrix {
      * Returns the number of rows in this matrix, which is always {@value #SIZE} in this
      * implementation.
      */
+    @Override
     public final int getNumRow() {
         return SIZE;
     }
@@ -96,6 +97,7 @@ public class AffineTransform2D extends AffineTransform implements Matrix {
      * Returns the number of colmuns in this matrix, which is always {@value #SIZE} in this
      * implementation.
      */
+    @Override
     public final int getNumCol() {
         return SIZE;
     }
@@ -107,6 +109,7 @@ public class AffineTransform2D extends AffineTransform implements Matrix {
      * @param column The column number to be retrieved (zero indexed).
      * @return The value at the indexed element.
      */
+    @Override
     public double getElement(final int row, final int column) {
         switch (row) {
             case 0:
@@ -147,11 +150,11 @@ public class AffineTransform2D extends AffineTransform implements Matrix {
             default:
                 {
                     throw new IndexOutOfBoundsException(
-                            Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "column", column));
+                            MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "column", column));
                 }
         }
         throw new IndexOutOfBoundsException(
-                Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "row", row));
+                MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "row", row));
     }
 
     /**
@@ -161,14 +164,15 @@ public class AffineTransform2D extends AffineTransform implements Matrix {
      * @param column The column number to be retrieved (zero indexed).
      * @param value The new matrix element value.
      */
+    @Override
     public void setElement(final int row, final int column, final double value) {
         if (row < 0 || row >= SIZE) {
             throw new IndexOutOfBoundsException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "row", row));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "row", row));
         }
         if (column < 0 || column >= SIZE) {
             throw new IndexOutOfBoundsException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "column", column));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "column", column));
         }
         if (row == SIZE - 1) {
             checkLastRow(column, value);
@@ -190,7 +194,7 @@ public class AffineTransform2D extends AffineTransform implements Matrix {
             throws IllegalArgumentException {
         if (value != (column == SIZE - 1 ? 1 : 0)) {
             throw new IllegalArgumentException(
-                    Errors.format(
+                    MessageFormat.format(
                             ErrorKeys.ILLEGAL_ARGUMENT_$2,
                             "matrix[" + (SIZE - 1) + ',' + column + ']',
                             value));

@@ -26,21 +26,23 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.ObjectFactory;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CRSFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.ReferencingFactoryFinder;
+import org.geotools.util.Version;
 import org.geotools.util.factory.AbstractFactory;
+import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.ObjectFactory;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CRSFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.util.InternationalString;
 
 /**
  * Default implementation for a coordinate reference system authority factory backed by the EPSG
@@ -92,6 +94,9 @@ public class EPSGCRSAuthorityFactory extends AbstractFactory implements CRSAutho
     protected EPSGCRSAuthorityFactory(final CRSFactory factory) {
         super(MINIMUM_PRIORITY); // Select EPSG-HSQL factory first.
         this.crsFactory = factory;
+        // Add hints that EPSG-HSQL set's, to avoid this being chosen when those are asked for.
+        hints.put(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.FALSE);
+        hints.put(Hints.VERSION, new Version(""));
         try {
             loadDefault();
         } catch (IOException oops) {
@@ -142,6 +147,7 @@ public class EPSGCRSAuthorityFactory extends AbstractFactory implements CRSAutho
         return DEFAULT;
     }
 
+    @Override
     public synchronized CoordinateReferenceSystem createCoordinateReferenceSystem(String code)
             throws FactoryException {
         if (code == null) {
@@ -187,18 +193,22 @@ public class EPSGCRSAuthorityFactory extends AbstractFactory implements CRSAutho
         }
     }
 
+    @Override
     public IdentifiedObject createObject(String code) throws FactoryException {
         return createCoordinateReferenceSystem(code);
     }
 
+    @Override
     public ProjectedCRS createProjectedCRS(String code) throws FactoryException {
         return (ProjectedCRS) createCoordinateReferenceSystem(code);
     }
 
+    @Override
     public GeographicCRS createGeographicCRS(String code) throws FactoryException {
         return (GeographicCRS) createCoordinateReferenceSystem(code);
     }
 
+    @Override
     public Citation getAuthority() {
         return Citations.EPSG;
     }
@@ -224,20 +234,21 @@ public class EPSGCRSAuthorityFactory extends AbstractFactory implements CRSAutho
      *     set.
      * @throws FactoryException if access to the underlying database failed.
      */
+    @Override
     public Set<String> getAuthorityCodes(Class clazz) throws FactoryException {
         // could cashe this info if it is time consuming to filter
         if (clazz.getName().equalsIgnoreCase(CoordinateReferenceSystem.class.getName())) {
             Set<String> all = new java.util.TreeSet<>();
-            for (java.util.Iterator i = epsg.keySet().iterator(); i.hasNext(); ) {
-                String code = (String) i.next();
+            for (Object o : epsg.keySet()) {
+                String code = (String) o;
                 all.add(AUTHORITY_PREFIX + code);
             }
             return all;
         } else if (clazz.getName().equalsIgnoreCase(GeographicCRS.class.getName())) {
             Set<Object> all = epsg.keySet();
             Set<String> geoCRS = new java.util.TreeSet<>();
-            for (java.util.Iterator i = all.iterator(); i.hasNext(); ) {
-                String code = (String) i.next();
+            for (Object o : all) {
+                String code = (String) o;
                 String wkt = epsg.getProperty(code);
                 if (wkt.startsWith("GEOGCS")) {
                     geoCRS.add(AUTHORITY_PREFIX + code);
@@ -248,8 +259,8 @@ public class EPSGCRSAuthorityFactory extends AbstractFactory implements CRSAutho
         } else if (clazz.getName().equalsIgnoreCase(ProjectedCRS.class.getName())) {
             Set<Object> all = epsg.keySet();
             Set<String> projCRS = new java.util.TreeSet<>();
-            for (java.util.Iterator i = all.iterator(); i.hasNext(); ) {
-                String code = (String) i.next();
+            for (Object o : all) {
+                String code = (String) o;
                 String wkt = epsg.getProperty(code);
                 if (wkt.startsWith("PROJCS")) {
                     projCRS.add(AUTHORITY_PREFIX + code);
@@ -266,10 +277,12 @@ public class EPSGCRSAuthorityFactory extends AbstractFactory implements CRSAutho
         return crsFactory;
     }
 
+    @Override
     public Citation getVendor() {
         return Citations.GEOTOOLS;
     }
 
+    @Override
     public InternationalString getDescriptionText(String code) throws FactoryException {
         if (code == null) {
             return null;
@@ -288,36 +301,44 @@ public class EPSGCRSAuthorityFactory extends AbstractFactory implements CRSAutho
         return new org.geotools.util.SimpleInternationalString(wkt.substring(start + 1, end));
     }
 
-    public org.opengis.referencing.crs.CompoundCRS createCompoundCRS(String str)
+    @Override
+    public org.geotools.api.referencing.crs.CompoundCRS createCompoundCRS(String str)
             throws FactoryException {
         throw new FactoryException("Not implemented");
     }
 
-    public org.opengis.referencing.crs.DerivedCRS createDerivedCRS(String str)
+    @Override
+    public org.geotools.api.referencing.crs.DerivedCRS createDerivedCRS(String str)
             throws FactoryException {
         throw new FactoryException("Not implemented");
     }
 
-    public org.opengis.referencing.crs.EngineeringCRS createEngineeringCRS(String str)
+    @Override
+    public org.geotools.api.referencing.crs.EngineeringCRS createEngineeringCRS(String str)
             throws FactoryException {
         throw new FactoryException("Not implemented");
     }
 
-    public org.opengis.referencing.crs.GeocentricCRS createGeocentricCRS(String str)
+    @Override
+    public org.geotools.api.referencing.crs.GeocentricCRS createGeocentricCRS(String str)
             throws FactoryException {
         throw new FactoryException("Not implemented");
     }
 
-    public org.opengis.referencing.crs.ImageCRS createImageCRS(String str) throws FactoryException {
-        throw new FactoryException("Not implemented");
-    }
-
-    public org.opengis.referencing.crs.TemporalCRS createTemporalCRS(String str)
+    @Override
+    public org.geotools.api.referencing.crs.ImageCRS createImageCRS(String str)
             throws FactoryException {
         throw new FactoryException("Not implemented");
     }
 
-    public org.opengis.referencing.crs.VerticalCRS createVerticalCRS(String str)
+    @Override
+    public org.geotools.api.referencing.crs.TemporalCRS createTemporalCRS(String str)
+            throws FactoryException {
+        throw new FactoryException("Not implemented");
+    }
+
+    @Override
+    public org.geotools.api.referencing.crs.VerticalCRS createVerticalCRS(String str)
             throws FactoryException {
         throw new FactoryException("Not implemented");
     }

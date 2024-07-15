@@ -23,14 +23,14 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.locationtech.jts.io.WKTReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 public class GeobufFeatureTest {
 
@@ -42,25 +42,30 @@ public class GeobufFeatureTest {
         File file = temporaryFolder.newFile("feature.pbf");
 
         SimpleFeatureType featureType =
-                DataUtilities.createType("test2", "geom:Point,name:String,id:int");
+                DataUtilities.createType(
+                        "test2", "name:String,geom:String,geometry:String,id:int,g:Point");
         SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(featureType);
         WKTReader wkt = new WKTReader();
-        featureBuilder.set("geom", wkt.read("POINT (1 2)"));
         featureBuilder.set("name", "Name");
-        featureBuilder.set("id", 5);
+        featureBuilder.set("geom", "Point (1 2)");
+        featureBuilder.set("geometry", "Point (2 2)");
+        featureBuilder.set("g", wkt.read("POINT (1 2)"));
+        featureBuilder.set("id", 1);
         SimpleFeature feature = featureBuilder.buildFeature("point.1");
 
         GeobufFeature geobufFeature = new GeobufFeature(new GeobufGeometry());
-        OutputStream out = new FileOutputStream(file);
-        geobufFeature.encode(feature, out);
-        out.close();
-        InputStream inputStream = new FileInputStream(file);
-        SimpleFeature decodedFeature = geobufFeature.decode(inputStream);
-        inputStream.close();
-        assertEquals(
-                feature.getDefaultGeometry().toString(),
-                decodedFeature.getDefaultGeometry().toString());
-        assertEquals(feature.getAttribute("name"), decodedFeature.getAttribute("name"));
-        assertEquals(feature.getAttribute("id"), decodedFeature.getAttribute("id"));
+        try (OutputStream out = new FileOutputStream(file)) {
+            geobufFeature.encode(feature, out);
+        }
+        try (InputStream inputStream = new FileInputStream(file)) {
+            SimpleFeature decodedFeature = geobufFeature.decode(inputStream);
+
+            assertEquals(
+                    feature.getDefaultGeometry().toString(),
+                    decodedFeature.getDefaultGeometry().toString());
+            for (String attr : new String[] {"name", "geom", "id", "geometry"}) {
+                assertEquals(feature.getAttribute(attr), decodedFeature.getAttribute(attr));
+            }
+        }
     }
 }

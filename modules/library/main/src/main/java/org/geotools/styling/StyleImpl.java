@@ -22,9 +22,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.style.Description;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Fill;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleVisitor;
+import org.geotools.api.style.Symbolizer;
+import org.geotools.api.style.TraversingStyleVisitor;
+import org.geotools.api.util.Cloneable;
 import org.geotools.util.Utilities;
-import org.opengis.style.Description;
-import org.opengis.util.Cloneable;
 
 /**
  * Implementation of style.
@@ -32,7 +38,7 @@ import org.opengis.util.Cloneable;
  * @author James Macgill, CCG
  * @version $Id$
  */
-public class StyleImpl implements org.geotools.styling.Style, Cloneable {
+public class StyleImpl implements Style, Cloneable {
     /** The logger for the default core module. */
     private static final Logger LOGGER =
             org.geotools.util.logging.Logging.getLogger(StyleImpl.class);
@@ -48,36 +54,40 @@ public class StyleImpl implements org.geotools.styling.Style, Cloneable {
     /** Creates a new instance of StyleImpl */
     protected StyleImpl() {}
 
+    @Override
     public DescriptionImpl getDescription() {
         return description;
     }
 
     public FeatureTypeStyle[] getFeatureTypeStyles() {
-        FeatureTypeStyle[] ret = new FeatureTypeStyleImpl[] {new FeatureTypeStyleImpl()};
+        FeatureTypeStyle[] ret = {(FeatureTypeStyle) new FeatureTypeStyleImpl()};
 
-        if ((featureTypeStyles != null) && (featureTypeStyles.size() != 0)) {
+        if ((featureTypeStyles != null) && (!featureTypeStyles.isEmpty())) {
             if (LOGGER.isLoggable(Level.FINE))
                 LOGGER.fine("number of fts set " + featureTypeStyles.size());
 
-            ret = (FeatureTypeStyle[]) featureTypeStyles.toArray(new FeatureTypeStyle[] {});
+            ret = featureTypeStyles.toArray(new FeatureTypeStyle[] {});
         }
 
         return ret;
     }
 
+    @Override
     public List<FeatureTypeStyle> featureTypeStyles() {
         return featureTypeStyles;
     }
 
+    @Override
     public Symbolizer getDefaultSpecification() {
         return defaultSymbolizer;
     }
 
-    public void setDefaultSpecification(org.geotools.styling.Symbolizer defaultSymbolizer) {
+    @Override
+    public void setDefaultSpecification(Symbolizer defaultSymbolizer) {
         this.defaultSymbolizer = defaultSymbolizer;
     }
 
-    public void setFeatureTypeStyles(FeatureTypeStyle[] styles) {
+    public void setFeatureTypeStyles(FeatureTypeStyle... styles) {
         List<FeatureTypeStyle> newStyles = Arrays.asList(styles);
 
         this.featureTypeStyles.clear();
@@ -90,22 +100,27 @@ public class StyleImpl implements org.geotools.styling.Style, Cloneable {
         featureTypeStyles.add(type);
     }
 
+    @Override
     public String getName() {
         return name;
     }
 
+    @Override
     public boolean isDefault() {
         return defaultB;
     }
 
+    @Override
     public void setDefault(boolean isDefault) {
         defaultB = isDefault;
     }
 
+    @Override
     public void setName(String name) {
         this.name = name;
     }
 
+    @Override
     public void accept(StyleVisitor visitor) {
         visitor.visit(this);
     }
@@ -114,8 +129,9 @@ public class StyleImpl implements org.geotools.styling.Style, Cloneable {
      * Clones the Style. Creates deep copy clone of the style.
      *
      * @return the Clone of the style.
-     * @see org.geotools.styling.Style#clone()
+     * @see Style
      */
+    @Override
     public Object clone() {
         Style clone;
 
@@ -152,6 +168,7 @@ public class StyleImpl implements org.geotools.styling.Style, Cloneable {
      * @param oth The object to compare with this for equality.
      * @return True if this and oth are equal.
      */
+    @Override
     public boolean equals(Object oth) {
         if (this == oth) {
             return true;
@@ -169,6 +186,7 @@ public class StyleImpl implements org.geotools.styling.Style, Cloneable {
         return false;
     }
 
+    @Override
     public String toString() {
         StringBuffer buf = new StringBuffer();
         buf.append("StyleImpl");
@@ -190,7 +208,8 @@ public class StyleImpl implements org.geotools.styling.Style, Cloneable {
         return buf.toString();
     }
 
-    public Object accept(org.opengis.style.StyleVisitor visitor, Object extraData) {
+    @Override
+    public Object accept(TraversingStyleVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
@@ -202,10 +221,12 @@ public class StyleImpl implements org.geotools.styling.Style, Cloneable {
         }
     }
 
+    @Override
     public Fill getBackground() {
         return background;
     }
 
+    @Override
     public void setBackground(Fill background) {
         this.background = background;
     }

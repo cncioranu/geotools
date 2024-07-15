@@ -22,6 +22,9 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.imageio.GeoToolsWriteParams;
 import org.geotools.gce.grassraster.GrassCoverageReader;
@@ -31,9 +34,6 @@ import org.geotools.parameter.DefaultParameterDescriptorGroup;
 import org.geotools.parameter.ParameterGroup;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.parameter.GeneralParameterDescriptor;
 
 /**
  * Provides basic information about the grass raster format IO.
@@ -66,10 +66,12 @@ public final class GrassCoverageFormat extends AbstractGridFormat implements For
                                 mInfo, new GeneralParameterDescriptor[] {GEOTOOLS_WRITE_PARAMS}));
     }
 
+    @Override
     public GrassCoverageReader getReader(final Object o) {
         return getReader(o, null);
     }
 
+    @Override
     public GrassCoverageWriter getWriter(final Object destination, Hints hints) {
         try {
             return new GrassCoverageWriter(destination);
@@ -80,10 +82,12 @@ public final class GrassCoverageFormat extends AbstractGridFormat implements For
         }
     }
 
+    @Override
     public GridCoverageWriter getWriter(Object destination) {
         return getWriter(destination, null);
     }
 
+    @Override
     public boolean accepts(final Object o, Hints hints) {
         File fileToUse;
 
@@ -105,6 +109,7 @@ public final class GrassCoverageFormat extends AbstractGridFormat implements For
         return false;
     }
 
+    @Override
     public GrassCoverageReader getReader(final Object o, Hints hints) {
 
         try {
@@ -123,6 +128,7 @@ public final class GrassCoverageFormat extends AbstractGridFormat implements For
      *
      * @return always null.
      */
+    @Override
     public GeoToolsWriteParams getDefaultImageIOWriteParameters() {
         return null;
     }

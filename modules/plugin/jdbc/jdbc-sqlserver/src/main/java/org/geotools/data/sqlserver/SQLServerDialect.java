@@ -16,6 +16,8 @@
  */
 package org.geotools.data.sqlserver;
 
+import static java.util.Map.entry;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -24,7 +26,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
+import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,7 +38,15 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
 import org.geotools.data.jdbc.FilterToSQL;
 import org.geotools.data.sqlserver.reader.SqlServerBinaryReader;
 import org.geotools.feature.visitor.StandardDeviationVisitor;
@@ -58,14 +70,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.WKTWriter;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
 
 /**
  * Dialect implementation for Microsoft SQL Server.
@@ -98,40 +102,34 @@ public class SQLServerDialect extends BasicSQLDialect {
     private String tableHints;
 
     static final Map<String, Class> TYPE_TO_CLASS_MAP =
-            new HashMap<String, Class>() {
-                {
-                    put("GEOMETRY", Geometry.class);
-                    put("GEOGRAPHY", Geometry.class);
-                    put("POINT", Point.class);
-                    put("POINTM", Point.class);
-                    put("LINESTRING", LineString.class);
-                    put("LINESTRINGM", LineString.class);
-                    put("POLYGON", Polygon.class);
-                    put("POLYGONM", Polygon.class);
-                    put("MULTIPOINT", MultiPoint.class);
-                    put("MULTIPOINTM", MultiPoint.class);
-                    put("MULTILINESTRING", MultiLineString.class);
-                    put("MULTILINESTRINGM", MultiLineString.class);
-                    put("MULTIPOLYGON", MultiPolygon.class);
-                    put("MULTIPOLYGONM", MultiPolygon.class);
-                    put("GEOMETRYCOLLECTION", GeometryCollection.class);
-                    put("GEOMETRYCOLLECTIONM", GeometryCollection.class);
-                }
-            };
+            Map.ofEntries(
+                    entry("GEOMETRY", Geometry.class),
+                    entry("GEOGRAPHY", Geometry.class),
+                    entry("POINT", Point.class),
+                    entry("POINTM", Point.class),
+                    entry("LINESTRING", LineString.class),
+                    entry("LINESTRINGM", LineString.class),
+                    entry("POLYGON", Polygon.class),
+                    entry("POLYGONM", Polygon.class),
+                    entry("MULTIPOINT", MultiPoint.class),
+                    entry("MULTIPOINTM", MultiPoint.class),
+                    entry("MULTILINESTRING", MultiLineString.class),
+                    entry("MULTILINESTRINGM", MultiLineString.class),
+                    entry("MULTIPOLYGON", MultiPolygon.class),
+                    entry("MULTIPOLYGONM", MultiPolygon.class),
+                    entry("GEOMETRYCOLLECTION", GeometryCollection.class),
+                    entry("GEOMETRYCOLLECTIONM", GeometryCollection.class));
 
     static final Map<Class, String> CLASS_TO_TYPE_MAP =
-            new HashMap<Class, String>() {
-                {
-                    put(Geometry.class, "GEOMETRY");
-                    put(Point.class, "POINT");
-                    put(LineString.class, "LINESTRING");
-                    put(Polygon.class, "POLYGON");
-                    put(MultiPoint.class, "MULTIPOINT");
-                    put(MultiLineString.class, "MULTILINESTRING");
-                    put(MultiPolygon.class, "MULTIPOLYGON");
-                    put(GeometryCollection.class, "GEOMETRYCOLLECTION");
-                }
-            };
+            Map.of(
+                    Geometry.class, "GEOMETRY",
+                    Point.class, "POINT",
+                    LineString.class, "LINESTRING",
+                    Polygon.class, "POLYGON",
+                    MultiPoint.class, "MULTIPOINT",
+                    MultiLineString.class, "MULTILINESTRING",
+                    MultiPolygon.class, "MULTIPOLYGON",
+                    GeometryCollection.class, "GEOMETRYCOLLECTION");
 
     public SQLServerDialect(JDBCDataStore dataStore) {
         super(dataStore);
@@ -165,6 +163,9 @@ public class SQLServerDialect extends BasicSQLDialect {
         mappings.put("uniqueidentifier", UUID.class);
         mappings.put("time", Time.class);
         mappings.put("date", Date.class);
+        mappings.put("datetime", Timestamp.class);
+        mappings.put("datetime2", Timestamp.class);
+        mappings.put("datetimeoffset", OffsetDateTime.class);
     }
 
     @Override
@@ -174,6 +175,7 @@ public class SQLServerDialect extends BasicSQLDialect {
         // force varchar, if not it will default to nvarchar which won't support length restrictions
         overrides.put(Types.VARCHAR, "varchar");
         overrides.put(Types.BLOB, "varbinary");
+        overrides.put(Types.CLOB, "text");
     }
 
     @Override
@@ -763,8 +765,8 @@ public class SQLServerDialect extends BasicSQLDialect {
 
             // encode as hex string
             sql.append("0x");
-            for (int i = 0; i < b.length; i++) {
-                sql.append(Integer.toString((b[i] & 0xff) + 0x100, 16).substring(1));
+            for (byte item : b) {
+                sql.append(Integer.toString((item & 0xff) + 0x100, 16).substring(1));
             }
         } else {
             super.encodeValue(value, type, sql);
@@ -1009,5 +1011,31 @@ public class SQLServerDialect extends BasicSQLDialect {
             Map<Class<? extends FeatureVisitor>, String> aggregates) {
         super.registerAggregateFunctions(aggregates);
         aggregates.put(StandardDeviationVisitor.class, "STDEVP");
+    }
+
+    @Override
+    public boolean canGroupOnGeometry() {
+        // The type "geometry" is not comparable. It cannot be used in the GROUP BY clause.
+        return false;
+    }
+
+    @Override
+    public String encodeNextSequenceValue(String schemaName, String sequenceName) {
+        return "NEXT VALUE FOR " + sequenceName;
+    }
+
+    @Override
+    public Object getNextSequenceValue(String schemaName, String sequenceName, Connection cx)
+            throws SQLException {
+        final String sql = "SELECT " + encodeNextSequenceValue(schemaName, sequenceName);
+        dataStore.getLogger().fine(sql);
+
+        try (Statement st = cx.createStatement();
+                ResultSet rs = st.executeQuery(sql)) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+            return null;
+        }
     }
 }

@@ -29,17 +29,17 @@ import java.util.Map;
 import javax.xml.namespace.QName;
 import javax.xml.transform.TransformerException;
 import net.opengis.wfs.GetFeatureType;
+import org.geotools.api.filter.BinaryLogicOperator;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
 import org.geotools.data.wfs.internal.GetFeatureRequest;
 import org.geotools.data.wfs.internal.GetFeatureRequest.ResultType;
 import org.geotools.data.wfs.internal.WFSRequest;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.visitor.SimplifyingFilterVisitor;
 import org.geotools.xsd.Encoder;
-import org.opengis.filter.BinaryLogicOperator;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.Or;
-import org.opengis.filter.spatial.BinarySpatialOperator;
 import org.w3c.dom.DOMConfiguration;
 import org.w3c.dom.Document;
 import org.w3c.dom.ls.DOMImplementationLS;
@@ -104,9 +104,7 @@ public class CubeWerxStrategy extends StrictWFS_1_x_Strategy {
         Document dom;
         try {
             dom = encoder.encodeAsDOM(requestObject, opName);
-        } catch (SAXException e) {
-            throw new IOException(e);
-        } catch (TransformerException e) {
+        } catch (SAXException | TransformerException e) {
             throw new IOException(e);
         }
 
@@ -136,13 +134,12 @@ public class CubeWerxStrategy extends StrictWFS_1_x_Strategy {
         Filter[] splitFilters = super.splitFilters(typeName, queryFilter);
 
         Filter serverFilter = splitFilters[0];
-        Filter postFilter = splitFilters[1];
 
         if (!(serverFilter instanceof BinaryLogicOperator)) {
             return splitFilters;
         }
 
-        postFilter = queryFilter;
+        Filter postFilter = queryFilter;
 
         if (serverFilter instanceof Or) {
             // can't know...

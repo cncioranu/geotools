@@ -17,7 +17,7 @@
  */
 package org.geotools.data.postgis;
 
-import static junit.framework.TestCase.assertTrue;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import org.geotools.geometry.jts.LiteCoordinateSequenceFactory;
@@ -53,6 +53,27 @@ public class TWKBReaderTest {
         // With bounding boxes
         checkTWKBGeometry("0101020004000204", "POINT(1 2)");
         checkTWKBGeometry("010903020004000600080002040608", "POINT(1 2 3)", 3);
+    }
+
+    @Test
+    public void testGeometriesWithDecimalDigits() throws ParseException, IOException {
+        checkTWKBGeometry(
+                "020002b88f75ba928c061600", "LINESTRING(959452 6390941,959463 6390941)", 2);
+
+        checkTWKBGeometry(
+                "220002b89a9309d6b8f93ce40103",
+                "LINESTRING(959452.4 6390941.9,959463.8 6390941.7)",
+                2);
+
+        checkTWKBGeometry(
+                "420002c088c05be6b6bee104ea1127",
+                "LINESTRING(959452.48 6390941.95,959463.89 6390941.75)",
+                2);
+
+        checkTWKBGeometry(
+                "62000286d58093078ea4f0ce2fa2b201a103",
+                "LINESTRING(959452.483 6390941.959,959463.892 6390941.750)",
+                2);
     }
 
     @Test
@@ -327,8 +348,10 @@ public class TWKBReaderTest {
                 throw new RuntimeException("Never gonna get here!");
         }
 
-        assertTrue(
-                "\nExpected:" + expected + "\nActual:  " + actual,
-                expected.compareTo(actual, comp) == 0);
+        int result = expected.compareTo(actual, comp);
+        assertEquals(
+                "\nExpected:" + expected.getCoordinate() + "\nActual:  " + actual.getCoordinate(),
+                0,
+                result);
     }
 }

@@ -28,7 +28,6 @@ import java.awt.Toolkit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -39,6 +38,8 @@ import org.assertj.swing.fixture.DialogFixture;
 import org.assertj.swing.fixture.JButtonFixture;
 import org.assertj.swing.fixture.JListFixture;
 import org.assertj.swing.fixture.JTextComponentFixture;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.swing.testutils.GraphicsTestBase;
@@ -50,8 +51,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Tests for {@linkplain JCRSChooser}.
@@ -284,14 +283,11 @@ public class JCRSChooserTest extends GraphicsTestBase<DialogFixture, Dialog, Dia
     private Future<CoordinateReferenceSystem> showDialog(final String title) throws Exception {
         Future<CoordinateReferenceSystem> future =
                 executor.submit(
-                        new Callable<CoordinateReferenceSystem>() {
-                            @Override
-                            public CoordinateReferenceSystem call() throws Exception {
-                                if (title == null) {
-                                    return JCRSChooser.showDialog();
-                                } else {
-                                    return JCRSChooser.showDialog(title);
-                                }
+                        () -> {
+                            if (title == null) {
+                                return JCRSChooser.showDialog();
+                            } else {
+                                return JCRSChooser.showDialog(title);
                             }
                         });
 

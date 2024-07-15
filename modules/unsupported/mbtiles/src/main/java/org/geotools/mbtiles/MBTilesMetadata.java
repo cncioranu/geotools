@@ -23,11 +23,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.referencing.FactoryException;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.util.logging.Logging;
-import org.opengis.geometry.Envelope;
-import org.opengis.referencing.FactoryException;
 
 /** The well known contents of the metadata table */
 public class MBTilesMetadata {
@@ -37,6 +37,9 @@ public class MBTilesMetadata {
     protected static Pattern patternEnvelope =
             Pattern.compile(
                     " *(\\-?[0-9\\.]*) *, *(\\-?[0-9\\.]*) *, *(\\-?[0-9\\.]*) *, *(\\-?[0-9\\.]*) *");
+
+    protected static Pattern patternCenter =
+            Pattern.compile(" *(\\-?[0-9\\.]*) *, *(\\-?[0-9\\.]*) *, *(\\-?[0-9\\.]*) *");
 
     public enum t_type {
         OVERLAY("overlay"),
@@ -78,7 +81,7 @@ public class MBTilesMetadata {
 
     protected t_format format;
 
-    protected Envelope bounds;
+    protected Bounds bounds;
 
     protected String attribution;
 
@@ -87,6 +90,8 @@ public class MBTilesMetadata {
     protected int maxZoom;
 
     protected String json;
+
+    protected double[] center;
 
     public String getName() {
         return name;
@@ -128,12 +133,20 @@ public class MBTilesMetadata {
         this.format = format;
     }
 
-    public Envelope getBounds() {
+    public Bounds getBounds() {
         return bounds;
     }
 
-    public void setBounds(Envelope bounds) {
+    public void setBounds(Bounds bounds) {
         this.bounds = bounds;
+    }
+
+    public double[] getCenter() {
+        return center;
+    }
+
+    public void setCenter(double[] center) {
+        this.center = center;
     }
 
     public String getAttribution() {
@@ -190,6 +203,14 @@ public class MBTilesMetadata {
         }
     }
 
+    public String getCenterStr() {
+        if (center == null) {
+            return null;
+        } else {
+            return center[0] + "," + center[1] + "," + center[2];
+        }
+    }
+
     public void setTypeStr(final String typeStr) {
         if (typeStr == null) {
             setType(null);
@@ -236,6 +257,22 @@ public class MBTilesMetadata {
             } catch (FactoryException e) {
                 LOGGER.log(Level.SEVERE, e.getMessage(), e);
             }
+        }
+    }
+
+    public void setCenterStr(String centerStr) {
+        if (centerStr == null) {
+            setCenter(null);
+        } else {
+            Matcher matcherCenter = patternCenter.matcher(centerStr);
+            if (!matcherCenter.matches()) {
+                throw new IllegalArgumentException(
+                        "Center not in correct format: longitude,latitude,zoom level");
+            }
+            double lon = Double.parseDouble(matcherCenter.group(1));
+            double lat = Double.parseDouble(matcherCenter.group(2));
+            double zoomLevel = Double.parseDouble(matcherCenter.group(3));
+            setCenter(new double[] {lon, lat, zoomLevel});
         }
     }
 

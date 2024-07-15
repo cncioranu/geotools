@@ -23,30 +23,29 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.temporal.After;
+import org.geotools.api.filter.temporal.Before;
+import org.geotools.api.filter.temporal.During;
+import org.geotools.api.filter.temporal.TEquals;
+import org.geotools.api.temporal.Instant;
+import org.geotools.api.temporal.Period;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.temporal.object.DefaultInstant;
 import org.geotools.temporal.object.DefaultPeriod;
 import org.geotools.temporal.object.DefaultPosition;
-import org.geotools.util.factory.Hints;
-import org.opengis.filter.And;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.temporal.After;
-import org.opengis.filter.temporal.Before;
-import org.opengis.filter.temporal.During;
-import org.opengis.filter.temporal.TEquals;
-import org.opengis.temporal.Instant;
-import org.opengis.temporal.Period;
 
 /**
  * Filter Sample Factory
@@ -59,10 +58,11 @@ import org.opengis.temporal.Period;
  */
 public class FilterCQLSample {
 
-    private static final FilterFactory FACTORY = CommonFactoryFinder.getFilterFactory((Hints) null);
+    private static final FilterFactory FACTORY = CommonFactoryFinder.getFilterFactory(null);
 
-    private static final String DATE_TIME_FORMATTER = "yyyy-MM-dd'T'HH:mm:ss'Z'";
-    private static final String DATE_TIME_FORMATTER_MILLIS = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
+    public static final String DATE_FORMATTER = "yyyy-MM-dd";
+    public static final String DATE_TIME_FORMATTER = "yyyy-MM-dd'T'HH:mm:ss'Z'";
+    public static final String DATE_TIME_FORMATTER_MILLIS = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
     private static final Calendar CALENDAR = Calendar.getInstance();
     public static final String LESS_FILTER_SAMPLE = "ATTR1 < 1";
@@ -75,10 +75,10 @@ public class FilterCQLSample {
     public static final String FILTER_WITH_BRACKET_ROUNDTRIP_EXPR = "ATTR1 > [[1 + 2] / 3]";
     public static final String PROPERTY_IS_NULL = "ATTR1 IS NULL";
     public static final String PROPERTY_IS_NOT_NULL = "ATTR1 IS NOT NULL";
-    private static final String FIRST_DATE = "2006-11-30T01:30:00Z";
-    private static final String LAST_DATE = "2006-12-31T01:30:00Z";
-    private static final String FIRST_DATE_MILLIS = "2006-11-30T01:30:00.123Z";
-    private static final String LAST_DATE_MILLIS = "2006-12-31T01:30:00.456Z";
+    public static final String FIRST_DATE = "2006-11-30T01:30:00Z";
+    public static final String LAST_DATE = "2006-12-31T01:30:00Z";
+    public static final String FIRST_DATE_MILLIS = "2006-11-30T01:30:00.123Z";
+    public static final String LAST_DATE_MILLIS = "2006-12-31T01:30:00.456Z";
     public static final String FILTER_EQUAL_DATETIME = "ATTR1 TEQUALS " + FIRST_DATE;
     public static final String FILTER_BEFORE_DATE = "ATTR1 BEFORE " + FIRST_DATE;
     public static final String FILTER_BEFORE_DATE_MILLIS = "ATTR1 BEFORE " + FIRST_DATE_MILLIS;
@@ -283,10 +283,9 @@ public class FilterCQLSample {
     static {
         // Samples initialization
         {
-            Filter filter;
 
             // ---------------------------------------
-            filter = FACTORY.less(FACTORY.property("ATTR1"), FACTORY.literal(1));
+            Filter filter = FACTORY.less(FACTORY.property("ATTR1"), FACTORY.literal(1));
             SAMPLES.put(LESS_FILTER_SAMPLE, filter);
 
             // ---------------------------------------
@@ -457,13 +456,12 @@ public class FilterCQLSample {
 
                 Date firstDate = strToDate(FIRST_DATE);
 
-                Date lastDate;
                 // adds Days
                 CALENDAR.setTime(firstDate);
 
                 int days = Integer.parseInt(DURATION_DATE);
                 CALENDAR.add(Calendar.DATE, days);
-                lastDate = CALENDAR.getTime();
+                Date lastDate = CALENDAR.getTime();
 
                 afterFilter = FACTORY.after(FACTORY.property("ATTR1"), FACTORY.literal(lastDate));
 

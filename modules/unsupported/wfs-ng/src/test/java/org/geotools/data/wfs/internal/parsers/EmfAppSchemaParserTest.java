@@ -20,20 +20,23 @@ import static org.geotools.data.wfs.WFSTestData.url;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import javax.xml.namespace.QName;
+import org.eclipse.xsd.XSDElementDeclaration;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.wfs.WFSTestData;
+import org.geotools.gml3.GML;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.wfs.v1_1.WFSConfiguration;
 import org.geotools.xsd.Configuration;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Unit test suite for {@link EmfAppSchemaParser}
@@ -61,6 +64,17 @@ public class EmfAppSchemaParserTest {
         assertNotNull(ftype);
         assertNotNull(ftype.getGeometryDescriptor());
         assertEquals("the_geom", ftype.getGeometryDescriptor().getLocalName());
+
+        // check that XSD schema was disposed
+        for (XSDElementDeclaration dec :
+                GML.getInstance()
+                        .getSchema()
+                        .resolveElementDeclaration(GML._Feature.getLocalPart())
+                        .getSubstitutionGroup()) {
+            if ("states".equals(dec.getName())) {
+                fail();
+            }
+        }
     }
 
     @Test
@@ -87,9 +101,8 @@ public class EmfAppSchemaParserTest {
         // setting expectedAttributeCount back to 10
         final int expectedAttributeCount = 10;
 
-        SimpleFeatureType ftype =
-                testParseDescribeSimpleFeatureType(
-                        featureTypeName, schemaLocation, expectedAttributeCount);
+        // SimpleFeatureType ftype =
+        testParseDescribeSimpleFeatureType(featureTypeName, schemaLocation, expectedAttributeCount);
         /*
         for (AttributeDescriptor descriptor : ftype.getAttributeDescriptors()) {
              System.out.print(descriptor.getName().getNamespaceURI());
@@ -120,8 +133,7 @@ public class EmfAppSchemaParserTest {
 
         Configuration configuration = new WFSConfiguration();
 
-        SimpleFeatureType featureType;
-        featureType =
+        SimpleFeatureType featureType =
                 EmfAppSchemaParser.parseSimpleFeatureType(
                         configuration, featureTypeName, schemaLocation, crs);
 

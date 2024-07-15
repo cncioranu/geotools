@@ -18,12 +18,12 @@ package org.geotools.referencing;
 
 import java.io.IOException;
 import java.io.LineNumberReader;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.referencing.operation.projection.MapProjection;
 import org.geotools.test.TestData;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Run a test scripts. Scripts include a test suite provided by OpenGIS. Each script contains a list
@@ -44,10 +44,10 @@ public final class ScriptTest {
      * @throws Exception If a test failed.
      */
     private void runScript(final String filename) throws Exception {
-        final LineNumberReader in = TestData.openReader(this, filename);
-        final ScriptRunner test = new ScriptRunner(in);
-        test.executeAll();
-        in.close();
+        try (LineNumberReader in = TestData.openReader(this, filename)) {
+            final ScriptRunner test = new ScriptRunner(in);
+            test.executeAll();
+        }
     }
 
     /**
@@ -358,5 +358,11 @@ public final class ScriptTest {
     @Test
     public void testEqualEarth() throws Exception {
         runScript("scripts/EqualEarth.txt");
+    }
+
+    /** Run "Equirectangular.txt". */
+    @Test
+    public void testEquirectangular() throws Exception {
+        runScript("scripts/Equirectangular.txt");
     }
 }

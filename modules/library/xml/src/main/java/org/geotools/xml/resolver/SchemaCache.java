@@ -23,13 +23,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
+import org.geotools.http.HTTPClient;
+import org.geotools.http.HTTPClientFinder;
+import org.geotools.http.HTTPResponse;
 import org.geotools.util.URLs;
 
 /**
@@ -179,24 +181,13 @@ public class SchemaCache {
 
     /** Store the bytes in the given file, creating any necessary intervening directories. */
     static void store(File file, byte[] bytes) {
-
-        OutputStream output = null;
-        try {
-            if (file.getParentFile() != null && !file.getParentFile().exists()) {
-                file.getParentFile().mkdirs();
-            }
-            output = new BufferedOutputStream(new FileOutputStream(file));
+        if (file.getParentFile() != null && !file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
+        try (OutputStream output = new BufferedOutputStream(new FileOutputStream(file))) {
             output.write(bytes);
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            if (output != null) {
-                try {
-                    output.close();
-                } catch (Exception e) {
-                    // we tried
-                }
-            }
         }
     }
 
@@ -241,25 +232,27 @@ public class SchemaCache {
                 LOGGER.warning("Unexpected download URL protocol: " + protocol);
                 return null;
             }
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setConnectTimeout(downloadTimeout);
-            connection.setReadTimeout(downloadTimeout);
-            connection.setUseCaches(false);
-            connection.connect();
-            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+            HTTPClient httpClient = HTTPClientFinder.createClient();
+            httpClient.setConnectTimeout(downloadTimeout);
+            httpClient.setReadTimeout(downloadTimeout);
+            HTTPResponse httpResponse;
+            try {
+                httpResponse = httpClient.get(url);
+            } catch (IOException e) {
+                // don't throw an exception if status code >= 400
                 LOGGER.warning(
                         String.format(
-                                "Unexpected response \"%d %s\" while downloading %s",
-                                connection.getResponseCode(),
-                                connection.getResponseMessage(),
-                                location.toString()));
+                                "Unexpected response \"%s\" while downloading %s",
+                                e.getCause(), url));
                 return null;
             }
+            if (httpResponse == null) {
+                return null;
+            }
+
             // read all the blocks into a list
-            InputStream input = null;
             List<byte[]> blocks = new LinkedList<>();
-            try {
-                input = connection.getInputStream();
+            try (InputStream input = httpResponse.getResponseStream()) {
                 while (true) {
                     byte[] block = new byte[blockSize];
                     int count = input.read(block);
@@ -274,14 +267,6 @@ public class SchemaCache {
                         byte[] shortBlock = new byte[count];
                         System.arraycopy(block, 0, shortBlock, 0, count);
                         blocks.add(shortBlock);
-                    }
-                }
-            } finally {
-                if (input != null) {
-                    try {
-                        input.close();
-                    } catch (Exception e) {
-                        // we tried
                     }
                 }
             }

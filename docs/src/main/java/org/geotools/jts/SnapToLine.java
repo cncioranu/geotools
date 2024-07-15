@@ -1,33 +1,30 @@
 /*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
+ *    GeoTools Sample code and Tutorials by Open Source Geospatial Foundation, and others
+ *    https://docs.geotools.org
  *
- *    (C) 2019, Open Source Geospatial Foundation (OSGeo)
+ *    To the extent possible under law, the author(s) have dedicated all copyright
+ *    and related and neighboring rights to this software to the public domain worldwide.
+ *    This software is distributed without any warranty.
  *
- *    This library is free software; you can redistribute it and/or
- *    modify it under the terms of the GNU Lesser General Public
- *    License as published by the Free Software Foundation;
- *    version 2.1 of the License.
- *
- *    This library is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *    Lesser General Public License for more details.
- *
+ *    You should have received a copy of the CC0 Public Domain Dedication along with this
+ *    software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
-
 package org.geotools.jts;
 
 import java.io.File;
 import java.util.List;
 import java.util.Random;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.FileDataStore;
-import org.geotools.data.FileDataStoreFinder;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.FileDataStore;
+import org.geotools.api.data.FileDataStoreFinder;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.swing.data.JFileDataStoreChooser;
+import org.geotools.util.SuppressFBWarnings;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -37,10 +34,8 @@ import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.linearref.LinearLocation;
 import org.locationtech.jts.linearref.LocationIndexedLine;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
 
+@SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE")
 public class SnapToLine {
 
     public static void main(String[] args) throws Exception {

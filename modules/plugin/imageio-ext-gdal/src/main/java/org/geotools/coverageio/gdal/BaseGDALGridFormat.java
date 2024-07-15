@@ -23,6 +23,11 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.spi.ImageReaderSpi;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.GeneralParameterValue;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.imageio.GeoToolsWriteParams;
@@ -30,11 +35,6 @@ import org.geotools.parameter.DefaultParameterDescriptor;
 import org.geotools.parameter.DefaultParameterDescriptorGroup;
 import org.geotools.parameter.ParameterGroup;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.GeneralParameterValue;
 
 /**
  * A Base abstract class implementing {@link Format}, to be extended by Formats leveraging on GDAL.
@@ -88,14 +88,13 @@ public abstract class BaseGDALGridFormat extends AbstractGridFormat implements F
                     Boolean.FALSE);
 
     /** Base Parameter Descriptor */
-    protected static final GeneralParameterDescriptor[] PARAM_DESCRIPTOR =
-            new GeneralParameterDescriptor[] {
-                READ_GRIDGEOMETRY2D,
-                USE_JAI_IMAGEREAD,
-                USE_MULTITHREADING,
-                SUGGESTED_TILE_SIZE,
-                FOOTPRINT_BEHAVIOR
-            };
+    protected static final GeneralParameterDescriptor[] PARAM_DESCRIPTOR = {
+        READ_GRIDGEOMETRY2D,
+        USE_JAI_IMAGEREAD,
+        USE_MULTITHREADING,
+        SUGGESTED_TILE_SIZE,
+        FOOTPRINT_BEHAVIOR
+    };
 
     /** Each plugin needs to implement this method defining format specific properties */
     protected abstract void setInfo();
@@ -128,6 +127,7 @@ public abstract class BaseGDALGridFormat extends AbstractGridFormat implements F
      *     <p>Actually, the plugin does not support write capabilities. The method throws an {@code
      *     UnsupportedOperationException}.
      */
+    @Override
     public GridCoverageWriter getWriter(Object destination, Hints hints) {
         throw new UnsupportedOperationException(
                 "This plugin does not support writing at this time.");

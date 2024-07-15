@@ -27,12 +27,12 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.eclipse.emf.common.CommonPlugin.Implementation;
-import org.geotools.data.ows.HTTPResponse;
 import org.geotools.data.wfs.internal.Loggers;
 import org.geotools.data.wfs.internal.WFSException;
 import org.geotools.data.wfs.internal.WFSRequest;
 import org.geotools.data.wfs.internal.WFSResponse;
 import org.geotools.data.wfs.internal.WFSResponseFactory;
+import org.geotools.http.HTTPResponse;
 import org.geotools.xsd.Parser;
 import org.xml.sax.EntityResolver;
 
@@ -40,8 +40,8 @@ import org.xml.sax.EntityResolver;
  * Potential base class for {@link WFSResponseFactory} implementations. Provides support for
  * detecting and parsing of exception reports received as {@link HTTPResponse}.
  *
- * <p>Subclasses have to {@link Implementation} {@link #isValidResponseHead(StringBuilder)} and
- * {@link #createResponseImpl(WFSRequest, HTTPResponse, InputStream)}.
+ * <p>Subclasses have to {@link Implementation} {@link #isValidResponseHead} and {@link
+ * #createResponseImpl(WFSRequest, HTTPResponse, InputStream)}.
  *
  * @author awaterme
  */
@@ -57,9 +57,8 @@ public abstract class AbstractWFSResponseFactory implements WFSResponseFactory {
      * header. Truth is, some WFS implementations does not set proper HTTP response headers so a bit
      * of an heuristic may be needed in order to identify the actual response.
      *
-     * @see WFSResponseFactory#createParser(WFSResponse)
-     * @see FeatureCollectionParser
-     * @see ExceptionReportParser
+     * @see WFSResponseFactory#createResponse(WFSRequest, HTTPResponse)
+     * @see WFSException
      */
     @Override
     public WFSResponse createResponse(WFSRequest request, HTTPResponse response)
@@ -160,7 +159,6 @@ public abstract class AbstractWFSResponseFactory implements WFSResponseFactory {
         if (parsed instanceof net.opengis.ows10.ExceptionReportType) {
             net.opengis.ows10.ExceptionReportType report =
                     (net.opengis.ows10.ExceptionReportType) parsed;
-            @SuppressWarnings("unchecked")
             List<net.opengis.ows10.ExceptionType> exceptions = report.getException();
 
             StringBuilder msg = new StringBuilder("WFS returned an exception.");
@@ -168,7 +166,6 @@ public abstract class AbstractWFSResponseFactory implements WFSResponseFactory {
             msg.append(originatingRequest.toString());
             WFSException result = new WFSException(msg.toString());
             for (net.opengis.ows10.ExceptionType ex : exceptions) {
-                @SuppressWarnings("unchecked")
                 List<String> texts = ex.getExceptionText();
                 result.addExceptionDetails(ex.getExceptionCode(), ex.getLocator(), texts);
             }

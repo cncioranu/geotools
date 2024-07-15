@@ -17,9 +17,9 @@
 package org.geotools.util;
 
 import java.io.Serializable;
+import java.text.MessageFormat;
 import javax.measure.Unit;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 
 /**
  * A range between a minimum and maximum comparable. The minimum/maximum may be included, excluded
@@ -138,7 +138,8 @@ public class Range<T extends Comparable<? super T>> implements Serializable {
     static void ensureNonNull(final String name, final Object value)
             throws IllegalArgumentException {
         if (value == null) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, name));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, name));
         }
     }
 
@@ -155,7 +156,7 @@ public class Range<T extends Comparable<? super T>> implements Serializable {
     private void ensureCompatible(final Class<?> type) throws IllegalArgumentException {
         if (!elementClass.isAssignableFrom(type)) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ILLEGAL_CLASS_$2, type, elementClass));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_CLASS_$2, type, elementClass));
         }
     }
 
@@ -356,9 +357,11 @@ public class Range<T extends Comparable<? super T>> implements Serializable {
      */
     final Range<? extends T> intersectNC(final Range<? extends T> range)
             throws IllegalArgumentException {
-        final Range<? extends T> intersect, min, max;
-        min = compareMinTo(range.minValue, range.isMinIncluded ? 0 : +1) < 0 ? range : this;
-        max = compareMaxTo(range.maxValue, range.isMaxIncluded ? 0 : -1) > 0 ? range : this;
+        final Range<? extends T> intersect;
+        final Range<? extends T> min =
+                compareMinTo(range.minValue, range.isMinIncluded ? 0 : +1) < 0 ? range : this;
+        final Range<? extends T> max =
+                compareMaxTo(range.maxValue, range.isMaxIncluded ? 0 : -1) > 0 ? range : this;
         if (min == max) {
             intersect = min;
         } else {
@@ -446,9 +449,11 @@ public class Range<T extends Comparable<? super T>> implements Serializable {
      * "No Cast" - this method do not try to cast the value to a compatible type.
      */
     final Range<?> unionNC(final Range<? extends T> range) throws IllegalArgumentException {
-        final Range<? extends T> union, min, max;
-        min = compareMinTo(range.minValue, range.isMinIncluded ? 0 : +1) > 0 ? range : this;
-        max = compareMaxTo(range.maxValue, range.isMaxIncluded ? 0 : -1) < 0 ? range : this;
+        final Range<? extends T> union;
+        final Range<? extends T> min =
+                compareMinTo(range.minValue, range.isMinIncluded ? 0 : +1) > 0 ? range : this;
+        final Range<? extends T> max =
+                compareMaxTo(range.maxValue, range.isMaxIncluded ? 0 : -1) < 0 ? range : this;
         if (min == max) {
             union = min;
         } else {

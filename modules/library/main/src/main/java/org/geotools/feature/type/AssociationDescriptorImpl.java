@@ -16,9 +16,9 @@
  */
 package org.geotools.feature.type;
 
-import org.opengis.feature.type.AssociationDescriptor;
-import org.opengis.feature.type.AssociationType;
-import org.opengis.feature.type.Name;
+import org.geotools.api.feature.type.AssociationDescriptor;
+import org.geotools.api.feature.type.AssociationType;
+import org.geotools.api.feature.type.Name;
 
 public class AssociationDescriptorImpl extends PropertyDescriptorImpl
         implements AssociationDescriptor {
@@ -28,6 +28,7 @@ public class AssociationDescriptorImpl extends PropertyDescriptorImpl
         super(type, name, min, max, isNillable);
     }
 
+    @Override
     public AssociationType getType() {
         return (AssociationType) super.getType();
     }

@@ -24,13 +24,13 @@ import java.awt.image.RenderedImage;
 import java.util.Map;
 import javax.media.jai.ParameterBlockJAI;
 import javax.media.jai.operator.MultiplyConstDescriptor;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.processing.OperationJAI;
 import org.geotools.util.NumberRange;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.InternationalString;
 
 /**
  * Multiplies every sample values of the source coverage by constants (one for each band). If the
@@ -70,7 +70,7 @@ import org.opengis.util.InternationalString;
  * @since 2.2
  * @version $Id$
  * @author Martin Desruisseaux (IRD)
- * @see org.geotools.coverage.processing.Operations#multiply(org.opengis.coverage.Coverage,
+ * @see org.geotools.coverage.processing.Operations#multiply(org.geotools.api.coverage.Coverage,
  *     double[])
  * @see MultiplyConstDescriptor
  * @todo Should operates on {@code sampleToGeophysics} transform when possible. See <A
@@ -85,11 +85,13 @@ public class MultiplyConst extends OperationJAI {
         super("MultiplyConst", getOperationDescriptor(JAIExt.getOperationName("MultiplyConst")));
     }
 
+    @Override
     public String getName() {
         return "MultiplyConst";
     }
 
     /** Returns the expected range of values for the resulting image. */
+    @Override
     protected NumberRange<? extends Number> deriveRange(
             final NumberRange<? extends Number>[] ranges, final Parameters parameters) {
         final double[] constants = (double[]) parameters.parameters.getObjectParameter("constants");
@@ -103,6 +105,7 @@ public class MultiplyConst extends OperationJAI {
         return super.deriveRange(ranges, parameters);
     }
 
+    @Override
     protected void handleJAIEXTParams(
             ParameterBlockJAI parameters, ParameterValueGroup parameters2) {
         GridCoverage2D source = (GridCoverage2D) parameters2.parameter("source0").getValue();
@@ -112,6 +115,7 @@ public class MultiplyConst extends OperationJAI {
         handleROINoDataInternal(parameters, source, "operationConst", 2, 3);
     }
 
+    @Override
     protected Map<String, ?> getProperties(
             RenderedImage data,
             CoordinateReferenceSystem crs,

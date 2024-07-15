@@ -18,7 +18,7 @@ package org.geotools.referencing.factory.wms;
 
 // OpenGIS dependencies
 
-import org.opengis.parameter.ParameterValueGroup;
+import org.geotools.api.parameter.ParameterValueGroup;
 
 /**
  * Auto Equirectangular ({@code AUTO:42004}). In the notation below, "<code>${var}</code>" denotes a
@@ -59,21 +59,25 @@ final class Auto42004 extends Factlet {
     private Auto42004() {}
 
     /** {@inheritDoc} */
+    @Override
     public int code() {
         return 42004;
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getName() {
         return "WGS 84 / Auto Equirectangular";
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getClassification() {
         return "Equidistant_Cylindrical";
     }
 
     /** {@inheritDoc} */
+    @Override
     protected void setProjectionParameters(final ParameterValueGroup parameters, final Code code) {
         final double centralMeridian = code.longitude;
         final double standardParallel1 = code.latitude;

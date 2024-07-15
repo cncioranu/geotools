@@ -31,8 +31,8 @@ import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import org.geotools.api.util.InternationalString;
 import org.geotools.util.logging.Logging;
-import org.opengis.util.InternationalString;
 
 /**
  * {@link ResourceBundle} implementation using integers instead of strings for resource keys.
@@ -152,7 +152,7 @@ public class IndexedResourceBundle extends ResourceBundle {
      * @param values The resources to list.
      * @throws IOException if an output operation failed.
      */
-    private static void list(final Writer out, final String[] values) throws IOException {
+    private static void list(final Writer out, final String... values) throws IOException {
         final String lineSeparator = System.getProperty("line.separator", "\n");
         for (int i = 0; i < values.length; i++) {
             String value = values[i];
@@ -254,12 +254,14 @@ public class IndexedResourceBundle extends ResourceBundle {
     }
 
     /** Returns an enumeration of the keys. */
+    @Override
     public final Enumeration<String> getKeys() {
         // Synchronization performed by 'ensureLoaded'
         final String[] values = ensureLoaded(null);
         return new Enumeration<String>() {
             private int i = 0;
 
+            @Override
             public boolean hasMoreElements() {
                 while (true) {
                     if (i >= values.length) return false;
@@ -268,6 +270,7 @@ public class IndexedResourceBundle extends ResourceBundle {
                 }
             }
 
+            @Override
             public String nextElement() {
                 while (true) {
                     if (i >= values.length) throw new NoSuchElementException();
@@ -286,6 +289,7 @@ public class IndexedResourceBundle extends ResourceBundle {
      * @exception NullPointerException if {@code key} is {@code null}
      * @return the object for the given key, or null
      */
+    @Override
     protected final Object handleGetObject(final String key) {
         // Synchronization performed by 'ensureLoaded'
         final String[] values = ensureLoaded(key);
@@ -724,8 +728,8 @@ public class IndexedResourceBundle extends ResourceBundle {
         buffer.append('[');
         if (values != null) {
             int count = 0;
-            for (int i = 0; i < values.length; i++) {
-                if (values[i] != null) count++;
+            for (String value : values) {
+                if (value != null) count++;
             }
             buffer.append(count);
             buffer.append(" values");

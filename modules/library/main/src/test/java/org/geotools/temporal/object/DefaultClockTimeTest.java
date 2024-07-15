@@ -20,16 +20,16 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 
+import org.geotools.api.temporal.ClockTime;
+import org.geotools.api.temporal.TemporalReferenceSystem;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.temporal.reference.DefaultTemporalReferenceSystem;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.temporal.ClockTime;
-import org.opengis.temporal.TemporalReferenceSystem;
 
 /** @author Mehdi Sidhoum (Geomatys) */
 public class DefaultClockTimeTest {
@@ -72,7 +72,7 @@ public class DefaultClockTimeTest {
     /** Test of equals method, of class DefaultClockTime. */
     @Test
     public void testEquals() {
-        assertFalse(clockTime1.equals(null));
+        assertNotEquals(null, clockTime1);
         assertEquals(clockTime1, clockTime1);
     }
 
@@ -80,13 +80,13 @@ public class DefaultClockTimeTest {
     @Test
     public void testHashCode() {
         int result = clockTime1.hashCode();
-        assertFalse(clockTime2.hashCode() == result);
+        assertNotEquals(clockTime2.hashCode(), result);
     }
 
     /** Test of toString method, of class DefaultClockTime. */
     @Test
     public void testToString() {
         String result = clockTime1.toString();
-        assertFalse(clockTime2.equals(result));
+        assertNotEquals(clockTime2, result);
     }
 }

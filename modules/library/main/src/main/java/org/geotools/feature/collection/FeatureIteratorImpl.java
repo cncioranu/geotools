@@ -19,9 +19,9 @@ package org.geotools.feature.collection;
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.Iterator;
+import org.geotools.api.feature.Feature;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.FeatureIterator;
-import org.opengis.feature.Feature;
 
 /**
  * A convenience class for dealing with wrapping a Collection Iterator up as a FeatureIterator.
@@ -55,6 +55,7 @@ public class FeatureIteratorImpl<F extends Feature> implements FeatureIterator<F
      *
      * @return true if more Features exist, false otherwise.
      */
+    @Override
     public boolean hasNext() {
         return iterator.hasNext();
     }
@@ -65,10 +66,12 @@ public class FeatureIteratorImpl<F extends Feature> implements FeatureIterator<F
      * @return The next Feature
      * @throws java.util.NoSuchElementException If no more Features exist.
      */
+    @Override
     public F next() throws java.util.NoSuchElementException {
-        return (F) iterator.next();
+        return iterator.next();
     }
     /** Required so SimpleFeatureCollection classes can implement close( SimpleFeatureIterator ). */
+    @Override
     public void close() {
         if (iterator != null) {
             DataUtilities.close(iterator);

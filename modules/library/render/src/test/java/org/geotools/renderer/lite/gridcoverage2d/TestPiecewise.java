@@ -42,16 +42,14 @@ import javax.media.jai.ParameterBlockJAI;
 import javax.media.jai.ROI;
 import javax.media.jai.RenderedOp;
 import org.geotools.TestData;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.image.ImageWorker;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.referencing.operation.TransformException;
 
 /** @author Simone Giannecchini, GeoSolutions. */
 public class TestPiecewise {
-
-    private static final String LOGGER = null;
 
     /** Testing {@link DefaultConstantPiecewiseTransformElement}. */
     @Test
@@ -83,7 +81,7 @@ public class TestPiecewise {
 
         try {
             Assert.assertEquals(e0.transform(Double.POSITIVE_INFINITY), 0.0, 0.0);
-            Assert.assertTrue(false);
+            Assert.fail();
         } catch (Exception e) {
             // TODO: handle exception
         }
@@ -106,14 +104,14 @@ public class TestPiecewise {
 
         try {
             defaultAdapter.inverseTransform();
-            Assert.assertFalse(true);
+            Assert.fail();
         } catch (UnsupportedOperationException e) {
 
         }
 
         try {
             defaultAdapter.transform(0.0);
-            Assert.assertFalse(true);
+            Assert.fail();
         } catch (UnsupportedOperationException e) {
 
         }
@@ -146,7 +144,7 @@ public class TestPiecewise {
         Assert.assertEquals(e0.transform(Double.POSITIVE_INFINITY), 0.0, 0.0);
         try {
             e0.inverse();
-            Assert.assertTrue(false);
+            Assert.fail();
         } catch (Exception e) {
 
         }
@@ -173,7 +171,7 @@ public class TestPiecewise {
         Assert.assertEquals(e0.transform(Double.POSITIVE_INFINITY), 0.0, 0.0);
         try {
             e0.inverse();
-            Assert.assertTrue(false);
+            Assert.fail();
         } catch (Exception e) {
             // TODO: handle exception
         }
@@ -186,10 +184,10 @@ public class TestPiecewise {
         Assert.assertEquals(transform1.transform(Double.POSITIVE_INFINITY), 0.0, 0.0);
 
         // hashcode and equals
-        Assert.assertFalse(transform.equals(transform1));
-        Assert.assertFalse(transform1.equals(transform));
-        Assert.assertFalse(transform.equals(transform));
-        Assert.assertFalse(transform1.equals(transform1));
+        Assert.assertNotEquals(transform, transform1);
+        Assert.assertNotEquals(transform1, transform);
+        Assert.assertNotEquals(transform, transform);
+        Assert.assertNotEquals(transform1, transform1);
         Assert.assertEquals(transform1.hashCode(), transform.hashCode());
 
         // /////////////////////////////////////////////////////////////////////
@@ -208,7 +206,7 @@ public class TestPiecewise {
         Assert.assertEquals(e0.transform(Double.POSITIVE_INFINITY), 0.0, 0.0);
         try {
             e0.inverse();
-            Assert.assertTrue(false);
+            Assert.fail();
         } catch (Exception e) {
             // TODO: handle exception
         }
@@ -258,25 +256,30 @@ public class TestPiecewise {
                         RangeFactory.create(0, false, 255, true),
                         new MathTransformation() {
 
+                            @Override
                             public double derivative(double arg0) throws TransformException {
 
                                 return 1 / arg0;
                             }
 
+                            @Override
                             public double transform(double arg0) {
                                 return Math.log(arg0);
                             }
 
+                            @Override
                             public int getSourceDimensions() {
 
                                 return 01;
                             }
 
+                            @Override
                             public int getTargetDimensions() {
 
                                 return 1;
                             }
 
+                            @Override
                             public boolean isIdentity() {
                                 return false;
                             }
@@ -383,7 +386,7 @@ public class TestPiecewise {
         Assert.assertTrue(t0.contains(RangeFactory.create(0.1, 0.9)));
         Assert.assertFalse(t0.contains(1.5));
         Assert.assertFalse(t0.contains(RangeFactory.create(0.1, 1.9)));
-        Assert.assertTrue(t0.equals(t0));
+        Assert.assertEquals(t0, t0);
         Assert.assertEquals(
                 t0.transform(new Position(0.5), null).getOrdinatePosition(), 200.5, 0.0);
         Assert.assertEquals(
@@ -395,12 +398,12 @@ public class TestPiecewise {
                         "t0",
                         RangeFactory.create(0.0, true, 1.0, true),
                         RangeFactory.create(200, 201));
-        Assert.assertFalse(
-                t0.equals(
-                        DefaultPiecewiseTransform1DElement.create(
-                                "t0",
-                                RangeFactory.create(0.0, true, 1.0, true),
-                                RangeFactory.create(200, 202))));
+        Assert.assertNotEquals(
+                t0,
+                DefaultPiecewiseTransform1DElement.create(
+                        "t0",
+                        RangeFactory.create(0.0, true, 1.0, true),
+                        RangeFactory.create(200, 202)));
         Assert.assertEquals(t0.transform(0.5), 200.5, 0.0);
         Assert.assertEquals(
                 t0.transform(new Position(0.5), null).getOrdinatePosition(), 200.5, 0.0);
@@ -418,7 +421,7 @@ public class TestPiecewise {
                         "t1", RangeFactory.create(1.0, false, 2.0, true), 201);
         Assert.assertEquals(t1.transform(1.5), 201, 0.0);
         Assert.assertEquals(t1.transform(1.6), 201, 0.0);
-        Assert.assertFalse(t0.equals(t1));
+        Assert.assertNotEquals(t0, t1);
         Assert.assertEquals(t1.transform(new Position(1.8), null).getOrdinatePosition(), 201, 0.0);
 
         // Assert.assertEquals(t1.derivative(2.0), 0.0, 0.0);
@@ -458,7 +461,7 @@ public class TestPiecewise {
                                         RangeFactory.create(
                                                 Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY))
                             });
-            Assert.assertTrue(false);
+            Assert.fail();
         } catch (IllegalArgumentException e) {
 
         }
@@ -487,7 +490,7 @@ public class TestPiecewise {
         // Assert.assertEquals(p0.derivative(1.0), 1.0, 0.0);
         final Position inDP = new Position(0.6);
         final Position outDP = p0.transform(inDP, null);
-        Assert.assertTrue(outDP.getOrdinatePosition() == 0.6);
+        Assert.assertEquals(0.6, outDP.getOrdinatePosition(), 0.0);
 
         //			Matrix m= p0.derivative(inDP);
         //			Assert.assertTrue(m.getNumCol()==1);
@@ -532,7 +535,7 @@ public class TestPiecewise {
         // Assert.assertEquals(p1.derivative(1.0), 1.0, 0.0);
         final Position inDP1 = new Position(0.6);
         final Position outDP1 = p1.transform(inDP1, null);
-        Assert.assertTrue(outDP1.getOrdinatePosition() == 0.6);
+        Assert.assertEquals(0.6, outDP1.getOrdinatePosition(), 0.0);
 
         //			Matrix m1= p1.derivative(inDP1);
         //			Assert.assertTrue(m1.getNumCol()==1);
@@ -614,11 +617,13 @@ public class TestPiecewise {
                         RangeFactory.create(minimum[0], maximum[0]),
                         new MathTransformationAdapter() {
 
+                            @Override
                             public double derivative(double arg0) throws TransformException {
 
                                 return 1 / arg0;
                             }
 
+                            @Override
                             public double transform(double arg0) {
 
                                 return minimum[0]
@@ -628,6 +633,7 @@ public class TestPiecewise {
                                                         / (Math.log(maximum[0] / minimum[0])));
                             }
 
+                            @Override
                             public boolean isIdentity() {
                                 return false;
                             }

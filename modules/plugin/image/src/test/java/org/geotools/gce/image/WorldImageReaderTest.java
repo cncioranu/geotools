@@ -17,6 +17,11 @@
  */
 package org.geotools.gce.image;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.io.File;
@@ -26,27 +31,24 @@ import java.util.List;
 import java.util.logging.Logger;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.RenderedOp;
-import junit.framework.TestSuite;
-import junit.textui.TestRunner;
+import org.geotools.api.data.CloseableIterator;
+import org.geotools.api.data.FileGroupProvider.FileGroup;
+import org.geotools.api.data.FileServiceInfo;
+import org.geotools.api.data.ServiceInfo;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.OverviewPolicy;
-import org.geotools.data.CloseableIterator;
-import org.geotools.data.FileGroupProvider.FileGroup;
-import org.geotools.data.FileServiceInfo;
-import org.geotools.data.ServiceInfo;
-import org.geotools.geometry.Envelope2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.parameter.Parameter;
-import org.geotools.referencing.crs.DefaultEngineeringCRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.test.TestData;
 import org.geotools.util.factory.Hints;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
+import org.junit.Test;
 
 /**
  * TestCase subclass for testing readingb capabilities
@@ -59,40 +61,7 @@ public class WorldImageReaderTest extends WorldImageBaseTestCase {
 
     private Logger logger = org.geotools.util.logging.Logging.getLogger(WorldImageReaderTest.class);
 
-    /** Constructor for WorldImageReaderTest. */
-    public WorldImageReaderTest(String arg0) {
-        super(arg0);
-    }
-
-    /*
-     * Can't test this, as these files aren't actually expected to exist.
-     * The constructor tries to create an inputStream and then throws
-     * an exception. Re-enable this if that behaviour changes, or if you
-     * feel like writing a windows-only test.
-     */
-    //    public void testSource() throws Exception {
-    //    	URL altDrive = new URL("file://E:/somedir/foo.tif");
-    //    	WorldImageReader r = new WorldImageReader(altDrive);
-    //    	File result = (File) r.getSource();
-    //    	String s1 = result.getAbsolutePath();
-    //    	String s2 = "E:\\somedir\\foo.tif";
-    //    	assertTrue(s1.equals(s2));
-    //
-    //    	URL networkShare = new URL("file://borkServer/somedir/foo.tif");
-    //    	r = new WorldImageReader(networkShare);
-    //    	result = (File) r.getSource();
-    //    	s1 = result.getAbsolutePath();
-    //    	s2 = "\\\\borkServer\\somedir\\foo.tif";
-    //    	assertTrue(s1.equals(s2));
-    //    }
-
-    /*
-     * @see TestCase#setUp()
-     */
-    protected void setUp() throws Exception {
-        super.setUp();
-    }
-
+    @Test
     public void testRead() throws IOException {
 
         // set up
@@ -101,10 +70,9 @@ public class WorldImageReaderTest extends WorldImageBaseTestCase {
         // checking test data directory for all kind of inputs
         final File test_data_dir = TestData.file(this, null);
         final String[] fileList = test_data_dir.list(new MyFileFilter());
-        final int length = fileList.length;
-        for (int i = 0; i < length; i++) {
+        for (String s : fileList) {
             // file
-            in = TestData.file(this, fileList[i]);
+            in = TestData.file(this, s);
             this.read(in);
         }
 
@@ -119,24 +87,26 @@ public class WorldImageReaderTest extends WorldImageBaseTestCase {
         //		this.read(url);
     }
 
+    @Test
     public void testNoWorldFile() throws IOException {
         final File file = TestData.file(this, "box_gcp.tif");
         WorldImageReader wiReader = new WorldImageReader(file);
-        assertEquals(DefaultEngineeringCRS.GENERIC_2D, wiReader.getCoordinateReferenceSystem());
-        GeneralEnvelope ge = wiReader.getOriginalEnvelope();
-        assertEquals(0, ge.getMinimum(0));
-        assertEquals(0, ge.getMinimum(1));
-        assertEquals(300, ge.getSpan(0));
-        assertEquals(300, ge.getSpan(0));
+        assertEquals(AbstractGridFormat.getDefaultCRS(), wiReader.getCoordinateReferenceSystem());
+        GeneralBounds ge = wiReader.getOriginalEnvelope();
+        assertEquals(0, ge.getMinimum(0), 1d);
+        assertEquals(0, ge.getMinimum(1), 1d);
+        assertEquals(300, ge.getSpan(0), 1d);
+        assertEquals(300, ge.getSpan(0), 1d);
         GridCoverage2D gc = wiReader.read(null);
-        Envelope2D envelope = gc.getEnvelope2D();
-        assertEquals(0, envelope.getMinimum(0));
-        assertEquals(0, envelope.getMinimum(1));
-        assertEquals(300, envelope.getSpan(0));
-        assertEquals(300, envelope.getSpan(0));
+        ReferencedEnvelope envelope = gc.getEnvelope2D();
+        assertEquals(0, envelope.getMinimum(0), 1d);
+        assertEquals(0, envelope.getMinimum(1), 1d);
+        assertEquals(300, envelope.getSpan(0), 1d);
+        assertEquals(300, envelope.getSpan(0), 1d);
         wiReader.dispose();
     }
 
+    @Test
     public void testOverviewsNearest() throws IOException {
         final File file = TestData.file(this, "etopo.tif");
 
@@ -200,6 +170,7 @@ public class WorldImageReaderTest extends WorldImageBaseTestCase {
         wiReader.dispose();
     }
 
+    @Test
     public void testOverviewsQuality() throws IOException {
         final File file = TestData.file(this, "etopo.tif");
 
@@ -243,6 +214,7 @@ public class WorldImageReaderTest extends WorldImageBaseTestCase {
         assertEquals(4, getChosenOverview(10, wiReader, policy));
     }
 
+    @Test
     public void testOverviewsSpeed() throws IOException {
         final File file = TestData.file(this, "etopo.tif");
 
@@ -282,6 +254,7 @@ public class WorldImageReaderTest extends WorldImageBaseTestCase {
         assertEquals(1, getChosenOverview(10, wiReader, policy));
     }
 
+    @Test
     public void testOverviewEnvelope() throws Exception {
         final File file = TestData.file(this, "etopo.tif");
         WorldImageReader reader = new WorldImageReader(file);
@@ -289,7 +262,7 @@ public class WorldImageReaderTest extends WorldImageBaseTestCase {
         // prepare to read an overview
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final Dimension dim = new Dimension();
         dim.setSize(
                 reader.getOriginalGridRange().getSpan(0) / 64.0,
@@ -383,20 +356,7 @@ public class WorldImageReaderTest extends WorldImageBaseTestCase {
         else coverage.getRenderedImage().getData();
     }
 
-    public static void main(String[] args) {
-        TestRunner.run(WorldImageReaderTest.suite());
-    }
-
-    public static final TestSuite suite() {
-        final TestSuite suite = new TestSuite();
-        suite.addTest(new WorldImageReaderTest("testOverviewsNearest"));
-        suite.addTest(new WorldImageReaderTest("testOverviewsQuality"));
-        suite.addTest(new WorldImageReaderTest("testOverviewsSpeed"));
-        suite.addTest(new WorldImageReaderTest("testRead"));
-        suite.addTest(new WorldImageReaderTest("testFileGroup"));
-        return suite;
-    }
-
+    @Test
     public void testFileGroup() throws Exception {
         final File file = TestData.file(this, "etopo.tif");
         WorldImageReader reader = new WorldImageReader(file);
@@ -404,18 +364,12 @@ public class WorldImageReaderTest extends WorldImageBaseTestCase {
         // prepare to read an overview
         ServiceInfo info = reader.getInfo();
         assertTrue(info instanceof FileServiceInfo);
-        CloseableIterator<FileGroup> iterator = null;
-        try {
-            iterator = ((FileServiceInfo) info).getFiles(null);
+        try (CloseableIterator<FileGroup> iterator = ((FileServiceInfo) info).getFiles(null)) {
             FileGroup group = iterator.next();
             assertTrue(group.getMainFile().getName().endsWith("etopo.tif"));
             List<File> files = group.getSupportFiles();
             assertFalse(files.isEmpty());
             assertEquals(2, files.size());
-        } finally {
-            if (iterator != null) {
-                iterator.close();
-            }
         }
     }
 }

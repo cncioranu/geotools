@@ -21,15 +21,15 @@ import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.logging.Level;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.visitor.CalcResult;
 import org.geotools.feature.visitor.StandardDeviationVisitor;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.Filter;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Breaks a SimpleFeatureCollection into classes using the standard deviation classification method.
@@ -72,8 +72,8 @@ public class StandardDeviationFunction extends ClassificationFunction {
             }
 
             // figure out the min and max values
-            Double min[] = new Double[classNum];
-            Double max[] = new Double[classNum];
+            Double[] min = new Double[classNum];
+            Double[] max = new Double[classNum];
             for (int i = 0; i < classNum; i++) {
                 min[i] = getMin(i, classNum, sdVisit.getMean(), standardDeviation);
                 max[i] = getMax(i, classNum, sdVisit.getMean(), standardDeviation);
@@ -95,6 +95,7 @@ public class StandardDeviationFunction extends ClassificationFunction {
         }
     }
 
+    @Override
     public Object evaluate(Object feature) {
         if (!(feature instanceof FeatureCollection)) {
             return null;

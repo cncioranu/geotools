@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -34,18 +34,20 @@ import net.opengis.wfs.TransactionResponseType;
 import net.opengis.wfs.WfsFactory;
 import net.opengis.wfs20.CreatedOrModifiedFeatureType;
 import net.opengis.wfs20.Wfs20Factory;
-import org.eclipse.xsd.XSDSchema;
 import org.eclipse.xsd.util.XSDSchemaLocationResolver;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.identity.FeatureId;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.Diff;
 import org.geotools.data.DiffFeatureReader;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.ows.HTTPResponse;
 import org.geotools.data.ows.Request;
 import org.geotools.data.ows.Response;
-import org.geotools.data.ows.SimpleHttpClient;
 import org.geotools.data.wfs.TestHttpResponse;
-import org.geotools.data.wfs.internal.AbstractWFSStrategy;
 import org.geotools.data.wfs.internal.DescribeFeatureTypeRequest;
 import org.geotools.data.wfs.internal.DescribeFeatureTypeResponse;
 import org.geotools.data.wfs.internal.GetCapabilitiesRequest;
@@ -64,20 +66,14 @@ import org.geotools.data.wfs.internal.WFSResponse;
 import org.geotools.data.wfs.internal.WFSStrategy;
 import org.geotools.data.wfs.internal.parsers.PullParserFeatureReader;
 import org.geotools.factory.CommonFactoryFinder;
+import org.geotools.http.HTTPClientFinder;
+import org.geotools.http.HTTPResponse;
 import org.geotools.ows.ServiceException;
 import org.geotools.wfs.v1_1.WFS;
 import org.geotools.xml.XMLHandlerHints;
 import org.geotools.xsd.Configuration;
 import org.geotools.xsd.Encoder;
-import org.geotools.xsd.impl.ParserHandler.ContextCustomizer;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.identity.FeatureId;
-import org.picocontainer.MutablePicoContainer;
 import org.xml.sax.EntityResolver;
 
 public class IntegrationTestWFSClient extends WFSClient {
@@ -92,7 +88,7 @@ public class IntegrationTestWFSClient extends WFSClient {
     public IntegrationTestWFSClient(final String baseDirectory, WFSConfig config)
             throws ServiceException, IOException {
 
-        super(url(baseDirectory + "/GetCapabilities.xml"), new SimpleHttpClient(), config);
+        super(url(baseDirectory + "/GetCapabilities.xml"), HTTPClientFinder.createClient(), config);
 
         this.baseDirectory = url(baseDirectory);
     }
@@ -150,6 +146,7 @@ public class IntegrationTestWFSClient extends WFSClient {
         return ret;
     }
 
+    @SuppressWarnings("PMD.CloseResource") // readers are wrapped and returned in the response
     protected Response mockGetFeature(GetFeatureRequest request) throws IOException {
 
         final QName typeName = request.getTypeName();
@@ -174,21 +171,15 @@ public class IntegrationTestWFSClient extends WFSClient {
         if (allFeatures instanceof PullParserFeatureReader) {
             ((PullParserFeatureReader) allFeatures)
                     .setContextCustomizer(
-                            new ContextCustomizer() {
-                                @Override
-                                public void customizeContext(MutablePicoContainer context) {
-                                    QName key =
-                                            new QName(
-                                                    "http://www.openplans.org/spearfish",
-                                                    "schemaLocationResolver");
-                                    context.registerComponentInstance(
-                                            key,
-                                            new XSDSchemaLocationResolver() {
-                                                @Override
-                                                public String resolveSchemaLocation(
-                                                        XSDSchema xsdSchema,
-                                                        String namespaceURI,
-                                                        String schemaLocationURI) {
+                            context -> {
+                                QName key =
+                                        new QName(
+                                                "http://www.openplans.org/spearfish",
+                                                "schemaLocationResolver");
+                                context.registerComponentInstance(
+                                        key,
+                                        (XSDSchemaLocationResolver)
+                                                (xsdSchema, namespaceURI, schemaLocationURI) -> {
                                                     if (schemaLocationURI.startsWith(
                                                             "DescribeFeatureType")) {
                                                         try {
@@ -201,9 +192,7 @@ public class IntegrationTestWFSClient extends WFSClient {
                                                         }
                                                     }
                                                     return schemaLocationURI;
-                                                }
-                                            });
-                                }
+                                                });
                             });
         }
 
@@ -217,8 +206,7 @@ public class IntegrationTestWFSClient extends WFSClient {
 
         WFSStrategy strategy = getStrategy();
 
-        final Filter serverFiler =
-                ((AbstractWFSStrategy) strategy).splitFilters(typeName, request.getFilter())[0];
+        final Filter serverFiler = strategy.splitFilters(typeName, request.getFilter())[0];
 
         final Diff diff = diff(typeName);
 
@@ -229,12 +217,12 @@ public class IntegrationTestWFSClient extends WFSClient {
         }
 
         FeatureReader<SimpleFeatureType, SimpleFeature> allFeaturesReader = null;
-        if (originalFeatures.size() > 0) {
+        if (!originalFeatures.isEmpty()) {
             allFeaturesReader = DataUtilities.reader(originalFeatures);
         }
 
-        final DiffFeatureReader<SimpleFeatureType, SimpleFeature> serverFilteredReader;
-        serverFilteredReader = new DiffFeatureReader<>(allFeaturesReader, diff, serverFiler);
+        final DiffFeatureReader<SimpleFeatureType, SimpleFeature> serverFilteredReader =
+                new DiffFeatureReader<>(allFeaturesReader, diff, serverFiler);
         final GetParser<SimpleFeature> filteredParser =
                 new GetParser<SimpleFeature>() {
 
@@ -252,6 +240,7 @@ public class IntegrationTestWFSClient extends WFSClient {
                     }
 
                     @Override
+                    @SuppressWarnings("PMD.CloseResource") // reaaders are from memory lists
                     public int getNumberOfFeatures() {
                         if (-1 != allFeatures.getNumberOfFeatures()) {
                             // only if the original response included number of features (i.e. the
@@ -260,21 +249,17 @@ public class IntegrationTestWFSClient extends WFSClient {
 
                             FeatureReader<SimpleFeatureType, SimpleFeature> all = null;
                             try {
-                                if (originalFeatures.size() > 0) {
+                                if (!originalFeatures.isEmpty()) {
                                     all = DataUtilities.reader(originalFeatures);
                                 }
-                                final DiffFeatureReader<SimpleFeatureType, SimpleFeature>
-                                        serverFiltered;
-                                serverFiltered = new DiffFeatureReader<>(all, diff);
-                                try {
+                                try (DiffFeatureReader<SimpleFeatureType, SimpleFeature>
+                                        serverFiltered = new DiffFeatureReader<>(all, diff)) {
                                     int count = 0;
                                     while (serverFiltered.hasNext()) {
                                         serverFiltered.next();
                                         count++;
                                     }
                                     return count;
-                                } finally {
-                                    serverFiltered.close();
                                 }
                             } catch (Exception e) {
                                 java.util.logging.Logger.getGlobal()
@@ -426,7 +411,7 @@ public class IntegrationTestWFSClient extends WFSClient {
             tr.setUpdateResults(factory.createActionResultsType());
 
             if (!added.isEmpty()) {
-                FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+                FilterFactory ff = CommonFactoryFinder.getFilterFactory();
                 CreatedOrModifiedFeatureType inserted =
                         factory.createCreatedOrModifiedFeatureType();
                 for (String addedId : added) {
@@ -438,7 +423,7 @@ public class IntegrationTestWFSClient extends WFSClient {
 
             Configuration configuration = getStrategy().getWfsConfiguration();
             Encoder enc = new Encoder(configuration);
-            enc.setEncoding(Charset.forName("UTF-8"));
+            enc.setEncoding(StandardCharsets.UTF_8);
             enc.setIndenting(true);
             enc.setIndentSize(1);
 
@@ -460,7 +445,7 @@ public class IntegrationTestWFSClient extends WFSClient {
             tr.setInsertResults(factory.createInsertResultsType());
 
             if (!added.isEmpty()) {
-                FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+                FilterFactory ff = CommonFactoryFinder.getFilterFactory();
                 InsertedFeatureType inserted = factory.createInsertedFeatureType();
                 tr.getInsertResults().getFeature().add(inserted);
                 for (String addedId : added) {
@@ -471,7 +456,7 @@ public class IntegrationTestWFSClient extends WFSClient {
 
             Configuration configuration = getStrategy().getWfsConfiguration();
             Encoder enc = new Encoder(configuration);
-            enc.setEncoding(Charset.forName("UTF-8"));
+            enc.setEncoding(StandardCharsets.UTF_8);
             enc.setIndenting(true);
             enc.setIndentSize(1);
 

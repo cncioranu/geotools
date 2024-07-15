@@ -19,23 +19,23 @@ package org.geotools.coverageio.gdal.aig;
 
 import java.awt.RenderingHints;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Iterator;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.GridFormatFactorySpi;
 import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.coverageio.gdal.BaseGDALGridCoverage2DReader;
 import org.geotools.coverageio.gdal.GDALTestCase;
+import org.geotools.coverageio.gdal.idrisi.IDRISIReader;
 import org.geotools.test.TestData;
 import org.geotools.util.factory.Hints;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 
 /**
  * @author Andrea Antonello (www.hydrologis.com)
@@ -55,17 +55,10 @@ public final class AIGTest extends GDALTestCase {
 
     @Test
     public void test() throws Exception {
-        if (!testingEnabled()) {
-            return;
-        }
-
         File file;
         try {
             file = TestData.file(this, fileName);
-        } catch (FileNotFoundException fnfe) {
-            LOGGER.warning("test-data not found: " + fileName + "\nTests are skipped");
-            return;
-        } catch (IOException ioe) {
+        } catch (IOException fnfe) {
             LOGGER.warning("test-data not found: " + fileName + "\nTests are skipped");
             return;
         }
@@ -91,16 +84,12 @@ public final class AIGTest extends GDALTestCase {
         // read once
         //
         // /////////////////////////////////////////////////////////////////////
-        GridCoverage2D gc = (GridCoverage2D) reader.read(null);
+        GridCoverage2D gc = reader.read(null);
         forceDataLoading(gc);
     }
 
     @Test
     public void testIsAvailable() throws NoSuchAuthorityCodeException, FactoryException {
-        if (!testingEnabled()) {
-            return;
-        }
-
         GridFormatFinder.scanForPlugins();
 
         Iterator list = GridFormatFinder.getAvailableFormats().iterator();

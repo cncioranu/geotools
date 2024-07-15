@@ -19,12 +19,12 @@ package org.geotools.data.complex;
 
 import java.util.Collections;
 import java.util.Map;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.data.complex.config.MultipleValue;
 import org.geotools.data.complex.util.XPathUtil.StepList;
 import org.geotools.util.Utilities;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.expression.Expression;
 
 /**
  * @author Gabriel Roldan (Axios Engineering)
@@ -139,9 +139,7 @@ public class AttributeMapping {
         this.targetXPath = targetXPath;
         this.targetNodeInstance = targetNodeInstance;
         this.clientProperties =
-                clientProperties == null
-                        ? Collections.<Name, Expression>emptyMap()
-                        : clientProperties;
+                clientProperties == null ? Collections.emptyMap() : clientProperties;
         this.multipleValue = multipleValue;
         if (multipleValue != null) {
             this.isMultiValued = true;
@@ -248,11 +246,13 @@ public class AttributeMapping {
                 && Utilities.equals(parentLabel, other.parentLabel);
     }
 
+    @Override
     public int hashCode() {
         return (37 * identifierExpression.hashCode() + 37 * sourceExpression.hashCode())
                 ^ targetXPath.hashCode();
     }
 
+    @Override
     public String toString() {
         StringBuffer sb = new StringBuffer("AttributeMapping[");
         sb.append("sourceExpression='")
@@ -268,9 +268,7 @@ public class AttributeMapping {
     }
 
     public Map<Name, Expression> getClientProperties() {
-        return clientProperties == null
-                ? Collections.<Name, Expression>emptyMap()
-                : clientProperties;
+        return clientProperties == null ? Collections.emptyMap() : clientProperties;
     }
 
     public Expression getIdentifierExpression() {

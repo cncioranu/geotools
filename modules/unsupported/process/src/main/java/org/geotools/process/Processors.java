@@ -22,13 +22,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.stream.Stream;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.util.LazySet;
 import org.geotools.util.factory.FactoryCreator;
 import org.geotools.util.factory.FactoryFinder;
 import org.geotools.util.factory.FactoryRegistry;
-import org.opengis.feature.type.Name;
 
 /**
  * Factory and utility methods for {@link ProcessExecutor}, and {@link Process} classes defined in
@@ -163,12 +163,7 @@ public class Processors extends FactoryFinder {
     /** Used to wrap a Process up as a Callable for use with an existing ExecutorService */
     public static Callable<Map<String, Object>> createCallable(
             final Process process, final Map<String, Object> input) {
-        return new Callable<Map<String, Object>>() {
-            @Override
-            public Map<String, Object> call() throws Exception {
-                return process.execute(input, new CallableProgressListener());
-            }
-        };
+        return () -> process.execute(input, new CallableProgressListener());
     }
 
     public static ProcessExecutor newProcessExecutor(int nThreads) {

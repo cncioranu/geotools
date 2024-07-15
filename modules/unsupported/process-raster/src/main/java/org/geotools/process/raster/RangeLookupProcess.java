@@ -23,9 +23,13 @@ import it.geosolutions.jaiext.JAIExt;
 import it.geosolutions.jaiext.range.NoDataContainer;
 import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.media.jai.RenderedOp;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.Category;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
@@ -38,11 +42,8 @@ import org.geotools.process.ProcessException;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
-import org.geotools.renderer.i18n.Errors;
 import org.geotools.util.factory.GeoTools;
 import org.jaitools.numeric.Range;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.util.ProgressListener;
 
 /**
  * A raster reclassified process
@@ -54,9 +55,9 @@ import org.opengis.util.ProgressListener;
  * @author Daniele Romagnoli - GeoSolutions
  */
 @DescribeProcess(
-    title = "Reclassify",
-    description = "Reclassifies a continous raster into integer values defined by a set of ranges"
-)
+        title = "Reclassify",
+        description =
+                "Reclassifies a continous raster into integer values defined by a set of ranges")
 public class RangeLookupProcess implements RasterProcess {
 
     private static final double DEFAULT_NODATA = 0d;
@@ -66,32 +67,28 @@ public class RangeLookupProcess implements RasterProcess {
             @DescribeParameter(name = "coverage", description = "Input raster")
                     GridCoverage2D coverage,
             @DescribeParameter(
-                        name = "band",
-                        description = "Source band to use for classification (default is 0)",
-                        min = 0,
-                        defaultValue = "0"
-                    )
+                            name = "band",
+                            description = "Source band to use for classification (default is 0)",
+                            min = 0,
+                            defaultValue = "0")
                     Integer classificationBand,
             @DescribeParameter(
-                        name = "ranges",
-                        description =
-                                "Specifier for a value range in the format ( START ; END ).  START and END values are optional. [ and ] can also be used as brackets, to indicate inclusion of the relevant range endpoint.",
-                        collectionType = Range.class
-                    )
+                            name = "ranges",
+                            description =
+                                    "Specifier for a value range in the format ( START ; END ).  START and END values are optional. [ and ] can also be used as brackets, to indicate inclusion of the relevant range endpoint.",
+                            collectionType = Range.class)
                     List<Range> classificationRanges,
             @DescribeParameter(
-                        name = "outputPixelValues",
-                        description = "Value to be assigned to corresponding range",
-                        min = 0
-                    )
+                            name = "outputPixelValues",
+                            description = "Value to be assigned to corresponding range",
+                            min = 0)
                     int[] outputPixelValues,
             @DescribeParameter(
-                        name = "noData",
-                        description =
-                                "Value to be assigned to pixels outside any range (defaults to 0)",
-                        min = 0,
-                        defaultValue = "0"
-                    )
+                            name = "noData",
+                            description =
+                                    "Value to be assigned to pixels outside any range (defaults to 0)",
+                            min = 0,
+                            defaultValue = "0")
                     Double noData,
             ProgressListener listener)
             throws ProcessException {
@@ -100,11 +97,12 @@ public class RangeLookupProcess implements RasterProcess {
         // initial checks
         //
         if (coverage == null) {
-            throw new ProcessException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "coverage"));
+            throw new ProcessException(
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "coverage"));
         }
         if (classificationRanges == null) {
             throw new ProcessException(
-                    Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "classificationRanges"));
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "classificationRanges"));
         }
         double nd = DEFAULT_NODATA;
         NoDataContainer noDataProperty =
@@ -119,7 +117,8 @@ public class RangeLookupProcess implements RasterProcess {
             final int ranges = classificationRanges.size();
             if (ranges != outputPixelValues.length) {
                 throw new ProcessException(
-                        Errors.format(ErrorKeys.MISMATCHED_ARRAY_LENGTH, "outputPixelValues"));
+                        MessageFormat.format(
+                                ErrorKeys.MISMATCHED_ARRAY_LENGTH, "outputPixelValues"));
             }
         }
 
@@ -133,7 +132,7 @@ public class RangeLookupProcess implements RasterProcess {
             final int numbands = sourceImage.getSampleModel().getNumBands();
             if (band < 0 || numbands <= band) {
                 throw new ProcessException(
-                        Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "band", band));
+                        MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "band", band));
             }
 
             if (band == 0 && numbands > 0 || band > 0) {
@@ -175,7 +174,7 @@ public class RangeLookupProcess implements RasterProcess {
                     break;
                 default:
                     throw new IllegalArgumentException(
-                            org.geotools.metadata.i18n.Errors.format(
+                            MessageFormat.format(
                                     ErrorKeys.ILLEGAL_ARGUMENT_$2,
                                     "classification ranges size",
                                     size));
@@ -195,12 +194,8 @@ public class RangeLookupProcess implements RasterProcess {
                 new GridSampleDimension("classification", new Category[] {Category.NODATA}, null);
         final GridCoverageFactory factory =
                 CoverageFactoryFinder.getGridCoverageFactory(GeoTools.getDefaultHints());
-        HashMap<String, Object> properties =
-                new HashMap<String, Object>() {
-                    {
-                        put(NoDataContainer.GC_NODATA, new NoDataContainer(0d));
-                    }
-                };
+        Map<String, Object> properties =
+                new HashMap<>(Map.of(NoDataContainer.GC_NODATA, new NoDataContainer(0d)));
         org.geotools.coverage.util.CoverageUtilities.setROIProperty(properties, worker.getROI());
         final GridCoverage2D output =
                 factory.create(

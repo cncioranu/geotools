@@ -22,9 +22,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import org.geotools.data.Base64;
-import org.geotools.data.DataSourceException;
+import org.geotools.api.data.DataSourceException;
 import org.geotools.geometry.jts.WKBReader;
+import org.geotools.util.Base64;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.io.ByteArrayInStream;
@@ -92,7 +92,7 @@ public class WKBAttributeIO {
     /** @see org.geotools.data.jdbc.attributeio.AttributeIO#read(java.sql.ResultSet, int) */
     public Object read(ResultSet rs, String columnName) throws IOException {
         try {
-            byte bytes[] = rs.getBytes(columnName);
+            byte[] bytes = rs.getBytes(columnName);
             if (bytes == null) // ie. its a null column -> return a null geometry!
             return null;
             if (base64EncodingEnabled) {
@@ -107,7 +107,7 @@ public class WKBAttributeIO {
     /** @see org.geotools.data.jdbc.attributeio.AttributeIO#read(java.sql.ResultSet, int) */
     public Object read(ResultSet rs, int columnIndex) throws IOException {
         try {
-            byte bytes[] = rs.getBytes(columnIndex);
+            byte[] bytes = rs.getBytes(columnIndex);
             if (bytes == null) // ie. its a null column -> return a null geometry!
             return null;
             if (base64EncodingEnabled) {

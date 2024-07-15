@@ -33,7 +33,6 @@ import net.opengis.wps10.ResponseFormType;
 import net.opengis.wps10.Wps10Factory;
 import org.geotools.data.ows.AbstractGetCapabilitiesRequest;
 import org.geotools.data.ows.GetCapabilitiesRequest;
-import org.geotools.data.ows.HTTPResponse;
 import org.geotools.data.ows.Response;
 import org.geotools.data.wps.request.AbstractDescribeProcessRequest;
 import org.geotools.data.wps.request.AbstractExecuteProcessRequest;
@@ -42,6 +41,7 @@ import org.geotools.data.wps.request.ExecuteProcessRequest;
 import org.geotools.data.wps.response.DescribeProcessResponse;
 import org.geotools.data.wps.response.ExecuteProcessResponse;
 import org.geotools.data.wps.response.WPSGetCapabilitiesResponse;
+import org.geotools.http.HTTPResponse;
 import org.geotools.ows.ServiceException;
 
 /**
@@ -68,6 +68,7 @@ public class WPS1_0_0 extends WPSSpecification {
      *
      * @return the expect version value for this specification
      */
+    @Override
     public String getVersion() {
         return "1.0.0"; // $NON-NLS-1$
     }
@@ -79,6 +80,7 @@ public class WPS1_0_0 extends WPSSpecification {
      * @param server a URL that points to the 1.0.0 server
      * @return a AbstractGetCapabilitiesRequest object that can provide a valid request
      */
+    @Override
     public GetCapabilitiesRequest createGetCapabilitiesRequest(URL server) {
         return new GetCapsRequest(server);
     }
@@ -178,22 +180,27 @@ public class WPS1_0_0 extends WPSSpecification {
             super(urlGetCapabilities);
         }
 
+        @Override
         protected void initVersion() {
-            properties.setProperty(VERSION, "1.0.0");
+            properties.setProperty(processKey(VERSION), "1.0.0");
         }
 
+        @Override
         protected void initRequest() {
-            setProperty("REQUEST", "GetCapabilities");
+            setProperty(processKey("REQUEST"), "GetCapabilities");
         }
 
+        @Override
         protected void initService() {
-            setProperty("SERVICE", "WPS");
+            setProperty(processKey("SERVICE"), "WPS");
         }
 
+        @Override
         protected String processKey(String key) {
             return WPS1_0_0.processKey(key);
         }
 
+        @Override
         public Response createResponse(HTTPResponse httpResponse)
                 throws ServiceException, IOException {
             return new WPSGetCapabilitiesResponse(httpResponse, hints);
@@ -207,10 +214,12 @@ public class WPS1_0_0 extends WPSSpecification {
             super(onlineResource, properties);
         }
 
+        @Override
         protected void initVersion() {
-            setProperty(VERSION, "1.0.0");
+            setProperty(processKey(VERSION), "1.0.0");
         }
 
+        @Override
         public Response createResponse(HTTPResponse httpResponse)
                 throws ServiceException, IOException {
             return new DescribeProcessResponse(httpResponse);
@@ -224,10 +233,12 @@ public class WPS1_0_0 extends WPSSpecification {
             super(onlineResource, properties);
         }
 
+        @Override
         protected void initVersion() {
-            setProperty(VERSION, "1.0.0");
+            setProperty(processKey(VERSION), "1.0.0");
         }
 
+        @Override
         public Response createResponse(HTTPResponse httpResponse)
                 throws ServiceException, IOException {
             return new ExecuteProcessResponse(

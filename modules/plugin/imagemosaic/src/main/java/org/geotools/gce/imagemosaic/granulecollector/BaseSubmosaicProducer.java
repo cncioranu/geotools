@@ -41,6 +41,7 @@ import javax.media.jai.Histogram;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.ROI;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.gce.imagemosaic.GranuleDescriptor;
 import org.geotools.gce.imagemosaic.GranuleDescriptor.GranuleLoadingResult;
@@ -56,7 +57,6 @@ import org.geotools.image.ImageWorker;
 import org.geotools.util.URLs;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
 
 /** Basic submosaic producer. Accepts all granules and mosaics without any real special handling */
 public class BaseSubmosaicProducer implements SubmosaicProducer {
@@ -276,19 +276,19 @@ public class BaseSubmosaicProducer implements SubmosaicProducer {
         // TRANSPARENT COLOR MANAGEMENT
         //
         boolean granuleHasAlpha = false;
-        if (doInputTransparency) {
+        if (doInputTransparency || hasAlpha) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.fine("Support for alpha on input granule " + result.getGranuleUrl());
             }
-            granule =
-                    new ImageWorker(granule)
-                            .makeColorTransparent(inputTransparentColor)
-                            .getRenderedImage();
+            if (doInputTransparency)
+                granule =
+                        new ImageWorker(granule)
+                                .makeColorTransparent(inputTransparentColor)
+                                .getRenderedImage();
             granuleHasAlpha = granule.getColorModel().hasAlpha();
             if (!granule.getColorModel().hasAlpha()) {
                 // if the resulting image has no transparency (can happen with IndexColorModel then
-                // we need to try component
-                // color model
+                // we need to try component color model
                 granule =
                         new ImageWorker(granule)
                                 .forceComponentColorModel(true)
@@ -297,7 +297,10 @@ public class BaseSubmosaicProducer implements SubmosaicProducer {
                 granuleHasAlpha = granule.getColorModel().hasAlpha();
             }
             assert granuleHasAlpha;
+        } else if (!rasterLayerResponse.getFootprintBehavior().handleFootprints()) {
+            granuleHasAlpha = granule.getColorModel().hasAlpha();
         }
+
         PlanarImage alphaChannel = null;
         if (granuleHasAlpha || doInputTransparency) {
             ImageWorker w = new ImageWorker(granule);
@@ -308,7 +311,7 @@ public class BaseSubmosaicProducer implements SubmosaicProducer {
             }
             // doing this here gives the guarantee that I get the correct index for the transparency
             // band
-            int[] alphaIndex = new int[] {granule.getColorModel().getNumComponents() - 1};
+            int[] alphaIndex = {granule.getColorModel().getNumComponents() - 1};
             assert alphaIndex[0] < granule.getSampleModel().getNumBands();
 
             //
@@ -478,14 +481,17 @@ public class BaseSubmosaicProducer implements SubmosaicProducer {
         return multiThreadedLoading;
     }
 
+    @Override
     public boolean doInputTransparency() {
         return doInputTransparency;
     }
 
+    @Override
     public double[][] getSourceThreshold() {
         return sourceThreshold;
     }
 
+    @Override
     public boolean hasAlpha() {
         return hasAlpha;
     }

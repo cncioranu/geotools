@@ -16,14 +16,19 @@
  */
 package org.geotools.data.postgis;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.util.Map;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.jdbc.JDBCDelegatingTestSetup;
 import org.geotools.jdbc.JDBCTestSupport;
 import org.geotools.util.factory.Hints;
+import org.junit.Test;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 
@@ -44,6 +49,7 @@ public class PostgisPreserveTopologyOnlineTest extends JDBCTestSupport {
     }
 
     /** Test PostGIS simplified geometries with topology preservation (GEOT-6663) */
+    @Test
     public void testSimplificationPreserveTopology() throws Exception {
         SimpleFeatureSource fs = dataStore.getFeatureSource(tname("simplify_polygon_topology"));
 
@@ -54,13 +60,9 @@ public class PostgisPreserveTopologyOnlineTest extends JDBCTestSupport {
         query.setHints(hints);
 
         SimpleFeatureCollection fColl = fs.getFeatures(query);
-        SimpleFeatureIterator iterator = fColl.features();
-
         Geometry simplified = null;
-        try {
+        try (SimpleFeatureIterator iterator = fColl.features()) {
             if (iterator.hasNext()) simplified = (Geometry) iterator.next().getDefaultGeometry();
-        } finally {
-            iterator.close();
         }
 
         // PostGIS 2.2+ should use ST_Simplify's preserveCollapsed flag

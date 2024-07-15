@@ -23,10 +23,10 @@ import java.util.Collections;
 import java.util.Map;
 import javax.measure.Unit;
 import javax.measure.quantity.Angle;
+import org.geotools.api.referencing.datum.PrimeMeridian;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Utilities;
-import org.opengis.referencing.datum.PrimeMeridian;
 import si.uom.NonSI;
 
 /**
@@ -116,6 +116,7 @@ public class DefaultPrimeMeridian extends AbstractIdentifiedObject implements Pr
      *
      * @return The prime meridian Greenwich longitude, in {@linkplain #getAngularUnit angular unit}.
      */
+    @Override
     public double getGreenwichLongitude() {
         return greenwichLongitude;
     }
@@ -134,6 +135,7 @@ public class DefaultPrimeMeridian extends AbstractIdentifiedObject implements Pr
     }
 
     /** Returns the angular unit of the {@linkplain #getGreenwichLongitude Greenwich longitude}. */
+    @Override
     public Unit<Angle> getAngularUnit() {
         return angularUnit;
     }

@@ -19,7 +19,7 @@ package org.geotools.mbtiles;
 import static java.awt.RenderingHints.KEY_ANTIALIASING;
 import static java.awt.RenderingHints.VALUE_ANTIALIAS_ON;
 import static org.geotools.mbtiles.MBTilesDataStore.DEFAULT_CRS;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -31,7 +31,13 @@ import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import org.geotools.data.FeatureSource;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.style.NamedLayer;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.StyledLayerDescriptor;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -41,17 +47,11 @@ import org.geotools.map.MapContent;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.projection.MapProjection;
 import org.geotools.renderer.lite.StreamingRenderer;
-import org.geotools.styling.NamedLayer;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.StyledLayerDescriptor;
 import org.geotools.util.URLs;
 import org.geotools.xml.styling.SLDParser;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /** Checks clip masks are doing their job */
 public class MBTilesRenderTest {
@@ -220,7 +220,7 @@ public class MBTilesRenderTest {
         while (j < 166) {
             Color noTrans = getPixelColor(i, j, noTransformationImg);
             Color tansformed = getPixelColor(i, j, transformationImg);
-            assertFalse(noTrans.equals(tansformed));
+            assertNotEquals(noTrans, tansformed);
             j++;
         }
     }

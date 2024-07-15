@@ -27,6 +27,8 @@ import java.util.Arrays;
 import java.util.List;
 import javax.media.jai.PlanarImage;
 import org.apache.commons.io.FileUtils;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.gce.imagemosaic.ImageMosaicFormat;
@@ -38,8 +40,6 @@ import org.geotools.test.TestData;
 import org.geotools.util.factory.Hints;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
 
 /**
  * Tests that a data set that contains a dimension with multiple bands is correctly handled. Is very
@@ -69,7 +69,6 @@ public final class NetCDFStationsTest {
 
     @Test
     public void readMultipleBandsDimensionSelectingOnlyOneBand() throws Exception {
-
         // we should have only band a single band
         ParameterValue<int[]> selectedBands = AbstractGridFormat.BANDS.createValue();
         selectedBands.setValue(new int[] {1});
@@ -80,7 +79,6 @@ public final class NetCDFStationsTest {
 
     @Test
     public void readMultipleBandsDimensionWithDifferentOrderBandsSelection() throws Exception {
-
         // we should have three bands with values indexes ordered as 2, 0, 1
         ParameterValue<int[]> selectedBands = AbstractGridFormat.BANDS.createValue();
         selectedBands.setValue(new int[] {2, 0, 1});
@@ -139,10 +137,10 @@ public final class NetCDFStationsTest {
 
     /** Checks that arrayA contains arrayB. */
     private void checkArrayContainsArray(int[] arrayA, int[] arrayB) {
-        for (int i = 0; i < arrayB.length; i++) {
+        for (int j : arrayB) {
             boolean found = false;
-            for (int j = 0; j < arrayA.length; j++) {
-                if (arrayB[i] == arrayA[j]) {
+            for (int k : arrayA) {
+                if (j == k) {
                     found = true;
                 }
             }

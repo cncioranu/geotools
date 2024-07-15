@@ -18,14 +18,14 @@
 package org.geotools.process.raster;
 
 import java.io.IOException;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.Style;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.renderer.lite.gridcoverage2d.RasterSymbolizerHelper;
 import org.geotools.renderer.lite.gridcoverage2d.SubchainStyleVisitorCoverageProcessingAdapter;
-import org.geotools.styling.RasterSymbolizer;
-import org.geotools.styling.Style;
 
 /**
  * Applies a raster symbolizer to the coverage
@@ -34,9 +34,8 @@ import org.geotools.styling.Style;
  * @author ETj <etj at geo-solutions.it>
  */
 @DescribeProcess(
-    title = "Style Coverage",
-    description = "Styles a raster using a given SLD and raster symbolizer."
-)
+        title = "Style Coverage",
+        description = "Styles a raster using a given SLD and raster symbolizer.")
 public class StyleCoverage implements RasterProcess {
 
     @DescribeResult(name = "result", description = "Styled image")
@@ -44,10 +43,9 @@ public class StyleCoverage implements RasterProcess {
             @DescribeParameter(name = "coverage", description = "Input raster")
                     GridCoverage2D coverage,
             @DescribeParameter(
-                        name = "style",
-                        description =
-                                "Styled Layer Descriptor (SLD) style containing a raster symbolizer"
-                    )
+                            name = "style",
+                            description =
+                                    "Styled Layer Descriptor (SLD) style containing a raster symbolizer")
                     Style style)
             throws IOException {
         // TODO: perform a lookup in the entire style?

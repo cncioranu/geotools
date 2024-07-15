@@ -22,8 +22,11 @@ import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.Query;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.Query;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.DirectLayer;
@@ -33,9 +36,6 @@ import org.geotools.map.MapContent;
 import org.geotools.map.MapLayerListener;
 import org.geotools.map.MapViewport;
 import org.geotools.renderer.style.SLDStyleFactory;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
 
 /**
  * Data structure holding a MapContent that has its own compositing base
@@ -108,7 +108,7 @@ class CompositingGroup {
             List<Layer> layers,
             Composite composite) {
         Graphics2D cmcGraphic;
-        if (compositingContents.size() == 0 && !hasAlphaCompositing(layers)) {
+        if (compositingContents.isEmpty() && !hasAlphaCompositing(layers)) {
             cmcGraphic = graphics;
         } else {
             cmcGraphic = new DelayedBackbufferGraphic(graphics, screenSize);
@@ -127,12 +127,12 @@ class CompositingGroup {
         }
         Style styles = layer.getStyle();
         List<FeatureTypeStyle> featureTypeStyles = styles.featureTypeStyles();
-        if (featureTypeStyles.size() > 0) {
+        if (featureTypeStyles.isEmpty()) {
+            return null;
+        } else {
             FeatureTypeStyle firstFts = featureTypeStyles.get(0);
             Composite composite = SLDStyleFactory.getComposite(firstFts.getOptions());
             return composite;
-        } else {
-            return null;
         }
     }
 
@@ -177,7 +177,10 @@ class CompositingGroup {
     }
 
     static boolean isCompositingBase(FeatureTypeStyle fts) {
-        return "true".equalsIgnoreCase(fts.getOptions().get(FeatureTypeStyle.COMPOSITE_BASE));
+        return "true"
+                .equalsIgnoreCase(
+                        fts.getOptions()
+                                .get(org.geotools.api.style.FeatureTypeStyle.COMPOSITE_BASE));
     }
 
     Graphics2D graphics;
@@ -222,76 +225,94 @@ class CompositingGroup {
             super.preDispose();
         }
 
+        @Override
         public void draw(Graphics2D graphics, MapContent map, MapViewport viewport) {
             delegate.draw(graphics, map, viewport);
         }
 
+        @Override
         public void preDispose() {
             // do nothing so as not to kill off the layer
             // before the label cache is completed
 
         }
 
+        @Override
         public void setTitle(String title) {
             delegate.setTitle(title);
         }
 
+        @Override
         public boolean isSelected() {
             return delegate.isSelected();
         }
 
+        @Override
         public ReferencedEnvelope getBounds() {
             return delegate.getBounds();
         }
 
+        @Override
         public void addMapLayerListener(MapLayerListener listener) {
             delegate.addMapLayerListener(listener);
         }
 
+        @Override
         public boolean equals(Object arg0) {
             return delegate.equals(arg0);
         }
 
+        @Override
         public String getTitle() {
             return delegate.getTitle();
         }
 
+        @Override
         public boolean isVisible() {
             return delegate.isVisible();
         }
 
+        @Override
         public void setVisible(boolean visible) {
             delegate.setVisible(visible);
         }
 
+        @Override
         public void setSelected(boolean selected) {
             delegate.setSelected(selected);
         }
 
+        @Override
         public Map<String, Object> getUserData() {
             return delegate.getUserData();
         }
 
+        @Override
         public void removeMapLayerListener(MapLayerListener listener) {
             delegate.removeMapLayerListener(listener);
         }
 
+        @Override
         public Style getStyle() {
             return delegate.getStyle();
         }
 
+        @Override
         public FeatureSource<?, ?> getFeatureSource() {
             return delegate.getFeatureSource();
         }
 
+        @Override
         public Query getQuery() {
             return delegate.getQuery();
         }
 
+        @Override
         public int hashCode() {
             return delegate.hashCode();
         }
 
+        @Override
         public String toString() {
             return delegate.toString();
         }

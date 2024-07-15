@@ -20,10 +20,10 @@ package org.geotools.filter;
 
 import java.util.Date;
 import java.util.logging.Logger;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.util.Converters;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Defines a comparison filter (can be a math comparison or generic equals). This filter implements
@@ -46,23 +46,25 @@ public abstract class CompareFilterImpl extends BinaryComparisonAbstract {
             org.geotools.util.logging.Logging.getLogger(CompareFilterImpl.class);
 
     protected CompareFilterImpl(
-            org.opengis.filter.expression.Expression e1,
-            org.opengis.filter.expression.Expression e2) {
+            org.geotools.api.filter.expression.Expression e1,
+            org.geotools.api.filter.expression.Expression e2) {
         this(e1, e2, true);
     }
 
     protected CompareFilterImpl(
-            org.opengis.filter.expression.Expression e1,
-            org.opengis.filter.expression.Expression e2,
+            org.geotools.api.filter.expression.Expression e1,
+            org.geotools.api.filter.expression.Expression e2,
             boolean matchCase) {
         super(e1, e2, matchCase);
     }
 
-    public void setExpression1(org.opengis.filter.expression.Expression leftValue) {
+    @Override
+    public void setExpression1(org.geotools.api.filter.expression.Expression leftValue) {
         this.expression1 = leftValue;
     }
 
-    public void setExpression2(org.opengis.filter.expression.Expression rightValue) {
+    @Override
+    public void setExpression2(org.geotools.api.filter.expression.Expression rightValue) {
         this.expression2 = rightValue;
     }
 
@@ -145,6 +147,7 @@ public abstract class CompareFilterImpl extends BinaryComparisonAbstract {
      *
      * @return String representation of the compare filter.
      */
+    @Override
     public String toString() {
         if (this instanceof IsNullImpl) {
             return "[ " + expression1 + " IS NULL ]";
@@ -177,6 +180,7 @@ public abstract class CompareFilterImpl extends BinaryComparisonAbstract {
      * @param obj - the object to compare this CompareFilter against.
      * @return true if specified object is equal to this filter; false otherwise.
      */
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -204,6 +208,7 @@ public abstract class CompareFilterImpl extends BinaryComparisonAbstract {
      *
      * @return a code to hash this object by.
      */
+    @Override
     public int hashCode() {
         int result = 17;
         result = (37 * result) + this.getClass().hashCode();
@@ -222,5 +227,6 @@ public abstract class CompareFilterImpl extends BinaryComparisonAbstract {
      * @param visitor The visitor which requires access to this filter, the method must call
      *     visitor.visit(this);
      */
+    @Override
     public abstract Object accept(FilterVisitor visitor, Object extraData);
 }

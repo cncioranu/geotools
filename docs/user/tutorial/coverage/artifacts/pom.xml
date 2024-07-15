@@ -1,5 +1,5 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.boundlessgeo</groupId>
@@ -17,8 +17,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <encoding>UTF-8</encoding>
-                    <target>1.8</target>
-                    <source>1.8</source>
+                    <target>11</target>
+                    <source>11</source>
                 </configuration>
             </plugin>
             <plugin>
@@ -54,7 +54,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <geotools.version>25-SNAPSHOT</geotools.version>
+        <geotools.version>32-SNAPSHOT</geotools.version>
     </properties>
 
     <repositories>

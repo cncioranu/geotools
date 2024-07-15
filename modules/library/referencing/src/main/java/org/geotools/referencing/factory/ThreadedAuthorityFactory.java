@@ -21,61 +21,59 @@ package org.geotools.referencing.factory;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import javax.measure.Unit;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.metadata.extent.Extent;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.referencing.AuthorityFactory;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CompoundCRS;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.DerivedCRS;
+import org.geotools.api.referencing.crs.EngineeringCRS;
+import org.geotools.api.referencing.crs.GeocentricCRS;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.ImageCRS;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.referencing.crs.TemporalCRS;
+import org.geotools.api.referencing.crs.VerticalCRS;
+import org.geotools.api.referencing.cs.CSAuthorityFactory;
+import org.geotools.api.referencing.cs.CartesianCS;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.CylindricalCS;
+import org.geotools.api.referencing.cs.EllipsoidalCS;
+import org.geotools.api.referencing.cs.PolarCS;
+import org.geotools.api.referencing.cs.SphericalCS;
+import org.geotools.api.referencing.cs.TimeCS;
+import org.geotools.api.referencing.cs.VerticalCS;
+import org.geotools.api.referencing.datum.Datum;
+import org.geotools.api.referencing.datum.DatumAuthorityFactory;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.datum.EngineeringDatum;
+import org.geotools.api.referencing.datum.GeodeticDatum;
+import org.geotools.api.referencing.datum.ImageDatum;
+import org.geotools.api.referencing.datum.PrimeMeridian;
+import org.geotools.api.referencing.datum.TemporalDatum;
+import org.geotools.api.referencing.datum.VerticalDatum;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory;
+import org.geotools.api.referencing.operation.OperationMethod;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.LoggingKeys;
 import org.geotools.metadata.i18n.Loggings;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.BufferedFactory;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.metadata.extent.Extent;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.referencing.AuthorityFactory;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CompoundCRS;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.DerivedCRS;
-import org.opengis.referencing.crs.EngineeringCRS;
-import org.opengis.referencing.crs.GeocentricCRS;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.ImageCRS;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.referencing.crs.TemporalCRS;
-import org.opengis.referencing.crs.VerticalCRS;
-import org.opengis.referencing.cs.CSAuthorityFactory;
-import org.opengis.referencing.cs.CartesianCS;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.CylindricalCS;
-import org.opengis.referencing.cs.EllipsoidalCS;
-import org.opengis.referencing.cs.PolarCS;
-import org.opengis.referencing.cs.SphericalCS;
-import org.opengis.referencing.cs.TimeCS;
-import org.opengis.referencing.cs.VerticalCS;
-import org.opengis.referencing.datum.Datum;
-import org.opengis.referencing.datum.DatumAuthorityFactory;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.datum.EngineeringDatum;
-import org.opengis.referencing.datum.GeodeticDatum;
-import org.opengis.referencing.datum.ImageDatum;
-import org.opengis.referencing.datum.PrimeMeridian;
-import org.opengis.referencing.datum.TemporalDatum;
-import org.opengis.referencing.datum.VerticalDatum;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.CoordinateOperationAuthorityFactory;
-import org.opengis.referencing.operation.OperationMethod;
-import org.opengis.util.InternationalString;
 
 /**
  * An authority factory that caches all objects created by an other factory. All {@code
@@ -220,7 +218,7 @@ public class ThreadedAuthorityFactory extends AbstractAuthorityFactory implement
      */
     AbstractAuthorityFactory getBackingStore() throws FactoryException {
         if (backingStore == null) {
-            throw new FactoryException(Errors.format(ErrorKeys.DISPOSED_FACTORY));
+            throw new FactoryException(ErrorKeys.DISPOSED_FACTORY);
         }
         return backingStore;
     }
@@ -251,13 +249,13 @@ public class ThreadedAuthorityFactory extends AbstractAuthorityFactory implement
             final Collection titles = citation.getAlternateTitles();
             InternationalString title = citation.getTitle();
             if (titles != null) {
-                for (final Iterator it = titles.iterator(); it.hasNext(); ) {
+                for (Object o : titles) {
                     /*
                      * Uses the longuest title instead of the main one. In Geotools
                      * implementation, the alternate title may contains usefull informations
                      * like the EPSG database version number and the database engine.
                      */
-                    final InternationalString candidate = (InternationalString) it.next();
+                    final InternationalString candidate = (InternationalString) o;
                     if (candidate.length() > title.length()) {
                         title = candidate;
                     }
@@ -300,6 +298,7 @@ public class ThreadedAuthorityFactory extends AbstractAuthorityFactory implement
      * Returns the organization or party responsible for definition and maintenance of the
      * underlying database.
      */
+    @Override
     public Citation getAuthority() {
         return (backingStore != null) ? backingStore.getAuthority() : null;
     }
@@ -325,6 +324,7 @@ public class ThreadedAuthorityFactory extends AbstractAuthorityFactory implement
      *     {@linkplain java.util.Collections.emptySet() empty set}.
      * @throws FactoryException if access to the underlying database failed.
      */
+    @Override
     public Set<String> getAuthorityCodes(final Class<? extends IdentifiedObject> type)
             throws FactoryException {
         return getBackingStore().getAuthorityCodes(type);
@@ -339,6 +339,7 @@ public class ThreadedAuthorityFactory extends AbstractAuthorityFactory implement
      * @throws NoSuchAuthorityCodeException if the specified {@code code} was not found.
      * @throws FactoryException if the query failed for some other reason.
      */
+    @Override
     public InternationalString getDescriptionText(final String code) throws FactoryException {
         return getBackingStore().getDescriptionText(code);
     }
@@ -663,7 +664,11 @@ public class ThreadedAuthorityFactory extends AbstractAuthorityFactory implement
             crs = (CoordinateReferenceSystem) cached;
         } else {
             crs = getBackingStore().createCoordinateReferenceSystem(code);
+            if (LOGGER.isLoggable(Level.FINER)) {
+                LOGGER.finer("Created CRS with code:" + code + "\n" + crs);
+            }
         }
+        LOGGER.fine(() -> "Using CRS[" + crs.getName() + "] for code:" + code);
         objectCache.put(key, crs);
         return crs;
     }

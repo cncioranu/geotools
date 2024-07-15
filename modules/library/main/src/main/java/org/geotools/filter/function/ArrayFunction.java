@@ -18,9 +18,9 @@ package org.geotools.filter.function;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
 
 /**
  * Array creator function. Evaluates all the arguments in order and creates an array from them.
@@ -36,6 +36,7 @@ public class ArrayFunction extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object obj) {
         Object[] array = new Object[getParameters().size()];
         for (int count = 0; count < getParameters().size(); count++) {

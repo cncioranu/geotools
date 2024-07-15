@@ -18,11 +18,19 @@ package org.geotools.renderer.lite.gridcoverage2d;
 
 import static org.junit.Assert.fail;
 
-import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.style.ChannelSelection;
+import org.geotools.api.style.ContrastEnhancement;
+import org.geotools.api.style.ContrastMethod;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.SelectedChannelType;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
@@ -36,17 +44,8 @@ import org.geotools.referencing.crs.DefaultEngineeringCRS;
 import org.geotools.renderer.RenderListener;
 import org.geotools.renderer.lite.RendererBaseTest;
 import org.geotools.renderer.lite.StreamingRenderer;
-import org.geotools.styling.ChannelSelection;
-import org.geotools.styling.ContrastEnhancement;
-import org.geotools.styling.RasterSymbolizer;
 import org.geotools.styling.SLD;
-import org.geotools.styling.SelectedChannelType;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.style.ContrastMethod;
 
 /**
  * Tests rendering a GridCoverage2D object directly (ie. not via a coverage reader).
@@ -58,14 +57,10 @@ import org.opengis.style.ContrastMethod;
 public class DisplayCoverageTest {
 
     private static final int WIDTH = 10;
-    private static final String LOGGER_NAME = "org.geotools.rendering";
-
-    private final boolean headless;
     private final Rectangle bounds;
     private final ReferencedEnvelope env;
 
     public DisplayCoverageTest() {
-        headless = GraphicsEnvironment.isHeadless();
         bounds = new Rectangle(0, 0, WIDTH, WIDTH);
         env = new ReferencedEnvelope(bounds, DefaultEngineeringCRS.GENERIC_2D);
     }
@@ -133,8 +128,10 @@ public class DisplayCoverageTest {
 
         RenderListener listener =
                 new RenderListener() {
+                    @Override
                     public void featureRenderer(SimpleFeature feature) {}
 
+                    @Override
                     public void errorOccurred(Exception e) {
                         java.util.logging.Logger.getGlobal()
                                 .log(java.util.logging.Level.INFO, "", e);
@@ -166,7 +163,7 @@ public class DisplayCoverageTest {
 
     private Style createCoverageStyle(String bandName) {
         StyleFactory sf = CommonFactoryFinder.getStyleFactory(null);
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
         ContrastEnhancement ce = sf.contrastEnhancement(ff.literal(1.0), ContrastMethod.NORMALIZE);
         SelectedChannelType sct = sf.createSelectedChannelType(bandName, ce);
@@ -180,7 +177,7 @@ public class DisplayCoverageTest {
 
     private Style createEnvCoverageStyle(String bandName) {
         StyleFactory sf = CommonFactoryFinder.getStyleFactory(null);
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
         ContrastEnhancement ce =
                 sf.contrastEnhancement(
@@ -197,7 +194,7 @@ public class DisplayCoverageTest {
 
     private Style createEnvMinMaxCoverageStyle(String bandName) {
         StyleFactory sf = CommonFactoryFinder.getStyleFactory(null);
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
         ContrastEnhancement ce = sf.contrastEnhancement(ff.literal(1.0), ContrastMethod.NORMALIZE);
         ce.addOption("algorithm", ff.literal("StretchToMinimumMaximum"));

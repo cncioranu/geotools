@@ -17,24 +17,23 @@
 package org.geotools.data.oracle;
 
 import java.sql.Date;
-import java.util.List;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.Transaction;
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.jdbc.JDBCDataStoreOnlineTest;
 import org.geotools.jdbc.JDBCTestSetup;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
+import org.junit.Test;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.identity.FeatureId;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class OracleDataStoreOnlineTest extends JDBCDataStoreOnlineTest {
 
@@ -46,6 +45,7 @@ public class OracleDataStoreOnlineTest extends JDBCDataStoreOnlineTest {
         return oracleTestSetup;
     }
 
+    @Test
     public void testCreateSchemaOSGBCrs() throws Exception {
         SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
         builder.setName(tname("ft2"));
@@ -61,6 +61,7 @@ public class OracleDataStoreOnlineTest extends JDBCDataStoreOnlineTest {
         dataStore.createSchema(featureType);
     }
 
+    @Test
     public void testCreateSchemaWktCrs() throws Exception {
         SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
         builder.setName(tname("ft2"));
@@ -87,6 +88,7 @@ public class OracleDataStoreOnlineTest extends JDBCDataStoreOnlineTest {
         dataStore.createSchema(featureType);
     }
 
+    @Test
     public void testCreateSpatialIndexNameTooLong() throws Exception {
         SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
         builder.setName(tname("ft2"));
@@ -101,6 +103,8 @@ public class OracleDataStoreOnlineTest extends JDBCDataStoreOnlineTest {
         dataStore.createSchema(featureType);
     }
 
+    @SuppressWarnings("PMD.UseTryWithResources") // need transaction in catch for rollback
+    @Test
     public void testCreateLongVarChar() throws Exception {
         SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
         builder.setName(tname("longvar"));
@@ -124,6 +128,8 @@ public class OracleDataStoreOnlineTest extends JDBCDataStoreOnlineTest {
         fBuilder.add(vBuffer.toString());
         SimpleFeature f = fBuilder.buildFeature(null);
         // used to fail here
+        // need the transaction available for rollback in the catch
+        @SuppressWarnings({"PMD.CloseResource", "PMD.UseTryWithResources"})
         Transaction transaction = new DefaultTransaction("create");
         SimpleFeatureSource featureSource =
                 dataStore.getFeatureSource(featureType.getName().getLocalPart());
@@ -132,7 +138,7 @@ public class OracleDataStoreOnlineTest extends JDBCDataStoreOnlineTest {
         outStore.setTransaction(transaction);
 
         try {
-            List<FeatureId> ids = outStore.addFeatures(collection);
+            outStore.addFeatures(collection);
 
             transaction.commit();
         } catch (Exception problem) {

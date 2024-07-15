@@ -18,10 +18,10 @@ package org.geotools.coverage;
 
 import static org.junit.Assert.assertEquals;
 
+import org.geotools.api.util.InternationalString;
 import org.geotools.util.SimpleInternationalString;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.util.InternationalString;
 
 /**
  * Tests the {@link GridSampleDimension} implementation. Since {@code GridSampleDimension} rely on
@@ -65,9 +65,6 @@ public final class SampleDimensionTest {
     /** The offset value for the sample dimension to test. */
     private static final double offset = 5.0;
 
-    /** Small number for comparaison. */
-    private static final double EPS = 1E-7;
-
     /** The sample dimension to test. */
     private GridSampleDimension test;
 
@@ -100,8 +97,7 @@ public final class SampleDimensionTest {
     /** Tests the {@link GridSampleDimension}'s cloning. */
     @Test
     public void testCloningSampleDimension() {
-        GridSampleDimension original;
-        original = test;
+        GridSampleDimension original = test;
         assertEquals("Temperature", original.getDescription().toString());
 
         GridSampleDimension wrapped = new WrappedGridSampleDimension(original);

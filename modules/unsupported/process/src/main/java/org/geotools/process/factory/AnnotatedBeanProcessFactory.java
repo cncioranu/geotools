@@ -26,10 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.util.InternationalString;
 import org.geotools.feature.NameImpl;
 import org.geotools.util.factory.FactoryRegistry;
-import org.opengis.feature.type.Name;
-import org.opengis.util.InternationalString;
 
 /**
  * Annotation driven process factory; used to wrap up a bunch of Java beans as a single Process
@@ -112,7 +112,7 @@ public class AnnotatedBeanProcessFactory extends AnnotationDrivenProcessFactory 
         if (c == null) {
             return null;
         } else {
-            return (DescribeProcess) c.getAnnotation(DescribeProcess.class);
+            return c.getAnnotation(DescribeProcess.class);
         }
     }
 
@@ -187,6 +187,7 @@ public class AnnotatedBeanProcessFactory extends AnnotationDrivenProcessFactory 
     }
 
     /** List of processes published; generated from the classMap created in the constructuor. */
+    @Override
     public Set<Name> getNames() {
         Set<Name> result = new LinkedHashSet<>();
         List<String> names = new ArrayList<>(classMap.keySet());
@@ -204,6 +205,7 @@ public class AnnotatedBeanProcessFactory extends AnnotationDrivenProcessFactory 
      * wish. The object will need to have an <n>execute</b> method and be annotated with a describe
      * process annotation.
      */
+    @Override
     protected Object createProcessBean(Name name) {
         try {
             Class<?> processClass = classMap.get(name.getLocalPart());

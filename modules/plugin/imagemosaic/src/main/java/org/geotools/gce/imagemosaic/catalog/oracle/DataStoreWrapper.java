@@ -20,7 +20,6 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,27 +33,27 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.DataStore;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.LockingManager;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.ServiceInfo;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.LockingManager;
-import org.geotools.data.Query;
-import org.geotools.data.ServiceInfo;
-import org.geotools.data.Transaction;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.data.transform.Definition;
 import org.geotools.data.transform.TransformFactory;
 import org.geotools.feature.NameImpl;
 import org.geotools.referencing.CRS;
 import org.geotools.util.URLs;
 import org.geotools.util.Utilities;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * A data store wrapper around a {@link DataStore} object.
@@ -165,10 +164,6 @@ public abstract class DataStoreWrapper implements DataStore {
         File propertiesFileP = new File(propertiesFile);
         try (InputStream inStream = new BufferedInputStream(new FileInputStream(propertiesFileP))) {
             properties.load(inStream);
-        } catch (FileNotFoundException e) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.warning("Unable to store the mapping " + e.getLocalizedMessage());
-            }
         } catch (IOException e) {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.warning("Unable to store the mapping " + e.getLocalizedMessage());
@@ -228,10 +223,6 @@ public abstract class DataStoreWrapper implements DataStore {
         try (OutputStream outStream =
                 new BufferedOutputStream(new FileOutputStream(new File(propertiesPath)))) {
             properties.store(outStream, null);
-        } catch (FileNotFoundException e) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.warning("Unable to store the mapping " + e.getLocalizedMessage());
-            }
         } catch (IOException e) {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.warning("Unable to store the mapping " + e.getLocalizedMessage());
@@ -296,9 +287,7 @@ public abstract class DataStoreWrapper implements DataStore {
 
     @Override
     public String[] getTypeNames() throws IOException {
-        return typeNames != null
-                ? (String[]) typeNames.toArray(new String[typeNames.size()])
-                : null;
+        return typeNames != null ? typeNames.toArray(new String[typeNames.size()]) : null;
     }
 
     @Override
@@ -397,9 +386,9 @@ public abstract class DataStoreWrapper implements DataStore {
      * the specified {@link Properties} object
      */
     protected FeatureTypeMapper getFeatureTypeMapper(final Properties props) throws Exception {
-        SimpleFeatureType indexSchema;
         // Creating schema
-        indexSchema = DataUtilities.createType(props.getProperty(NAME), props.getProperty(SCHEMA));
+        SimpleFeatureType indexSchema =
+                DataUtilities.createType(props.getProperty(NAME), props.getProperty(SCHEMA));
         CoordinateReferenceSystem crs =
                 CRS.parseWKT(props.getProperty(COORDINATE_REFERENCE_SYSTEM));
         indexSchema =

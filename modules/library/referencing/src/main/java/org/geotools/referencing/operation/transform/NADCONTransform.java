@@ -23,8 +23,19 @@ import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
 import java.util.prefs.Preferences;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchIdentifierException;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.api.referencing.operation.Transformation;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
@@ -38,18 +49,6 @@ import org.geotools.referencing.factory.gridshift.NADCONGridShiftFactory;
 import org.geotools.referencing.factory.gridshift.NADConGridShift;
 import org.geotools.referencing.operation.MathTransformProvider;
 import org.geotools.util.Arguments;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchIdentifierException;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
-import org.opengis.referencing.operation.Transformation;
 
 /**
  * Transform backed by the North American Datum Conversion grid. The North American Datum Conversion
@@ -199,6 +198,7 @@ public class NADCONTransform extends AbstractMathTransform
     }
 
     /** Returns the parameter descriptors for this math transform. */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -226,6 +226,7 @@ public class NADCONTransform extends AbstractMathTransform
      *
      * @return the source dimensions.
      */
+    @Override
     public int getSourceDimensions() {
         return 2;
     }
@@ -235,6 +236,7 @@ public class NADCONTransform extends AbstractMathTransform
      *
      * @return the target dimensions.
      */
+    @Override
     public int getTargetDimensions() {
         return 2;
     }
@@ -257,6 +259,7 @@ public class NADCONTransform extends AbstractMathTransform
      * @param numPts the number of point objects to be transformed.
      * @throws TransformException if the input point is outside the area covered by this grid.
      */
+    @Override
     public void transform(
             final double[] srcPts, int srcOff, final double[] dstPts, int dstOff, int numPts)
             throws TransformException {
@@ -296,7 +299,7 @@ public class NADCONTransform extends AbstractMathTransform
             // find the grid the point is in (index is 0 based)
             final double xgrid = (x - grid.getMinX()) / grid.getDx();
             final double ygrid = (y - grid.getMinY()) / grid.getDy();
-            double[] array = new double[] {xgrid, ygrid};
+            double[] array = {xgrid, ygrid};
 
             // use the LocalizationGridTransform2D transform method (bilineal interpolation)
             // returned shift values are in seconds, longitude shift values are + west
@@ -361,7 +364,7 @@ public class NADCONTransform extends AbstractMathTransform
                     break;
                 }
                 if (--i < 0) {
-                    throw new TransformException(Errors.format(ErrorKeys.NO_CONVERGENCE));
+                    throw new TransformException(ErrorKeys.NO_CONVERGENCE);
                 }
             }
 
@@ -423,7 +426,7 @@ public class NADCONTransform extends AbstractMathTransform
      * @param args a single argument for the defualt location of grid shift files
      */
     @SuppressWarnings("PMD.CloseResource")
-    public static void main(String[] args) {
+    public static void main(String... args) {
         final Arguments arguments = new Arguments(args);
         final PrintWriter out = arguments.out;
         final Preferences prefs = Preferences.userNodeForPackage(NADCONTransform.class);
@@ -480,6 +483,7 @@ public class NADCONTransform extends AbstractMathTransform
          *
          * @throws TransformException if the input point is outside the area covered by this grid.
          */
+        @Override
         public void transform(
                 final double[] source,
                 final int srcOffset,
@@ -562,11 +566,12 @@ public class NADCONTransform extends AbstractMathTransform
          * @throws ParameterNotFoundException if a required parameter was not found.
          * @throws FactoryException if there is a problem creating this math transform.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup values)
                 throws ParameterNotFoundException, FactoryException {
             return new NADCONTransform(
-                    (URI) getParameter(LAT_DIFF_FILE, values).getValue(),
-                    (URI) getParameter(LONG_DIFF_FILE, values).getValue());
+                    getParameter(LAT_DIFF_FILE, values).getValue(),
+                    getParameter(LONG_DIFF_FILE, values).getValue());
         }
     }
 }

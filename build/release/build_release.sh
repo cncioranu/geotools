@@ -13,13 +13,14 @@ function usage() {
   echo
   echo "Options:"
   echo " -h          : Print usage"
-  echo " -b <branch> : Branch to release from (eg: master, 8.x, ...)"
+  echo " -b <branch> : Branch to release from (eg: main, 8.x, ...)"
   echo " -r <rev>    : Revision to release (eg: a1b2kc4...)"
   echo
   echo "Environment variables:"
   echo " SKIP_BUILD : Skips main release build"
   echo " SKIP_TAG : Skips tag on release branch"
   echo " SKIP_JAVADOCS : Skips javadoc build"
+  echo " MAVEN_FLAGS : Flags used in calls to mvn"
 }
 
 # parse options
@@ -135,21 +136,21 @@ git checkout -b rel_$tag $rev
 
 # update versions
 pushd build > /dev/null
-ant -f rename.xml -Drelease=$tag -Dseries=$series
+ant -f build.xml release -Drelease=$tag -Dseries=$series
 popd > /dev/null
 
 # build the release
 if [ "$SKIP_BUILD" != true ]; then
   export MAVEN_OPTS="-Xmx2048m"
   echo "building release"
-  mvn $MAVEN_FLAGS -DskipTests -Dall clean -Pcollect install
+  mvn $MAVEN_FLAGS -DskipTests -Dall clean install
   echo "building release: assemble artifacts"
-  mvn $MAVEN_FLAGS -DskipTests assembly:assembly
+  mvn $MAVEN_FLAGS -f release/pom.xml -DskipTests assembly:single
 fi
 
 target=`pwd`/target
 
-# build the javadocs
+# build the javadocs for website
 if [ "$SKIP_JAVADOCS" != true ]; then
   echo "building javadocs"
   pushd modules > /dev/null
@@ -162,12 +163,15 @@ fi
 
 echo "copying artifacts to $dist"
 cp $target/*.zip $dist
+cp release/target/*.zip $dist
 
 init_git $git_user $git_email
 
 # commit changes, excluding release staging dir
-git add docs modules
-git add pom.xml build/pom.xml build/README.html build/maven
+# expecting:
+# - docs modules release
+# - pom.xml build/pom.xml build/maven
+git add .
 git commit -m "updating version numbers and README for $tag"
 
 # tag release branch

@@ -22,21 +22,21 @@ package org.geotools.referencing.datum;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import org.geotools.api.metadata.extent.Extent;
+import org.geotools.api.referencing.datum.Datum;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Classes;
 import org.geotools.util.Utilities;
-import org.opengis.metadata.extent.Extent;
-import org.opengis.referencing.datum.Datum;
-import org.opengis.util.InternationalString;
 
 /**
  * Specifies the relationship of a coordinate system to the earth, thus creating a {@linkplain
- * org.opengis.referencing.crs.CoordinateReferenceSystem coordinate reference system}. A datum uses
- * a parameter or set of parameters that determine the location of the origin of the coordinate
+ * org.geotools.api.referencing.crs.CoordinateReferenceSystem coordinate reference system}. A datum
+ * uses a parameter or set of parameters that determine the location of the origin of the coordinate
  * reference system. Each datum subtype can be associated with only specific types of {@linkplain
- * org.opengis.referencing.cs.AbstractCS coordinate systems}.
+ * org.geotools.api.referencing.cs.AbstractCS coordinate systems}.
  *
  * <p>A datum can be defined as a set of real points on the earth that have coordinates. The
  * definition of the datum may also include the temporal behavior (such as the rate of change of the
@@ -150,9 +150,8 @@ public class AbstractDatum extends AbstractIdentifiedObject implements Datum {
     private AbstractDatum(
             final Map<String, ?> properties, final Map<String, Object> subProperties) {
         super(properties, subProperties, LOCALIZABLES);
-        final Date realizationEpoch;
         anchorPoint = (InternationalString) subProperties.get(ANCHOR_POINT_KEY);
-        realizationEpoch = (Date) subProperties.get(REALIZATION_EPOCH_KEY);
+        final Date realizationEpoch = (Date) subProperties.get(REALIZATION_EPOCH_KEY);
         domainOfValidity = (Extent) subProperties.get(DOMAIN_OF_VALIDITY_KEY);
         scope = (InternationalString) subProperties.get(SCOPE_KEY);
         this.realizationEpoch =
@@ -190,6 +189,7 @@ public class AbstractDatum extends AbstractIdentifiedObject implements Datum {
      *       temporal datum carries a separate time origin of type {@link Date}.
      * </ul>
      */
+    @Override
     public InternationalString getAnchorPoint() {
         return anchorPoint;
     }
@@ -202,6 +202,7 @@ public class AbstractDatum extends AbstractIdentifiedObject implements Datum {
      * Alternatively, a datum may be superseded by a later datum, in which case the realization
      * epoch for the new datum defines the upper limit for the validity of the superseded datum.
      */
+    @Override
     public Date getRealizationEpoch() {
         return (realizationEpoch != Long.MIN_VALUE) ? new Date(realizationEpoch) : null;
     }
@@ -211,6 +212,7 @@ public class AbstractDatum extends AbstractIdentifiedObject implements Datum {
      *
      * @since 2.4
      */
+    @Override
     public Extent getDomainOfValidity() {
         return domainOfValidity;
     }
@@ -219,6 +221,7 @@ public class AbstractDatum extends AbstractIdentifiedObject implements Datum {
      * Description of domain of usage, or limitations of usage, for which this datum object is
      * valid.
      */
+    @Override
     public InternationalString getScope() {
         return scope;
     }

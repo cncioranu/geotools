@@ -40,27 +40,35 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.style.ChannelSelection;
+import org.geotools.api.style.ColorMap;
+import org.geotools.api.style.ColorMapEntry;
+import org.geotools.api.style.ContrastMethod;
+import org.geotools.api.style.ExternalGraphic;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.GraphicLegend;
+import org.geotools.api.style.GraphicalSymbol;
+import org.geotools.api.style.LabelPlacement;
+import org.geotools.api.style.LineSymbolizer;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.NamedLayer;
+import org.geotools.api.style.PointSymbolizer;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.RemoteOWS;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Stroke;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.StyledLayerDescriptor;
+import org.geotools.api.style.Symbolizer;
+import org.geotools.api.style.TextSymbolizer;
+import org.geotools.api.style.UserLayer;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.styling.ColorMap;
-import org.geotools.styling.ColorMapEntry;
-import org.geotools.styling.ExternalGraphic;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.LabelPlacement;
-import org.geotools.styling.LineSymbolizer;
-import org.geotools.styling.Mark;
-import org.geotools.styling.NamedLayer;
-import org.geotools.styling.PointSymbolizer;
-import org.geotools.styling.RasterSymbolizer;
-import org.geotools.styling.Rule;
-import org.geotools.styling.Stroke;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.StyledLayerDescriptor;
-import org.geotools.styling.Symbolizer;
-import org.geotools.styling.TextSymbolizer;
-import org.geotools.styling.TextSymbolizer2;
 import org.geotools.styling.UomOgcMapping;
-import org.geotools.styling.UserLayer;
 import org.geotools.util.logging.Logging;
 import org.geotools.ysld.Tuple;
 import org.geotools.ysld.YamlMap;
@@ -70,15 +78,6 @@ import org.geotools.ysld.Ysld;
 import org.geotools.ysld.parse.YsldParser;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.function.ThrowingRunnable;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.style.ChannelSelection;
-import org.opengis.style.ContrastMethod;
-import org.opengis.style.Graphic;
-import org.opengis.style.GraphicalSymbol;
 import systems.uom.common.USCustomary;
 
 public class YsldEncodeTest {
@@ -86,6 +85,52 @@ public class YsldEncodeTest {
     private static final double EPSILON = 0.0000000001;
 
     Logger LOG = Logging.getLogger("org.geotools.ysld.Ysld");
+
+    @Test
+    public void testRoot() throws Exception {
+        StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
+
+        StyledLayerDescriptor sld = styleFactory.createStyledLayerDescriptor();
+        sld.setName("MySLD");
+        sld.setTitle("My SLD");
+        sld.setAbstract("Remote WMS user layer style definition");
+
+        UserLayer layer = styleFactory.createUserLayer();
+        RemoteOWS remote =
+                styleFactory.createRemoteOWS("WMS", "http://localhost:8080/geoserver/wms");
+        layer.setName("MyLayer");
+        layer.setRemoteOWS(remote);
+
+        sld.layers().add(layer);
+
+        Style style = styleFactory.createStyle();
+        style.setName("Ignored");
+        layer.userStyles().add(style);
+
+        Style defaultStyle = styleFactory.createStyle();
+        defaultStyle.setDefault(true);
+        defaultStyle.setName("MyStyle");
+        layer.userStyles().add(defaultStyle);
+
+        StringWriter out = new StringWriter();
+        Ysld.encode(sld, out);
+
+        YamlMap obj = new YamlMap(YamlUtil.getSafeYaml().load(out.toString()));
+
+        assertThat(obj, yHasEntry("sld-name", lexEqualTo("MySLD")));
+        assertThat(obj, yHasEntry("sld-title", lexEqualTo("My SLD")));
+        assertThat(
+                obj,
+                yHasEntry("sld-abstract", lexEqualTo("Remote WMS user layer style definition")));
+
+        assertThat(obj, yHasEntry("user-name", lexEqualTo("MyLayer")));
+        assertThat(
+                obj, yHasEntry("user-remote", lexEqualTo("http://localhost:8080/geoserver/wms")));
+        assertThat(obj, yHasEntry("user-service", lexEqualTo("WMS")));
+
+        assertThat(obj, yHasEntry("user-name", lexEqualTo("MyLayer")));
+        assertThat(obj, yHasEntry("name", lexEqualTo("MyStyle")));
+    }
 
     @Test
     public void testFunction() throws Exception {
@@ -532,18 +577,17 @@ public class YsldEncodeTest {
         Mark mark = sf.mark(ff.literal("circle"), sf.fill(null, ff.literal("#995555"), null), null);
         List<GraphicalSymbol> symbols = new ArrayList<>();
         symbols.add(mark);
-        TextSymbolizer2 text =
-                (TextSymbolizer2)
-                        sf.textSymbolizer(
-                                null,
-                                ff.property("geom"),
-                                null,
-                                null,
-                                ff.property("name"),
-                                null,
-                                null,
-                                null,
-                                null);
+        TextSymbolizer text =
+                sf.textSymbolizer(
+                        null,
+                        ff.property("geom"),
+                        null,
+                        null,
+                        ff.property("name"),
+                        null,
+                        null,
+                        null,
+                        null);
         text.setGraphic(sf.graphic(symbols, null, null, null, null, null));
         rule.symbolizers().add(text);
 
@@ -583,18 +627,17 @@ public class YsldEncodeTest {
                         sf.createAnchorPoint(ff.literal(0.75), ff.literal(0.25)),
                         sf.createDisplacement(ff.literal(10), ff.literal(15)),
                         ff.literal(90));
-        TextSymbolizer2 text =
-                (TextSymbolizer2)
-                        sf.textSymbolizer(
-                                null,
-                                ff.property("geom"),
-                                null,
-                                null,
-                                ff.property("name"),
-                                null,
-                                place,
-                                null,
-                                null);
+        TextSymbolizer text =
+                sf.textSymbolizer(
+                        null,
+                        ff.property("geom"),
+                        null,
+                        null,
+                        ff.property("name"),
+                        null,
+                        place,
+                        null,
+                        null);
         rule.symbolizers().add(text);
 
         StringWriter out = new StringWriter();
@@ -636,18 +679,17 @@ public class YsldEncodeTest {
 
         LabelPlacement place = sf.createLinePlacement(ff.literal(10));
 
-        TextSymbolizer2 text =
-                (TextSymbolizer2)
-                        sf.textSymbolizer(
-                                null,
-                                ff.property("geom"),
-                                null,
-                                null,
-                                ff.property("name"),
-                                null,
-                                place,
-                                null,
-                                null);
+        TextSymbolizer text =
+                sf.textSymbolizer(
+                        null,
+                        ff.property("geom"),
+                        null,
+                        null,
+                        ff.property("name"),
+                        null,
+                        place,
+                        null,
+                        null);
         rule.symbolizers().add(text);
 
         StringWriter out = new StringWriter();
@@ -710,7 +752,7 @@ public class YsldEncodeTest {
     @Test
     public void testColorMap() throws Exception {
         StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
-        FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory();
 
         RasterSymbolizer symb = styleFactory.createRasterSymbolizer();
         ColorMapEntry e1 = styleFactory.createColorMapEntry();
@@ -762,7 +804,7 @@ public class YsldEncodeTest {
     @Test
     public void testColorMapWithExpression() throws Exception {
         StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
-        FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory();
 
         RasterSymbolizer symb = styleFactory.createRasterSymbolizer();
         ColorMapEntry e1 = styleFactory.createColorMapEntry();
@@ -827,7 +869,7 @@ public class YsldEncodeTest {
     @Test
     public void testNameExpressionLiteral() throws Exception {
         PointSymbolizer p = CommonFactoryFinder.getStyleFactory().createPointSymbolizer();
-        Expression nameExpression = CommonFactoryFinder.getFilterFactory2().literal("test");
+        Expression nameExpression = CommonFactoryFinder.getFilterFactory().literal("test");
         Mark mark = CommonFactoryFinder.getStyleFactory().createMark();
         mark.setWellKnownName(nameExpression);
         p.getGraphic().graphicalSymbols().add(mark);
@@ -855,7 +897,7 @@ public class YsldEncodeTest {
     @Test
     public void testNameExpressionAttribute() throws Exception {
         PointSymbolizer p = CommonFactoryFinder.getStyleFactory().createPointSymbolizer();
-        Expression nameExpression = CommonFactoryFinder.getFilterFactory2().property("test");
+        Expression nameExpression = CommonFactoryFinder.getFilterFactory().property("test");
         Mark mark = CommonFactoryFinder.getStyleFactory().createMark();
         mark.setWellKnownName(nameExpression);
         p.getGraphic().graphicalSymbols().add(mark);
@@ -883,7 +925,7 @@ public class YsldEncodeTest {
     @Test
     public void testNonNameExpressionLiteral() throws Exception {
         PointSymbolizer p = CommonFactoryFinder.getStyleFactory().createPointSymbolizer();
-        Expression expression = CommonFactoryFinder.getFilterFactory2().literal("test");
+        Expression expression = CommonFactoryFinder.getFilterFactory().literal("test");
         p.setGeometry(expression);
 
         StringWriter out = new StringWriter();
@@ -906,7 +948,7 @@ public class YsldEncodeTest {
     @Test
     public void testNonNameExpressionAttribute() throws Exception {
         PointSymbolizer p = CommonFactoryFinder.getStyleFactory().createPointSymbolizer();
-        Expression expression = CommonFactoryFinder.getFilterFactory2().property("test");
+        Expression expression = CommonFactoryFinder.getFilterFactory().property("test");
         p.setGeometry(expression);
 
         StringWriter out = new StringWriter();
@@ -930,12 +972,12 @@ public class YsldEncodeTest {
     public void testEmbededExpression() throws Exception {
         PointSymbolizer p = CommonFactoryFinder.getStyleFactory().createPointSymbolizer();
         Expression expression =
-                CommonFactoryFinder.getFilterFactory2()
+                CommonFactoryFinder.getFilterFactory()
                         .function(
                                 "Concatenate",
-                                CommonFactoryFinder.getFilterFactory2().literal("literal0"),
-                                CommonFactoryFinder.getFilterFactory2().property("attribute1"),
-                                CommonFactoryFinder.getFilterFactory2().literal("literal2"));
+                                CommonFactoryFinder.getFilterFactory().literal("literal0"),
+                                CommonFactoryFinder.getFilterFactory().property("attribute1"),
+                                CommonFactoryFinder.getFilterFactory().literal("literal2"));
         p.setGeometry(expression);
 
         StringWriter out = new StringWriter();
@@ -958,7 +1000,7 @@ public class YsldEncodeTest {
     @Test
     public void testEmbededExpressionEscapeLiteral() throws Exception {
         PointSymbolizer p = CommonFactoryFinder.getStyleFactory().createPointSymbolizer();
-        Expression expression = CommonFactoryFinder.getFilterFactory2().literal("$}\\");
+        Expression expression = CommonFactoryFinder.getFilterFactory().literal("$}\\");
         p.setGeometry(expression);
 
         StringWriter out = new StringWriter();
@@ -982,11 +1024,11 @@ public class YsldEncodeTest {
     public void testEmbededExpressionEscapeExpression() throws Exception {
         PointSymbolizer p = CommonFactoryFinder.getStyleFactory().createPointSymbolizer();
         Expression expression =
-                CommonFactoryFinder.getFilterFactory2()
+                CommonFactoryFinder.getFilterFactory()
                         .function(
                                 "strEndsWith",
-                                CommonFactoryFinder.getFilterFactory2().property("attribute1"),
-                                CommonFactoryFinder.getFilterFactory2().literal("}"));
+                                CommonFactoryFinder.getFilterFactory().property("attribute1"),
+                                CommonFactoryFinder.getFilterFactory().literal("}"));
         p.setGeometry(expression);
 
         StringWriter out = new StringWriter();
@@ -1008,7 +1050,7 @@ public class YsldEncodeTest {
 
     @Test
     public void testFilter() throws Exception {
-        FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory();
         StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
 
         StyledLayerDescriptor sld = styleFactory.createStyledLayerDescriptor();
@@ -1027,7 +1069,7 @@ public class YsldEncodeTest {
         style.featureTypeStyles().get(0).rules().add(rule);
 
         PointSymbolizer p = styleFactory.createPointSymbolizer();
-        rule.symbolizers().add((Symbolizer) p);
+        rule.symbolizers().add(p);
 
         StringWriter out = new StringWriter();
         Ysld.encode(sld, out);
@@ -1040,7 +1082,7 @@ public class YsldEncodeTest {
 
     @Test
     public void testFilterEscape() throws Exception {
-        FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory();
         StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
 
         StyledLayerDescriptor sld = styleFactory.createStyledLayerDescriptor();
@@ -1060,7 +1102,7 @@ public class YsldEncodeTest {
         style.featureTypeStyles().get(0).rules().add(rule);
 
         PointSymbolizer p = styleFactory.createPointSymbolizer();
-        rule.symbolizers().add((Symbolizer) p);
+        rule.symbolizers().add(p);
 
         StringWriter out = new StringWriter();
         Ysld.encode(sld, out);
@@ -1073,7 +1115,6 @@ public class YsldEncodeTest {
 
     @Test
     public void testScale() throws Exception {
-        FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
         StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
 
         StyledLayerDescriptor sld = styleFactory.createStyledLayerDescriptor();
@@ -1124,7 +1165,6 @@ public class YsldEncodeTest {
 
     @Test
     public void testScaleMinMaxKeywords() throws Exception {
-        FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
         StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
 
         StyledLayerDescriptor sld = styleFactory.createStyledLayerDescriptor();
@@ -1254,7 +1294,7 @@ public class YsldEncodeTest {
     @Test
     public void testStrokeGraphic() throws Exception {
         StyleFactory sf = CommonFactoryFinder.getStyleFactory();
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory();
         LineSymbolizer l = sf.createLineSymbolizer();
         Mark mark = sf.mark(ff.literal("circle"), sf.fill(null, ff.literal("#995555"), null), null);
         Graphic g = sf.createGraphic(null, new Mark[] {mark}, null, null, null, null);
@@ -1295,7 +1335,7 @@ public class YsldEncodeTest {
     @Test
     public void testStrokeGraphicFill() throws Exception {
         StyleFactory sf = CommonFactoryFinder.getStyleFactory();
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory();
         LineSymbolizer l = sf.createLineSymbolizer();
         Mark mark = sf.mark(ff.literal("circle"), sf.fill(null, ff.literal("#995555"), null), null);
         Graphic g = sf.createGraphic(null, new Mark[] {mark}, null, null, null, null);
@@ -1336,7 +1376,7 @@ public class YsldEncodeTest {
     @Test
     public void testGrayBandSelectionWithContrast() throws Exception {
         StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
-        FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory();
         RasterSymbolizer r = styleFactory.createRasterSymbolizer();
         ChannelSelection sel =
                 styleFactory.channelSelection(
@@ -1374,7 +1414,7 @@ public class YsldEncodeTest {
     @Test
     public void testRGBBandSelectionWithContrast() throws Exception {
         StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
-        FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory();
         RasterSymbolizer r = styleFactory.createRasterSymbolizer();
         ChannelSelection sel =
                 styleFactory.channelSelection(
@@ -1385,9 +1425,7 @@ public class YsldEncodeTest {
                                 styleFactory.createContrastEnhancement(filterFactory.literal(1.2))),
                         styleFactory.createSelectedChannelType(
                                 "baz", styleFactory.createContrastEnhancement()));
-        ((org.geotools.styling.ContrastEnhancement)
-                        sel.getRGBChannels()[2].getContrastEnhancement())
-                .setMethod(ContrastMethod.HISTOGRAM);
+        sel.getRGBChannels()[2].getContrastEnhancement().setMethod(ContrastMethod.HISTOGRAM);
         r.setChannelSelection(sel);
 
         StringWriter out = new StringWriter();
@@ -1421,6 +1459,36 @@ public class YsldEncodeTest {
                 yHasEntry("contrast-enhancement", yHasEntry("mode", equalTo("histogram"))));
     }
 
+    @Test
+    public void testBandSelectionExpression() throws Exception {
+        StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
+        FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory();
+        Expression nameExpression =
+                filterFactory.function(
+                        "env", filterFactory.literal("B1"), filterFactory.literal("1"));
+        RasterSymbolizer r = styleFactory.createRasterSymbolizer();
+        ChannelSelection sel =
+                styleFactory.channelSelection(
+                        styleFactory.createSelectedChannelType(nameExpression, (Expression) null));
+        r.setChannelSelection(sel);
+
+        StringWriter out = new StringWriter();
+        Ysld.encode(sld(r), out);
+
+        YamlMap obj = new YamlMap(YamlUtil.getSafeYaml().load(out.toString()));
+        YamlMap channelMap =
+                obj.seq("feature-styles")
+                        .map(0)
+                        .seq("rules")
+                        .map(0)
+                        .seq("symbolizers")
+                        .map(0)
+                        .map("raster")
+                        .map("channels")
+                        .map("gray");
+        assertThat(channelMap, yHasEntry("name", equalTo("${env('B1','1')}")));
+    }
+
     StyledLayerDescriptor sld(Symbolizer sym) {
         return sld(fts(sym));
     }
@@ -1433,7 +1501,7 @@ public class YsldEncodeTest {
         FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle();
         fts.rules().add(rule);
 
-        rule.symbolizers().add((Symbolizer) sym);
+        rule.symbolizers().add(sym);
         return fts;
     }
 
@@ -1492,12 +1560,12 @@ public class YsldEncodeTest {
         Mark m1 = CommonFactoryFinder.getStyleFactory().getCircleMark();
         m1.setFill(
                 CommonFactoryFinder.getStyleFactory()
-                        .createFill(CommonFactoryFinder.getFilterFactory2().literal("#112233")));
+                        .createFill(CommonFactoryFinder.getFilterFactory().literal("#112233")));
         m1.setStroke(
                 CommonFactoryFinder.getStyleFactory()
                         .createStroke(
-                                CommonFactoryFinder.getFilterFactory2().literal("#005566"),
-                                CommonFactoryFinder.getFilterFactory2().literal(3)));
+                                CommonFactoryFinder.getFilterFactory().literal("#005566"),
+                                CommonFactoryFinder.getFilterFactory().literal(3)));
         p.getGraphic().graphicalSymbols().add(m1);
 
         StringWriter out = new StringWriter();
@@ -1532,9 +1600,8 @@ public class YsldEncodeTest {
         m1.setFill(
                 CommonFactoryFinder.getStyleFactory()
                         .createFill(
-                                CommonFactoryFinder.getFilterFactory2().literal("#112233"),
-                                CommonFactoryFinder.getFilterFactory2()
-                                        .literal(Double.MIN_NORMAL)));
+                                CommonFactoryFinder.getFilterFactory().literal("#112233"),
+                                CommonFactoryFinder.getFilterFactory().literal(Double.MIN_NORMAL)));
         p.getGraphic().graphicalSymbols().add(m1);
 
         StringWriter out = new StringWriter();
@@ -1542,17 +1609,16 @@ public class YsldEncodeTest {
         LOG.fine(out.toString());
 
         YamlMap obj = new YamlMap(YamlUtil.getSafeYaml().load(out.toString()));
-        YamlMap result =
-                obj.seq("feature-styles")
-                        .map(0)
-                        .seq("rules")
-                        .map(0)
-                        .seq("symbolizers")
-                        .map(0)
-                        .map("point")
-                        .seq("symbols")
-                        .map(0)
-                        .map("mark");
+        obj.seq("feature-styles")
+                .map(0)
+                .seq("rules")
+                .map(0)
+                .seq("symbolizers")
+                .map(0)
+                .map("point")
+                .seq("symbols")
+                .map(0)
+                .map("mark");
 
         assertThat(
                 kvpLine(out.toString(), "fill-opacity"),
@@ -1567,9 +1633,8 @@ public class YsldEncodeTest {
         m1.setFill(
                 CommonFactoryFinder.getStyleFactory()
                         .createFill(
-                                CommonFactoryFinder.getFilterFactory2().literal("#abcdef"),
-                                CommonFactoryFinder.getFilterFactory2()
-                                        .literal(Double.MIN_NORMAL)));
+                                CommonFactoryFinder.getFilterFactory().literal("#abcdef"),
+                                CommonFactoryFinder.getFilterFactory().literal(Double.MIN_NORMAL)));
         p.getGraphic().graphicalSymbols().add(m1);
 
         StringWriter out = new StringWriter();
@@ -1578,17 +1643,16 @@ public class YsldEncodeTest {
         LOG.fine(out.toString());
 
         YamlMap obj = new YamlMap(YamlUtil.getSafeYaml().load(out.toString()));
-        YamlMap result =
-                obj.seq("feature-styles")
-                        .map(0)
-                        .seq("rules")
-                        .map(0)
-                        .seq("symbolizers")
-                        .map(0)
-                        .map("point")
-                        .seq("symbols")
-                        .map(0)
-                        .map("mark");
+        obj.seq("feature-styles")
+                .map(0)
+                .seq("rules")
+                .map(0)
+                .seq("symbolizers")
+                .map(0)
+                .map("point")
+                .seq("symbols")
+                .map(0)
+                .map("mark");
 
         assertThat(kvpLine(out.toString(), "fill-color"), equalTo("'#ABCDEF'"));
     }
@@ -1601,9 +1665,8 @@ public class YsldEncodeTest {
         m1.setFill(
                 CommonFactoryFinder.getStyleFactory()
                         .createFill(
-                                CommonFactoryFinder.getFilterFactory2().literal(Color.RED),
-                                CommonFactoryFinder.getFilterFactory2()
-                                        .literal(Double.MIN_NORMAL)));
+                                CommonFactoryFinder.getFilterFactory().literal(Color.RED),
+                                CommonFactoryFinder.getFilterFactory().literal(Double.MIN_NORMAL)));
         p.getGraphic().graphicalSymbols().add(m1);
 
         StringWriter out = new StringWriter();
@@ -1612,17 +1675,16 @@ public class YsldEncodeTest {
         LOG.fine(out.toString());
 
         YamlMap obj = new YamlMap(YamlUtil.getSafeYaml().load(out.toString()));
-        YamlMap result =
-                obj.seq("feature-styles")
-                        .map(0)
-                        .seq("rules")
-                        .map(0)
-                        .seq("symbolizers")
-                        .map(0)
-                        .map("point")
-                        .seq("symbols")
-                        .map(0)
-                        .map("mark");
+        obj.seq("feature-styles")
+                .map(0)
+                .seq("rules")
+                .map(0)
+                .seq("symbolizers")
+                .map(0)
+                .map("point")
+                .seq("symbols")
+                .map(0)
+                .map("mark");
 
         assertThat(kvpLine(out.toString(), "fill-color"), equalTo("'#FF0000'"));
     }
@@ -1748,32 +1810,25 @@ public class YsldEncodeTest {
 
         StringWriter out = new StringWriter();
 
-        Assert.assertThrows(
-                IllegalArgumentException.class,
-                new ThrowingRunnable() {
-
-                    @Override
-                    public void run() throws Throwable {
-
-                        Ysld.encode(sld(fts), out);
-                    }
-                });
+        Assert.assertThrows(IllegalArgumentException.class, () -> Ysld.encode(sld(fts), out));
     }
 
     @Test
     public void testLegend() throws Exception {
         StyleFactory sf = CommonFactoryFinder.getStyleFactory();
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory();
         PointSymbolizer p = sf.createPointSymbolizer();
         Mark mark = sf.mark(ff.literal("circle"), sf.fill(null, ff.literal("#FF0000"), null), null);
         p.setGraphic(sf.createGraphic(null, new Mark[] {mark}, null, null, null, null));
         Rule rule = sf.createRule();
         rule.symbolizers().add(p);
         ExternalGraphic eg = sf.createExternalGraphic("smileyface.png", "image/png");
-        rule.setLegend(sf.createGraphic(new ExternalGraphic[] {eg}, null, null, null, null, null));
+        rule.setLegend(
+                (GraphicLegend)
+                        sf.createGraphic(new ExternalGraphic[] {eg}, null, null, null, null, null));
 
         StringWriter out = new StringWriter();
-        Ysld.encode(sld(sf.createFeatureTypeStyle(new Rule[] {rule})), out);
+        Ysld.encode(sld(sf.createFeatureTypeStyle(rule)), out);
         // System.out.append(out.toString());
 
         YamlMap obj = new YamlMap(YamlUtil.getSafeYaml().load(out.toString()));
@@ -1828,5 +1883,20 @@ public class YsldEncodeTest {
                 new RasterSymbolizerEncoder(symbolizer).new ColorMapEntryIterator(colorMap);
         Tuple map = iterator.next();
         assertEquals("('#E20374',1.0,1,Lorem Ipsum (magenta = covered))", map.toString());
+    }
+
+    @Test
+    public void testRuleVendorOption() throws Exception {
+        PointSymbolizer p = CommonFactoryFinder.getStyleFactory().createPointSymbolizer();
+        FeatureTypeStyle fts = fts(p);
+        fts.rules().get(0).getOptions().put("foo", "bar");
+
+        StringWriter out = new StringWriter();
+        Ysld.encode(sld(fts), out);
+
+        YamlMap obj = new YamlMap(YamlUtil.getSafeYaml().load(out.toString()));
+        YamlMap result = obj.seq("feature-styles").map(0).seq("rules").map(0);
+
+        assertEquals("bar", result.str("x-foo"));
     }
 }

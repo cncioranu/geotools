@@ -35,6 +35,15 @@ import java.util.logging.Logger;
 import javax.imageio.IIOImage;
 import javax.imageio.stream.ImageOutputStream;
 import javax.media.jai.Interpolation;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.cs.AxisDirection;
 import org.geotools.coverage.Category;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GeneralGridEnvelope;
@@ -47,8 +56,7 @@ import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.coverage.processing.operation.Resample;
 import org.geotools.coverage.processing.operation.SelectSampleDimension;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.data.DataSourceException;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.image.io.ImageIOExt;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
@@ -56,14 +64,6 @@ import org.geotools.parameter.Parameter;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.AxisDirection;
 
 /**
  * {@link ArcGridWriter} supports writing of an ArcGrid GridCoverage to a Desination object
@@ -120,8 +120,7 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
         else if (destination instanceof URL) {
             final URL dest = (URL) destination;
             if (dest.getProtocol().equalsIgnoreCase("file")) {
-                File destFile;
-                destFile = URLs.urlToFile(dest);
+                File destFile = URLs.urlToFile(dest);
                 try {
                     super.outStream = ImageIOExt.createImageOutputStream(null, destFile);
                 } catch (IOException e) {
@@ -134,8 +133,7 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
         } else if (destination instanceof OutputStream) {
 
             try {
-                super.outStream =
-                        ImageIOExt.createImageOutputStream(null, (OutputStream) destination);
+                super.outStream = ImageIOExt.createImageOutputStream(null, destination);
             } catch (IOException e) {
                 if (LOGGER.isLoggable(Level.SEVERE))
                     LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
@@ -162,8 +160,9 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
      * Creates a Format object describing the Arc Grid Format
      *
      * @return the format of the data source we will write to. (ArcGridFormat in this case)
-     * @see org.opengis.coverage.grid.GridCoverageWriter#getFormat()
+     * @see org.geotools.api.coverage.grid.GridCoverageWriter#getFormat()
      */
+    @Override
     public Format getFormat() {
         return new ArcGridFormat();
     }
@@ -190,8 +189,8 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
             final String cellSizeParam =
                     ArcGridFormat.FORCE_CELLSIZE.getName().getCode().toString();
             if (parameters != null) {
-                for (int i = 0; i < parameters.length; i++) {
-                    Parameter param = (Parameter) parameters[i];
+                for (GeneralParameterValue parameter : parameters) {
+                    Parameter param = (Parameter) parameter;
                     String name = param.getDescriptor().getName().toString();
                     if (param.getDescriptor()
                             .getName()
@@ -235,11 +234,7 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
                 else visibleBand = CoverageUtilities.getVisibleBand(gc);
 
                 final ParameterValueGroup param =
-                        (ParameterValueGroup)
-                                processor
-                                        .getOperation("SelectSampleDimension")
-                                        .getParameters()
-                                        .clone();
+                        processor.getOperation("SelectSampleDimension").getParameters().clone();
                 param.parameter("source").setValue(gc);
                 param.parameter("SampleDimensions").setValue(new int[] {visibleBand});
                 gc =
@@ -262,11 +257,11 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
             //
             // /////////////////////////////////////////////////////////////////
             // getting the new envelope after the reshaping
-            final Envelope newEnv = gc.getEnvelope2D();
+            final Bounds newEnv = gc.getEnvelope2D();
 
             // trying to prepare the header
             final AffineTransform gridToWorld =
-                    (AffineTransform) ((GridGeometry2D) gc.getGridGeometry()).getGridToCRS2D();
+                    (AffineTransform) gc.getGridGeometry().getGridToCRS2D();
             final double xl = newEnv.getLowerCorner().getOrdinate(0);
             final double yl = newEnv.getLowerCorner().getOrdinate(1);
             final double cellsizeX = Math.abs(gridToWorld.getScaleX());
@@ -342,8 +337,7 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
         // so much that we need to reshape in order to have square pixels
         //
         // /////////////////////////////////////////////////////////////////////
-        final AffineTransform gridToWorld =
-                (AffineTransform) ((GridGeometry2D) gc.getGridGeometry()).getGridToCRS2D();
+        final AffineTransform gridToWorld = (AffineTransform) gc.getGridGeometry().getGridToCRS2D();
         final double dx = XAffineTransform.getScaleX0(gridToWorld);
         final double dy = XAffineTransform.getScaleY0(gridToWorld);
         if (AsciiGridsImageWriter.resolutionCheck(dx, dy, AsciiGridsImageWriter.EPS)) {
@@ -368,7 +362,7 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
         // gridgeometry
         //
         // /////////////////////////////////////////////////////////////////////
-        final Envelope oldEnv = gc.getEnvelope2D();
+        final Bounds oldEnv = gc.getEnvelope2D();
         final double W = oldEnv.getSpan(0);
         final double H = oldEnv.getSpan(1);
         if ((dx - dy) > ArcGridWriter.ROTATION_EPS) {
@@ -393,7 +387,7 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
         final GeneralGridEnvelope newGridrange =
                 new GeneralGridEnvelope(new int[] {0, 0}, new int[] {Nx, Ny});
         final GridGeometry2D newGridGeometry =
-                new GridGeometry2D(newGridrange, new GeneralEnvelope(gc.getEnvelope()));
+                new GridGeometry2D(newGridrange, new GeneralBounds(gc.getEnvelope()));
 
         // /////////////////////////////////////////////////////////////////////
         //
@@ -401,7 +395,7 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
         //
         // /////////////////////////////////////////////////////////////////////
         final ParameterValueGroup param =
-                (ParameterValueGroup) processor.getOperation("Resample").getParameters().clone();
+                processor.getOperation("Resample").getParameters().clone();
         param.parameter("source").setValue(gc);
         param.parameter("CoordinateReferenceSystem").setValue(gc.getCoordinateReferenceSystem2D());
         param.parameter("GridGeometry").setValue(newGridGeometry);
@@ -444,17 +438,9 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
         File prjFile = new File(ascFile.getParent(), prjName);
 
         // create the file
-        final BufferedWriter fileWriter = new BufferedWriter(new FileWriter(prjFile));
-        try {
+        try (BufferedWriter fileWriter = new BufferedWriter(new FileWriter(prjFile))) {
             // write information on crs
             fileWriter.write(crs.toWKT());
-        } finally {
-            try {
-                fileWriter.close();
-            } catch (Throwable e) {
-                if (LOGGER.isLoggable(Level.FINE))
-                    LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
-            }
         }
     }
 
@@ -463,9 +449,10 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
      * this method shows an error. All other methods are using the geotools GridCoverage class
      *
      * @see
-     *     org.opengis.coverage.grid.GridCoverageWriter#write(org.opengis.coverage.grid.GridCoverage,
-     *     org.opengis.parameter.GeneralParameterValue[])
+     *     org.geotools.api.coverage.grid.GridCoverageWriter#write(org.geotools.api.coverage.grid.GridCoverage,
+     *     org.geotools.api.parameter.GeneralParameterValue[])
      */
+    @Override
     public void write(GridCoverage coverage, GeneralParameterValue[] parameters)
             throws IllegalArgumentException, IOException {
         ensureWeCanWrite(coverage, parameters);
@@ -548,7 +535,8 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
             throw new DataSourceException("The provided coverage is not a GridCoverage2D");
     }
 
-    /** @see org.opengis.coverage.grid.GridCoverageWriter#dispose() */
+    /** @see org.geotools.api.coverage.grid.GridCoverageWriter#dispose() */
+    @Override
     public void dispose() {
 
         if (mWriter != null) {
@@ -563,14 +551,14 @@ public final class ArcGridWriter extends AbstractGridCoverageWriter implements G
 
     static double getCandidateNoData(GridCoverage2D gc) {
         // no data management
-        final GridSampleDimension sd = (GridSampleDimension) gc.getSampleDimension(0);
+        final GridSampleDimension sd = gc.getSampleDimension(0);
         final List<Category> categories = sd.getCategories();
         final Iterator<Category> it = categories.iterator();
         Category candidate;
         double inNoData = Double.NaN;
         final String noDataName = Vocabulary.format(VocabularyKeys.NODATA);
         while (it.hasNext()) {
-            candidate = (Category) it.next();
+            candidate = it.next();
             final String name = candidate.getName().toString();
             if (name.equalsIgnoreCase("No Data") || name.equalsIgnoreCase(noDataName)) {
                 inNoData = candidate.getRange().getMaximum();

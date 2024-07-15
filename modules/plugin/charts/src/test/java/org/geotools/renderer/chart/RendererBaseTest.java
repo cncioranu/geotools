@@ -29,11 +29,11 @@ import java.awt.event.WindowEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.renderer.GTRenderer;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
 import org.geotools.test.TestData;
 import org.geotools.xml.styling.SLDParser;
 
@@ -64,6 +64,7 @@ public abstract class RendererBaseTest {
                 frame.addWindowListener(
                         new WindowAdapter() {
 
+                            @Override
                             public void windowClosing(WindowEvent e) {
                                 e.getWindow().dispose();
                             }
@@ -79,6 +80,7 @@ public abstract class RendererBaseTest {
                                 setPreferredSize(new Dimension(w, h));
                             }
 
+                            @Override
                             public void paint(Graphics g) {
                                 g.drawImage(image, 0, 0, this);
                             }

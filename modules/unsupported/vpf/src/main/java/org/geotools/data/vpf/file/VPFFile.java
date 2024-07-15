@@ -48,12 +48,17 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Vector;
 import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.data.vpf.VPFColumn;
 import org.geotools.data.vpf.VPFLogger;
 import org.geotools.data.vpf.exc.VPFHeaderFormatException;
@@ -68,14 +73,11 @@ import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.feature.type.AnnotationFeatureType;
 import org.geotools.text.Text;
+import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
 
 /**
  * This class encapsulates VPF files, serving as a factory for VPFColumns. Instances of this class
@@ -89,6 +91,7 @@ public class VPFFile {
     //    private final TableInputStream stream;
     private static String ACCESS_MODE = "r";
 
+    static final Logger LOGGER = Logging.getLogger(VPFFile.class);
     /**
      * Variable <code>byteOrder</code> keeps value of byte order in which table is written:
      *
@@ -99,7 +102,7 @@ public class VPFFile {
      */
     private char byteOrder = LEAST_SIGNIF_FIRST;
     /** The columns of the file. This list shall contain objects of type <code>VPFColumn</code> */
-    private final List<VPFColumn> columns = new Vector<>();
+    private final List<VPFColumn> columns = new ArrayList<>();
 
     /**
      * Variable <code>description</code> keeps value of text description of the table's contents.
@@ -147,7 +150,7 @@ public class VPFFile {
 
         Iterator<VPFColumn> iter = columns.iterator();
         while (iter.hasNext()) {
-            column = (VPFColumn) iter.next();
+            column = iter.next();
 
             if (column.isGeometry()) {
                 geometryName = column.getName();
@@ -281,7 +284,7 @@ public class VPFFile {
         Iterator<VPFColumn> iter = columns.iterator();
 
         while (iter.hasNext()) {
-            VPFColumn column = (VPFColumn) iter.next();
+            VPFColumn column = iter.next();
             int length = FeatureTypes.getFieldLength(column.getDescriptor());
             if (length > -1) {
                 size += length;
@@ -331,7 +334,7 @@ public class VPFFile {
 
         try {
             // This speeds things up mightily
-            String firstColumnName = ((VPFColumn) columns.get(0)).getName();
+            String firstColumnName = columns.get(0).getName();
 
             if (idName.equals(firstColumnName)) {
                 setPosition(id);
@@ -351,7 +354,7 @@ public class VPFFile {
                 result = getRowFromIterator(joinedIter, idName, id);
             }
         } catch (IOException exc) {
-            exc.printStackTrace();
+            LOGGER.log(Level.SEVERE, "", exc);
         }
 
         return result;
@@ -373,7 +376,7 @@ public class VPFFile {
         int value = -1;
 
         while (iter.hasNext()) {
-            currentFeature = (SimpleFeature) iter.next();
+            currentFeature = iter.next();
             try {
                 value = Integer.parseInt(currentFeature.getAttribute(idName).toString());
 
@@ -384,7 +387,7 @@ public class VPFFile {
                 }
             } catch (NumberFormatException exc) {
                 // If this happens, the data is invalid so dumping a stack trace seems reasonable
-                exc.printStackTrace();
+                LOGGER.log(Level.SEVERE, "", exc);
             }
         }
 
@@ -418,7 +421,7 @@ public class VPFFile {
             }
         } catch (IOException exc) {
             // No idea what to do if this happens
-            exc.printStackTrace();
+            LOGGER.log(Level.SEVERE, "", exc);
         }
 
         return result;
@@ -532,7 +535,6 @@ public class VPFFile {
      * @return the constructed object
      * @throws IOException on any file IO errors
      */
-    @SuppressWarnings("unchecked")
     protected synchronized Object readGeometry(
             int instancesCount, int dimensionality, boolean readDoubles) throws IOException {
         Object result = null;
@@ -615,14 +617,14 @@ public class VPFFile {
 
         try {
             for (int inx = 0; inx < columns.size(); inx++) {
-                column = (VPFColumn) columns.get(inx);
+                column = columns.get(inx);
                 AttributeDescriptor descriptor = column.getDescriptor();
 
                 if (descriptor.getType().getRestrictions().isEmpty()
                         || descriptor
                                 .getType()
                                 .getRestrictions()
-                                .contains(org.opengis.filter.Filter.INCLUDE)) {
+                                .contains(org.geotools.api.filter.Filter.INCLUDE)) {
                     values[inx] = readVariableSizeData(column.getTypeChar());
                 } else {
                     values[inx] =
@@ -636,7 +638,7 @@ public class VPFFile {
             result = SimpleFeatureBuilder.build(featureType, values, null);
         } catch (EOFException exp) {
             // Should we be throwing an exception instead of eating it?
-            exp.printStackTrace();
+            LOGGER.log(Level.SEVERE, "", exp);
 
             debug = true;
 
@@ -977,6 +979,7 @@ public class VPFFile {
     /* (non-Javadoc)
      * @see java.lang.Object#toString()
      */
+    @Override
     public String toString() {
         return featureType.toString();
     }

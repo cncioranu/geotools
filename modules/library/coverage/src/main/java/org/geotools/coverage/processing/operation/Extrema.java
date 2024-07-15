@@ -30,15 +30,15 @@ import javax.media.jai.JAI;
 import javax.media.jai.ParameterBlockJAI;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.operator.ExtremaDescriptor;
+import org.geotools.api.coverage.processing.OperationNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.processing.BaseStatisticsOperationJAI;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.processing.OperationNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.InternationalString;
 
 /**
  * This operation simply wraps JAI Extrema operations described by {@link ExtremaDescriptor} inside
@@ -98,6 +98,7 @@ public class Extrema extends BaseStatisticsOperationJAI {
         super(EXTREMA, getOperationDescriptor(JAIExt.getOperationName(EXTREMA)));
     }
 
+    @Override
     public String getName() {
         return EXTREMA;
     }
@@ -113,7 +114,7 @@ public class Extrema extends BaseStatisticsOperationJAI {
      *     InternationalString, MathTransform, GridCoverage2D[],
      *     org.geotools.coverage.processing.OperationJAI.Parameters),
      */
-    @SuppressWarnings("unchecked")
+    @Override
     protected Map<String, ?> getProperties(
             RenderedImage data,
             CoordinateReferenceSystem crs,
@@ -158,10 +159,10 @@ public class Extrema extends BaseStatisticsOperationJAI {
                         (double[]) result.getProperty(GT_SYNTHETIC_PROPERTY_MINIMUM);
                 Object property = result.getProperty(GT_SYNTHETIC_PROPERTY_MIN_LOCATIONS);
                 if ((property instanceof List[]))
-                    synthProp.put(GT_SYNTHETIC_PROPERTY_MIN_LOCATIONS, (List<int[]>[]) property);
+                    synthProp.put(GT_SYNTHETIC_PROPERTY_MIN_LOCATIONS, property);
                 property = result.getProperty(GT_SYNTHETIC_PROPERTY_MAX_LOCATIONS);
                 if ((property instanceof List[]))
-                    synthProp.put(GT_SYNTHETIC_PROPERTY_MAX_LOCATIONS, (List<int[]>[]) property);
+                    synthProp.put(GT_SYNTHETIC_PROPERTY_MAX_LOCATIONS, property);
 
                 // return the map
                 synthProp.put(GT_SYNTHETIC_PROPERTY_MINIMUM, minimums);
@@ -177,6 +178,7 @@ public class Extrema extends BaseStatisticsOperationJAI {
         return super.getProperties(data, crs, name, toCRS, sources, parameters);
     }
 
+    @Override
     protected void handleJAIEXTParams(
             ParameterBlockJAI parameters, ParameterValueGroup parameters2) {
         if (JAIExt.isJAIExtOperation(STATS)) {

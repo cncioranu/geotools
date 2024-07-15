@@ -28,6 +28,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,8 +38,30 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.Join.Type;
-import org.geotools.data.Query;
+import org.geotools.api.data.Join.Type;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.ExcludeFilter;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.IncludeFilter;
+import org.geotools.api.filter.NativeFilter;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.Divide;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.Multiply;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.Subtract;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.data.jdbc.datasource.DataSourceFinder;
+import org.geotools.data.jdbc.datasource.UnWrapper;
 import org.geotools.feature.visitor.AverageVisitor;
 import org.geotools.feature.visitor.CountVisitor;
 import org.geotools.feature.visitor.FeatureAttributeVisitor;
@@ -59,26 +82,6 @@ import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.ExcludeFilter;
-import org.opengis.filter.Filter;
-import org.opengis.filter.Id;
-import org.opengis.filter.IncludeFilter;
-import org.opengis.filter.NativeFilter;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.Divide;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.Multiply;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Subtract;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * The driver used by JDBCDataStore to directly communicate with the database.
@@ -164,8 +167,46 @@ public abstract class SQLDialect {
                 }
             };
 
+    /**
+     * Sentinel value used to mark that the unwrapper lookup happened already, and an unwrapper was
+     * not found
+     */
+    protected static final UnWrapper UNWRAPPER_NOT_FOUND =
+            new UnWrapper() {
+
+                @Override
+                public Statement unwrap(Statement statement) {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public Connection unwrap(Connection conn) {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public boolean canUnwrap(Statement st) {
+                    return false;
+                }
+
+                @Override
+                public boolean canUnwrap(Connection conn) {
+                    return false;
+                }
+            };
+
+    /**
+     * Map of {@code UnWrapper} objects keyed by the class of {@code Connection} it is an unwrapper
+     * for. This avoids the overhead of searching the {@code DataSourceFinder} service registry at
+     * each unwrap.
+     */
+    protected final Map<Class<? extends Connection>, UnWrapper> uwMap = new HashMap<>();
+
     /** The datastore using the dialect */
     protected JDBCDataStore dataStore;
+
+    /** Used to influence the CRS axis ordering in {@link #createCRS(int, java.sql.Connection) }. */
+    protected boolean forceLongitudeFirst = false;
 
     /**
      * Creates the dialect.
@@ -263,7 +304,7 @@ public abstract class SQLDialect {
      *
      * <p>Implementing this method is optional. It is used to allow for handling user defined types
      * or "DOMAINS". Dialects that implement this method should set the appropriate information on
-     * the <tt>metadata</tt> object to allow the column to be mapped via teh regular type mapping
+     * the <tt>metadata</tt> object to allow the column to be mapped via the regular type mapping
      * heuristics.
      *
      * @param columnMetaData The column metdata.
@@ -612,6 +653,9 @@ public abstract class SQLDialect {
      * Turns the specified srid into a {@link CoordinateReferenceSystem}, or returns <code>null
      * </code> if not possible.
      *
+     * <p>Note this implementation takes account of {@link #forceLongitudeFirst} which should be set
+     * when longitude first (XY) axis ordering is required.
+     *
      * <p>The implementation might just use <code>CRS.decode("EPSG:" + srid)</code>, but most
      * spatial databases will have their own SRS database that can be queried as well.
      *
@@ -624,12 +668,11 @@ public abstract class SQLDialect {
      */
     public CoordinateReferenceSystem createCRS(int srid, Connection cx) throws SQLException {
         try {
-            return CRS.decode("EPSG:" + srid);
+            return CRS.decode("EPSG:" + srid, forceLongitudeFirst);
         } catch (Exception e) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
-                        Level.FINE,
-                        "Could not decode " + srid + " using the built-in EPSG database");
+                        Level.FINE, "Could not decode EPSG:" + srid + " using the EPSG plugins.");
             }
             return null;
         }
@@ -1261,6 +1304,15 @@ public abstract class SQLDialect {
         // nothing to do
     }
 
+    /**
+     * Controls whether select hints should be added to queries on virtual tables.
+     *
+     * @return True if select hints hould be added to queries on virtual tables, false otherwise.
+     */
+    public boolean applyHintsOnVirtualTables() {
+        return false;
+    }
+
     /** @return Table types filtered from jdbc {@link DatabaseMetaData} */
     public String[] getDesiredTablesType() {
         return new String[] {"TABLE", "VIEW", "MATERIALIZED VIEW", "SYNONYM"};
@@ -1380,5 +1432,73 @@ public abstract class SQLDialect {
     public Object convertValue(Object value, AttributeDescriptor ad) {
         Class<?> binding = ad.getType().getBinding();
         return Converters.convert(value, binding);
+    }
+
+    /**
+     * Returns true if this database can "group by" on a Geometry column. Defaults to false,
+     * specific implementations with this capability should override
+     */
+    public boolean canGroupOnGeometry() {
+        return false;
+    }
+
+    /**
+     * Returns the java type mapped to the a specified sql type name defined by the dialect.
+     *
+     * <p>If there is no such type mapped to <tt>sqlTypeName</tt>, <code>null</code> is returned.
+     *
+     * @param sqlTypeName The name of the sql type.
+     * @return The mapped java class, or <code>null</code>. if no such mapping exists.
+     */
+    public Class<?> getMapping(String sqlTypeName) {
+        return null;
+    }
+
+    /** Obtains the native connection object given a database connection. */
+    @SuppressWarnings("PMD.CloseResource")
+    protected <T extends Connection> T unwrapConnection(Connection cx, Class<T> clazz)
+            throws SQLException {
+        if (clazz.isInstance(cx)) {
+            return clazz.cast(cx);
+        }
+        try {
+            // Unwrap the connection multiple levels as necessary to get at the underlying
+            // connection. Maintain a map of UnWrappers to avoid searching the registry
+            // every time we need to unwrap.
+            Connection testCon = cx;
+            Connection toUnwrap;
+            do {
+                UnWrapper unwrapper = uwMap.get(testCon.getClass());
+                if (unwrapper == null) {
+                    unwrapper = DataSourceFinder.getUnWrapper(testCon);
+                    if (unwrapper == null) {
+                        unwrapper = UNWRAPPER_NOT_FOUND;
+                    }
+                    uwMap.put(testCon.getClass(), unwrapper);
+                }
+                if (unwrapper == UNWRAPPER_NOT_FOUND) {
+                    // give up and do Java unwrap below
+                    break;
+                }
+                toUnwrap = testCon;
+                testCon = unwrapper.unwrap(testCon);
+                if (clazz.isInstance(testCon)) {
+                    return clazz.cast(testCon);
+                }
+            } while (testCon != null && testCon != toUnwrap);
+            // try to use Java unwrapping
+            try {
+                if (cx.isWrapperFor(clazz)) {
+                    return cx.unwrap(clazz);
+                }
+            } catch (Throwable t) {
+                // not a mistake, old DBCP versions will throw an Error here, we need to catch it
+                LOGGER.log(Level.FINER, "Failed to unwrap connection using Java facilities", t);
+            }
+        } catch (IOException e) {
+            throw new SQLException(
+                    "Could not obtain " + clazz.getName() + " from " + cx.getClass(), e);
+        }
+        throw new SQLException("Could not obtain " + clazz.getName() + " from " + cx.getClass());
     }
 }

@@ -20,7 +20,6 @@ import java.util.ArrayDeque;
 import java.util.Iterator;
 import java.util.Queue;
 import org.geotools.graph.structure.Graph;
-import org.geotools.graph.structure.GraphVisitor;
 import org.geotools.graph.structure.Graphable;
 import org.geotools.graph.structure.Node;
 import org.geotools.graph.traverse.GraphTraversal;
@@ -61,18 +60,15 @@ public class BreadthFirstTopologicalIterator extends AbstractGraphIterator {
 
         // initialize nodes
         graph.visitNodes(
-                new GraphVisitor() {
-                    @Override
-                    public int visit(Graphable component) {
-                        Node node = (Node) component;
+                component -> {
+                    Node node = (Node) component;
 
-                        // reset counter to zero
-                        node.setCount(0);
+                    // reset counter to zero
+                    node.setCount(0);
 
-                        if (node.getDegree() < 2) m_queue.add(node);
+                    if (node.getDegree() < 2) m_queue.add(node);
 
-                        return (0);
-                    }
+                    return (0);
                 });
     }
 
@@ -97,6 +93,7 @@ public class BreadthFirstTopologicalIterator extends AbstractGraphIterator {
      * @see org.geotools.graph.traverse.GraphIterator#cont(Graphable)
      */
     @Override
+    @SuppressWarnings("PMD.ForLoopCanBeForeach")
     public void cont(Graphable current, GraphTraversal traversal) {
         // increment the count of all adjacent nodes by one
         // if the result count is 1 less than the degree, place it into the queue

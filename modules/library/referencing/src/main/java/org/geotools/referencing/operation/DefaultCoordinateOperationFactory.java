@@ -32,8 +32,43 @@ import javax.measure.MetricPrefix;
 import javax.measure.Unit;
 import javax.measure.quantity.Angle;
 import javax.measure.quantity.Time;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CRSFactory;
+import org.geotools.api.referencing.crs.CompoundCRS;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeneralDerivedCRS;
+import org.geotools.api.referencing.crs.GeocentricCRS;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.referencing.crs.SingleCRS;
+import org.geotools.api.referencing.crs.TemporalCRS;
+import org.geotools.api.referencing.crs.VerticalCRS;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CartesianCS;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.EllipsoidalCS;
+import org.geotools.api.referencing.cs.TimeCS;
+import org.geotools.api.referencing.cs.VerticalCS;
+import org.geotools.api.referencing.datum.Datum;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.datum.GeodeticDatum;
+import org.geotools.api.referencing.datum.PrimeMeridian;
+import org.geotools.api.referencing.datum.TemporalDatum;
+import org.geotools.api.referencing.datum.VerticalDatum;
+import org.geotools.api.referencing.datum.VerticalDatumType;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.Matrix;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
+import org.geotools.api.referencing.operation.Operation;
+import org.geotools.api.referencing.operation.OperationMethod;
+import org.geotools.api.referencing.operation.OperationNotFoundException;
+import org.geotools.api.referencing.operation.Transformation;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.crs.DefaultCompoundCRS;
 import org.geotools.referencing.crs.DefaultEngineeringCRS;
@@ -49,42 +84,6 @@ import org.geotools.referencing.operation.matrix.SingularMatrixException;
 import org.geotools.referencing.operation.matrix.XMatrix;
 import org.geotools.util.Classes;
 import org.geotools.util.factory.Hints;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CRSFactory;
-import org.opengis.referencing.crs.CompoundCRS;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeneralDerivedCRS;
-import org.opengis.referencing.crs.GeocentricCRS;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.referencing.crs.SingleCRS;
-import org.opengis.referencing.crs.TemporalCRS;
-import org.opengis.referencing.crs.VerticalCRS;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CartesianCS;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.EllipsoidalCS;
-import org.opengis.referencing.cs.TimeCS;
-import org.opengis.referencing.cs.VerticalCS;
-import org.opengis.referencing.datum.Datum;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.datum.GeodeticDatum;
-import org.opengis.referencing.datum.PrimeMeridian;
-import org.opengis.referencing.datum.TemporalDatum;
-import org.opengis.referencing.datum.VerticalDatum;
-import org.opengis.referencing.datum.VerticalDatumType;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.Matrix;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.Operation;
-import org.opengis.referencing.operation.OperationMethod;
-import org.opengis.referencing.operation.OperationNotFoundException;
-import org.opengis.referencing.operation.Transformation;
 import si.uom.NonSI;
 import si.uom.SI;
 
@@ -200,6 +199,7 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
      *     {@code targetCRS}.
      * @throws FactoryException if the operation creation failed for some other reason.
      */
+    @Override
     public CoordinateOperation createOperation(
             CoordinateReferenceSystem sourceCRS, CoordinateReferenceSystem targetCRS)
             throws OperationNotFoundException, FactoryException {
@@ -222,6 +222,7 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
      * @return A {@code Set} of coordinate operations from {@code sourceCRS} to {@code targetCRS}.
      * @throws FactoryException if the operation creation failed for some other reason.
      */
+    @Override
     public Set<CoordinateOperation> findOperations(
             final CoordinateReferenceSystem sourceCRS, final CoordinateReferenceSystem targetCRS)
             throws FactoryException {
@@ -471,6 +472,7 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
      *     {@code targetCRS}.
      * @throws FactoryException if the operation creation failed for some other reason.
      */
+    @Override
     public CoordinateOperation createOperation(
             final CoordinateReferenceSystem sourceCRS,
             final CoordinateReferenceSystem targetCRS,
@@ -874,8 +876,8 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
                 }
                 final int sourceDim = getDimension(sourceCRS);
                 final int targetDim = getDimension(targetCRS);
-                final ParameterValueGroup parameters;
-                parameters = getMathTransformFactory().getDefaultParameters(molodenskiMethod);
+                final ParameterValueGroup parameters =
+                        getMathTransformFactory().getDefaultParameters(molodenskiMethod);
                 parameters.parameter("src_semi_major").setValue(sourceEllipsoid.getSemiMajorAxis());
                 parameters.parameter("src_semi_minor").setValue(sourceEllipsoid.getSemiMinorAxis());
                 parameters.parameter("tgt_semi_major").setValue(targetEllipsoid.getSemiMajorAxis());
@@ -885,14 +887,13 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
                 parameters.parameter("dz").setValue(bursaWolf.dz);
                 parameters.parameter("dim").setValue(sourceDim);
                 if (sourceDim == targetDim) {
-                    final CoordinateOperation step1, step2, step3;
                     final GeographicCRS normSourceCRS = normalize(sourceCRS, true);
                     final GeographicCRS normTargetCRS = normalize(targetCRS, true);
-                    step1 = createOperationStep(sourceCRS, normSourceCRS);
-                    step2 =
+                    final CoordinateOperation step1 = createOperationStep(sourceCRS, normSourceCRS);
+                    final CoordinateOperation step2 =
                             createFromParameters(
                                     identifier, normSourceCRS, normTargetCRS, parameters);
-                    step3 = createOperationStep(normTargetCRS, targetCRS);
+                    final CoordinateOperation step3 = createOperationStep(normTargetCRS, targetCRS);
                     return concatenate(step1, step2, step3);
                 }
                 // TODO: Need some way to pass 'targetDim' to Molodenski.
@@ -998,14 +999,13 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
          */
         final GeographicCRS sourceGeo = sourceCRS.getBaseCRS();
         final GeographicCRS targetGeo = targetCRS.getBaseCRS();
-        Set<CoordinateOperation> step1, step2, step3;
 
-        step1 = tryDB(sourceCRS, sourceGeo, limit);
+        Set<CoordinateOperation> step1 = tryDB(sourceCRS, sourceGeo, limit);
         if (step1.isEmpty()) step1 = findOperationSteps(sourceCRS, sourceGeo, limit);
-        step2 = tryDB(sourceGeo, targetGeo, limit);
+        Set<CoordinateOperation> step2 = tryDB(sourceGeo, targetGeo, limit);
         if (step2.isEmpty())
             step2 = Collections.singleton(createOperationStep(sourceGeo, targetGeo));
-        step3 = tryDB(targetGeo, targetCRS, limit);
+        Set<CoordinateOperation> step3 = tryDB(targetGeo, targetCRS, limit);
         if (step3.isEmpty()) step3 = findOperationSteps(targetGeo, targetCRS, limit);
         return concatenate(step1, step2, step3);
     }
@@ -1176,9 +1176,8 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
         final GeodeticDatum targetDatum = targetCRS.getDatum();
         final CoordinateSystem sourceCS = sourceCRS.getCoordinateSystem();
         final CoordinateSystem targetCS = targetCRS.getCoordinateSystem();
-        final double sourcePM, targetPM;
-        sourcePM = getGreenwichLongitude(sourceDatum.getPrimeMeridian());
-        targetPM = getGreenwichLongitude(targetDatum.getPrimeMeridian());
+        final double sourcePM = getGreenwichLongitude(sourceDatum.getPrimeMeridian());
+        final double targetPM = getGreenwichLongitude(targetDatum.getPrimeMeridian());
         if (equalsIgnorePrimeMeridian(sourceDatum, targetDatum)) {
             if (sourcePM == targetPM) {
                 /*
@@ -1217,8 +1216,7 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
                     datumShift = new Matrix4(); // Identity transform.
                     identifier = ELLIPSOID_SHIFT;
                 } else {
-                    throw new OperationNotFoundException(
-                            Errors.format(ErrorKeys.BURSA_WOLF_PARAMETERS_REQUIRED));
+                    throw new OperationNotFoundException(ErrorKeys.BURSA_WOLF_PARAMETERS_REQUIRED);
                 }
             }
             final Matrix normalizeSource = swapAndScaleAxis(sourceCS, STANDARD);
@@ -1270,16 +1268,16 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
         final GeocentricCRS normTargetCRS = normalize(targetCRS, datum);
         final Ellipsoid ellipsoid = datum.getEllipsoid();
         final Unit unit = ellipsoid.getAxisUnit();
-        final ParameterValueGroup param;
-        param = getMathTransformFactory().getDefaultParameters("Ellipsoid_To_Geocentric");
+        final ParameterValueGroup param =
+                getMathTransformFactory().getDefaultParameters("Ellipsoid_To_Geocentric");
         param.parameter("semi_major").setValue(ellipsoid.getSemiMajorAxis(), unit);
         param.parameter("semi_minor").setValue(ellipsoid.getSemiMinorAxis(), unit);
         param.parameter("dim").setValue(getDimension(normSourceCRS));
 
-        final CoordinateOperation step1, step2, step3;
-        step1 = createOperationStep(sourceCRS, normSourceCRS);
-        step2 = createFromParameters(GEOCENTRIC_CONVERSION, normSourceCRS, normTargetCRS, param);
-        step3 = createOperationStep(normTargetCRS, targetCRS);
+        final CoordinateOperation step1 = createOperationStep(sourceCRS, normSourceCRS);
+        final CoordinateOperation step2 =
+                createFromParameters(GEOCENTRIC_CONVERSION, normSourceCRS, normTargetCRS, param);
+        final CoordinateOperation step3 = createOperationStep(normTargetCRS, targetCRS);
         return concatenate(step1, step2, step3);
     }
 
@@ -1299,16 +1297,16 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
         final GeocentricCRS normSourceCRS = normalize(sourceCRS, datum);
         final Ellipsoid ellipsoid = datum.getEllipsoid();
         final Unit unit = ellipsoid.getAxisUnit();
-        final ParameterValueGroup param;
-        param = getMathTransformFactory().getDefaultParameters("Geocentric_To_Ellipsoid");
+        final ParameterValueGroup param =
+                getMathTransformFactory().getDefaultParameters("Geocentric_To_Ellipsoid");
         param.parameter("semi_major").setValue(ellipsoid.getSemiMajorAxis(), unit);
         param.parameter("semi_minor").setValue(ellipsoid.getSemiMinorAxis(), unit);
         param.parameter("dim").setValue(getDimension(normTargetCRS));
 
-        final CoordinateOperation step1, step2, step3;
-        step1 = createOperationStep(sourceCRS, normSourceCRS);
-        step2 = createFromParameters(GEOCENTRIC_CONVERSION, normSourceCRS, normTargetCRS, param);
-        step3 = createOperationStep(normTargetCRS, targetCRS);
+        final CoordinateOperation step1 = createOperationStep(sourceCRS, normSourceCRS);
+        final CoordinateOperation step2 =
+                createFromParameters(GEOCENTRIC_CONVERSION, normSourceCRS, normTargetCRS, param);
+        final CoordinateOperation step3 = createOperationStep(normTargetCRS, targetCRS);
         return concatenate(step1, step2, step3);
     }
 
@@ -1757,7 +1755,7 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
      * Tries to get a coordinate operation from a database (typically EPSG). The exact behavior
      * depends on the {@link AuthorityBackedFactory} implementation (the most typical subclass), but
      * usually the database query is delegated to some instance of {@link
-     * org.opengis.referencing.operation.CoordinateOperationAuthorityFactory}. If no coordinate
+     * org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory}. If no coordinate
      * operation was found in the database, then this method returns {@code null}.
      *
      * @param limit The maximum number of operations to be returned. Use -1 to return all the

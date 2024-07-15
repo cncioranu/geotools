@@ -17,12 +17,12 @@
 package org.geotools.temporal.object;
 
 import java.util.Arrays;
+import org.geotools.api.temporal.CalendarDate;
+import org.geotools.api.temporal.CalendarEra;
+import org.geotools.api.temporal.IndeterminateValue;
+import org.geotools.api.temporal.TemporalReferenceSystem;
+import org.geotools.api.util.InternationalString;
 import org.geotools.util.Utilities;
-import org.opengis.temporal.CalendarDate;
-import org.opengis.temporal.CalendarEra;
-import org.opengis.temporal.IndeterminateValue;
-import org.opengis.temporal.TemporalReferenceSystem;
-import org.opengis.util.InternationalString;
 
 /**
  * A data type that shall be used to identify temporal position within a calendar.
@@ -56,6 +56,7 @@ public class DefaultCalendarDate extends DefaultTemporalPosition implements Cale
      * Provides the name of the {@linkplain CalendarEra calendar era} to which the date is
      * referenced.
      */
+    @Override
     public InternationalString getCalendarEraName() {
         return calendarEraName;
     }
@@ -67,6 +68,7 @@ public class DefaultCalendarDate extends DefaultTemporalPosition implements Cale
      * format defined in ISO 8601 for dates in the Gregorian calendar may be used for any date that
      * is composed of values for year, month and day.
      */
+    @Override
     public int[] getCalendarDate() {
         return calendarDate;
     }

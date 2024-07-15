@@ -16,33 +16,39 @@
  */
 package org.geotools.data.collection;
 
+import static org.junit.Assert.assertTrue;
+
 import java.util.Comparator;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.store.FeatureCollectionWrapperTestSupport;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.collection.SortedSimpleFeatureCollection;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
+import org.junit.Test;
 
 public class SortedFeatureCollectionTest extends FeatureCollectionWrapperTestSupport {
 
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+    FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
+    @Test
     public void testNaturalSort() throws Exception {
         SortedSimpleFeatureCollection sorted =
                 new SortedSimpleFeatureCollection(delegate, new SortBy[] {SortBy.NATURAL_ORDER});
         checkSorted(sorted, DataUtilities.sortComparator(SortBy.NATURAL_ORDER));
     }
 
+    @Test
     public void testReverseSort() throws Exception {
         SortedSimpleFeatureCollection sorted =
                 new SortedSimpleFeatureCollection(delegate, new SortBy[] {SortBy.REVERSE_ORDER});
         checkSorted(sorted, DataUtilities.sortComparator(SortBy.REVERSE_ORDER));
     }
 
+    @Test
     public void testSortAttribute() throws Exception {
         SortBy sort = ff.sort("someAtt", SortOrder.ASCENDING);
         SortedSimpleFeatureCollection sorted =
@@ -50,6 +56,7 @@ public class SortedFeatureCollectionTest extends FeatureCollectionWrapperTestSup
         checkSorted(sorted, DataUtilities.sortComparator(sort));
     }
 
+    @Test
     public void testSortAttributeDescending() throws Exception {
         SortBy sort = ff.sort("someAtt", SortOrder.DESCENDING);
         SortedSimpleFeatureCollection sorted =
@@ -59,15 +66,17 @@ public class SortedFeatureCollectionTest extends FeatureCollectionWrapperTestSup
 
     private void checkSorted(
             SortedSimpleFeatureCollection sorted, Comparator<SimpleFeature> comparator) {
-        SimpleFeatureIterator fi = sorted.features();
-        SimpleFeature prev = null;
-        while (fi.hasNext()) {
-            SimpleFeature curr = fi.next();
-            if (prev != null) {
-                assertTrue("Failed on " + prev + " / " + curr, comparator.compare(prev, curr) <= 0);
+        try (SimpleFeatureIterator fi = sorted.features()) {
+            SimpleFeature prev = null;
+            while (fi.hasNext()) {
+                SimpleFeature curr = fi.next();
+                if (prev != null) {
+                    assertTrue(
+                            "Failed on " + prev + " / " + curr,
+                            comparator.compare(prev, curr) <= 0);
+                }
+                prev = curr;
             }
-            prev = curr;
         }
-        fi.close();
     }
 }

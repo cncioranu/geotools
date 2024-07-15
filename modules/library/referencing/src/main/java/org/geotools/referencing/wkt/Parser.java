@@ -19,6 +19,7 @@ package org.geotools.referencing.wkt;
 import static java.util.Collections.singletonMap;
 
 import java.io.BufferedReader;
+import java.text.MessageFormat;
 import java.text.ParseException;
 import java.text.ParsePosition;
 import java.util.ArrayList;
@@ -31,9 +32,42 @@ import javax.measure.Quantity;
 import javax.measure.Unit;
 import javax.measure.quantity.Angle;
 import javax.measure.quantity.Length;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchIdentifierException;
+import org.geotools.api.referencing.crs.CRSFactory;
+import org.geotools.api.referencing.crs.CompoundCRS;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.DerivedCRS;
+import org.geotools.api.referencing.crs.EngineeringCRS;
+import org.geotools.api.referencing.crs.GeocentricCRS;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.referencing.crs.VerticalCRS;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CSFactory;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.EllipsoidalCS;
+import org.geotools.api.referencing.datum.Datum;
+import org.geotools.api.referencing.datum.DatumFactory;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.datum.EngineeringDatum;
+import org.geotools.api.referencing.datum.GeodeticDatum;
+import org.geotools.api.referencing.datum.PrimeMeridian;
+import org.geotools.api.referencing.datum.VerticalDatum;
+import org.geotools.api.referencing.datum.VerticalDatumType;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransformFactory;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
+import org.geotools.api.referencing.operation.OperationMethod;
 import org.geotools.measure.Units;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.ReferencingFactoryFinder;
@@ -48,40 +82,6 @@ import org.geotools.referencing.factory.ReferencingFactoryContainer;
 import org.geotools.referencing.factory.epsg.CartesianAuthorityFactory;
 import org.geotools.referencing.operation.DefiningConversion;
 import org.geotools.util.Arguments;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchIdentifierException;
-import org.opengis.referencing.crs.CRSFactory;
-import org.opengis.referencing.crs.CompoundCRS;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.DerivedCRS;
-import org.opengis.referencing.crs.EngineeringCRS;
-import org.opengis.referencing.crs.GeocentricCRS;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.referencing.crs.VerticalCRS;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CSFactory;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.EllipsoidalCS;
-import org.opengis.referencing.datum.Datum;
-import org.opengis.referencing.datum.DatumFactory;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.datum.EngineeringDatum;
-import org.opengis.referencing.datum.GeodeticDatum;
-import org.opengis.referencing.datum.PrimeMeridian;
-import org.opengis.referencing.datum.VerticalDatum;
-import org.opengis.referencing.datum.VerticalDatumType;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransformFactory;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.OperationMethod;
 import si.uom.NonSI;
 import si.uom.SI;
 import tech.units.indriya.AbstractUnit;
@@ -192,8 +192,8 @@ public class Parser extends MathTransformParser {
         this.crsFactory = crsFactory;
         final AxisDirection[] values = AxisDirection.values();
         directions = new HashMap<>((int) Math.ceil((values.length + 1) / 0.75f), 0.75f);
-        for (int i = 0; i < values.length; i++) {
-            directions.put(values[i].name().trim().toUpperCase(), values[i]);
+        for (AxisDirection value : values) {
+            directions.put(value.name().trim().toUpperCase(), value);
         }
     }
 
@@ -237,7 +237,7 @@ public class Parser extends MathTransformParser {
                 assert isValid(r, keyword) : element;
             }
         }
-        throw element.parseFailed(null, Errors.format(ErrorKeys.UNKNOW_TYPE_$1, key));
+        throw element.parseFailed(null, MessageFormat.format(ErrorKeys.UNKNOW_TYPE_$1, key));
     }
 
     /**
@@ -348,7 +348,7 @@ public class Parser extends MathTransformParser {
                 properties = new HashMap<>(4);
                 properties.put(IdentifiedObject.NAME_KEY, name);
             } else {
-                properties = singletonMap(IdentifiedObject.NAME_KEY, (Object) name);
+                properties = singletonMap(IdentifiedObject.NAME_KEY, name);
             }
         } else {
             final String auth = element.pullString("name");
@@ -388,7 +388,6 @@ public class Parser extends MathTransformParser {
      * @todo Authority code is currently ignored. We may consider to create a subclass of {@link
      *     Unit} which implements {@link IdentifiedObject} in a future version.
      */
-    @SuppressWarnings("unchecked")
     private <T extends Quantity<T>> Unit<T> parseUnit(final Element parent, final Unit<T> unit)
             throws ParseException {
         final Element element = parent.pullElement("UNIT");
@@ -448,7 +447,8 @@ public class Parser extends MathTransformParser {
         element.close();
 
         if (direction == null) {
-            throw element.parseFailed(null, Errors.format(ErrorKeys.UNKNOW_TYPE_$1, orientation));
+            throw element.parseFailed(
+                    null, MessageFormat.format(ErrorKeys.UNKNOW_TYPE_$1, orientation));
         }
         try {
             return createAxis(properties, name, direction, unit);
@@ -655,9 +655,9 @@ public class Parser extends MathTransformParser {
                 parameter.setValue(paramValue);
             }
         } catch (ParameterNotFoundException exception) {
+            final Object arg0 = exception.getParameterName();
             throw param.parseFailed(
-                    exception,
-                    Errors.format(ErrorKeys.UNEXPECTED_PARAMETER_$1, exception.getParameterName()));
+                    exception, MessageFormat.format(ErrorKeys.UNEXPECTED_PARAMETER_$1, arg0));
         }
         return parameters;
     }
@@ -733,7 +733,7 @@ public class Parser extends MathTransformParser {
         final VerticalDatumType type =
                 DefaultVerticalDatum.getVerticalDatumTypeFromLegacyCode(datum);
         if (type == null) {
-            throw element.parseFailed(null, Errors.format(ErrorKeys.UNKNOW_TYPE_$1, datum));
+            throw element.parseFailed(null, MessageFormat.format(ErrorKeys.UNKNOW_TYPE_$1, datum));
         }
         try {
             return datumFactory.createVerticalDatum(properties, type);
@@ -845,8 +845,8 @@ public class Parser extends MathTransformParser {
         final PrimeMeridian meridian = parsePrimem(element, NonSI.DEGREE_ANGLE);
         final GeodeticDatum datum = parseDatum(element, meridian);
         final Unit<Length> linearUnit = parseUnit(element, SI.METRE);
-        CoordinateSystemAxis axis0, axis1, axis2;
-        axis0 = parseAxis(element, linearUnit, false);
+        CoordinateSystemAxis axis1, axis2;
+        CoordinateSystemAxis axis0 = parseAxis(element, linearUnit, false);
         try {
             if (axis0 != null) {
                 axis1 = parseAxis(element, linearUnit, true);
@@ -1089,9 +1089,7 @@ public class Parser extends MathTransformParser {
                             toBase.inverse());
             final CoordinateSystem cs = new AbstractCS(properties, axis);
             return crsFactory.createDerivedCRS(properties, base, conversion, cs);
-        } catch (FactoryException exception) {
-            throw element.parseFailed(exception, null);
-        } catch (NoninvertibleTransformException exception) {
+        } catch (FactoryException | NoninvertibleTransformException exception) {
             throw element.parseFailed(exception, null);
         }
     }
@@ -1182,7 +1180,7 @@ public class Parser extends MathTransformParser {
      * @param args The command line arguments.
      */
     @SuppressWarnings("PMD.CloseResource")
-    public static void main(String[] args) {
+    public static void main(String... args) {
         final Arguments arguments = new Arguments(args);
         final Integer indentation = arguments.getOptionalInteger(Formattable.INDENTATION);
         final String authority = arguments.getOptionalString("-authority");

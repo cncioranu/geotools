@@ -1,19 +1,13 @@
 /*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
+ *    GeoTools Sample code and Tutorials by Open Source Geospatial Foundation, and others
+ *    https://docs.geotools.org
  *
- * 	  (C) 2014 Open Source Geospatial Foundation (OSGeo)
- * 	  (c) 2012 - 2014 OpenPlans
+ *    To the extent possible under law, the author(s) have dedicated all copyright
+ *    and related and neighboring rights to this software to the public domain worldwide.
+ *    This software is distributed without any warranty.
  *
- *    This library is free software; you can redistribute it and/or
- *    modify it under the terms of the GNU Lesser General Public
- *    License as published by the Free Software Foundation;
- *    version 2.1 of the License.
- *
- *    This library is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *    Lesser General Public License for more details.
+ *    You should have received a copy of the CC0 Public Domain Dedication along with this
+ *    software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 package org.geotools.tutorial.csv3.parse;
 
@@ -22,15 +16,15 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.tutorial.csv3.CSVFileState;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
 
 public class CSVAttributesOnlyStrategy extends CSVStrategy {
 
@@ -46,7 +40,7 @@ public class CSVAttributesOnlyStrategy extends CSVStrategy {
 
     @Override
     public void createSchema(SimpleFeatureType featureType) throws IOException {
-        List<String> header = new ArrayList<String>();
+        List<String> header = new ArrayList<>();
         this.featureType = featureType;
         for (AttributeDescriptor descriptor : featureType.getAttributeDescriptors()) {
             if (descriptor instanceof GeometryDescriptor) continue;
@@ -64,7 +58,7 @@ public class CSVAttributesOnlyStrategy extends CSVStrategy {
 
     @Override
     public String[] encode(SimpleFeature feature) {
-        List<String> csvRecord = new ArrayList<String>();
+        List<String> csvRecord = new ArrayList<>();
         for (Property property : feature.getProperties()) {
             Object value = property.getValue();
             if (value == null) {
@@ -82,8 +76,7 @@ public class CSVAttributesOnlyStrategy extends CSVStrategy {
     public SimpleFeature decode(String recordId, String[] csvRecord) {
         SimpleFeatureType featureType = getFeatureType();
         SimpleFeatureBuilder builder = new SimpleFeatureBuilder(featureType);
-        String[] headers;
-        headers = csvFileState.getCSVHeaders();
+        String[] headers = csvFileState.getCSVHeaders();
         for (int i = 0; i < headers.length; i++) {
             String header = headers[i];
             if (i < csvRecord.length) {

@@ -20,9 +20,9 @@ import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
 
 /**
  * Formats a number into a string given a certain pattern (specified in the format accepted by
@@ -50,6 +50,7 @@ public class FilterFunction_numberFormat2 extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         String format;
         Double number;

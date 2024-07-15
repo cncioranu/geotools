@@ -19,12 +19,12 @@ package org.geotools.gml3.bindings;
 import java.util.Collection;
 import java.util.List;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.gml3.GML;
 import org.geotools.xsd.AbstractComplexBinding;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * Binding object for the type http://www.opengis.net/gml:FeatureArrayPropertyType.
@@ -49,6 +49,7 @@ import org.opengis.feature.simple.SimpleFeature;
  */
 public class FeatureArrayPropertyTypeBinding extends AbstractComplexBinding {
     /** @generated */
+    @Override
     public QName getTarget() {
         return GML.FeatureArrayPropertyType;
     }
@@ -60,6 +61,7 @@ public class FeatureArrayPropertyTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return FeatureCollection.class;
     }
@@ -71,9 +73,10 @@ public class FeatureArrayPropertyTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     @SuppressWarnings("unchecked")
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
-        FeatureCollection fc = (FeatureCollection) node.getChildValue(FeatureCollection.class);
+        FeatureCollection fc = node.getChildValue(FeatureCollection.class);
         if (fc != null) {
             return fc;
         }
@@ -85,6 +88,7 @@ public class FeatureArrayPropertyTypeBinding extends AbstractComplexBinding {
         return fc;
     }
 
+    @Override
     public Object getProperty(Object object, QName name) {
         // passed in should be FeatureCollection, just pass it back
         return object;

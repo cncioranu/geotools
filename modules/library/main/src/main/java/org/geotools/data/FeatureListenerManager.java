@@ -23,10 +23,16 @@ import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.event.EventListenerList;
-import org.geotools.data.simple.SimpleFeatureSource;
+import org.geotools.api.data.FeatureEvent;
+import org.geotools.api.data.FeatureListener;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.FeatureStore;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.FeatureType;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
 
 /**
  * This class is used by DataStore implementations to provide FeatureListener support for the
@@ -57,6 +63,7 @@ public class FeatureListenerManager {
             reference = new WeakReference<>(listener);
         }
 
+        @Override
         public void changed(FeatureEvent featureEvent) {
             FeatureListener listener = reference.get();
             if (listener == null) {
@@ -158,7 +165,7 @@ public class FeatureListenerManager {
                 }
 
                 listenerList = (EventListenerList) entry.getValue();
-                listeners = (FeatureListener[]) listenerList.getListeners(FeatureListener.class);
+                listeners = listenerList.getListeners(FeatureListener.class);
 
                 if (listeners.length != 0) {
                     map.put(featureSource, listeners);
@@ -362,8 +369,8 @@ public class FeatureListenerManager {
 
             event = new FeatureEvent(featureSource, type, bounds);
 
-            for (int l = 0; l < listeners.length; l++) {
-                listeners[l].changed(event);
+            for (FeatureListener listener : listeners) {
+                listener.changed(event);
             }
         }
     }
@@ -380,12 +387,12 @@ public class FeatureListenerManager {
 
         for (Map.Entry<SimpleFeatureSource, FeatureListener[]> entry : map.entrySet()) {
             featureSource = entry.getKey();
-            listeners = (FeatureListener[]) entry.getValue();
+            listeners = entry.getValue();
 
             event = new FeatureEvent(featureSource, type, bounds);
 
-            for (int l = 0; l < listeners.length; l++) {
-                listeners[l].changed(event);
+            for (FeatureListener listener : listeners) {
+                listener.changed(event);
             }
         }
     }

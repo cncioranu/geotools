@@ -18,7 +18,6 @@ package org.geotools.gce.imagepyramid;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.util.HashMap;
@@ -26,6 +25,12 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.imageio.GeoToolsWriteParams;
 import org.geotools.data.PrjFileReader;
@@ -34,12 +39,6 @@ import org.geotools.parameter.DefaultParameterDescriptorGroup;
 import org.geotools.parameter.ParameterGroup;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * This class implements the basic format capabilities for a coverage format.
@@ -182,8 +181,8 @@ public final class ImagePyramidFormat extends AbstractGridFormat implements Form
                 return false;
             }
             String[] pairs = envelope.split(" ");
-            final double cornersV[][] = new double[2][2];
-            String pair[];
+            final double[][] cornersV = new double[2][2];
+            String[] pair;
             for (int i = 0; i < 2; i++) {
                 pair = pairs[i].split(",");
                 cornersV[i][0] = Double.parseDouble(pair[0]);
@@ -228,14 +227,6 @@ public final class ImagePyramidFormat extends AbstractGridFormat implements Form
         try {
 
             return new ImagePyramidReader(source, hints);
-        } catch (MalformedURLException e) {
-            if (LOGGER.isLoggable(Level.SEVERE))
-                LOGGER.severe(
-                        new StringBuffer(
-                                        "impossible to get a reader for the provided source. The error is ")
-                                .append(e.getLocalizedMessage())
-                                .toString());
-            return null;
         } catch (IOException e) {
             if (LOGGER.isLoggable(Level.SEVERE))
                 LOGGER.severe(

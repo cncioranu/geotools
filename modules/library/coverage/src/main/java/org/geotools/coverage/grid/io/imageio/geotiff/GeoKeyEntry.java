@@ -16,8 +16,8 @@
  */
 package org.geotools.coverage.grid.io.imageio.geotiff;
 
+import java.text.MessageFormat;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.Utilities;
 
 /**
@@ -107,7 +107,7 @@ public final class GeoKeyEntry implements Comparable<GeoKeyEntry> {
     private static void ensureNotNegative(final String argument, final int value) {
         if (value < 0)
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, argument, value));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, argument, value));
     }
 
     public int getKeyID() {
@@ -157,6 +157,7 @@ public final class GeoKeyEntry implements Comparable<GeoKeyEntry> {
      * order. This is done to avoid forcing software to perform N-squared sort operations when
      * reading and writing tags.
      */
+    @Override
     public int compareTo(GeoKeyEntry o) {
         return this.keyID > o.keyID ? 1 : (this.keyID == o.keyID ? 0 : 1);
     }

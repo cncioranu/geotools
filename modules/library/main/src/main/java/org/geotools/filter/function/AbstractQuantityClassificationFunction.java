@@ -23,12 +23,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.visitor.CalcResult;
 import org.geotools.feature.visitor.FeatureCalc;
-import org.opengis.filter.capability.FunctionName;
 
 public abstract class AbstractQuantityClassificationFunction extends ClassificationFunction {
 
@@ -62,7 +62,7 @@ public abstract class AbstractQuantityClassificationFunction extends Classificat
 
         // generate the min and max values, and round off if applicable/necessary
         Comparable globalMin = (Comparable) bin[0].toArray()[0];
-        Object lastBin[] = bin[bin.length - 1].toArray();
+        Object[] lastBin = bin[bin.length - 1].toArray();
         if (lastBin.length == 0) {
             return null;
         }
@@ -166,6 +166,7 @@ public abstract class AbstractQuantityClassificationFunction extends Classificat
         //      localMax[i] = (Comparable) thisBin.get(thisBin.size()-1);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         if (!(feature instanceof FeatureCollection)) {
             return null;

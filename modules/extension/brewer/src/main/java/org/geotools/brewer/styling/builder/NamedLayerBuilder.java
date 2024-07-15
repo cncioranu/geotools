@@ -18,9 +18,9 @@ package org.geotools.brewer.styling.builder;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.geotools.styling.FeatureTypeConstraint;
-import org.geotools.styling.NamedLayer;
-import org.geotools.styling.Style;
+import org.geotools.api.style.FeatureTypeConstraint;
+import org.geotools.api.style.NamedLayer;
+import org.geotools.api.style.Style;
 
 public class NamedLayerBuilder extends AbstractSLDBuilder<NamedLayer> {
 
@@ -52,7 +52,7 @@ public class NamedLayerBuilder extends AbstractSLDBuilder<NamedLayer> {
         return sb;
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
     public NamedLayer build() {
         if (unset) {
             return null;
@@ -75,6 +75,7 @@ public class NamedLayerBuilder extends AbstractSLDBuilder<NamedLayer> {
         return layer;
     }
 
+    @Override
     public NamedLayerBuilder reset() {
         unset = false;
         this.name = null;
@@ -82,6 +83,7 @@ public class NamedLayerBuilder extends AbstractSLDBuilder<NamedLayer> {
         return this;
     }
 
+    @Override
     public NamedLayerBuilder reset(NamedLayer layer) {
         if (layer == null) {
             return unset();
@@ -102,6 +104,7 @@ public class NamedLayerBuilder extends AbstractSLDBuilder<NamedLayer> {
         return this;
     }
 
+    @Override
     public NamedLayerBuilder unset() {
         return (NamedLayerBuilder) super.unset();
     }

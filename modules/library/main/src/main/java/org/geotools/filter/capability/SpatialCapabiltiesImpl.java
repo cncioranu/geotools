@@ -20,9 +20,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import org.opengis.filter.capability.GeometryOperand;
-import org.opengis.filter.capability.SpatialCapabilities;
-import org.opengis.filter.capability.SpatialOperators;
+import org.geotools.api.filter.capability.GeometryOperand;
+import org.geotools.api.filter.capability.SpatialCapabilities;
+import org.geotools.api.filter.capability.SpatialOperators;
 
 /**
  * Implementation of the SpatialCapabilities interface.
@@ -81,6 +81,7 @@ public class SpatialCapabiltiesImpl implements SpatialCapabilities {
         this.geometryOperands = new HashSet<>(geometryOperands);
     }
 
+    @Override
     public Collection<GeometryOperand> getGeometryOperands() {
         return geometryOperands;
     }
@@ -89,6 +90,7 @@ public class SpatialCapabiltiesImpl implements SpatialCapabilities {
         this.spatialOperators = spatialOperators;
     }
 
+    @Override
     public SpatialOperatorsImpl getSpatialOperators() {
         if (spatialOperators == null) {
             spatialOperators = new SpatialOperatorsImpl();

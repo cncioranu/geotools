@@ -1,19 +1,13 @@
 /*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
+ *    GeoTools Sample code and Tutorials by Open Source Geospatial Foundation, and others
+ *    https://docs.geotools.org
  *
- * 	  (C) 2014 - 2015 Open Source Geospatial Foundation (OSGeo)
- * 	  (c) 2012 - 2014 OpenPlans
+ *    To the extent possible under law, the author(s) have dedicated all copyright
+ *    and related and neighboring rights to this software to the public domain worldwide.
+ *    This software is distributed without any warranty.
  *
- *    This library is free software; you can redistribute it and/or
- *    modify it under the terms of the GNU Lesser General Public
- *    License as published by the Free Software Foundation;
- *    version 2.1 of the License.
- *
- *    This library is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *    Lesser General Public License for more details.
+ *    You should have received a copy of the CC0 Public Domain Dedication along with this
+ *    software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 package org.geotools.tutorial.csv3.parse;
 
@@ -25,6 +19,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.cs.AxisDirection;
 import org.geotools.feature.AttributeTypeBuilder;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
@@ -34,13 +35,6 @@ import org.geotools.tutorial.csv3.CSVFileState;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.AxisDirection;
 
 // docs start CSVLatLonStrategy
 public class CSVLatLonStrategy extends CSVStrategy {
@@ -140,7 +134,7 @@ public class CSVLatLonStrategy extends CSVStrategy {
     public void createSchema(SimpleFeatureType featureType) throws IOException {
         this.featureType = featureType;
 
-        List<String> header = new ArrayList<String>();
+        List<String> header = new ArrayList<>();
 
         GeometryDescriptor gd = featureType.getGeometryDescriptor();
         CoordinateReferenceSystem crs = gd != null ? gd.getCoordinateReferenceSystem() : null;
@@ -219,7 +213,7 @@ public class CSVLatLonStrategy extends CSVStrategy {
     // docs start encode
     @Override
     public String[] encode(SimpleFeature feature) {
-        List<String> csvRecord = new ArrayList<String>();
+        List<String> csvRecord = new ArrayList<>();
         String[] headers = csvFileState.getCSVHeaders();
         int latIndex = 0;
         int lngIndex = 0;

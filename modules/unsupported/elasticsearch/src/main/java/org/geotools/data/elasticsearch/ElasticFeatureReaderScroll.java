@@ -22,11 +22,11 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.logging.Logger;
-import org.geotools.data.FeatureReader;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.store.ContentState;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 class ElasticFeatureReaderScroll implements FeatureReader<SimpleFeatureType, SimpleFeature> {
 
@@ -56,8 +56,8 @@ class ElasticFeatureReaderScroll implements FeatureReader<SimpleFeatureType, Sim
     }
 
     private void advanceScroll() throws IOException {
-        final ElasticDataStore dataStore;
-        dataStore = (ElasticDataStore) contentState.getEntry().getDataStore();
+        final ElasticDataStore dataStore =
+                (ElasticDataStore) contentState.getEntry().getDataStore();
         processResponse(dataStore.getClient().scroll(nextScrollId, dataStore.getScrollTime()));
     }
 
@@ -106,8 +106,8 @@ class ElasticFeatureReaderScroll implements FeatureReader<SimpleFeatureType, Sim
     @Override
     public void close() throws IOException {
         if (!scrollIds.isEmpty()) {
-            final ElasticDataStore dataStore;
-            dataStore = (ElasticDataStore) contentState.getEntry().getDataStore();
+            final ElasticDataStore dataStore =
+                    (ElasticDataStore) contentState.getEntry().getDataStore();
             dataStore.getClient().clearScroll(scrollIds);
         }
         delegate.close();

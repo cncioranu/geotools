@@ -19,8 +19,8 @@
  */
 package org.geotools.metadata.iso;
 
-import org.opengis.metadata.Identifier;
-import org.opengis.metadata.citation.Citation;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
 
 /**
  * Value uniquely identifying an object within a namespace.
@@ -83,6 +83,7 @@ public class IdentifierImpl extends MetadataEntity implements Identifier {
      *
      * @return The code.
      */
+    @Override
     public String getCode() {
         return code;
     }
@@ -117,6 +118,7 @@ public class IdentifierImpl extends MetadataEntity implements Identifier {
      *
      * @return The authority, or {@code null} if not available.
      */
+    @Override
     public Citation getAuthority() {
         return authority;
     }

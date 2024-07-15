@@ -24,6 +24,30 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.BinaryExpression;
+import org.geotools.api.filter.expression.Divide;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.Multiply;
+import org.geotools.api.filter.expression.NilExpression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.Subtract;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
+import org.geotools.api.filter.temporal.BinaryTemporalOperator;
 import org.geotools.appschema.filter.FilterFactoryImplNamespaceAware;
 import org.geotools.data.complex.AttributeMapping;
 import org.geotools.data.complex.FeatureTypeMapping;
@@ -41,30 +65,6 @@ import org.geotools.filter.expression.PropertyAccessorFactory;
 import org.geotools.filter.visitor.PostPreProcessFilterSplittingVisitor;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.Id;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.BinaryExpression;
-import org.opengis.filter.expression.Divide;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.Multiply;
-import org.opengis.filter.expression.NilExpression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Subtract;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.BinarySpatialOperator;
-import org.opengis.filter.temporal.BinaryTemporalOperator;
 
 /** @author Niels Charlier (Curtin University of Technology) */
 public class ComplexFilterSplitter extends PostPreProcessFilterSplittingVisitor {
@@ -81,43 +81,51 @@ public class ComplexFilterSplitter extends PostPreProcessFilterSplittingVisitor 
             return capable;
         }
 
+        @Override
         public Object visit(NilExpression expr, Object extraData) {
             return null;
         }
 
+        @Override
         public Object visit(Add expr, Object extraData) {
             visitMathExpression(expr);
             return null;
         }
 
+        @Override
         public Object visit(Subtract expr, Object extraData) {
             visitMathExpression(expr);
             return null;
         }
 
+        @Override
         public Object visit(Divide expr, Object extraData) {
             visitMathExpression(expr);
             return null;
         }
 
+        @Override
         public Object visit(Multiply expr, Object extraData) {
             visitMathExpression(expr);
             return null;
         }
 
+        @Override
         public Object visit(Function expr, Object extraData) {
             for (int i = 0; i < expr.getParameters().size(); i++) {
-                ((Expression) expr.getParameters().get(i)).accept(this, null);
+                expr.getParameters().get(i).accept(this, null);
             }
 
             capable = capable && fcs.supports(expr.getClass());
             return null;
         }
 
+        @Override
         public Object visit(Literal expr, Object extraData) {
             return null;
         }
 
+        @Override
         public Object visit(PropertyName expr, Object extraData) {
             return null;
         }
@@ -137,6 +145,7 @@ public class ComplexFilterSplitter extends PostPreProcessFilterSplittingVisitor 
         this.mappings = mappings;
     }
 
+    @Override
     public Object visit(Id filter, Object notUsed) {
         CapabilitiesExpressionVisitor visitor = new CapabilitiesExpressionVisitor();
         mappings.getFeatureIdExpression().accept(visitor, null);
@@ -156,7 +165,7 @@ public class ComplexFilterSplitter extends PostPreProcessFilterSplittingVisitor 
         int i = preStack.size();
         Object data = super.visit(expression, notUsed);
         // encoding of functions with nested attributes as  arguments is not supported
-        if (nestedAttributes.size() > 0 && preStack.size() == i + 1) {
+        if (!nestedAttributes.isEmpty() && preStack.size() == i + 1) {
             Object o = preStack.pop();
             postStack.push(o);
         }
@@ -169,7 +178,7 @@ public class ComplexFilterSplitter extends PostPreProcessFilterSplittingVisitor 
         int i = preStack.size();
         Object ret = super.visit(filter, data);
         // encoding of temporal operators involving nested attributes is not supported
-        if (nestedAttributes.size() > 0 && preStack.size() == i + 1) {
+        if (!nestedAttributes.isEmpty() && preStack.size() == i + 1) {
             Object o = preStack.pop();
             postStack.push(o);
         }
@@ -182,7 +191,7 @@ public class ComplexFilterSplitter extends PostPreProcessFilterSplittingVisitor 
         int i = preStack.size();
         super.visitMathExpression(expression);
         // encoding of math expressions involving nested attributes is not supported
-        if (nestedAttributes.size() > 0 && preStack.size() == i + 1) {
+        if (!nestedAttributes.isEmpty() && preStack.size() == i + 1) {
             Object o = preStack.pop();
             postStack.push(o);
         }
@@ -278,12 +287,13 @@ public class ComplexFilterSplitter extends PostPreProcessFilterSplittingVisitor 
         return ret;
     }
 
+    @Override
     public Object visit(PropertyName expression, Object notUsed) {
 
         // replace the artificial DEFAULT_GEOMETRY property with the actual one
         if (DEFAULT_GEOMETRY_LOCAL_NAME.equals(expression.getPropertyName())) {
             String defGeomPath = mappings.getDefaultGeometryXPath();
-            FilterFactory2 ff = new FilterFactoryImplNamespaceAware(mappings.getNamespaces());
+            FilterFactory ff = new FilterFactoryImplNamespaceAware(mappings.getNamespaces());
             expression = ff.property(defGeomPath);
         }
 
@@ -317,7 +327,7 @@ public class ComplexFilterSplitter extends PostPreProcessFilterSplittingVisitor 
                     expression, exprSteps, nestedAttrExtractor, existsAttrExtractor, fcAttrs);
             // encoding of filters on multiple nested attributes is not (yet) supported
             if (fcAttrs.size() == 1
-                    || (fcAttrs.size() >= 1 && validateNoClientProperties(fcAttrs))) {
+                    || (!fcAttrs.isEmpty() && validateNoClientProperties(fcAttrs))) {
                 FeatureChainedAttributeDescriptor nestedAttrDescr = fcAttrs.get(0);
                 if (nestedAttrDescr.chainSize() > 1 && nestedAttrDescr.isJoiningEnabled()) {
                     FeatureTypeMapping featureMapping =
@@ -423,7 +433,7 @@ public class ComplexFilterSplitter extends PostPreProcessFilterSplittingVisitor 
             FeatureChainedAttributeVisitor nestedAttrExtractor,
             FeatureChainedAttributeVisitor existsAttrExtractor,
             List<FeatureChainedAttributeDescriptor> fcAttrs) {
-        if (fcAttrs.size() == 0
+        if (fcAttrs.isEmpty()
                 && !nestedAttrExtractor.conditionalMappingWasFound()
                 && !isXlinkHRef(exprSteps)
                 && !existsAttrExtractor.isUnboundedNestedElementFound()

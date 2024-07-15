@@ -17,14 +17,14 @@
 package org.geotools.temporal;
 
 import java.util.Date;
+import org.geotools.api.temporal.Instant;
+import org.geotools.api.temporal.TemporalObject;
 import org.geotools.temporal.object.DefaultInstant;
 import org.geotools.temporal.object.DefaultPosition;
 import org.geotools.util.Converter;
 import org.geotools.util.ConverterFactory;
 import org.geotools.util.Converters;
 import org.geotools.util.factory.Hints;
-import org.opengis.temporal.Instant;
-import org.opengis.temporal.TemporalObject;
 
 /**
  * Factory that converts String and {@link java.util.Date} objects to instances of {@link
@@ -36,6 +36,7 @@ public class TemporalConverterFactory implements ConverterFactory {
 
     static Converter dateToInstant =
             new Converter() {
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     return target.cast(new DefaultInstant(new DefaultPosition((Date) source)));
                 }
@@ -44,6 +45,7 @@ public class TemporalConverterFactory implements ConverterFactory {
     static Converter stringToInstant =
             new Converter() {
 
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     // first go to java.util.Date
                     Date d = Converters.convert(source, Date.class);
@@ -53,6 +55,7 @@ public class TemporalConverterFactory implements ConverterFactory {
                 }
             };
 
+    @Override
     public Converter createConverter(Class<?> source, Class<?> target, Hints hints) {
         if (Instant.class.isAssignableFrom(target)) {
             if (Date.class.isAssignableFrom(source)) {

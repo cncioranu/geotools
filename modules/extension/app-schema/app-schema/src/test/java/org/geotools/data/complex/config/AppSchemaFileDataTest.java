@@ -29,8 +29,11 @@ import java.net.URL;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.Query;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.complex.AppSchemaDataAccess;
 import org.geotools.data.complex.AppSchemaDataAccessRegistry;
 import org.geotools.data.complex.FeatureTypeMapping;
@@ -39,9 +42,6 @@ import org.geotools.util.URLs;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
 
 /**
  * This is a test for AppSchemaDataAccessConfigurator on file-based datastores, including shapefiles
@@ -241,8 +241,7 @@ public class AppSchemaFileDataTest extends AppSchemaTestSupport {
         AppSchemaDataAccessDTO config = configReader.parse(configFileUrl);
 
         // generate the set of mappings needed to build the application-schema datastore
-        Set<FeatureTypeMapping> mappings;
-        mappings = AppSchemaDataAccessConfigurator.buildMappings(config);
+        Set<FeatureTypeMapping> mappings = AppSchemaDataAccessConfigurator.buildMappings(config);
         AppSchemaDataAccess datastore = new AppSchemaDataAccess(mappings);
 
         return datastore;
@@ -256,16 +255,12 @@ public class AppSchemaFileDataTest extends AppSchemaTestSupport {
      */
     private String copyRelativeToAbsolute(String filePathIn, String filePathOut) throws Exception {
 
-        BufferedReader reader = null;
-        PrintWriter writer = null;
         String relativePath;
         String absolutePath = null;
 
-        try {
-            reader = new BufferedReader(new FileReader(filePathIn));
-            writer = new PrintWriter(new FileWriter(filePathOut));
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePathIn));
+                PrintWriter writer = new PrintWriter(new FileWriter(filePathOut))) {
             String line;
-
             while ((line = reader.readLine()) != null) {
                 // change the file path from relative to absolute
                 if (line.trim().startsWith("<value>file:")) {
@@ -284,13 +279,6 @@ public class AppSchemaFileDataTest extends AppSchemaTestSupport {
                                     "CAT_DESC");
                 }
                 writer.println(line);
-            }
-        } finally {
-            if (reader != null) {
-                reader.close();
-            }
-            if (writer != null) {
-                writer.close();
             }
         }
         return absolutePath;

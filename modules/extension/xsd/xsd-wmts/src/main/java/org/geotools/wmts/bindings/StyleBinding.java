@@ -82,6 +82,7 @@ public class StyleBinding extends DescriptionTypeBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WMTS.Style;
     }
@@ -93,6 +94,7 @@ public class StyleBinding extends DescriptionTypeBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return StyleType.class;
     }
@@ -104,7 +106,7 @@ public class StyleBinding extends DescriptionTypeBinding {
      *
      * @generated modifiable
      */
-    @SuppressWarnings("unchecked")
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
 
         if (!(value instanceof StyleType)) {

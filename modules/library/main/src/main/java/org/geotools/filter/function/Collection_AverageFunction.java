@@ -25,16 +25,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.visitor.AverageVisitor;
 import org.geotools.feature.visitor.CalcResult;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Calculates the average value of an attribute for a given FeatureCollection and Expression.
@@ -90,16 +90,18 @@ public class Collection_AverageFunction extends FunctionExpressionImpl {
      *
      * @param params function parameters
      */
+    @Override
     public void setParameters(List<Expression> params) {
         super.setParameters(params);
         if (params.size() != 1) {
             throw new IllegalArgumentException("Require a single argument for average");
         }
-        expr = (Expression) getExpression(0);
+        expr = getExpression(0);
         // if we see "featureMembers/*/ATTRIBUTE" change to "ATTRIBUTE"
         expr = (Expression) expr.accept(new CollectionFeatureMemberFilterVisitor(), null);
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     public Object evaluate(Object feature) {
         if (feature == null) {
@@ -116,9 +118,7 @@ public class Collection_AverageFunction extends FunctionExpressionImpl {
                     if (result != null) {
                         average = result.getValue();
                     }
-                } catch (IllegalFilterException e) {
-                    LOGGER.log(Level.FINER, e.getLocalizedMessage(), e);
-                } catch (IOException e) {
+                } catch (IllegalFilterException | IOException e) {
                     LOGGER.log(Level.FINER, e.getLocalizedMessage(), e);
                 }
             }
@@ -135,6 +135,7 @@ public class Collection_AverageFunction extends FunctionExpressionImpl {
      *
      * @return String representation of this average function.
      */
+    @Override
     public String toString() {
         return "Collection_Average(" + expr + ")";
     }

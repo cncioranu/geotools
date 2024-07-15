@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import org.geotools.data.CloseableIterator;
+import org.geotools.api.data.CloseableIterator;
 import org.geotools.data.shapefile.index.Data;
 import org.geotools.data.shapefile.index.DataDefinition;
 import org.geotools.data.shapefile.shp.IndexFile;
@@ -79,15 +79,16 @@ public class LazySearchIterator implements CloseableIterator<Data> {
         this.next = null;
     }
 
+    @Override
     public boolean hasNext() {
         if (closed) throw new IllegalStateException("Iterator has been closed!");
         if (next != null) return true;
         if (data != null && data.hasNext()) {
-            next = (Data) data.next();
+            next = data.next();
         } else {
             data = null;
             fillCache();
-            if (data != null && data.hasNext()) next = (Data) data.next();
+            if (data != null && data.hasNext()) next = data.next();
         }
         return next != null;
     }
@@ -146,6 +147,7 @@ public class LazySearchIterator implements CloseableIterator<Data> {
         data = dataList.iterator();
     }
 
+    @Override
     public Data next() {
         if (!hasNext()) throw new NoSuchElementException("No more elements available");
         Data temp = next;
@@ -153,10 +155,12 @@ public class LazySearchIterator implements CloseableIterator<Data> {
         return temp;
     }
 
+    @Override
     public void remove() {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public void close() throws IOException {
         tree.close(this);
         tree.close();

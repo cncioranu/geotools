@@ -33,13 +33,13 @@ import static java.lang.Math.tan;
 import static java.lang.Math.toDegrees;
 
 import java.awt.geom.Point2D;
+import java.text.MessageFormat;
 import java.util.Collection;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.measure.Latitude;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
 
 /**
  * Lambert Conical Conformal Projection. Areas and shapes are deformed as one moves away from
@@ -136,10 +136,9 @@ public abstract class LambertConformal extends MapProjection {
         final boolean sp2 = expected.contains(AbstractProvider.STANDARD_PARALLEL_2);
         this.belgium = belgium;
         if (sp2) {
-            double phi2;
             phi1 = doubleValue(expected, AbstractProvider.STANDARD_PARALLEL_1, parameters);
             ensureLatitudeInRange(AbstractProvider.STANDARD_PARALLEL_1, phi1, true);
-            phi2 = doubleValue(expected, AbstractProvider.STANDARD_PARALLEL_2, parameters);
+            double phi2 = doubleValue(expected, AbstractProvider.STANDARD_PARALLEL_2, parameters);
             if (Double.isNaN(phi2)) {
                 phi2 = phi1;
             }
@@ -154,11 +153,10 @@ public abstract class LambertConformal extends MapProjection {
         }
         // Compute constants
         if (abs(phi1 + phi2) < EPSILON) {
+            final Object arg0 = new Latitude(toDegrees(phi1));
+            final Object arg1 = new Latitude(toDegrees(phi2));
             throw new IllegalArgumentException(
-                    Errors.format(
-                            ErrorKeys.ANTIPODE_LATITUDES_$2,
-                            new Latitude(toDegrees(phi1)),
-                            new Latitude(toDegrees(phi2))));
+                    MessageFormat.format(ErrorKeys.ANTIPODE_LATITUDES_$2, arg0, arg1));
         }
         final double cosphi1 = cos(phi1);
         final double sinphi1 = sin(phi1);
@@ -212,6 +210,7 @@ public abstract class LambertConformal extends MapProjection {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         double rho;
@@ -244,6 +243,7 @@ public abstract class LambertConformal extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         double theta;

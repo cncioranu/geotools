@@ -18,14 +18,14 @@ package org.geotools.process.feature;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.util.ProgressListener;
 
 /**
  * Abstract implementation of Process for feature collections.
@@ -44,6 +44,7 @@ public abstract class FeatureToFeatureProcess extends AbstractFeatureCollectionP
         super(factory);
     }
 
+    @Override
     public final Map<String, Object> execute(Map<String, Object> input, ProgressListener monitor) {
         if (monitor == null) {
             monitor = new NullProgressListener();
@@ -62,9 +63,8 @@ public abstract class FeatureToFeatureProcess extends AbstractFeatureCollectionP
                 getTargetSchema((SimpleFeatureType) features.getSchema(), input);
         DefaultFeatureCollection result = new DefaultFeatureCollection(null, targetSchema);
 
-        SimpleFeatureBuilder fb = new SimpleFeatureBuilder((SimpleFeatureType) result.getSchema());
-        FeatureIterator fi = features.features();
-        try {
+        SimpleFeatureBuilder fb = new SimpleFeatureBuilder(result.getSchema());
+        try (FeatureIterator fi = features.features()) {
             int counter = 0;
             while (fi.hasNext()) {
                 // copy the feature
@@ -81,8 +81,6 @@ public abstract class FeatureToFeatureProcess extends AbstractFeatureCollectionP
                 monitor.progress(scale * counter++);
                 result.add(feature);
             }
-        } finally {
-            fi.close();
         }
         monitor.complete();
 

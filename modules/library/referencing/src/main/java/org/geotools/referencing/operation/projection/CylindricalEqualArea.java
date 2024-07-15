@@ -18,14 +18,14 @@
 package org.geotools.referencing.operation.projection;
 
 import java.awt.geom.Point2D;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.operation.MathTransform;
 
 public class CylindricalEqualArea extends MapProjection {
 
@@ -63,6 +63,7 @@ public class CylindricalEqualArea extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -79,6 +80,7 @@ public class CylindricalEqualArea extends MapProjection {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code xy} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double lam, double phi, final Point2D xy)
             throws ProjectionException {
         double x, y;
@@ -101,6 +103,7 @@ public class CylindricalEqualArea extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code lp}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, final Point2D lp)
             throws ProjectionException {
         double lam, phi;
@@ -144,6 +147,7 @@ public class CylindricalEqualArea extends MapProjection {
             super(PARAMETERS);
         }
 
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException, FactoryException {
             return new CylindricalEqualArea(parameters);
@@ -183,6 +187,7 @@ public class CylindricalEqualArea extends MapProjection {
             super(PARAMETERS);
         }
 
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException, FactoryException {
             parameters.parameter("standard_parallel_1").setValue(30);
@@ -205,6 +210,7 @@ public class CylindricalEqualArea extends MapProjection {
             super(PARAMETERS);
         }
 
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException, FactoryException {
             return new CylindricalEqualArea(parameters);
@@ -228,10 +234,9 @@ public class CylindricalEqualArea extends MapProjection {
         private static final double P20 = .01641501294219154443;
 
         public static double[] authset(double es) {
-            double t;
             double[] APA = new double[3];
             APA[0] = es * P00;
-            t = es * es;
+            double t = es * es;
             APA[0] += t * P01;
             APA[1] = t * P10;
             t *= es;

@@ -20,9 +20,9 @@
 package org.geotools.referencing.cs;
 
 import java.util.Map;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.PolarCS;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.PolarCS;
 
 /**
  * A two-dimensional coordinate system in which position is specified by the distance from the
@@ -65,7 +65,7 @@ public class DefaultPolarCS extends AbstractCS implements PolarCS {
      */
     public DefaultPolarCS(
             final String name, final CoordinateSystemAxis axis0, final CoordinateSystemAxis axis1) {
-        super(name, new CoordinateSystemAxis[] {axis0, axis1});
+        super(name, axis0, axis1);
     }
 
     /**
@@ -81,7 +81,7 @@ public class DefaultPolarCS extends AbstractCS implements PolarCS {
             final Map<String, ?> properties,
             final CoordinateSystemAxis axis0,
             final CoordinateSystemAxis axis1) {
-        super(properties, new CoordinateSystemAxis[] {axis0, axis1});
+        super(properties, axis0, axis1);
     }
 
     /**

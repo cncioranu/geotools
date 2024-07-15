@@ -21,18 +21,18 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import java.util.Set;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.FeatureTypeFactory;
+import org.geotools.api.feature.type.GeometryType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.feature.TypeBuilder;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.FeatureTypeFactory;
-import org.opengis.feature.type.GeometryType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * @author Gabriel Roldan (Axios Engineering)
@@ -148,7 +148,6 @@ public abstract class ComplexTestData {
      */
     public static FeatureType createExample01MultiValuedComplexProperty(
             FeatureTypeFactory typeFactory) {
-        FeatureType wqPlusType;
 
         TypeBuilder builder = new TypeBuilder(typeFactory);
         builder.setNamespaceURI(NSURI);
@@ -189,7 +188,7 @@ public abstract class ComplexTestData {
         builder.cardinality(0, 1);
         builder.addAttribute("project_no", PROJECT_NO);
 
-        wqPlusType = builder.feature();
+        FeatureType wqPlusType = builder.feature();
 
         return wqPlusType;
     }
@@ -402,7 +401,6 @@ public abstract class ComplexTestData {
      * @return FeatureType
      */
     public static FeatureType createExample05NoNamespaceURI(FeatureTypeFactory typeFactory) {
-        FeatureType wqPlusType;
 
         TypeBuilder builder = new TypeBuilder(typeFactory);
 
@@ -442,7 +440,7 @@ public abstract class ComplexTestData {
         builder.cardinality(0, 1);
         builder.addAttribute("project_no", PROJECT_NO);
 
-        wqPlusType = builder.feature();
+        FeatureType wqPlusType = builder.feature();
 
         return wqPlusType;
     }

@@ -17,6 +17,7 @@
 package org.geotools.process.factory;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -28,8 +29,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import org.geotools.data.Parameter;
-import org.geotools.data.Query;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.util.InternationalString;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.NameImpl;
@@ -52,10 +56,6 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.io.WKTReader;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.util.InternationalString;
 
 /**
  * Tests some processes that do not require integration with the application context
@@ -92,6 +92,7 @@ public class BeanProcessFactoryTest {
         GeoTools.addFactoryIteratorProvider(
                 new FactoryIteratorProvider() {
 
+                    @Override
                     public <T> Iterator<T> iterator(Class<T> category) {
                         if (ProcessFactory.class.isAssignableFrom(category)) {
                             @SuppressWarnings("unchecked")
@@ -108,7 +109,7 @@ public class BeanProcessFactoryTest {
     @Test
     public void testNames() {
         Set<Name> names = factory.getNames();
-        assertTrue(names.size() > 0);
+        assertFalse(names.isEmpty());
         // System.out.println(names);
         // Identity
         assertTrue(names.contains(new NameImpl("bean", "Identity")));
@@ -121,9 +122,9 @@ public class BeanProcessFactoryTest {
                 IdentityProcess.class.getAnnotation(DescribeProcess.class);
 
         InternationalString desc = factory.getDescription(name);
-        assertTrue(desc.toString().equals(describeProcessAnno.description()));
+        assertEquals(desc.toString(), describeProcessAnno.description());
         InternationalString title = factory.getTitle(name);
-        assertTrue(title.toString().equals(describeProcessAnno.title()));
+        assertEquals(title.toString(), describeProcessAnno.title());
 
         Map<String, Parameter<?>> params = factory.getParameterInfo(name);
         assertEquals(1, params.size());
@@ -179,7 +180,8 @@ public class BeanProcessFactoryTest {
         inputs.put("value", 10);
 
         RenderingProcess tx = (RenderingProcess) transformation;
-        Query dummyQuery = tx.invertQuery(inputs, null, null);
+        // just making sure it does not explode?
+        tx.invertQuery(inputs, null, null);
 
         Map<String, Object> result = transformation.execute(inputs, null);
 
@@ -213,14 +215,14 @@ public class BeanProcessFactoryTest {
         // test that the annotation is correctly generating the parameter metadata
         Map<String, Parameter<?>> params =
                 factory.getParameterInfo(new NameImpl("bean", "Defaults"));
-        assertEquals(2.0, ((Parameter) params.get("int")).metadata.get(Parameter.MAX));
-        assertEquals(-1.0, ((Parameter) params.get("int")).metadata.get(Parameter.MIN));
-        assertEquals(2.5, ((Parameter) params.get("double")).metadata.get(Parameter.MAX));
-        assertEquals(-1.5, ((Parameter) params.get("double")).metadata.get(Parameter.MIN));
+        assertEquals(2.0, params.get("int").metadata.get(Parameter.MAX));
+        assertEquals(-1.0, params.get("int").metadata.get(Parameter.MIN));
+        assertEquals(2.5, params.get("double").metadata.get(Parameter.MAX));
+        assertEquals(-1.5, params.get("double").metadata.get(Parameter.MIN));
         // check the null values with a  parameter that does not have that annotation parameter
         // filled
-        assertNull(((Parameter) params.get("short")).metadata.get(Parameter.MAX));
-        assertNull(((Parameter) params.get("short")).metadata.get(Parameter.MIN));
+        assertNull(params.get("short").metadata.get(Parameter.MAX));
+        assertNull(params.get("short").metadata.get(Parameter.MIN));
     }
 
     @Test

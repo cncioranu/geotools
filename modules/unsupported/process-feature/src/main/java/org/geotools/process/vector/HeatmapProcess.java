@@ -17,10 +17,19 @@
  */
 package org.geotools.process.vector;
 
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.coverage.grid.GridGeometry;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
-import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.filter.text.cql2.CQLException;
@@ -35,15 +44,6 @@ import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.coverage.grid.GridGeometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.expression.Expression;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.ProgressListener;
 
 /**
  * A Process that uses a {@link HeatmapSurface} to compute a heatmap surface over a set of irregular
@@ -115,10 +115,9 @@ import org.opengis.util.ProgressListener;
  * @author Martin Davis - OpenGeo
  */
 @DescribeProcess(
-    title = "Heatmap",
-    description =
-            "Computes a heatmap surface over a set of data points and outputs as a single-band raster."
-)
+        title = "Heatmap",
+        description =
+                "Computes a heatmap surface over a set of data points and outputs as a single-band raster.")
 public class HeatmapProcess implements VectorProcess {
 
     @DescribeResult(name = "result", description = "Output raster")
@@ -130,39 +129,34 @@ public class HeatmapProcess implements VectorProcess {
 
             // process parameters
             @DescribeParameter(
-                        name = "radiusPixels",
-                        description = "Radius of the density kernel in pixels"
-                    )
+                            name = "radiusPixels",
+                            description = "Radius of the density kernel in pixels")
                     Integer argRadiusPixels,
             @DescribeParameter(
-                        name = "weightAttr",
-                        description = "Name of the attribute to use for data point weight",
-                        min = 0,
-                        max = 1
-                    )
+                            name = "weightAttr",
+                            description = "Name of the attribute to use for data point weight",
+                            min = 0,
+                            max = 1)
                     String valueAttr,
             @DescribeParameter(
-                        name = "pixelsPerCell",
-                        description =
-                                "Resolution at which to compute the heatmap (in pixels). Default = 1",
-                        defaultValue = "1",
-                        min = 0,
-                        max = 1
-                    )
+                            name = "pixelsPerCell",
+                            description =
+                                    "Resolution at which to compute the heatmap (in pixels). Default = 1",
+                            defaultValue = "1",
+                            min = 0,
+                            max = 1)
                     Integer argPixelsPerCell,
 
             // output image parameters
             @DescribeParameter(name = "outputBBOX", description = "Bounding box of the output")
                     ReferencedEnvelope argOutputEnv,
             @DescribeParameter(
-                        name = "outputWidth",
-                        description = "Width of output raster in pixels"
-                    )
+                            name = "outputWidth",
+                            description = "Width of output raster in pixels")
                     Integer argOutputWidth,
             @DescribeParameter(
-                        name = "outputHeight",
-                        description = "Height of output raster in pixels"
-                    )
+                            name = "outputHeight",
+                            description = "Height of output raster in pixels")
                     Integer argOutputHeight,
             ProgressListener monitor)
             throws ProcessException {
@@ -283,17 +277,15 @@ public class HeatmapProcess implements VectorProcess {
      */
     public Query invertQuery(
             @DescribeParameter(
-                        name = "radiusPixels",
-                        description = "Radius to use for the kernel",
-                        min = 0,
-                        max = 1
-                    )
+                            name = "radiusPixels",
+                            description = "Radius to use for the kernel",
+                            min = 0,
+                            max = 1)
                     Integer argRadiusPixels,
             // output image parameters
             @DescribeParameter(
-                        name = "outputBBOX",
-                        description = "Georeferenced bounding box of the output"
-                    )
+                            name = "outputBBOX",
+                            description = "Georeferenced bounding box of the output")
                     ReferencedEnvelope argOutputEnv,
             @DescribeParameter(name = "outputWidth", description = "Width of the output raster")
                     Integer argOutputWidth,
@@ -361,12 +353,9 @@ public class HeatmapProcess implements VectorProcess {
             attrExpr = ECQL.toExpression(attrName);
         }
 
-        SimpleFeatureIterator obsIt = obsPoints.features();
-
-        double[] srcPt = new double[2];
-        double[] dstPt = new double[2];
-
-        try {
+        try (SimpleFeatureIterator obsIt = obsPoints.features()) {
+            double[] srcPt = new double[2];
+            double[] dstPt = new double[2];
             while (obsIt.hasNext()) {
                 SimpleFeature feature = obsIt.next();
 
@@ -392,8 +381,6 @@ public class HeatmapProcess implements VectorProcess {
                     // " failed to evaluate to a numeric value", e);
                 }
             }
-        } finally {
-            obsIt.close();
         }
     }
 

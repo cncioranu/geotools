@@ -25,12 +25,11 @@ import static org.junit.Assert.fail;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import org.geotools.api.parameter.InvalidParameterValueException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.citation.CitationImpl;
-import org.geotools.util.SimpleInternationalString;
 import org.junit.Test;
-import org.opengis.parameter.InvalidParameterValueException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.util.InternationalString;
 
 /**
  * Tests the creation of {@link AbstractIdentifiedObject} and a few subclasses.
@@ -73,16 +72,6 @@ public final class IdentifiedObjectTest {
                 "remarks_fr_BE",
                 "Voici des remarques",
                 identifier.getRemarks().toString(new Locale("fr", "BE")));
-
-        if (false) {
-            // Disabled in order to avoid logging a warning (it disturb the JUnit output)
-            properties.put("remarks", new SimpleInternationalString("Overrides remarks"));
-            identifier = new NamedIdentifier(properties);
-            assertEquals(
-                    "remarks",
-                    "Overrides remarks",
-                    identifier.getRemarks().toString(Locale.ENGLISH));
-        }
 
         assertNotNull(properties.remove("authority"));
         assertNull(properties.put("AutHOrITY", new CitationImpl("An other authority")));

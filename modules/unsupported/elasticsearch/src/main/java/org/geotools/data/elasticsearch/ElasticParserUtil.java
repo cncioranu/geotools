@@ -109,8 +109,8 @@ class ElasticParserUtil {
             final Matcher listMatcher = GEO_POINT_PATTERN.matcher((String) obj);
             if (listMatcher.matches()) {
                 // coordinate
-                final double y = Double.valueOf(listMatcher.group(1));
-                final double x = Double.valueOf(listMatcher.group(2));
+                final double y = Double.parseDouble(listMatcher.group(1));
+                final double x = Double.parseDouble(listMatcher.group(2));
                 geometry = geometryFactory.createPoint(new Coordinate(x, y));
             } else if (GEO_HASH_PATTERN.matcher((String) obj).matches()) {
                 // geohash
@@ -139,8 +139,8 @@ class ElasticParserUtil {
                 final double y = ((Number) values.get(1)).doubleValue();
                 geometry = geometryFactory.createPoint(new Coordinate(x, y));
             } else if (values.get(0) instanceof String) {
-                final double x = Double.valueOf((String) values.get(0));
-                final double y = Double.valueOf((String) values.get(1));
+                final double x = Double.parseDouble((String) values.get(0));
+                final double y = Double.parseDouble((String) values.get(1));
                 geometry = geometryFactory.createPoint(new Coordinate(x, y));
             } else {
                 geometry = null;
@@ -161,45 +161,40 @@ class ElasticParserUtil {
      * @param properties Properties
      * @return Geometry
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public Geometry createGeometry(final Map<String, Object> properties) {
         final Geometry geometry;
         switch (String.valueOf(properties.get("type")).toUpperCase()) {
             case "POINT":
                 {
-                    final List posList;
-                    posList = (List) properties.get("coordinates");
+                    final List posList = (List) properties.get("coordinates");
                     final Coordinate coordinate = createCoordinate(posList);
                     geometry = geometryFactory.createPoint(coordinate);
                     break;
                 }
             case "LINESTRING":
                 {
-                    final List<List<Object>> posList;
-                    posList = (List) properties.get("coordinates");
+                    final List<List<Object>> posList = (List) properties.get("coordinates");
                     final Coordinate[] coordinates = createCoordinates(posList);
                     geometry = geometryFactory.createLineString(coordinates);
                     break;
                 }
             case "POLYGON":
                 {
-                    final List<List<List<Object>>> posList;
-                    posList = (List) properties.get("coordinates");
+                    final List<List<List<Object>>> posList = (List) properties.get("coordinates");
                     geometry = createPolygon(posList);
                     break;
                 }
             case "MULTIPOINT":
                 {
-                    final List<List<Object>> posList;
-                    posList = (List) properties.get("coordinates");
+                    final List<List<Object>> posList = (List) properties.get("coordinates");
                     final Coordinate[] coordinates = createCoordinates(posList);
                     geometry = geometryFactory.createMultiPointFromCoords(coordinates);
                     break;
                 }
             case "MULTILINESTRING":
                 {
-                    final List<List<List<Object>>> posList;
-                    posList = (List) properties.get("coordinates");
+                    final List<List<List<Object>>> posList = (List) properties.get("coordinates");
                     final LineString[] lineStrings = new LineString[posList.size()];
                     for (int i = 0; i < posList.size(); i++) {
                         final Coordinate[] coordinates = createCoordinates(posList.get(i));
@@ -210,8 +205,8 @@ class ElasticParserUtil {
                 }
             case "MULTIPOLYGON":
                 {
-                    final List<List<List<List<Object>>>> posList;
-                    posList = (List) properties.get("coordinates");
+                    final List<List<List<List<Object>>>> posList =
+                            (List) properties.get("coordinates");
                     final Polygon[] polygons = new Polygon[posList.size()];
                     for (int i = 0; i < posList.size(); i++) {
                         polygons[i] = createPolygon(posList.get(i));
@@ -221,8 +216,7 @@ class ElasticParserUtil {
                 }
             case "GEOMETRYCOLLECTION":
                 {
-                    final List<Map<String, Object>> list;
-                    list = (List) properties.get("geometries");
+                    final List<Map<String, Object>> list = (List) properties.get("geometries");
                     final Geometry[] geometries = new Geometry[list.size()];
                     for (int i = 0; i < geometries.length; i++) {
                         geometries[i] = createGeometry(list.get(i));
@@ -232,8 +226,7 @@ class ElasticParserUtil {
                 }
             case "ENVELOPE":
                 {
-                    final List<List<Object>> posList;
-                    posList = (List) properties.get("coordinates");
+                    final List<List<Object>> posList = (List) properties.get("coordinates");
                     final Coordinate[] coords = createCoordinates(posList);
                     final Envelope envelope = new Envelope(coords[0], coords[1]);
                     geometry = geometryFactory.toGeometry(envelope);
@@ -241,8 +234,7 @@ class ElasticParserUtil {
                 }
             case "CIRCLE":
                 {
-                    final List posList;
-                    posList = (List) properties.get("coordinates");
+                    final List posList = (List) properties.get("coordinates");
                     final String radius = (String) properties.get("radius");
                     final Coordinate coordinate = createCoordinate(posList);
                     geometry = createCircle(coordinate, radius);
@@ -257,7 +249,7 @@ class ElasticParserUtil {
                     if (latObj instanceof Number) {
                         lat = ((Number) latObj).doubleValue();
                     } else if (latObj instanceof String) {
-                        lat = new Double((String) latObj);
+                        lat = Double.parseDouble((String) latObj);
                     } else {
                         lat = null;
                     }
@@ -266,7 +258,7 @@ class ElasticParserUtil {
                     if (lonObj instanceof Number) {
                         lon = ((Number) lonObj).doubleValue();
                     } else if (lonObj instanceof String) {
-                        lon = new Double((String) lonObj);
+                        lon = Double.parseDouble((String) lonObj);
                     } else {
                         lon = null;
                     }
@@ -314,8 +306,8 @@ class ElasticParserUtil {
             x = ((Number) posList.get(0)).doubleValue();
             y = ((Number) posList.get(1)).doubleValue();
         } else {
-            x = Double.valueOf(posList.get(0).toString());
-            y = Double.valueOf(posList.get(1).toString());
+            x = Double.parseDouble(posList.get(0).toString());
+            y = Double.parseDouble(posList.get(1).toString());
         }
         return new Coordinate(x, y);
     }
@@ -365,7 +357,6 @@ class ElasticParserUtil {
         }
     }
 
-    @SuppressWarnings("rawtypes")
     public static boolean isGeoPointFeature(Map<String, Object> map) {
         boolean result = false;
         if (map.size() == 2 && map.containsKey("coordinates")) {
@@ -448,7 +439,7 @@ class ElasticParserUtil {
         }
         final Matcher matcher = ELASTIC_DISTANCE_PATTERN.matcher(distanceWithUnit);
         if (matcher.matches()) {
-            final double distance = Double.valueOf(matcher.group(1));
+            final double distance = Double.parseDouble(matcher.group(1));
             final String unit = matcher.group(3);
             Double conversion = FilterToElasticHelper.UNITS_MAP.get(unit);
             if (conversion == null) {

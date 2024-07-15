@@ -16,17 +16,17 @@
  */
 package org.geotools.feature.collection;
 
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.store.EmptyFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.sort.SortBy;
 
 /**
  * Reasonable default implementation for subCollection making use of parent {@link
@@ -77,20 +77,19 @@ public class SubFeatureCollection extends BaseSimpleFeatureCollection {
         }
     }
 
+    @Override
     public SimpleFeatureIterator features() {
         return new FilteringSimpleFeatureIterator(collection.features(), filter());
     }
 
+    @Override
     public int size() {
         int count = 0;
-        SimpleFeatureIterator i = features();
-        try {
+        try (SimpleFeatureIterator i = features()) {
             while (i.hasNext()) {
                 i.next();
                 count++;
             }
-        } finally {
-            i.close();
         }
         return count;
     }
@@ -111,6 +110,7 @@ public class SubFeatureCollection extends BaseSimpleFeatureCollection {
         return Filter.INCLUDE;
     }
 
+    @Override
     public SimpleFeatureCollection subCollection(Filter filter) {
         if (filter.equals(Filter.INCLUDE)) {
             return this;
@@ -121,10 +121,12 @@ public class SubFeatureCollection extends BaseSimpleFeatureCollection {
         return new SubFeatureCollection(this, filter);
     }
 
+    @Override
     public SimpleFeatureCollection sort(SortBy order) {
         return new SubFeatureList(collection, filter, order);
     }
 
+    @Override
     public String getID() {
         return collection.getID();
     }

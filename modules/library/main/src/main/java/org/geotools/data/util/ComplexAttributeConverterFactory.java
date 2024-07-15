@@ -18,17 +18,17 @@
 package org.geotools.data.util;
 
 import java.util.Collection;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.GeometryAttribute;
+import org.geotools.api.feature.Property;
+import org.geotools.api.filter.identity.FeatureId;
 import org.geotools.feature.AttributeImpl;
 import org.geotools.filter.identity.FeatureIdImpl;
 import org.geotools.util.Converter;
 import org.geotools.util.ConverterFactory;
 import org.geotools.util.Converters;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.GeometryAttribute;
-import org.opengis.feature.Property;
-import org.opengis.filter.identity.FeatureId;
 
 /**
  * This converter retrieves the values out of attributes.
@@ -38,9 +38,11 @@ import org.opengis.filter.identity.FeatureId;
  */
 public class ComplexAttributeConverterFactory implements ConverterFactory {
 
+    @Override
     public Converter createConverter(Class<?> source, Class<?> target, Hints hints) {
         if (ComplexAttribute.class.isAssignableFrom(source)) {
             return new Converter() {
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     if (source instanceof ComplexAttribute) {
                         Collection<? extends Property> valueMap =
@@ -63,6 +65,7 @@ public class ComplexAttributeConverterFactory implements ConverterFactory {
         // GeometryAttribute unwrapper
         if (GeometryAttribute.class.isAssignableFrom(source)) {
             return new Converter() {
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     if (source instanceof GeometryAttribute) {
                         return Converters.convert(((GeometryAttribute) source).getValue(), target);
@@ -75,6 +78,7 @@ public class ComplexAttributeConverterFactory implements ConverterFactory {
         // String to FeatureId comparison
         if (FeatureId.class.isAssignableFrom(target) && String.class.isAssignableFrom(source)) {
             return new Converter() {
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     if (source != null) {
                         return target.cast(new FeatureIdImpl((String) source));
@@ -87,6 +91,7 @@ public class ComplexAttributeConverterFactory implements ConverterFactory {
         // gets the value of an attribute and tries to convert it to a string
         if (Attribute.class.isAssignableFrom(source)) {
             return new Converter() {
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     if (source instanceof Attribute) {
                         // get the attribute value
@@ -104,6 +109,7 @@ public class ComplexAttributeConverterFactory implements ConverterFactory {
         // handles the conversion of a list of attributes to string
         if (Collection.class.isAssignableFrom(source) && target == String.class) {
             return new Converter() {
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     if (!isCollectionOf(source, Attribute.class)) {
                         // not a collection of attributes, we are done

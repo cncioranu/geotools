@@ -18,9 +18,9 @@ package org.geotools.coverage.processing;
 
 import java.util.Arrays;
 import javax.media.jai.operator.BinarizeDescriptor;
+import org.geotools.api.coverage.processing.OperationNotFoundException;
 import org.geotools.coverage.Category;
 import org.geotools.coverage.GridSampleDimension;
-import org.opengis.coverage.processing.OperationNotFoundException;
 
 /**
  * Wraps any JAI operation producing a bilevel image. An example of such operation is {@link
@@ -58,6 +58,7 @@ public class BilevelOperation extends OperationJAI {
      * @param parameters The user-supplied parameters.
      * @return The sample dimensions for each band in the destination image.
      */
+    @Override
     protected GridSampleDimension[] deriveSampleDimension(
             final GridSampleDimension[][] bandLists, final Parameters parameters) {
         final GridSampleDimension[] bands = new GridSampleDimension[bandLists[0].length];

@@ -16,7 +16,7 @@
  */
 package org.geotools.jdbc;
 
-import org.opengis.filter.Filter;
+import org.geotools.api.filter.Filter;
 
 /** Metadata about a table column used to carry information through the type mapping process. */
 public class ColumnMetadata {
@@ -34,6 +34,8 @@ public class ColumnMetadata {
     boolean nullable;
     /** The native srid */
     Integer srid;
+    /** Column Remarks */
+    String remarks;
 
     public Class getBinding() {
         return binding;
@@ -89,5 +91,13 @@ public class ColumnMetadata {
 
     public void setRestriction(Filter restriction) {
         this.restriction = restriction;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
     }
 }

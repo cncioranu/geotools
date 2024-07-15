@@ -17,31 +17,24 @@
 
 package org.geotools.ows.wmts.request;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLEncoder;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.commons.lang3.StringUtils;
-import org.geotools.data.ows.HTTPClient;
-import org.geotools.data.ows.HTTPResponse;
-import org.geotools.data.ows.Response;
-import org.geotools.data.ows.SimpleHttpClient;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.http.HTTPClient;
+import org.geotools.http.HTTPClientFinder;
 import org.geotools.ows.ServiceException;
 import org.geotools.ows.wms.StyleImpl;
+import org.geotools.ows.wmts.WMTSHelper;
 import org.geotools.ows.wmts.client.WMTSTileFactory;
 import org.geotools.ows.wmts.client.WMTSTileService;
-import org.geotools.ows.wmts.model.TileMatrixLimits;
 import org.geotools.ows.wmts.model.TileMatrixSet;
 import org.geotools.ows.wmts.model.TileMatrixSetLink;
 import org.geotools.ows.wmts.model.WMTSCapabilities;
@@ -51,8 +44,6 @@ import org.geotools.referencing.CRS;
 import org.geotools.renderer.lite.RendererUtilities;
 import org.geotools.tile.Tile;
 import org.geotools.util.logging.Logging;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * (Based on existing work by rgould for WMS service)
@@ -70,14 +61,6 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
     public static final String LAYER = "Layer";
 
     public static final String STYLE = "Style";
-
-    public static final String TILECOL = "TileCol";
-
-    public static final String TILEROW = "TileRow";
-
-    public static final String TILEMATRIX = "TileMatrix";
-
-    public static final String TILEMATRIXSET = "TileMatrixSet";
 
     public static final String FORMAT = "Format";
 
@@ -107,7 +90,15 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
 
     private final Map<String, String> headers = new HashMap<>();
 
-    private String format = "image/png";
+    private String format = null;
+
+    private String tileMatrixSet = null;
+
+    private String tileMatrix = null;
+
+    private Integer tileRow = null;
+
+    private Integer tileCol = null;
 
     /**
      * Constructs a GetMapRequest. The data passed in represents valid values that can be used.
@@ -116,7 +107,7 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
      * @param properties pre-set properties to be used. Can be null.
      */
     public AbstractGetTileRequest(URL onlineResource, Properties properties) {
-        this(onlineResource, properties, new SimpleHttpClient());
+        this(onlineResource, properties, HTTPClientFinder.createClient());
     }
 
     public AbstractGetTileRequest(URL onlineResource, Properties properties, HTTPClient client) {
@@ -125,30 +116,37 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
         this.client = client;
     }
 
+    @Override
     protected abstract void initVersion();
 
+    @Override
     protected void initRequest() {
         setProperty(REQUEST, "GetTile");
     }
 
     @Override
-    public Response createResponse(HTTPResponse response) throws ServiceException, IOException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
     public void setLayer(WMTSLayer layer) {
-
+        if (layer == null) {
+            throw new IllegalArgumentException("Attempt to add a NULL layer to WMTS");
+        }
         this.layer = layer;
         if (styleName.isEmpty()) {
             StyleImpl defaultStyle = layer.getDefaultStyle();
-            if (defaultStyle != null) {
-                styleName = defaultStyle.getName();
+            if (defaultStyle != null && defaultStyle.getName() != null) {
+                setStyle(defaultStyle.getName());
+            } else {
+                for (int i = 0; i < layer.getStyles().size(); i++) {
+                    StyleImpl aStyle = layer.getStyles().get(i);
+                    if (aStyle.getName() != null) {
+                        setStyle(aStyle.getName());
+                        break;
+                    }
+                }
             }
         }
     }
 
+    /** Sets the style name for the request */
     @Override
     public void setStyle(String styleName) {
         this.styleName = styleName;
@@ -158,26 +156,74 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
         return format;
     }
 
+    @Override
     public void setFormat(String format) {
         this.format = format;
     }
 
+    /** Sets the tileMatrixSet for the request. */
+    @Override
+    public void setTileMatrixSet(String tileMatrixSet) {
+        this.tileMatrixSet = tileMatrixSet;
+    }
+
+    /** Returns the tileMatrixSet for the request */
+    protected String getTileMatrixSet() {
+        return tileMatrixSet;
+    }
+
+    @Override
+    public void setTileMatrix(String tileMatrix) {
+        this.tileMatrix = tileMatrix;
+    }
+
+    public String getTileMatrix() {
+        return tileMatrix;
+    }
+
+    @Override
+    public void setTileRow(Integer tileRow) {
+        this.tileRow = tileRow;
+    }
+
+    protected Integer getTileRow() {
+        return tileRow;
+    }
+
+    @Override
+    public void setTileCol(Integer tileCol) {
+        this.tileCol = tileCol;
+    }
+
+    protected Integer getTileCol() {
+        return tileCol;
+    }
+
+    @Override
     public void setRequestedHeight(int height) {
         this.requestedHeight = height;
     }
 
+    @Override
     public void setRequestedWidth(int width) {
         this.requestedWidth = width;
     }
 
+    @Override
     public void setRequestedBBox(ReferencedEnvelope requestedBBox) {
         this.requestedBBox = requestedBBox;
     }
 
+    protected String getRequestedTime() {
+        return requestedTime;
+    }
+
+    @Override
     public void setRequestedTime(String requestedTime) {
         this.requestedTime = requestedTime;
     }
 
+    @Override
     public Map<String, String> getHeaders() {
         return headers;
     }
@@ -195,34 +241,11 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
     /** Compute the set of tiles needed to generate the image. */
     @Override
     public Set<Tile> getTiles() throws ServiceException {
-        Set<Tile> tiles;
         if (layer == null) {
             throw new ServiceException("GetTiles called with no layer set");
         }
 
-        if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("getTiles: layer:" + layer);
-
-        String layerString = "";
-        String styleString = "";
-
-        try {
-            // spaces are converted to plus signs, but must be %20 for url calls
-            // [GEOT-4317]
-            layerString = URLEncoder.encode(layer.getName(), "UTF-8").replaceAll("\\+", "%20");
-        } catch (UnsupportedEncodingException | NullPointerException e) {
-            layerString = layerString + layer.getName();
-        }
-        styleName = styleName == null ? "" : styleName;
-        try {
-            styleString = URLEncoder.encode(styleName, "UTF-8").replaceAll("\\+", "%20");
-        } catch (UnsupportedEncodingException | NullPointerException e1) {
-            styleString = styleString + styleName;
-        }
-
-        setProperty(LAYER, layerString);
-        setProperty(STYLE, styleString);
-
-        if (LOGGER.isLoggable(Level.FINE))
+        if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.fine(
                     "getTiles:  layer:"
                             + layer
@@ -230,34 +253,16 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
                             + requestedWidth
                             + " x h:"
                             + requestedHeight);
+        }
 
         TileMatrixSet matrixSet = selectMatrixSet();
-        String format = (String) getProperties().get(FORMAT);
-        if (StringUtils.isEmpty(format)) {
-            if (!layer.getFormats().isEmpty()) {
-                format = layer.getFormats().get(0);
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine(
-                            "Format is not set, available formats: "
-                                    + layer.getFormats()
-                                    + " -- Selecting "
-                                    + format);
-                }
-            }
-        }
 
-        if (StringUtils.isEmpty(format)) {
-            format = "image/png";
-            if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Format not set, trying with " + format);
-        }
-        String requestUrl = getFinalURL().toExternalForm();
-        // TODO - Add properties that match the URL {}
+        String templateUrl = createTemplateUrl(matrixSet.getIdentifier());
+
+        templateUrl = WMTSHelper.replaceToken(templateUrl, "time", requestedTime);
+
         WMTSTileService wmtsService =
-                new WMTSTileService(requestUrl, type, layer, styleString, matrixSet, this.client);
-
-        wmtsService.setFormat(format);
-
-        wmtsService.getDimensions().put(WMTSTileService.DIMENSION_TIME, requestedTime);
+                new WMTSTileService(templateUrl, layer, matrixSet, this.client);
 
         @SuppressWarnings("unchecked")
         Map<String, String> extraHeaders =
@@ -272,79 +277,32 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
                 Math.round(
                         RendererUtilities.calculateOGCScale(requestedBBox, requestedWidth, null));
 
-        // these are all the tiles available in the tilematrix within the requested bbox
-        tiles = wmtsService.findTilesInExtent(requestedBBox, (int) scale, false, MAXTILES);
-        if (LOGGER.isLoggable(Level.FINE))
-            LOGGER.fine("found " + tiles.size() + " tiles in " + requestedBBox);
-        if (tiles.isEmpty()) {
-            return tiles;
-        }
-        Tile first = tiles.iterator().next();
-        int z = first.getTileIdentifier().getZ();
-
-        TileMatrixSetLink tmsl = layer.getTileMatrixLinks().get(matrixSet.getIdentifier());
-        TileMatrixLimits limit = WMTSTileFactory.getLimits(tmsl, matrixSet, z);
-
-        // remove tiles outside layer's limits
-        List<Tile> tilesOutsideLimits = new ArrayList<>();
-        for (Tile tile : tiles) {
-
-            int x = tile.getTileIdentifier().getX();
-            int y = tile.getTileIdentifier().getY();
-            if (x < limit.getMincol() || x > limit.getMaxcol()) {
-                if (LOGGER.isLoggable(Level.FINE))
-                    LOGGER.fine(
-                            "col "
-                                    + x
-                                    + " outside limits "
-                                    + limit.getMincol()
-                                    + " "
-                                    + limit.getMaxcol());
-                tilesOutsideLimits.add(tile);
-                continue;
-            }
-
-            if (y < limit.getMinrow() || y > limit.getMaxrow()) {
-                if (LOGGER.isLoggable(Level.FINE))
-                    LOGGER.fine(
-                            "row "
-                                    + y
-                                    + " outside limits "
-                                    + limit.getMinrow()
-                                    + " "
-                                    + limit.getMaxrow());
-                tilesOutsideLimits.add(tile);
-            }
-        }
-        tiles.removeAll(tilesOutsideLimits);
-
-        return tiles;
+        return wmtsService.findTilesInExtent(requestedBBox, (int) scale, false, MAXTILES);
     }
 
-    @Override
-    public URL getFinalURL() {
-        String requestUrl = onlineResource.toString();
-        if (WMTSServiceType.REST.equals(type)) {
-            requestUrl = layer.getTemplate(format);
-            if (requestUrl == null) {
-                if (LOGGER.isLoggable(Level.INFO))
-                    LOGGER.info("Template URL not available for format  " + format);
-                // format = layer.getFormats().get(0);
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine(
-                            "Available formats: " + layer.getFormats() + " -- Selecting " + format);
-                }
-                requestUrl = layer.getTemplate(format);
-            }
+    /**
+     * Used when creating WMTSTileService's based on a templateUrl.
+     *
+     * <p>If the server supports RESTful calls. It will use that. Otherwise it will create a similar
+     * template for KVP requests.
+     *
+     * @param tileMatrixSetName the name of the tileMatrixSet. This is expected to be UTF-8 encoded
+     * @return template URL used containing placeholders for request parameters
+     */
+    protected abstract String createTemplateUrl(String tileMatrixSetName);
+
+    /**
+     * Returns the resourceUrl specified in capabilities for a RESTful GetTile request.
+     *
+     * <p>Connected to a separate layer and format
+     */
+    public String getTemplateUrl() {
+        if (layer.getTemplate(format) == null) {
+            throw new IllegalStateException(
+                    "Template URL not available for GetTile request with format  " + format);
+        } else {
+            return layer.getTemplate(format);
         }
-        URL ret = null;
-        try {
-            ret = new URL(requestUrl);
-        } catch (MalformedURLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        return ret;
     }
 
     private TileMatrixSet selectMatrixSet() throws ServiceException, RuntimeException {
@@ -355,7 +313,7 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.fine("request CRS " + (requestCRS == null ? "NULL" : requestCRS.getName()));
         }
-        if (requestCRS == null) {
+        if (requestCRS == null && srs != null) {
             try {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.fine("request CRS decoding" + srs);
@@ -368,6 +326,13 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
                 }
                 throw new RuntimeException(e);
             }
+        }
+        if (requestCRS == null && requestedBBox != null) {
+            requestCRS = requestedBBox.getCoordinateReferenceSystem();
+        }
+
+        if (requestCRS == null) {
+            throw new ServiceException("CRS or SRS wasn't set for this GetTileRequest.");
         }
 
         // See if the layer supports the requested SRS. Matching against the SRS rather than the
@@ -384,7 +349,7 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.fine("selected matrix set:" + matrixSet.getIdentifier());
                     }
-                    setProperty(TILEMATRIXSET, matrixSet.getIdentifier());
+                    setTileMatrixSet(matrixSet.getIdentifier());
                     retMatrixSet = matrixSet;
 
                     break;
@@ -405,7 +370,7 @@ public abstract class AbstractGetTileRequest extends AbstractWMTSRequest impleme
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.fine("defaulting matrix set:" + matrix.getIdentifier());
                     }
-                    setProperty(TILEMATRIXSET, matrix.getIdentifier());
+                    setTileMatrixSet(matrix.getIdentifier());
                     retMatrixSet = matrix;
 
                     break;

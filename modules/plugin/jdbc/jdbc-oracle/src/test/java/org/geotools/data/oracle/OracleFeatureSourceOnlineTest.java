@@ -16,17 +16,20 @@
  */
 package org.geotools.data.oracle;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsEqualTo;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCFeatureSourceOnlineTest;
 import org.geotools.jdbc.JDBCTestSetup;
 import org.geotools.referencing.CRS;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.PropertyIsEqualTo;
+import org.junit.Test;
 
 public class OracleFeatureSourceOnlineTest extends JDBCFeatureSourceOnlineTest {
 
@@ -40,10 +43,10 @@ public class OracleFeatureSourceOnlineTest extends JDBCFeatureSourceOnlineTest {
      *
      * @author Hendrik Peilke
      */
+    @Test
     public void testSDOGeomMetadataBounds() throws Exception {
         // enable fast bounds retrieval from SDO_GEOM_METADATA table
-        ((OracleDialect) ((JDBCDataStore) dataStore).getSQLDialect()).setMetadataBboxEnabled(true);
-        ;
+        ((OracleDialect) dataStore.getSQLDialect()).setMetadataBboxEnabled(true);
 
         ReferencedEnvelope bounds = dataStore.getFeatureSource(tname("ft1")).getBounds();
         assertEquals(-180l, Math.round(bounds.getMinX()));
@@ -54,10 +57,10 @@ public class OracleFeatureSourceOnlineTest extends JDBCFeatureSourceOnlineTest {
         assertTrue(areCRSEqual(CRS.decode("EPSG:4326"), bounds.getCoordinateReferenceSystem()));
     }
 
+    @Test
     public void testEstimatedBounds() throws Exception {
         // enable fast bbox
-        ((OracleDialect) ((JDBCDataStore) dataStore).getSQLDialect())
-                .setEstimatedExtentsEnabled(true);
+        ((OracleDialect) dataStore.getSQLDialect()).setEstimatedExtentsEnabled(true);
 
         ReferencedEnvelope bounds = dataStore.getFeatureSource(tname("ft1")).getBounds();
         assertEquals(0l, Math.round(bounds.getMinX()));
@@ -68,10 +71,10 @@ public class OracleFeatureSourceOnlineTest extends JDBCFeatureSourceOnlineTest {
         assertTrue(areCRSEqual(CRS.decode("EPSG:4326"), bounds.getCoordinateReferenceSystem()));
     }
 
+    @Test
     public void testEstimatedBoundsWithQuery() throws Exception {
         // enable fast bbox
-        ((OracleDialect) ((JDBCDataStore) dataStore).getSQLDialect())
-                .setEstimatedExtentsEnabled(true);
+        ((OracleDialect) dataStore.getSQLDialect()).setEstimatedExtentsEnabled(true);
 
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyIsEqualTo filter =

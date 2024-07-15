@@ -20,13 +20,13 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.TreeMap;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.collection.AbstractFeatureCollection;
 import org.geotools.feature.collection.RandomFeatureAccess;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * Implement a SimpleFeatureCollection by burning memory!
@@ -48,16 +48,19 @@ public class MemoryFeatureCollection extends AbstractFeatureCollection
         super(schema);
     }
 
+    @Override
     public boolean add(SimpleFeature o) {
-        SimpleFeature feature = (SimpleFeature) o;
+        SimpleFeature feature = o;
         contents.put(feature.getID(), feature);
         return true;
     }
 
+    @Override
     public int size() {
         return contents.size();
     }
 
+    @Override
     public MemoryIterator openIterator() {
         return new MemoryIterator(contents.values().iterator());
     }
@@ -69,10 +72,12 @@ public class MemoryFeatureCollection extends AbstractFeatureCollection
             it = iterator;
         }
 
+        @Override
         public void close() {
             it = null;
         }
 
+        @Override
         public boolean hasNext() {
             if (it == null) {
                 throw new IllegalStateException();
@@ -80,6 +85,7 @@ public class MemoryFeatureCollection extends AbstractFeatureCollection
             return it.hasNext();
         }
 
+        @Override
         public SimpleFeature next() {
             if (it == null) {
                 throw new IllegalStateException();
@@ -87,6 +93,7 @@ public class MemoryFeatureCollection extends AbstractFeatureCollection
             return it.next();
         }
 
+        @Override
         public void remove() {
             it.remove();
         }
@@ -95,16 +102,18 @@ public class MemoryFeatureCollection extends AbstractFeatureCollection
     //
     // RandomFeatureAccess
     //
+    @Override
     public SimpleFeature getFeatureMember(String id) throws NoSuchElementException {
         if (contents.containsKey(id)) {
-            return (SimpleFeature) contents.get(id);
+            return contents.get(id);
         }
         throw new NoSuchElementException(id);
     }
 
+    @Override
     public SimpleFeature removeFeatureMember(String id) {
         if (contents.containsKey(id)) {
-            SimpleFeature old = (SimpleFeature) contents.get(id);
+            SimpleFeature old = contents.get(id);
             contents.remove(id);
             return old;
         }

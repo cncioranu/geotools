@@ -17,13 +17,13 @@
 package org.geotools.referencing.operation.matrix;
 
 import java.io.Serializable;
+import org.geotools.api.referencing.operation.Matrix;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
-import org.opengis.referencing.operation.Matrix;
 
 /**
  * A matrix of fixed {@value #SIZE}&times;{@value #SIZE} size. This trivial matrix is returned as a
- * result of {@linkplain org.opengis.referencing.operation.MathTransform1D} derivative computation.
+ * result of {@linkplain org.geotools.api.referencing.operation.MathTransform1D} derivative
+ * computation.
  *
  * @since 2.2
  * @version $Id$
@@ -55,7 +55,7 @@ public class Matrix1 implements XMatrix, Serializable {
      */
     public Matrix1(final Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = matrix.getElement(0, 0);
     }
@@ -64,6 +64,7 @@ public class Matrix1 implements XMatrix, Serializable {
      * Returns the number of rows in this matrix, which is always {@value #SIZE} in this
      * implementation.
      */
+    @Override
     public final int getNumRow() {
         return SIZE;
     }
@@ -72,11 +73,13 @@ public class Matrix1 implements XMatrix, Serializable {
      * Returns the number of colmuns in this matrix, which is always {@value #SIZE} in this
      * implementation.
      */
+    @Override
     public final int getNumCol() {
         return SIZE;
     }
 
     /** {@inheritDoc} */
+    @Override
     public final double getElement(final int row, final int col) {
         if (row == 0 && col == 0) {
             return m00;
@@ -86,6 +89,7 @@ public class Matrix1 implements XMatrix, Serializable {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void setElement(final int row, final int col, final double value) {
         if (row == 0 && col == 0) {
             m00 = value;
@@ -95,31 +99,37 @@ public class Matrix1 implements XMatrix, Serializable {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void setZero() {
         m00 = 0;
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void setIdentity() {
         m00 = 1;
     }
 
     /** {@inheritDoc} */
+    @Override
     public final boolean isIdentity() {
         return m00 == 1;
     }
 
     /** {@inheritDoc} */
+    @Override
     public final boolean isIdentity(double tolerance) {
         return Math.abs(m00 - 1) <= Math.abs(tolerance);
     }
 
     /** {@inheritDoc} */
+    @Override
     public final boolean isAffine() {
         return m00 == 1;
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void negate() {
         m00 = -m00;
     }
@@ -127,12 +137,13 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void negate(Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = -matrix.getElement(0, 0);
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void transpose() {
         // Nothing to do for a 1x1 matrix.
     }
@@ -140,12 +151,13 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void transpose(Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = matrix.getElement(0, 0);
     }
 
     /** Inverts this matrix in place. */
+    @Override
     public final void invert() {
         if (m00 == 0) {
             throw new SingularMatrixException("1 dimensional m is singular");
@@ -156,7 +168,7 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void invert(Matrix matrix) throws SingularMatrixException {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         if (matrix.getElement(0, 0) == 0) {
             throw new SingularMatrixException("1 dimensional matrix is singular");
@@ -165,14 +177,16 @@ public class Matrix1 implements XMatrix, Serializable {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void multiply(final Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 *= matrix.getElement(0, 0);
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean equals(final Matrix matrix, final double tolerance) {
         return GeneralMatrix.epsilonEquals(this, matrix, tolerance);
     }
@@ -280,7 +294,7 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void add(double scalar, XMatrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = scalar + matrix.getElement(0, 0);
     }
@@ -288,7 +302,7 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void add(XMatrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 += matrix.getElement(0, 0);
     }
@@ -296,10 +310,10 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void add(XMatrix matrix1, XMatrix matrix2) {
         if (matrix1.getNumRow() != SIZE || matrix1.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         if (matrix2.getNumRow() != SIZE || matrix2.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = matrix1.getElement(0, 0) + matrix2.getElement(0, 0);
     }
@@ -317,7 +331,7 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void mul(double scalar, Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = scalar * matrix.getElement(0, 0);
     }
@@ -325,7 +339,7 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void mul(Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 *= matrix.getElement(0, 0);
     }
@@ -333,10 +347,10 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void mul(Matrix matrix1, Matrix matrix2) {
         if (matrix1.getNumRow() != SIZE || matrix1.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         if (matrix2.getNumRow() != SIZE || matrix2.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = matrix1.getElement(0, 0) * matrix2.getElement(0, 0);
     }
@@ -349,7 +363,7 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void sub(Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 -= matrix.getElement(0, 0);
     }
@@ -357,7 +371,7 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void sub(double scalar, Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = scalar - matrix.getElement(0, 0);
     }
@@ -365,10 +379,10 @@ public class Matrix1 implements XMatrix, Serializable {
     @Override
     public void sub(Matrix matrix1, Matrix matrix2) {
         if (matrix1.getNumRow() != SIZE || matrix1.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         if (matrix2.getNumRow() != SIZE || matrix2.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = matrix1.getElement(0, 0) - matrix2.getElement(0, 0);
     }

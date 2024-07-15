@@ -29,14 +29,14 @@ import static java.lang.Math.toDegrees;
 
 import java.awt.geom.Point2D;
 import java.util.logging.Level;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * General Oblique Transformation projection useful for rotated spherical coordinates ("Rotated
@@ -77,6 +77,7 @@ public class GeneralOblique extends MapProjection {
      * @param x The longitude of the coordinate, in <strong>radians</strong>.
      * @param y The latitude of the coordinate, in <strong>radians</strong>.
      */
+    @Override
     protected Point2D transformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         final double sinlat = sin(y);
@@ -105,6 +106,7 @@ public class GeneralOblique extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates (units in radians) and
      * stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         final double scalePI = globalScale * PI / 180;
@@ -182,6 +184,7 @@ public class GeneralOblique extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException, FactoryException {
             if (isSpherical(parameters)) {

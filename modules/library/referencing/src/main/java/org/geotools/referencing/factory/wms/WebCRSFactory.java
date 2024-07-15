@@ -17,11 +17,20 @@
 package org.geotools.referencing.factory.wms;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.datum.GeodeticDatum;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.cs.DefaultEllipsoidalCS;
@@ -30,16 +39,6 @@ import org.geotools.referencing.datum.DefaultPrimeMeridian;
 import org.geotools.referencing.factory.DirectAuthorityFactory;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.Identifier;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.datum.GeodeticDatum;
-import org.opengis.util.InternationalString;
 
 /**
  * The factory for {@linkplain CoordinateReferenceSystem coordinate reference systems} in the {@code
@@ -123,6 +122,7 @@ public class WebCRSFactory extends DirectAuthorityFactory implements CRSAuthorit
     }
 
     /** Returns the authority for this factory, which is {@link Citations#CRS CRS}. */
+    @Override
     public Citation getAuthority() {
         return Citations.CRS;
     }
@@ -138,12 +138,14 @@ public class WebCRSFactory extends DirectAuthorityFactory implements CRSAuthorit
      * org.geotools.referencing.factory.AllAuthoritiesFactory#getAuthorityCodes all authorities
      * factory}.
      */
+    @Override
     public Set<String> getAuthorityCodes(final Class<? extends IdentifiedObject> type)
             throws FactoryException {
         ensureInitialized();
         final Set<String> set = new LinkedHashSet<>();
-        for (final Iterator it = crsMap.entrySet().iterator(); it.hasNext(); ) {
-            final Map.Entry entry = (Map.Entry) it.next();
+        for (Map.Entry<Integer, CoordinateReferenceSystem> integerCoordinateReferenceSystemEntry :
+                crsMap.entrySet()) {
+            final Map.Entry entry = (Map.Entry) integerCoordinateReferenceSystemEntry;
             final CoordinateReferenceSystem crs = (CoordinateReferenceSystem) entry.getValue();
             if (type.isAssignableFrom(crs.getClass())) {
                 final Integer code = (Integer) entry.getKey();
@@ -154,6 +156,7 @@ public class WebCRSFactory extends DirectAuthorityFactory implements CRSAuthorit
     }
 
     /** Returns the CRS name for the given code. */
+    @Override
     public InternationalString getDescriptionText(final String code) throws FactoryException {
         return new SimpleInternationalString(createObject(code).getName().getCode());
     }
@@ -162,11 +165,13 @@ public class WebCRSFactory extends DirectAuthorityFactory implements CRSAuthorit
      * Creates an object from the specified code. The default implementation delegates to <code>
      * {@linkplain #createCoordinateReferenceSystem createCoordinateReferenceSystem}(code)</code>.
      */
+    @Override
     public IdentifiedObject createObject(final String code) throws FactoryException {
         return createCoordinateReferenceSystem(code);
     }
 
     /** Creates a coordinate reference system from the specified code. */
+    @Override
     public CoordinateReferenceSystem createCoordinateReferenceSystem(final String code)
             throws FactoryException {
         String c = trimAuthority(code).toUpperCase();

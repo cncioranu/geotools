@@ -17,13 +17,13 @@
 package org.geotools.data.store;
 
 import java.io.IOException;
-import org.geotools.data.BatchFeatureEvent;
+import org.geotools.api.data.BatchFeatureEvent;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.DiffFeatureWriter;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.Transaction;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * FeatureWriter wrapper that issues events modifications as required.
@@ -75,8 +75,9 @@ public class EventContentFeatureWriter implements FeatureWriter<SimpleFeatureTyp
     /**
      * Supplys FeatureTypeFrom reader
      *
-     * @see org.geotools.data.FeatureWriter#getFeatureType()
+     * @see FeatureWriter#getFeatureType()
      */
+    @Override
     public SimpleFeatureType getFeatureType() {
         return writer.getFeatureType();
     }
@@ -84,8 +85,9 @@ public class EventContentFeatureWriter implements FeatureWriter<SimpleFeatureTyp
     /**
      * Next Feature from reader or new content.
      *
-     * @see org.geotools.data.FeatureWriter#next()
+     * @see FeatureWriter#next()
      */
+    @Override
     public SimpleFeature next() throws IOException {
         if (writer == null) {
             throw new IOException("FeatureWriter has been closed");
@@ -94,7 +96,8 @@ public class EventContentFeatureWriter implements FeatureWriter<SimpleFeatureTyp
         return feature;
     }
 
-    /** @see org.geotools.data.FeatureWriter#remove() */
+    /** @see FeatureWriter#remove() */
+    @Override
     public void remove() throws IOException {
         if (writer == null) {
             throw new IOException("FeatureWriter has been closed");
@@ -106,8 +109,9 @@ public class EventContentFeatureWriter implements FeatureWriter<SimpleFeatureTyp
     /**
      * Writes out the current feature.
      *
-     * @see org.geotools.data.FeatureWriter#write()
+     * @see FeatureWriter#write()
      */
+    @Override
     public void write() throws IOException {
         if (writer == null) {
             throw new IOException("FeatureWriter has been closed");
@@ -130,8 +134,9 @@ public class EventContentFeatureWriter implements FeatureWriter<SimpleFeatureTyp
     /**
      * Query for more content.
      *
-     * @see org.geotools.data.FeatureWriter#hasNext()
+     * @see FeatureWriter#hasNext()
      */
+    @Override
     public boolean hasNext() throws IOException {
         if (writer == null) {
             return false;
@@ -145,8 +150,9 @@ public class EventContentFeatureWriter implements FeatureWriter<SimpleFeatureTyp
      * <p>Diff is not clear()ed as it is assumed that it belongs to a Transaction.State object and
      * may yet be written out.
      *
-     * @see org.geotools.data.FeatureWriter#close()
+     * @see FeatureWriter#close()
      */
+    @Override
     public void close() throws IOException {
         @SuppressWarnings("PMD.CloseResource") // not to be closed here
         Transaction t = state.getTransaction();

@@ -19,9 +19,10 @@
  */
 package org.geotools.referencing;
 
-import static org.opengis.referencing.IdentifiedObject.REMARKS_KEY;
+import static org.geotools.api.referencing.IdentifiedObject.REMARKS_KEY;
 
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -29,8 +30,16 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.parameter.InvalidParameterValueException;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.util.GenericName;
+import org.geotools.api.util.InternationalString;
+import org.geotools.api.util.LocalName;
+import org.geotools.api.util.NameSpace;
+import org.geotools.api.util.ScopedName;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.LoggingKeys;
 import org.geotools.metadata.i18n.Loggings;
 import org.geotools.metadata.iso.citation.Citations;
@@ -38,15 +47,6 @@ import org.geotools.util.GrowableInternationalString;
 import org.geotools.util.Utilities;
 import org.geotools.util.WeakValueHashMap;
 import org.geotools.util.logging.Logging;
-import org.opengis.metadata.Identifier;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.parameter.InvalidParameterValueException;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.util.GenericName;
-import org.opengis.util.InternationalString;
-import org.opengis.util.LocalName;
-import org.opengis.util.NameSpace;
-import org.opengis.util.ScopedName;
 
 /**
  * An identification of a CRS object. The main interface implemented by this class is {@link
@@ -372,7 +372,9 @@ public class NamedIdentifier
         } catch (ClassCastException exception) {
             InvalidParameterValueException e =
                     new InvalidParameterValueException(
-                            Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, key, value), key, value);
+                            MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, key, value),
+                            key,
+                            value);
             e.initCause(exception);
             throw e;
         }
@@ -393,7 +395,7 @@ public class NamedIdentifier
             throws IllegalArgumentException {
         if (object == null) {
             throw new InvalidParameterValueException(
-                    Errors.format(ErrorKeys.NULL_ARGUMENT_$1, name), name, object);
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, name), name, object);
         }
     }
 
@@ -402,6 +404,7 @@ public class NamedIdentifier
      *
      * @return The code.
      */
+    @Override
     public String getCode() {
         return code;
     }
@@ -411,6 +414,7 @@ public class NamedIdentifier
      *
      * @return The codespace, or {@code null} if not available.
      */
+    @Override
     public String getCodeSpace() {
         return codespace;
     }
@@ -421,6 +425,7 @@ public class NamedIdentifier
      *
      * @return The authority, or {@code null} if not available.
      */
+    @Override
     public Citation getAuthority() {
         return authority;
     }
@@ -433,6 +438,7 @@ public class NamedIdentifier
      *
      * @return The version, or {@code null} if not available.
      */
+    @Override
     public String getVersion() {
         return version;
     }
@@ -547,6 +553,7 @@ public class NamedIdentifier
      *
      * @since 2.6
      */
+    @Override
     public LocalName head() {
         return getName().head();
     }
@@ -556,6 +563,7 @@ public class NamedIdentifier
      *
      * @since 2.3
      */
+    @Override
     public LocalName tip() {
         return getName().tip();
     }
@@ -565,6 +573,7 @@ public class NamedIdentifier
      *
      * @since 2.3
      */
+    @Override
     public NameSpace scope() {
         return getName().scope();
     }
@@ -574,6 +583,7 @@ public class NamedIdentifier
      *
      * @since 2.3
      */
+    @Override
     public int depth() {
         return getName().depth();
     }
@@ -583,6 +593,7 @@ public class NamedIdentifier
      * element in this list is like a directory name in a file path name. The length of this
      * sequence is the generic name depth.
      */
+    @Override
     @SuppressWarnings("unchecked")
     public List<LocalName> getParsedNames() {
         // TODO: temporary hack to be removed after GeoAPI update.
@@ -595,6 +606,7 @@ public class NamedIdentifier
      *
      * @since 2.3
      */
+    @Override
     public ScopedName push(final GenericName scope) {
         return getName().push(scope);
     }
@@ -604,6 +616,7 @@ public class NamedIdentifier
      *
      * @since 2.3
      */
+    @Override
     public GenericName toFullyQualifiedName() {
         return getName().toFullyQualifiedName();
     }
@@ -615,6 +628,7 @@ public class NamedIdentifier
      * string is available, then this method returns an implementation mapping to {@link #toString}
      * for all locales.
      */
+    @Override
     public InternationalString toInternationalString() {
         return getName().toInternationalString();
     }
@@ -637,6 +651,7 @@ public class NamedIdentifier
      * @param object The object to compare with.
      * @return -1 if this identifier precedes the given object, +1 if it follows it.
      */
+    @Override
     public int compareTo(final GenericName object) {
         return getName().compareTo(object);
     }

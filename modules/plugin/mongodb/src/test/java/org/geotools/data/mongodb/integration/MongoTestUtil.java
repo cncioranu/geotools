@@ -33,15 +33,15 @@ import java.net.UnknownHostException;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.geotools.TestData;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.GeometryAttribute;
+import org.geotools.api.feature.Property;
 import org.geotools.data.mongodb.MongoGeometryBuilder;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.junit.Test;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.Feature;
-import org.opengis.feature.GeometryAttribute;
-import org.opengis.feature.Property;
 
 /** @author tkunicki@boundlessgeo.com */
 @SuppressWarnings("deprecation") // DB was replaced by MongoDatabase but API is not the same
@@ -65,8 +65,7 @@ public class MongoTestUtil {
 
     @Test
     public void testConnect() throws UnknownHostException {
-        MongoClient mc = new MongoClient("localhost", PORT);
-        try {
+        try (MongoClient mc = new MongoClient("localhost", PORT)) {
             assertThat(mc, is(notNullValue()));
             DB db = mc.getDB("db");
             DBCollection coll = db.getCollection("dbc");
@@ -78,48 +77,42 @@ public class MongoTestUtil {
 
             coll.insert(bdo);
             // System.out.println(coll.findOne());
-        } finally {
-            mc.close();
         }
     }
 
     @Test
     public void testLoad() throws IOException {
-        MongoClient mc = new MongoClient("localhost", PORT);
-        try {
+        try (MongoClient mc = new MongoClient("localhost", PORT)) {
             DBCollection dbc = grabDBCollection(mc, "db", "dbc", true);
             ShapefileDataStore sds = loadShapefile("shapes/statepop.shp");
             loadFeatures(dbc, sds.getFeatureSource().getFeatures());
-        } finally {
-            mc.close();
         }
     }
 
     public void loadFeatures(DBCollection coll, FeatureCollection<?, ?> collection) {
         MongoGeometryBuilder gBuilder = new MongoGeometryBuilder();
 
-        FeatureIterator<?> iterator = collection.features();
-        while (iterator.hasNext()) {
-            Feature f = iterator.next();
-            Set<Property> pSet = new LinkedHashSet<>(f.getProperties());
-            BasicDBObjectBuilder bdoBuilder = BasicDBObjectBuilder.start();
+        try (FeatureIterator<?> iterator = collection.features()) {
+            while (iterator.hasNext()) {
+                Feature f = iterator.next();
+                Set<Property> pSet = new LinkedHashSet<>(f.getProperties());
+                BasicDBObjectBuilder bdoBuilder = BasicDBObjectBuilder.start();
 
-            GeometryAttribute gAttr = f.getDefaultGeometryProperty();
-            bdoBuilder.add("type", "feature");
-            bdoBuilder.add("geometry", gBuilder.toObject((Geometry) gAttr.getValue()));
-            boolean removed = pSet.remove(gAttr);
+                GeometryAttribute gAttr = f.getDefaultGeometryProperty();
+                bdoBuilder.add("type", "feature");
+                bdoBuilder.add("geometry", gBuilder.toObject((Geometry) gAttr.getValue()));
+                pSet.remove(gAttr);
 
-            bdoBuilder.push("properties");
-            for (Property p : pSet) {
-                if (p instanceof GeometryAttribute) {
-                    // why isn't this removed above?
-                } else {
-                    bdoBuilder.add(p.getName().getLocalPart(), p.getValue());
+                bdoBuilder.push("properties");
+                for (Property p : pSet) {
+                    if (!(p instanceof GeometryAttribute)) {
+                        bdoBuilder.add(p.getName().getLocalPart(), p.getValue());
+                    }
                 }
+                bdoBuilder.pop();
+                coll.insert(bdoBuilder.get());
+                coll.createIndex(new BasicDBObject("geometry", "2dsphere"));
             }
-            bdoBuilder.pop();
-            coll.insert(bdoBuilder.get());
-            coll.createIndex(new BasicDBObject("geometry", "2dsphere"));
         }
     }
 

@@ -19,6 +19,13 @@ package org.geotools.coverage.grid.io;
 import it.geosolutions.imageio.core.CoreCommonImageMetadata;
 import it.geosolutions.imageio.maskband.DatasetLayout;
 import it.geosolutions.imageio.maskband.DefaultDatasetLayoutImpl;
+import it.geosolutions.imageio.pam.PAMDataset;
+import it.geosolutions.imageio.pam.PAMParser;
+import it.geosolutions.imageio.plugins.tiff.TIFFField;
+import it.geosolutions.imageio.utilities.ImageIOUtilities;
+import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageMetadata;
+import it.geosolutions.imageioimpl.plugins.tiff.gdal.GDALMetadata;
+import it.geosolutions.imageioimpl.plugins.tiff.gdal.GDALMetadataParser;
 import it.geosolutions.jaiext.utilities.ImageLayout2;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
@@ -31,12 +38,14 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageReadParam;
@@ -47,6 +56,26 @@ import javax.imageio.spi.ImageInputStreamSpi;
 import javax.imageio.stream.ImageInputStream;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.PlanarImage;
+import org.geotools.api.coverage.ColorInterpretation;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.FileGroupProvider.FileGroup;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.data.ServiceInfo;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.InvalidParameterNameException;
+import org.geotools.api.parameter.InvalidParameterValueException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.CoordinateOperationFactory;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.TypeMap;
@@ -56,17 +85,13 @@ import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.io.footprint.MultiLevelROIProvider;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.data.DataSourceException;
 import org.geotools.data.DefaultFileResourceInfo;
 import org.geotools.data.DefaultFileServiceInfo;
 import org.geotools.data.DefaultResourceInfo;
 import org.geotools.data.DefaultServiceInfo;
-import org.geotools.data.FileGroupProvider.FileGroup;
-import org.geotools.data.ResourceInfo;
-import org.geotools.data.ServiceInfo;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
+import org.geotools.image.util.ImageUtilities;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
@@ -77,22 +102,6 @@ import org.geotools.util.Utilities;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.ColorInterpretation;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.InvalidParameterNameException;
-import org.opengis.parameter.InvalidParameterValueException;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.CoordinateOperationFactory;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * This class is a first attempt for providing a way to get more informations out of a single 2D
@@ -117,6 +126,12 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
     /** Small number used for double comparisons */
     protected static double EPS = 1e-6;
 
+    /**
+     * Custom tag holding a XML that can be parsed into a {@link
+     * it.geosolutions.imageioimpl.plugins.tiff.gdal.GDALMetadata}
+     */
+    static final int GDAL_METADATA_TAG = 42112;
+
     /** This contains the number of overviews.aaa */
     protected int numOverviews = 0;
 
@@ -127,7 +142,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
     protected CoordinateReferenceSystem crs = null;
 
     /** Envelope read from file */
-    protected GeneralEnvelope originalEnvelope = null;
+    protected GeneralBounds originalEnvelope = null;
 
     /** Coverage name */
     protected String coverageName = "geotools_coverage";
@@ -220,7 +235,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
         //
         if (input == null) {
             final IOException ex =
-                    new IOException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "input"));
+                    new IOException(MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "input"));
             throw new DataSourceException(ex);
         }
         this.source = input;
@@ -276,6 +291,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      *     {@link javax.imageio.IIOException} if an error was thrown by the underlying image
      *     library.
      */
+    @Override
     public abstract GridCoverage2D read(GeneralParameterValue[] parameters)
             throws IllegalArgumentException, IOException;
 
@@ -300,14 +316,14 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      *     {@link Hints#VALUE_OVERVIEW_POLICY_SPEED}. It specifies the policy to compute the
      *     overviews level upon request.
      * @param readP an instance of {@link ImageReadParam} for setting the subsampling factors.
-     * @param requestedEnvelope the {@link GeneralEnvelope} we are requesting.
+     * @param requestedEnvelope the {@link GeneralBounds} we are requesting.
      * @param requestedDim the requested dimensions.
      * @return the index of the raster to read in the underlying data source.
      */
     protected Integer setReadParams(
             OverviewPolicy overviewPolicy,
             ImageReadParam readP,
-            GeneralEnvelope requestedEnvelope,
+            GeneralBounds requestedEnvelope,
             Rectangle requestedDim)
             throws IOException, TransformException {
         return setReadParams(coverageName, overviewPolicy, readP, requestedEnvelope, requestedDim);
@@ -328,7 +344,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      *     {@link Hints#VALUE_OVERVIEW_POLICY_SPEED}. It specifies the policy to compute the
      *     overviews level upon request.
      * @param readP an instance of {@link ImageReadParam} for setting the subsampling factors.
-     * @param requestedEnvelope the {@link GeneralEnvelope} we are requesting.
+     * @param requestedEnvelope the {@link GeneralBounds} we are requesting.
      * @param requestedDim the requested dimensions.
      * @return the index of the raster to read in the underlying data source.
      */
@@ -336,7 +352,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
             String coverageName,
             OverviewPolicy overviewPolicy,
             ImageReadParam readP,
-            GeneralEnvelope requestedEnvelope,
+            GeneralBounds requestedEnvelope,
             Rectangle requestedDim)
             throws IOException, TransformException {
 
@@ -519,6 +535,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      * Returns the actual resolution used to read the data given the specified target resolution and
      * the specified overview policy
      */
+    @Override
     public double[] getReadingResolutions(OverviewPolicy policy, double[] requestedResolution)
             throws IOException {
         // Default implementation for backwards compatibility
@@ -579,12 +596,14 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
             this.imageChoice = imageChoice;
         }
 
+        @Override
         public int compareTo(Resolution other) {
             if (scaleFactor > other.scaleFactor) return 1;
             else if (scaleFactor < other.scaleFactor) return -1;
             else return 0;
         }
 
+        @Override
         public String toString() {
             return "Resolution[Choice=" + imageChoice + ",scaleFactor=" + scaleFactor + "]";
         }
@@ -600,58 +619,38 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      */
     protected final void decimationOnReadingControl(
             String coverageName, Integer imageChoice, ImageReadParam readP, double[] requestedRes) {
-        {
-            int w, h;
-            double[] selectedRes = new double[2];
-            final int choice = imageChoice.intValue();
-            if (choice == 0) {
-                // highest resolution
-                w = getOriginalGridRange(coverageName).getSpan(0);
-                h = getOriginalGridRange(coverageName).getSpan(1);
-                selectedRes[0] = getHighestRes()[0];
-                selectedRes[1] = getHighestRes()[1];
-            } else {
-                // some overview
-                selectedRes[0] = overViewResolutions[choice - 1][0];
-                selectedRes[1] = overViewResolutions[choice - 1][1];
-                w = (int) Math.round(getOriginalEnvelope(coverageName).getSpan(0) / selectedRes[0]);
-                h = (int) Math.round(getOriginalEnvelope(coverageName).getSpan(1) / selectedRes[1]);
-            }
-            // /////////////////////////////////////////////////////////////////////
-            // DECIMATION ON READING
-            // Setting subsampling factors with some checkings
-            // 1) the subsampling factors cannot be zero
-            // 2) the subsampling factors cannot be such that the w or h are
-            // zero
-            // /////////////////////////////////////////////////////////////////////
-            if (requestedRes == null) {
-                readP.setSourceSubsampling(1, 1, 0, 0);
 
-            } else {
-                int subSamplingFactorX = (int) Math.floor(requestedRes[0] / selectedRes[0]);
-                subSamplingFactorX = subSamplingFactorX == 0 ? 1 : subSamplingFactorX;
+        int w, h;
+        double[] selectedRes = new double[2];
+        final int choice = imageChoice.intValue();
+        if (choice == 0) {
+            // highest resolution
+            w = getOriginalGridRange(coverageName).getSpan(0);
+            h = getOriginalGridRange(coverageName).getSpan(1);
+            selectedRes[0] = getHighestRes()[0];
+            selectedRes[1] = getHighestRes()[1];
+        } else {
+            // some overview
+            selectedRes[0] = overViewResolutions[choice - 1][0];
+            selectedRes[1] = overViewResolutions[choice - 1][1];
+            w = (int) Math.round(getOriginalEnvelope(coverageName).getSpan(0) / selectedRes[0]);
+            h = (int) Math.round(getOriginalEnvelope(coverageName).getSpan(1) / selectedRes[1]);
+        }
+        // decimation on reading
+        if (requestedRes == null) {
+            readP.setSourceSubsampling(1, 1, 0, 0);
+        } else {
+            ImageUtilities.setSubsamplingFactors(readP, requestedRes, selectedRes, w, h);
 
-                while (w / subSamplingFactorX <= 0 && subSamplingFactorX >= 0) subSamplingFactorX--;
-                subSamplingFactorX = subSamplingFactorX == 0 ? 1 : subSamplingFactorX;
-
-                int subSamplingFactorY = (int) Math.floor(requestedRes[1] / selectedRes[1]);
-                subSamplingFactorY = subSamplingFactorY == 0 ? 1 : subSamplingFactorY;
-
-                while (h / subSamplingFactorY <= 0 && subSamplingFactorY >= 0) subSamplingFactorY--;
-                subSamplingFactorY = subSamplingFactorY == 0 ? 1 : subSamplingFactorY;
-
-                readP.setSourceSubsampling(subSamplingFactorX, subSamplingFactorY, 0, 0);
-
-                if (LOGGER.isLoggable(Level.FINE))
-                    LOGGER.log(
-                            Level.FINE,
-                            String.format(
-                                    "coverageName:%s,imageChoice:%d,subSamplingFactorX:%d,subSamplingFactorY:%d",
-                                    coverageName,
-                                    imageChoice.intValue(),
-                                    subSamplingFactorX,
-                                    subSamplingFactorY));
-            }
+            if (LOGGER.isLoggable(Level.FINE))
+                LOGGER.log(
+                        Level.FINE,
+                        String.format(
+                                "coverageName:%s,imageChoice:%d,subSamplingFactorX:%d,subSamplingFactorY:%d",
+                                coverageName,
+                                imageChoice.intValue(),
+                                readP.getSourceXSubsampling(),
+                                readP.getSourceYSubsampling()));
         }
     }
 
@@ -736,7 +735,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
         return coverageFactory.create(
                 coverageName,
                 image,
-                new GeneralEnvelope(getOriginalEnvelope(coverageName)),
+                new GeneralBounds(getOriginalEnvelope(coverageName)),
                 bands,
                 null,
                 null);
@@ -756,7 +755,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      * @param envelope the GeneralEnvelope
      */
     protected static final double[] getResolution(
-            GeneralEnvelope envelope, Rectangle2D dim, CoordinateReferenceSystem crs)
+            GeneralBounds envelope, Rectangle2D dim, CoordinateReferenceSystem crs)
             throws DataSourceException {
         double[] requestedRes = null;
         try {
@@ -776,9 +775,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
                 requestedRes[1] = envelope.getSpan(1) / dim.getHeight();
             }
             return requestedRes;
-        } catch (TransformException e) {
-            throw new DataSourceException("Unable to get resolution", e);
-        } catch (FactoryException e) {
+        } catch (TransformException | FactoryException e) {
             throw new DataSourceException("Unable to get resolution", e);
         }
     }
@@ -790,6 +787,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      * @return the {@link GeneralGridEnvelope} that represents the raster grid dimensions of the
      *     highest resolution level in this dataset.
      */
+    @Override
     public GridEnvelope getOriginalGridRange() {
         return getOriginalGridRange(coverageName);
     }
@@ -816,9 +814,9 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
     }
 
     /**
-     * Retrieves the {@link GeneralEnvelope} for this {@link AbstractGridCoverage2DReader}.
+     * Retrieves the {@link GeneralBounds} for this {@link AbstractGridCoverage2DReader}.
      *
-     * @return the {@link GeneralEnvelope} for this {@link AbstractGridCoverage2DReader}.
+     * @return the {@link GeneralBounds} for this {@link AbstractGridCoverage2DReader}.
      */
     @Override
     public CoordinateReferenceSystem getCoordinateReferenceSystem() {
@@ -827,9 +825,9 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
     }
 
     /**
-     * Retrieves the {@link GeneralEnvelope} for this {@link AbstractGridCoverage2DReader}.
+     * Retrieves the {@link GeneralBounds} for this {@link AbstractGridCoverage2DReader}.
      *
-     * @return the {@link GeneralEnvelope} for this {@link AbstractGridCoverage2DReader}.
+     * @return the {@link GeneralBounds} for this {@link AbstractGridCoverage2DReader}.
      */
     @Override
     public CoordinateReferenceSystem getCoordinateReferenceSystem(String coverageName) {
@@ -842,26 +840,27 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
     }
 
     /**
-     * Retrieves the {@link GeneralEnvelope} for this {@link AbstractGridCoverage2DReader}.
+     * Retrieves the {@link GeneralBounds} for this {@link AbstractGridCoverage2DReader}.
      *
-     * @return the {@link GeneralEnvelope} for this {@link AbstractGridCoverage2DReader}.
+     * @return the {@link GeneralBounds} for this {@link AbstractGridCoverage2DReader}.
      */
-    public GeneralEnvelope getOriginalEnvelope() {
+    @Override
+    public GeneralBounds getOriginalEnvelope() {
         return getOriginalEnvelope(coverageName);
     }
 
     /**
-     * Retrieves the {@link GeneralEnvelope} for this {@link AbstractGridCoverage2DReader}.
+     * Retrieves the {@link GeneralBounds} for this {@link AbstractGridCoverage2DReader}.
      *
-     * @return the {@link GeneralEnvelope} for this {@link AbstractGridCoverage2DReader}.
+     * @return the {@link GeneralBounds} for this {@link AbstractGridCoverage2DReader}.
      */
     @Override
-    public GeneralEnvelope getOriginalEnvelope(String coverageName) {
+    public GeneralBounds getOriginalEnvelope(String coverageName) {
         if (!checkName(coverageName)) {
             throw new IllegalArgumentException(
                     "The specified coverageName " + coverageName + "is not supported");
         }
-        return new GeneralEnvelope(originalEnvelope);
+        return new GeneralBounds(originalEnvelope);
     }
 
     /**
@@ -872,6 +871,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      * @return the original grid to world transformation for this {@link
      *     AbstractGridCoverage2DReader}.
      */
+    @Override
     public MathTransform getOriginalGridToWorld(final PixelInCell pixInCell) {
         // Default implementation for backwards compatibility
         return getOriginalGridToWorld(coverageName, pixInCell);
@@ -924,6 +924,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      *
      * @return the source for this {@link AbstractGridCoverage2DReader}.
      */
+    @Override
     public final Object getSource() {
         return source;
     }
@@ -933,6 +934,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      *
      * <p>This method just tries to close the underlying {@link ImageInputStream}.
      */
+    @Override
     public void dispose() {
         if (inStream != null && closeMe) {
             try {
@@ -949,6 +951,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
         return new String[] {coverageName};
     }
 
+    @Override
     public String[] getMetadataNames(final String coverageName) {
         if (!checkName(coverageName)) {
             throw new IllegalArgumentException(
@@ -957,16 +960,19 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
         return getMetadataNames();
     }
 
-    /** @see org.opengis.coverage.grid.GridCoverageReader#getMetadataNames() */
+    /** @see org.geotools.api.coverage.grid.GridCoverageReader#getMetadataNames() */
+    @Override
     public String[] getMetadataNames() {
         return null;
     }
 
-    /** @see org.opengis.coverage.grid.GridCoverageReader#getMetadataValue(java.lang.String) */
+    /** @see org.geotools.api.coverage.grid.GridCoverageReader#getMetadataValue(java.lang.String) */
+    @Override
     public String getMetadataValue(final String name) {
         return getMetadataValue(coverageName, name);
     }
 
+    @Override
     public String getMetadataValue(final String coverageName, final String name) {
         if (!checkName(coverageName)) {
             throw new IllegalArgumentException(
@@ -975,7 +981,8 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
         return null;
     }
 
-    /** @see org.opengis.coverage.grid.GridCoverageReader#getGridCoverageCount() */
+    /** @see org.geotools.api.coverage.grid.GridCoverageReader#getGridCoverageCount() */
+    @Override
     public int getGridCoverageCount() {
         return 1;
     }
@@ -987,6 +994,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      *
      * @return ServiceInfo describing getSource().
      */
+    @Override
     public ServiceInfo getInfo() {
         DefaultServiceInfo info;
         try {
@@ -1084,7 +1092,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      * Return the set of dynamic parameterDescriptors (the ones related to domains) for this reader.
      * Default implementation returns an empty set of parameters
      */
-    @SuppressWarnings("rawtypes")
+    @Override
     public Set<ParameterDescriptor<List>> getDynamicParameters() throws IOException {
         return getDynamicParameters(coverageName);
     }
@@ -1093,17 +1101,19 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
      * Return the set of dynamic parameterDescriptors (the ones related to domains) for this reader.
      * Default implementation returns an empty set of parameters
      */
-    @SuppressWarnings("rawtypes")
+    @Override
     public Set<ParameterDescriptor<List>> getDynamicParameters(String coverageName)
             throws IOException {
         return Collections.emptySet();
     }
 
+    @Override
     public DatasetLayout getDatasetLayout() {
         // Default implementation for backwards compatibility
         return getDatasetLayout(coverageName);
     }
 
+    @Override
     public DatasetLayout getDatasetLayout(String coverageName) {
         if (!checkName(coverageName)) {
             throw new IllegalArgumentException(
@@ -1218,7 +1228,7 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
         return highestRes;
     }
 
-    double[] getHighestRes() {
+    protected double[] getHighestRes() {
         return getHighestRes(coverageName);
     }
 
@@ -1345,5 +1355,85 @@ public abstract class AbstractGridCoverage2DReader implements GridCoverage2DRead
             this.scales = ccm.getScales();
             this.offsets = ccm.getOffsets();
         }
+    }
+
+    /**
+     * Method that looks for an external {@link PAMDataset} first, and if not found, checks for an
+     * internal {@link it.geosolutions.imageioimpl.plugins.tiff.gdal.GDALMetadata} inside a custom
+     * tag.
+     *
+     * <p>The method is tolerant to invalid metadata contents and will log at INFO level in case of
+     * invalid metadata structure: there might be files with invalid metadata that used to be read
+     * just fine before PAM dataset reading was implemented.
+     */
+    public static PAMDataset getPamDataset(File sourceFile, IIOMetadata metadata) {
+        if (sourceFile != null && !ImageIOUtilities.isSkipExternalFilesLookup()) {
+            File pamFile = new File(sourceFile.getParent(), sourceFile.getName() + ".aux.xml");
+            if (pamFile.exists()) {
+                PAMParser pamParser = PAMParser.getInstance();
+
+                try {
+                    return pamParser.parsePAM(pamFile);
+                } catch (Exception e) {
+                    LOGGER.log(Level.INFO, "GDAL aux.xml metadata file could not be parsed", e);
+                }
+            }
+        }
+
+        // So far supported only by TIFF files, we can consider moving up to CoreCommonImageMetadata
+        // if more examples show up in different formats
+        if (metadata instanceof TIFFImageMetadata) {
+            PAMDataset gdalMetadata = getPamDataset((TIFFImageMetadata) metadata);
+            if (gdalMetadata != null) return gdalMetadata;
+        }
+
+        return null;
+    }
+
+    /** If available, parses the GDAL_METADATA tag contents and transforms it into a PAMDataset */
+    public static PAMDataset getPamDataset(TIFFImageMetadata metadata) {
+        TIFFImageMetadata tm = metadata;
+        TIFFField f = tm.getTIFFField(GDAL_METADATA_TAG);
+        if (f != null) {
+            try {
+                String xml = f.getAsString(0);
+                GDALMetadata gdalMetadata = GDALMetadataParser.parse(xml);
+                return toPamDataset(gdalMetadata);
+            } catch (Exception e) {
+                LOGGER.log(Level.INFO, "GDAL_METADATA tag contents could not be parsed", e);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Part of the information contained in {@link GDALMetadata} can be trasformed in a semantically
+     * equivalent PAM dataset
+     */
+    private static PAMDataset toPamDataset(GDALMetadata metadata) {
+        PAMDataset pam = new PAMDataset();
+        Map<Integer, PAMDataset.PAMRasterBand> bands = new TreeMap<>();
+        metadata.getItems().stream()
+                .filter(i -> i.getSample() != null)
+                .forEach(i -> collectItemIntoBands(bands, i));
+        pam.getPAMRasterBand().addAll(bands.values());
+        return pam;
+    }
+
+    private static void collectItemIntoBands(
+            Map<Integer, PAMDataset.PAMRasterBand> bands, GDALMetadata.Item i) {
+        int bandNumber = i.getSample() + 1;
+        PAMDataset.PAMRasterBand band = bands.computeIfAbsent(bandNumber, n -> getRasterBand(n));
+        PAMDataset.PAMRasterBand.Metadata.MDI mdi = new PAMDataset.PAMRasterBand.Metadata.MDI();
+        mdi.setKey(i.getName());
+        mdi.setValue(i.getValue());
+        if (band.getMetadata() == null) band.setMetadata(new PAMDataset.PAMRasterBand.Metadata());
+        band.getMetadata().getMDI().add(mdi);
+    }
+
+    private static PAMDataset.PAMRasterBand getRasterBand(Integer n) {
+        PAMDataset.PAMRasterBand result = new PAMDataset.PAMRasterBand();
+        result.setBand(n);
+        return result;
     }
 }

@@ -22,14 +22,13 @@ import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
 import java.awt.Color;
 import java.util.List;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.filter.function.ClassificationFunction;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
 
 /** @author James Macgill */
 public class PaletteFunction extends FunctionExpressionImpl {
@@ -59,10 +58,11 @@ public class PaletteFunction extends FunctionExpressionImpl {
         ff = factory;
     }
 
+    @Override
     public void setParameters(List<Expression> args) {
         super.setParameters(args);
         classifier = (ClassificationFunction) getExpression(0);
-        paletteName = ((Literal) getExpression(1)).evaluate(null, String.class);
+        paletteName = getExpression(1).evaluate(null, String.class);
     }
 
     public Expression getEvaluationExpression() {
@@ -111,6 +111,7 @@ public class PaletteFunction extends FunctionExpressionImpl {
         return prelim;
     }
 
+    @Override
     public Object evaluate(Object feature) {
         int classNum = classifier.getClasses();
         ColorBrewer brewer = new ColorBrewer();
@@ -127,6 +128,7 @@ public class PaletteFunction extends FunctionExpressionImpl {
         return color;
     }
 
+    @Override
     public String toString() {
         return "Color Brewer palette";
     }

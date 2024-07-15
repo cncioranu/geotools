@@ -27,6 +27,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.jdbc.JDBCDataStore;
@@ -47,11 +52,6 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.ParseException;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class DB2SQLDialect extends SQLDialect {
 
@@ -735,60 +735,26 @@ public class DB2SQLDialect extends SQLDialect {
     }
 
     private void setIsRowNumberSupported() {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
 
-        try {
-            con = dataStore.getDataSource().getConnection();
-            ps = con.prepareStatement(SELECT_ROWNUMBER);
-            rs = ps.executeQuery();
+        try (Connection con = dataStore.getDataSource().getConnection();
+                PreparedStatement ps = con.prepareStatement(SELECT_ROWNUMBER);
+                ResultSet rs = ps.executeQuery()) {
             if (rs.next()) isRowNumberSupported = Boolean.TRUE;
             LOGGER.info(ROWNUMBER_MESSAGE);
         } catch (SQLException ex) {
             isRowNumberSupported = Boolean.FALSE;
-        } finally {
-            try {
-                if (rs != null) rs.close();
-            } catch (SQLException ex1) {
-            }
-            try {
-                if (ps != null) ps.close();
-            } catch (SQLException ex1) {
-            }
-            try {
-                if (con != null) con.close();
-            } catch (SQLException ex1) {
-            }
         }
     }
 
     private void setIsLimitOffsetSupported() {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
 
-        try {
-            con = dataStore.getDataSource().getConnection();
-            ps = con.prepareStatement(SELECT_LIMITOFFSET);
-            rs = ps.executeQuery();
+        try (Connection con = dataStore.getDataSource().getConnection();
+                PreparedStatement ps = con.prepareStatement(SELECT_LIMITOFFSET);
+                ResultSet rs = ps.executeQuery()) {
             if (rs.next()) isLimitOffsetSupported = Boolean.TRUE;
             LOGGER.info(LIMITOFFSET_MESSAGE);
         } catch (SQLException ex) {
             isLimitOffsetSupported = Boolean.FALSE;
-        } finally {
-            try {
-                if (rs != null) rs.close();
-            } catch (SQLException ex1) {
-            }
-            try {
-                if (ps != null) ps.close();
-            } catch (SQLException ex1) {
-            }
-            try {
-                if (con != null) con.close();
-            } catch (SQLException ex1) {
-            }
         }
     }
 
@@ -814,6 +780,7 @@ public class DB2SQLDialect extends SQLDialect {
     //        }
     //    }
 
+    @Override
     public void encodeGeometryColumnGeneralized(
             GeometryDescriptor gatt, String prefix, int srid, StringBuffer sql, Double distance) {
 
@@ -894,5 +861,12 @@ public class DB2SQLDialect extends SQLDialect {
     @Override
     protected boolean supportsSchemaForIndex() {
         return true;
+    }
+
+    @Override
+    public boolean canGroupOnGeometry() {
+        // not supported
+        // DB2 SQL Error: SQLCODE=-134, SQLSTATE=42907, SQLERRMC=geometry, DRIVER=4.29.24
+        return false;
     }
 }

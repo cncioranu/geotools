@@ -19,9 +19,9 @@ package org.geotools.feature.visitor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Obtains the data needed for a Quantile operation (classification of features into classes of
@@ -53,6 +53,7 @@ public class QuantileListVisitor implements FeatureCalc {
         // do nothing
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     public CalcResult getResult() {
         if (bins == 0 || count == 0) {
@@ -68,7 +69,7 @@ public class QuantileListVisitor implements FeatureCalc {
         }
 
         // calculate number of items to put into each of the larger bins
-        int binPop = Double.valueOf(Math.ceil((double) count / bins)).intValue();
+        int binPop = (int) (Math.ceil((double) count / bins));
         // determine index of bin where the next bin has one less item
         int lastBigBin = count % bins;
         if (lastBigBin == 0) lastBigBin = bins;
@@ -85,6 +86,7 @@ public class QuantileListVisitor implements FeatureCalc {
                 binPop--; // decrease the number of items in a bin for the next item
         }
         return new AbstractCalcResult() {
+            @Override
             public Object getValue() {
                 return bin;
             }
@@ -92,10 +94,11 @@ public class QuantileListVisitor implements FeatureCalc {
     }
 
     public void visit(SimpleFeature feature) {
-        visit((org.opengis.feature.Feature) feature);
+        visit((org.geotools.api.feature.Feature) feature);
     }
 
-    public void visit(org.opengis.feature.Feature feature) {
+    @Override
+    public void visit(org.geotools.api.feature.Feature feature) {
         Object value = expr.evaluate(feature);
 
         if (value == null) {
@@ -112,7 +115,6 @@ public class QuantileListVisitor implements FeatureCalc {
         }
 
         count++;
-        @SuppressWarnings("unchecked")
         Comparable cast = (Comparable) value;
         items.add(cast);
     }

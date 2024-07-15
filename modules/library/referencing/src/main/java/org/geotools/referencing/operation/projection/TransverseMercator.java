@@ -35,21 +35,20 @@ import static java.lang.Math.toDegrees;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.operation.CylindricalProjection;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.operation.transform.ConcatenatedTransform;
 import org.geotools.referencing.operation.transform.ProjectiveTransform;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.operation.CylindricalProjection;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Transverse Mercator Projection (EPSG code 9807). This is a cylindrical projection, in which the
@@ -148,6 +147,7 @@ public class TransverseMercator extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -156,6 +156,7 @@ public class TransverseMercator extends MapProjection {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         double sinphi = sin(y);
@@ -169,54 +170,14 @@ public class TransverseMercator extends MapProjection {
         double n = esp * cosphi * cosphi;
 
         /* NOTE: meridinal distance at latitudeOfOrigin is always 0 */
-        y =
-                (mlfn(y, sinphi, cosphi)
-                        - ml0
-                        + sinphi
-                                * al
-                                * x
-                                * FC2
-                                * (1.0
-                                        + FC4
-                                                * als
-                                                * (5.0
-                                                        - t
-                                                        + n * (9.0 + 4.0 * n)
-                                                        + FC6
-                                                                * als
-                                                                * (61.0
-                                                                        + t * (t - 58.0)
-                                                                        + n * (270.0 - 330.0 * t)
-                                                                        + FC8
-                                                                                * als
-                                                                                * (1385.0
-                                                                                        + t
-                                                                                                * (t
-                                                                                                                * (543.0
-                                                                                                                        - t)
-                                                                                                        - 3111.0))))));
+        final double ys1 = 1385.0 + t * (t * (543.0 - t) - 3111.0);
+        final double ys2 = 61.0 + t * (t - 58.0) + n * (270.0 - 330.0 * t) + FC8 * als * ys1;
+        final double ys3 = 5.0 - t + n * (9.0 + 4.0 * n) + FC6 * als * ys2;
+        y = mlfn(y, sinphi, cosphi) - ml0 + sinphi * al * x * FC2 * (1.0 + FC4 * als * ys3);
 
-        x =
-                al
-                        * (FC1
-                                + FC3
-                                        * als
-                                        * (1.0
-                                                - t
-                                                + n
-                                                + FC5
-                                                        * als
-                                                        * (5.0
-                                                                + t * (t - 18.0)
-                                                                + n * (14.0 - 58.0 * t)
-                                                                + FC7
-                                                                        * als
-                                                                        * (61.0
-                                                                                + t
-                                                                                        * (t
-                                                                                                        * (179.0
-                                                                                                                - t)
-                                                                                                - 479.0)))));
+        double xs1 = 61.0 + t * (t * (179.0 - t) - 479.0);
+        final double xs2 = 5.0 + t * (t - 18.0) + n * (14.0 - 58.0 * t) + FC7 * als * xs1;
+        x = al * (FC1 + FC3 * als * (1.0 - t + n + FC5 * als * xs2));
 
         if (ptDst != null) {
             ptDst.setLocation(x, y);
@@ -229,6 +190,7 @@ public class TransverseMercator extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         double phi = inv_mlfn(ml0 + y);
@@ -247,59 +209,14 @@ public class TransverseMercator extends MapProjection {
             t *= t;
             double ds = d * d;
 
-            y =
-                    phi
-                            - (con * ds / (1.0 - excentricitySquared))
-                                    * FC2
-                                    * (1.0
-                                            - ds
-                                                    * FC4
-                                                    * (5.0
-                                                            + t * (3.0 - 9.0 * n)
-                                                            + n * (1.0 - 4 * n)
-                                                            - ds
-                                                                    * FC6
-                                                                    * (61.0
-                                                                            + t
-                                                                                    * (90.0
-                                                                                            - 252.0
-                                                                                                    * n
-                                                                                            + 45.0
-                                                                                                    * t)
-                                                                            + 46.0 * n
-                                                                            - ds
-                                                                                    * FC8
-                                                                                    * (1385.0
-                                                                                            + t
-                                                                                                    * (3633.0
-                                                                                                            + t
-                                                                                                                    * (4095.0
-                                                                                                                            + 1575.0
-                                                                                                                                    * t))))));
+            final double ys1 = 1385.0 + t * (3633.0 + t * (4095.0 + 1575.0 * t));
+            final double ys2 = 61.0 + t * (90.0 - 252.0 * n + 45.0 * t) + 46.0 * n - ds * FC8 * ys1;
+            final double ys3 = 5.0 + t * (3.0 - 9.0 * n) + n * (1.0 - 4 * n) - ds * FC6 * ys2;
+            y = phi - (con * ds / (1.0 - excentricitySquared)) * FC2 * (1.0 - ds * FC4 * ys3);
 
-            x =
-                    d
-                            * (FC1
-                                    - ds
-                                            * FC3
-                                            * (1.0
-                                                    + 2.0 * t
-                                                    + n
-                                                    - ds
-                                                            * FC5
-                                                            * (5.0
-                                                                    + t * (28.0 + 24 * t + 8.0 * n)
-                                                                    + 6.0 * n
-                                                                    - ds
-                                                                            * FC7
-                                                                            * (61.0
-                                                                                    + t
-                                                                                            * (662.0
-                                                                                                    + t
-                                                                                                            * (1320.0
-                                                                                                                    + 720.0
-                                                                                                                            * t))))))
-                            / cosphi;
+            double xs1 = 61.0 + t * (662.0 + t * (1320.0 + 720.0 * t));
+            double xs2 = 5.0 + t * (28.0 + 24 * t + 8.0 * n) + 6.0 * n - ds * FC7 * xs1;
+            x = d * (FC1 - ds * FC3 * (1.0 + 2.0 * t + n - ds * FC5 * xs2)) / cosphi;
         }
 
         if (ptDst != null) {
@@ -500,7 +417,7 @@ public class TransverseMercator extends MapProjection {
             return getZone(-52.5, -3);
         }
         // unknown
-        throw new IllegalStateException(Errors.format(ErrorKeys.UNKNOW_PROJECTION_TYPE));
+        throw new IllegalStateException(ErrorKeys.UNKNOW_PROJECTION_TYPE);
     }
 
     /**
@@ -522,7 +439,7 @@ public class TransverseMercator extends MapProjection {
             return getCentralMedirian(-52.5, -3);
         }
         // unknown
-        throw new IllegalStateException(Errors.format(ErrorKeys.UNKNOW_PROJECTION_TYPE));
+        throw new IllegalStateException(ErrorKeys.UNKNOW_PROJECTION_TYPE);
     }
 
     /** Returns a hash value for this projection. */
@@ -563,7 +480,7 @@ public class TransverseMercator extends MapProjection {
     public static class Provider extends AbstractProvider {
         /** Returns a descriptor group for the specified parameters. */
         static ParameterDescriptorGroup createDescriptorGroup(
-                final ReferenceIdentifier[] identifiers) {
+                final ReferenceIdentifier... identifiers) {
             return createDescriptorGroup(
                     identifiers,
                     new ParameterDescriptor[] {
@@ -577,19 +494,17 @@ public class TransverseMercator extends MapProjection {
         /** The parameters group. */
         static final ParameterDescriptorGroup PARAMETERS =
                 createDescriptorGroup(
-                        new NamedIdentifier[] {
-                            new NamedIdentifier(Citations.OGC, "Transverse_Mercator"),
-                            new NamedIdentifier(Citations.EPSG, "Transverse Mercator"),
-                            new NamedIdentifier(Citations.EPSG, "Gauss-Kruger"),
-                            new NamedIdentifier(Citations.EPSG, "9807"),
-                            new NamedIdentifier(Citations.GEOTIFF, "CT_TransverseMercator"),
-                            new NamedIdentifier(Citations.ESRI, "Transverse_Mercator"),
-                            new NamedIdentifier(Citations.ESRI, "Gauss_Kruger"),
-                            new NamedIdentifier(
-                                    Citations.GEOTOOLS,
-                                    Vocabulary.formatInternational(
-                                            VocabularyKeys.TRANSVERSE_MERCATOR_PROJECTION))
-                        });
+                        new NamedIdentifier(Citations.OGC, "Transverse_Mercator"),
+                        new NamedIdentifier(Citations.EPSG, "Transverse Mercator"),
+                        new NamedIdentifier(Citations.EPSG, "Gauss-Kruger"),
+                        new NamedIdentifier(Citations.EPSG, "9807"),
+                        new NamedIdentifier(Citations.GEOTIFF, "CT_TransverseMercator"),
+                        new NamedIdentifier(Citations.ESRI, "Transverse_Mercator"),
+                        new NamedIdentifier(Citations.ESRI, "Gauss_Kruger"),
+                        new NamedIdentifier(
+                                Citations.GEOTOOLS,
+                                Vocabulary.formatInternational(
+                                        VocabularyKeys.TRANSVERSE_MERCATOR_PROJECTION)));
 
         /** Constructs a new provider. */
         public Provider() {
@@ -614,6 +529,7 @@ public class TransverseMercator extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             if (isSpherical(parameters)) {
@@ -674,11 +590,9 @@ public class TransverseMercator extends MapProjection {
         public Provider_SouthOrientated() {
             super(
                     createDescriptorGroup(
-                            new NamedIdentifier[] {
-                                new NamedIdentifier(
-                                        Citations.EPSG, "Transverse Mercator (South Orientated)"),
-                                new NamedIdentifier(Citations.EPSG, "9808")
-                            }));
+                            new NamedIdentifier(
+                                    Citations.EPSG, "Transverse Mercator (South Orientated)"),
+                            new NamedIdentifier(Citations.EPSG, "9808")));
         }
 
         /**

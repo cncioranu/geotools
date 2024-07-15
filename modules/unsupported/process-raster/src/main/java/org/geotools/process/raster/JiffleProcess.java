@@ -43,6 +43,12 @@ import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
 import javax.media.jai.ROI;
 import javax.media.jai.RenderedOp;
+import org.geotools.api.coverage.SampleDimensionType;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.TypeMap;
 import org.geotools.coverage.grid.GridCoverage2D;
@@ -59,12 +65,6 @@ import org.geotools.process.factory.DescribeResult;
 import org.geotools.util.NumberRange;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.SampleDimensionType;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.util.ProgressListener;
 
 @DescribeProcess(title = "Jiffle map algebra", description = "Map algebra powered by Jiffle")
 public class JiffleProcess implements RasterProcess {
@@ -98,45 +98,40 @@ public class JiffleProcess implements RasterProcess {
             @DescribeParameter(name = IN_COVERAGE, description = "Source raster(s)")
                     GridCoverage2D[] coverages,
             @DescribeParameter(
-                        name = IN_SCRIPT,
-                        description = "The script performing the map algebra, in Jiffle language"
-                    )
+                            name = IN_SCRIPT,
+                            description =
+                                    "The script performing the map algebra, in Jiffle language")
                     String script,
             @DescribeParameter(
-                        name = IN_DEST_NAME,
-                        description =
-                                "Name of the output, as used in the script (defaults to 'dest' if not specified)",
-                        min = 0
-                    )
+                            name = IN_DEST_NAME,
+                            description =
+                                    "Name of the output, as used in the script (defaults to 'dest' if not specified)",
+                            min = 0)
                     String destName,
             @DescribeParameter(
-                        name = IN_SOURCE_NAME,
-                        description =
-                                "Name of the inputs, as used in the script (default to src, src1, src2, ... if not specified)",
-                        min = 0
-                    )
+                            name = IN_SOURCE_NAME,
+                            description =
+                                    "Name of the inputs, as used in the script (default to src, src1, src2, ... if not specified)",
+                            min = 0)
                     String[] sourceNames,
             @DescribeParameter(
-                        name = IN_OUTPUT_TYPE,
-                        description =
-                                "Output data type, BYTE, USHORT, SHORT, INT, FLOAT, DOUBLE. Defaults to DOUBLE if not specified",
-                        min = 0
-                    )
+                            name = IN_OUTPUT_TYPE,
+                            description =
+                                    "Output data type, BYTE, USHORT, SHORT, INT, FLOAT, DOUBLE. Defaults to DOUBLE if not specified",
+                            min = 0)
                     DataType dataType,
             @DescribeParameter(
-                        name = OUTPUT_BAND_COUNT,
-                        description =
-                                "Number of output bands. If not specified, will try to infer from the script, which will be possible only if the output band indices are literals.",
-                        min = 0,
-                        minValue = 1
-                    )
+                            name = OUTPUT_BAND_COUNT,
+                            description =
+                                    "Number of output bands. If not specified, will try to infer from the script, which will be possible only if the output band indices are literals.",
+                            min = 0,
+                            minValue = 1)
                     Integer outputBandCount,
             @DescribeParameter(
-                        name = OUTPUT_BAND_NAMES,
-                        description =
-                                "Comma separate list of output band names. If not specified, will use 'jiffle' for single banded output, 'jiffle1', 'jiffle2', and so on for multi-band outputs",
-                        min = 0
-                    )
+                            name = OUTPUT_BAND_NAMES,
+                            description =
+                                    "Comma separate list of output band names. If not specified, will use 'jiffle' for single banded output, 'jiffle1', 'jiffle2', and so on for multi-band outputs",
+                            min = 0)
                     String outputBandNames,
             ProgressListener progressListener)
             throws ProcessException, JiffleException {
@@ -173,6 +168,9 @@ public class JiffleProcess implements RasterProcess {
         }
 
         Integer awtDataType = dataType == null ? null : dataType.getDataType();
+        if (outputBandCount == null && outputBandNames != null) {
+            outputBandCount = outputBandNames.split("\\s*,\\s*").length;
+        }
         RenderedOp result =
                 JiffleDescriptor.create(
                         sources,
@@ -209,19 +207,23 @@ public class JiffleProcess implements RasterProcess {
 
     private Stream<String> getSampleDimensionNames(int numBands, String outputBandNames) {
         if (outputBandNames == null) {
-            if (numBands == 1) {
-                return Stream.of("jiffle");
-            } else {
-                return IntStream.range(1, numBands + 1).mapToObj(n -> "jiffle" + n);
-            }
+            return getDefaultBandNames(numBands);
         } else {
             String[] split = outputBandNames.split("\\s*,\\s*");
-            if (split.length != numBands) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Expected %d bands names but got %d", numBands, split.length));
+            if (split.length < numBands) {
+                String[] defaultBands = getDefaultBandNames(numBands).toArray(b -> new String[b]);
+                System.arraycopy(split, 0, defaultBands, 0, split.length);
+                return Arrays.stream(defaultBands);
             }
             return Arrays.stream(split);
+        }
+    }
+
+    private Stream<String> getDefaultBandNames(int numBands) {
+        if (numBands == 1) {
+            return Stream.of("jiffle");
+        } else {
+            return IntStream.range(1, numBands + 1).mapToObj(n -> "jiffle" + n);
         }
     }
 
@@ -232,6 +234,15 @@ public class JiffleProcess implements RasterProcess {
         if (scriptBands == null) {
             return null;
         }
+
+        // was the band selection applied at all? We know that GetTransformationBands returns bands
+        // - with no duplicates
+        // - sorted from lower to higher
+        // A band selection was performed unless the source has more bands than the
+        // max band value (if they are equal, we don't care, they must be a match
+        // with the source bands due to the two previous properties
+        if (source.getSampleModel().getNumBands() > scriptBands[scriptBands.length - 1])
+            return null;
 
         // is there a mismatch between the available bands and the ones used in the script?
         // if so assume bands mapping has taken place in the RT
@@ -260,29 +271,26 @@ public class JiffleProcess implements RasterProcess {
      */
     public GeneralParameterValue[] customizeReadParams(
             @DescribeParameter(
-                        name = IN_SCRIPT,
-                        description = "The script performing the map algebra, in Jiffle language"
-                    )
+                            name = IN_SCRIPT,
+                            description =
+                                    "The script performing the map algebra, in Jiffle language")
                     String script,
             @DescribeParameter(
-                        name = IN_DEST_NAME,
-                        description =
-                                "Name of the output, as used in the script (defaults to 'dest' if not specified)",
-                        min = 0
-                    )
+                            name = IN_DEST_NAME,
+                            description =
+                                    "Name of the output, as used in the script (defaults to 'dest' if not specified)",
+                            min = 0)
                     String destName,
             @DescribeParameter(
-                        name = IN_SOURCE_NAME,
-                        description =
-                                "Name of the inputs, as used in the script (default to src, src1, src2, ... if not specified)",
-                        min = 0
-                    )
+                            name = IN_SOURCE_NAME,
+                            description =
+                                    "Name of the inputs, as used in the script (default to src, src1, src2, ... if not specified)",
+                            min = 0)
                     String[] sourceNames,
             @DescribeParameter(
-                        name = TX_BANDS,
-                        description = "Bands read by the transformation",
-                        min = 0
-                    )
+                            name = TX_BANDS,
+                            description = "Bands read by the transformation",
+                            min = 0)
                     int[] usedBands,
             GridCoverageReader reader,
             GeneralParameterValue[] params) {

@@ -18,15 +18,14 @@
 package org.geotools.data.csv;
 
 import java.io.IOException;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.Query;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
-@SuppressWarnings("unchecked")
 public class CSVFeatureSource extends ContentFeatureSource {
 
     public CSVFeatureSource(CSVDataStore datastore) {
@@ -54,30 +53,26 @@ public class CSVFeatureSource extends ContentFeatureSource {
     protected ReferencedEnvelope getBoundsInternal(Query query) throws IOException {
         ReferencedEnvelope bounds =
                 new ReferencedEnvelope(getSchema().getCoordinateReferenceSystem());
-        FeatureReader<SimpleFeatureType, SimpleFeature> featureReader = getReader(query);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> featureReader = getReader(query)) {
             while (featureReader.hasNext()) {
                 SimpleFeature feature = featureReader.next();
                 bounds.include(feature.getBounds());
             }
-        } finally {
-            featureReader.close();
         }
         return bounds;
     }
 
     @Override
     protected int getCountInternal(Query query) throws IOException {
-        FeatureReader<SimpleFeatureType, SimpleFeature> featureReader = getReaderInternal(query);
-        int n = 0;
-        try {
-            for (n = 0; featureReader.hasNext(); n++) {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> featureReader =
+                getReaderInternal(query)) {
+            int n = 0;
+            while (featureReader.hasNext()) {
                 featureReader.next();
+                n++;
             }
-        } finally {
-            featureReader.close();
+            return n;
         }
-        return n;
     }
 
     @Override

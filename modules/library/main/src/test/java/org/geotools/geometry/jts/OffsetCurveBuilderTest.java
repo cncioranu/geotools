@@ -31,8 +31,6 @@ import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
@@ -74,6 +72,7 @@ public class OffsetCurveBuilderTest {
     public TestWatcher interactiveReporter =
             new TestWatcher() {
 
+                @Override
                 protected void succeeded(org.junit.runner.Description description) {
                     if (curve != null && INTERACTIVE_ON_SUCCESS) {
                         displayCurves(false);
@@ -82,10 +81,6 @@ public class OffsetCurveBuilderTest {
 
                 @Override
                 protected void failed(Throwable e, org.junit.runner.Description description) {
-                    if (curve != null) {
-                        // System.out.println("Original geometry: " + curve);
-                        // System.out.println("Offset geometry: " + offsetCurve);
-                    }
                     if (curve != null && INTERACTIVE) {
                         displayCurves(true);
                     }
@@ -167,13 +162,7 @@ public class OffsetCurveBuilderTest {
             content.add(imageViewer);
 
             JButton close = new JButton("Close");
-            close.addActionListener(
-                    new ActionListener() {
-
-                        public void actionPerformed(ActionEvent e) {
-                            ImageDisplay.this.setVisible(false);
-                        }
-                    });
+            close.addActionListener(e -> setVisible(false));
             content.add(close, BorderLayout.SOUTH);
             pack();
         }
@@ -198,13 +187,13 @@ public class OffsetCurveBuilderTest {
     @Test
     public void testHorizontalSegmentPositiveOffset() throws ParseException {
         Geometry offset = simpleOffsetTest("LINESTRING(0 0, 10 0)", 2);
-        assertTrue(offset.getEnvelopeInternal().getMinY() == 2);
+        assertEquals(2, offset.getEnvelopeInternal().getMinY(), 0.0);
     }
 
     @Test
     public void testHorizontalSegmentNegativeOffset() throws ParseException {
         Geometry offset = simpleOffsetTest("LINESTRING(0 0, 10 0)", -2);
-        assertTrue(offset.getEnvelopeInternal().getMinY() == -2);
+        assertEquals(offset.getEnvelopeInternal().getMinY(), -2, 0.0);
     }
 
     @Test
@@ -404,38 +393,35 @@ public class OffsetCurveBuilderTest {
         assertTrue(offset.getLength() > 0);
         assertEquals(abs(offsetDistance), offset.distance(geom), EPS * abs(offsetDistance));
         offset.apply(
-                new GeometryComponentFilter() {
-
-                    @Override
-                    public void filter(Geometry geom) {
-                        if (geom instanceof LineString) {
-                            LineString ls = (LineString) geom;
-                            CoordinateSequence cs = ls.getCoordinateSequence();
-                            if (cs.size() < 2) {
-                                return;
-                            }
-                            double px = cs.getOrdinate(0, 0);
-                            double py = cs.getOrdinate(0, 1);
-                            for (int i = 1; i < cs.size(); i++) {
-                                double cx = cs.getOrdinate(i, 0);
-                                double cy = cs.getOrdinate(i, 1);
-                                if (cx == px && cy == py) {
-                                    fail(
-                                            "Found two subsequent ordinates with the same value: "
-                                                    + cx
-                                                    + ", "
-                                                    + py);
+                (GeometryComponentFilter)
+                        geom1 -> {
+                            if (geom1 instanceof LineString) {
+                                LineString ls = (LineString) geom1;
+                                CoordinateSequence cs = ls.getCoordinateSequence();
+                                if (cs.size() < 2) {
+                                    return;
                                 }
-                                px = cx;
-                                py = cy;
+                                double px = cs.getOrdinate(0, 0);
+                                double py = cs.getOrdinate(0, 1);
+                                for (int i = 1; i < cs.size(); i++) {
+                                    double cx = cs.getOrdinate(i, 0);
+                                    double cy = cs.getOrdinate(i, 1);
+                                    if (cx == px && cy == py) {
+                                        fail(
+                                                "Found two subsequent ordinates with the same value: "
+                                                        + cx
+                                                        + ", "
+                                                        + py);
+                                    }
+                                    px = cx;
+                                    py = cy;
+                                }
                             }
-                        }
-                    }
-                });
+                        });
         return offset;
     }
 
-    public static void main(String[] args) throws ParseException {
+    public static void main(String... args) throws ParseException {
         // simple utility to take a random WKT and make it into something looking like test data
         // (simplify large coordinates, excess precision)
         final double tolerance = 1;

@@ -22,12 +22,12 @@ import java.awt.image.BufferedImage;
 import java.util.Map;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.renderer.style.ExternalGraphicFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.eastwood.ChartEngine;
 import org.jfree.eastwood.Parameters;
-import org.opengis.feature.Feature;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Parses Google charts like requests into various kinds of charts.
@@ -60,6 +60,7 @@ public class ChartGraphicFactory implements ExternalGraphicFactory {
     public static final String FORMAT = "application/chart";
     private static final String HTTP_CHART = "http://chart?";
 
+    @Override
     public Icon getIcon(Feature feature, Expression urlExpression, String format, int size)
             throws Exception {
         // evaluate the expression as a string, get the query params
@@ -136,8 +137,7 @@ public class ChartGraphicFactory implements ExternalGraphicFactory {
      * separator
      */
     int[] parseCHS(String[] sizes) {
-        int[] dims;
-        dims = new int[2];
+        int[] dims = new int[2];
         String[] xy = sizes[0].split("x");
         if (xy.length != 2)
             throw new IllegalArgumentException(

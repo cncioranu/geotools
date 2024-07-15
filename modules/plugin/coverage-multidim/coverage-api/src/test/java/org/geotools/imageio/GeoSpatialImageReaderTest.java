@@ -17,6 +17,7 @@
 package org.geotools.imageio;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -43,14 +44,18 @@ import javax.imageio.spi.ImageReaderSpi;
 import javax.imageio.stream.ImageInputStream;
 import org.apache.commons.io.FileUtils;
 import org.geotools.TestData;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
 import org.geotools.coverage.io.CoverageSourceDescriptor;
 import org.geotools.coverage.io.RasterLayoutTest;
 import org.geotools.coverage.io.TestCoverageSourceDescriptor;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
 import org.geotools.feature.NameImpl;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -59,10 +64,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
 
 /** @author Nicola Lagomarsini Geosolutions */
 public class GeoSpatialImageReaderTest {
@@ -95,6 +96,7 @@ public class GeoSpatialImageReaderTest {
     }
 
     @Test
+    @SuppressWarnings("PMD.UseTryWithResources") // transaction needed in catch
     public void testReader() throws IOException {
         // Reader creation
         GeoSpatialImageReader reader = new TestGeospatialImageReader();
@@ -139,7 +141,7 @@ public class GeoSpatialImageReaderTest {
             // Get ImageIndexes
             List<Integer> indexes = reader.getImageIndex(q);
             assertNotNull(indexes);
-            assertTrue(!indexes.isEmpty());
+            assertFalse(indexes.isEmpty());
         } catch (Exception e) {
             t.rollback();
         } finally {
@@ -252,19 +254,20 @@ public class GeoSpatialImageReaderTest {
 
     public static class TestGeospatialImageReaderSpi extends ImageReaderSpi {
 
-        public static final Class<?>[] STANDARD_INPUT_TYPES =
-                new Class[] {ImageInputStream.class, File.class, URL.class, URI.class};
+        public static final Class<?>[] STANDARD_INPUT_TYPES = {
+            ImageInputStream.class, File.class, URL.class, URI.class
+        };
 
         public static final String VENDOR_NAME = "GeoTools";
 
         /** Default Logger * */
         private static final Logger LOGGER = Logging.getLogger(TestGeospatialImageReaderSpi.class);
 
-        static final String[] suffixes = new String[] {".tiff", ".tif"};
+        static final String[] suffixes = {".tiff", ".tif"};
 
-        static final String[] formatNames = new String[] {"TIFF", "TIF"};
+        static final String[] formatNames = {"TIFF", "TIF"};
 
-        static final String[] MIMETypes = new String[] {"image/tiff", "image/geotiff"};
+        static final String[] MIMETypes = {"image/tiff", "image/geotiff"};
 
         static final String version = "1.0";
 

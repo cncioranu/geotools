@@ -17,15 +17,15 @@
 package org.geotools.referencing;
 
 import java.util.Properties;
-import org.geotools.geometry.DirectPosition2D;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.geometry.Position2D;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.junit.Test;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /** Tests if the CRS utility class is functioning correctly when using HSQL datastore. */
 public class HSQLCRSTest extends AbstractCRSTest {
@@ -53,8 +53,22 @@ public class HSQLCRSTest extends AbstractCRSTest {
         // System.out.println(targetCrs.getDomainOfValidity());
         MathTransform mathTransform =
                 CRS.findMathTransform(DefaultGeographicCRS.WGS84, targetCrs, true);
-        DirectPosition2D position2D = new DirectPosition2D(DefaultGeographicCRS.WGS84, 0.1, 39);
-        DirectPosition2D position2Dres = new DirectPosition2D();
+        Position2D position2D = new Position2D(DefaultGeographicCRS.WGS84, 0.1, 39);
+        Position2D position2Dres = new Position2D();
         mathTransform.transform(position2D, position2Dres);
+    }
+
+    @Test
+    public void testSouthPolarEastNorth() throws Exception {
+        // force NE while decoding
+        CoordinateReferenceSystem crsEN = CRS.decode("EPSG:32761", true);
+        assertEquals(CRS.AxisOrder.EAST_NORTH, CRS.getAxisOrder(crsEN));
+    }
+
+    @Test
+    public void testSouthPolarNorthEast() throws Exception {
+        // leave native axis order, it should be recognized as north/east
+        CoordinateReferenceSystem crsNE = CRS.decode("EPSG:32761", false);
+        assertEquals(CRS.AxisOrder.NORTH_EAST, CRS.getAxisOrder(crsNE));
     }
 }

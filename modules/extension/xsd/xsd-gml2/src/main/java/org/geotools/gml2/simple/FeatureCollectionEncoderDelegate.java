@@ -19,7 +19,6 @@ package org.geotools.gml2.simple;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.xml.namespace.QName;
@@ -27,6 +26,12 @@ import org.eclipse.xsd.XSDElementDeclaration;
 import org.eclipse.xsd.XSDFactory;
 import org.eclipse.xsd.XSDParticle;
 import org.eclipse.xsd.XSDTypeDefinition;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.geometry.jts.MultiCurve;
@@ -45,12 +50,6 @@ import org.geotools.xsd.impl.BindingLoader;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.MultiLineString;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -94,6 +93,7 @@ public abstract class FeatureCollectionEncoderDelegate implements EncoderDelegat
         gml.registerGeometryEncoders(geometryEncoders, encoder);
     }
 
+    @Override
     public void encode(ContentHandler handler) throws Exception {
         GMLWriter output =
                 new GMLWriter(
@@ -364,8 +364,8 @@ public abstract class FeatureCollectionEncoderDelegate implements EncoderDelegat
                 List properties, SimpleFeatureType schema, BindingLoader bindingLoader) {
             ArrayList<AttributeContext> attributes = new ArrayList<>(properties.size());
             List<AttributeDescriptor> attributeDescriptors = schema.getAttributeDescriptors();
-            for (Iterator p = properties.iterator(); p.hasNext(); ) {
-                Object[] o = (Object[]) p.next();
+            for (Object property : properties) {
+                Object[] o = (Object[]) property;
                 XSDParticle particle = (XSDParticle) o[0];
                 XSDElementDeclaration content = (XSDElementDeclaration) particle.getContent();
                 if (content.isElementDeclarationReference()) {

@@ -24,24 +24,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.geotools.data.DataStore;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.LockingManager;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Repository;
+import org.geotools.api.data.ServiceInfo;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
 import org.geotools.data.DefaultServiceInfo;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.LockingManager;
-import org.geotools.data.Query;
-import org.geotools.data.Repository;
-import org.geotools.data.ServiceInfo;
-import org.geotools.data.Transaction;
 import org.geotools.data.gen.info.GeneralizationInfo;
 import org.geotools.data.gen.info.GeneralizationInfos;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.FeatureTypes;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
 
 /**
  * @author Christian Mueller
@@ -81,6 +81,7 @@ public class PreGeneralizedDataStore implements DataStore {
         }
     }
 
+    @Override
     public FeatureReader<SimpleFeatureType, SimpleFeature> getFeatureReader(
             Query query, Transaction transaction) throws IOException {
         PreGeneralizedFeatureSource fs = featureSources.get(query.getTypeName());
@@ -88,59 +89,71 @@ public class PreGeneralizedDataStore implements DataStore {
         return fs.getFeatureReader(query, transaction);
     }
 
+    @Override
     public SimpleFeatureSource getFeatureSource(String typeName) throws IOException {
         SimpleFeatureSource fs = featureSources.get(typeName);
         if (fs == null) throw new IOException(typeName + " not found");
         return fs;
     }
 
+    @Override
     public FeatureWriter<SimpleFeatureType, SimpleFeature> getFeatureWriter(
             String typeName, Transaction transaction) throws IOException {
 
         throw new UnsupportedOperationException("getFeatureWriter");
     }
 
+    @Override
     public FeatureWriter<SimpleFeatureType, SimpleFeature> getFeatureWriter(
             String typeName, Filter filter, Transaction transaction) throws IOException {
         throw new UnsupportedOperationException("getFeatureWriter");
     }
 
+    @Override
     public FeatureWriter<SimpleFeatureType, SimpleFeature> getFeatureWriterAppend(
             String typeName, Transaction transaction) throws IOException {
         throw new UnsupportedOperationException("getFeatureWriterAppend");
     }
 
+    @Override
     public LockingManager getLockingManager() {
         throw new UnsupportedOperationException("getLockingManager");
     }
 
+    @Override
     public SimpleFeatureType getSchema(String typeName) throws IOException {
         return getFeatureSource(typeName).getSchema();
     }
 
+    @Override
     public String[] getTypeNames() throws IOException {
         Set<String> keys = featureSources.keySet();
         return keys.toArray(new String[keys.size()]);
     }
 
+    @Override
     public void updateSchema(String typeName, SimpleFeatureType featureType) throws IOException {
         throw new UnsupportedOperationException("updateSchema");
     }
 
+    @Override
     public void createSchema(SimpleFeatureType featureType) throws IOException {
         throw new UnsupportedOperationException("createSchema");
     }
 
+    @Override
     public void dispose() {
         for (PreGeneralizedFeatureSource fs : featureSources.values()) {
             fs.reset();
         }
     }
 
+    @Override
     public SimpleFeatureSource getFeatureSource(Name typeName) throws IOException {
         return getFeatureSource(typeName.getLocalPart());
     }
 
+    @Override
     public ServiceInfo getInfo() {
         // TODO
         DefaultServiceInfo info = new DefaultServiceInfo();
@@ -155,6 +168,7 @@ public class PreGeneralizedDataStore implements DataStore {
         return info;
     }
 
+    @Override
     public List<Name> getNames() throws IOException {
         List<Name> nameList = new ArrayList<>();
         for (PreGeneralizedFeatureSource fs : featureSources.values()) {
@@ -163,10 +177,12 @@ public class PreGeneralizedDataStore implements DataStore {
         return nameList;
     }
 
+    @Override
     public SimpleFeatureType getSchema(Name name) throws IOException {
         return getFeatureSource(name).getSchema();
     }
 
+    @Override
     public void updateSchema(Name typeName, SimpleFeatureType featureType) throws IOException {
         throw new UnsupportedOperationException("updateSchema");
     }

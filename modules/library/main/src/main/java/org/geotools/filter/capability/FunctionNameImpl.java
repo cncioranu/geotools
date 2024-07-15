@@ -19,10 +19,10 @@ package org.geotools.filter.capability;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.parameter.Parameter;
 import org.geotools.feature.NameImpl;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.parameter.Parameter;
 
 /**
  * Implementation of the FunctionName interface.
@@ -125,6 +125,7 @@ public class FunctionNameImpl extends OperatorImpl implements FunctionName {
         return getFunctionName().getLocalPart();
     }
 
+    @Override
     public int getArgumentCount() {
         int count = 0;
         int variable = 1;
@@ -137,10 +138,12 @@ public class FunctionNameImpl extends OperatorImpl implements FunctionName {
         return variable * count;
     }
 
+    @Override
     public List<Parameter<?>> getArguments() {
         return args;
     }
 
+    @Override
     public Parameter<?> getReturn() {
         return ret;
     }
@@ -172,6 +175,7 @@ public class FunctionNameImpl extends OperatorImpl implements FunctionName {
      *
      * <p>This is a fixed length list the same size as getArgumentCount().
      */
+    @Override
     public List<String> getArgumentNames() {
         List<String> names = new ArrayList<>();
         for (Parameter<?> arg : args) {
@@ -229,7 +233,7 @@ public class FunctionNameImpl extends OperatorImpl implements FunctionName {
      * @return parameter description
      */
     public static <T> Parameter<T> parameter(String name, Class<T> type) {
-        return new org.geotools.data.Parameter<>(name, type);
+        return new org.geotools.api.data.Parameter<>(name, type);
     }
     /**
      * Named parameter (argument or result).
@@ -241,7 +245,7 @@ public class FunctionNameImpl extends OperatorImpl implements FunctionName {
      * @return parameter description
      */
     public static <T> Parameter<T> parameter(String name, Class<T> type, int min, int max) {
-        return new org.geotools.data.Parameter<>(name, type, min, max);
+        return new org.geotools.api.data.Parameter<>(name, type, min, max);
     }
     /**
      * @param name name of parameter
@@ -252,6 +256,6 @@ public class FunctionNameImpl extends OperatorImpl implements FunctionName {
      */
     public static <T> Parameter<T> parameter(
             String name, Class<T> type, String title, String description) {
-        return new org.geotools.data.Parameter<>(name, type, title, description);
+        return new org.geotools.api.data.Parameter<>(name, type, title, description);
     }
 }

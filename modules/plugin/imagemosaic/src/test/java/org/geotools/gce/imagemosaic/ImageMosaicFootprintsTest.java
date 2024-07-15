@@ -50,6 +50,21 @@ import javax.media.jai.PlanarImage;
 import javax.media.jai.ROI;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.metadata.spatial.PixelOrientation;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
@@ -65,12 +80,11 @@ import org.geotools.coverage.grid.io.footprint.WKTLoaderSPI;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.shapefile.ShapefileDataStore;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.gce.imagemosaic.catalog.MultiLevelROIGeometryOverviewsProvider;
-import org.geotools.geometry.DirectPosition2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
+import org.geotools.geometry.Position2D;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.util.ImageUtilities;
@@ -95,22 +109,6 @@ import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.WKTWriter;
 import org.locationtech.jts.precision.EnhancedPrecisionOp;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.geometry.Envelope;
-import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
 
 public class ImageMosaicFootprintsTest {
 
@@ -128,7 +126,7 @@ public class ImageMosaicFootprintsTest {
     private static boolean DEBUG = false;
 
     @Before
-    public void cleanup() throws IOException, ParseException {
+    public void setupMosaic() throws IOException, ParseException {
         // clean up
         testMosaic = new File(TestData.file(this, "."), "footprintMosaic");
         if (testMosaic.exists()) {
@@ -164,24 +162,18 @@ public class ImageMosaicFootprintsTest {
         ds.getFeatureSource()
                 .getFeatures()
                 .accepts(
-                        new FeatureVisitor() {
-
-                            @Override
-                            public void visit(Feature feature) {
-                                try {
-                                    SimpleFeature sf = (SimpleFeature) feature;
-                                    String fileName = (String) sf.getAttribute("location");
-                                    int idx = fileName.lastIndexOf(".");
-                                    Geometry g = (Geometry) sf.getDefaultGeometry();
-                                    File wkbFile =
-                                            new File(
-                                                    testMosaic,
-                                                    fileName.substring(0, idx) + ".wkb");
-                                    byte[] bytes = new WKBWriter().write(g);
-                                    FileUtils.writeByteArrayToFile(wkbFile, bytes);
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
+                        feature -> {
+                            try {
+                                SimpleFeature sf = (SimpleFeature) feature;
+                                String fileName = (String) sf.getAttribute("location");
+                                int idx = fileName.lastIndexOf(".");
+                                Geometry g = (Geometry) sf.getDefaultGeometry();
+                                File wkbFile =
+                                        new File(testMosaic, fileName.substring(0, idx) + ".wkb");
+                                byte[] bytes = new WKBWriter().write(g);
+                                FileUtils.writeByteArrayToFile(wkbFile, bytes);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
                             }
                         },
                         null);
@@ -198,24 +190,18 @@ public class ImageMosaicFootprintsTest {
         ds.getFeatureSource()
                 .getFeatures()
                 .accepts(
-                        new FeatureVisitor() {
-
-                            @Override
-                            public void visit(Feature feature) {
-                                try {
-                                    SimpleFeature sf = (SimpleFeature) feature;
-                                    String fileName = (String) sf.getAttribute("location");
-                                    int idx = fileName.lastIndexOf(".");
-                                    Geometry g = (Geometry) sf.getDefaultGeometry();
-                                    File wkbFile =
-                                            new File(
-                                                    testMosaic,
-                                                    fileName.substring(0, idx) + ".wkt");
-                                    String wkt = new WKTWriter().write(g);
-                                    FileUtils.writeStringToFile(wkbFile, wkt, "UTF-8");
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
+                        feature -> {
+                            try {
+                                SimpleFeature sf = (SimpleFeature) feature;
+                                String fileName = (String) sf.getAttribute("location");
+                                int idx = fileName.lastIndexOf(".");
+                                Geometry g = (Geometry) sf.getDefaultGeometry();
+                                File wkbFile =
+                                        new File(testMosaic, fileName.substring(0, idx) + ".wkt");
+                                String wkt = new WKTWriter().write(g);
+                                FileUtils.writeStringToFile(wkbFile, wkt, "UTF-8");
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
                             }
                         },
                         null);
@@ -254,7 +240,7 @@ public class ImageMosaicFootprintsTest {
         // limit yourself to reading just a bit of it
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final Dimension dim = new Dimension();
 
         // Apply some scaling and some crop
@@ -273,8 +259,8 @@ public class ImageMosaicFootprintsTest {
         double minX = maxX - envelope.getSpan(0) * (spanRatioX);
         double maxY = minY + envelope.getSpan(1) * (spanRatioY);
 
-        final GeneralEnvelope env2 =
-                new GeneralEnvelope(new double[] {minX, minY}, new double[] {maxX, maxY});
+        final GeneralBounds env2 =
+                new GeneralBounds(new double[] {minX, minY}, new double[] {maxX, maxY});
         env2.setCoordinateReferenceSystem(envelope.getCoordinateReferenceSystem());
         gg.setValue(new GridGeometry2D(range, env2));
 
@@ -287,16 +273,16 @@ public class ImageMosaicFootprintsTest {
         byte[] pixel = new byte[4];
 
         // Checking some pixels out of the footprint are transparent
-        coverage.evaluate(new DirectPosition2D(-89, 34), pixel);
+        coverage.evaluate(new Position2D(-89, 34), pixel);
         assertEquals(0, pixel[3]);
 
-        coverage.evaluate(new DirectPosition2D(43, -13), pixel);
+        coverage.evaluate(new Position2D(43, -13), pixel);
         assertEquals(0, pixel[3]);
 
-        coverage.evaluate(new DirectPosition2D(131, 10), pixel);
+        coverage.evaluate(new Position2D(131, 10), pixel);
         assertEquals(0, pixel[3]);
 
-        coverage.evaluate(new DirectPosition2D(145, 0), pixel);
+        coverage.evaluate(new Position2D(145, 0), pixel);
         assertEquals(0, pixel[3]);
     }
 
@@ -341,40 +327,34 @@ public class ImageMosaicFootprintsTest {
         ds.getFeatureSource()
                 .getFeatures()
                 .accepts(
-                        new FeatureVisitor() {
+                        feature -> {
+                            try {
+                                SimpleFeature sf = (SimpleFeature) feature;
+                                String fileName = (String) sf.getAttribute("location");
+                                int idx = fileName.lastIndexOf(".");
+                                Geometry g = (Geometry) sf.getDefaultGeometry();
+                                String filename = fileName.substring(0, idx);
+                                File shpFile = new File(testMosaic, filename + ".shp");
+                                ShapefileDataStore sds =
+                                        new ShapefileDataStore(URLs.fileToUrl(shpFile));
+                                SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
+                                tb.setName(filename);
+                                GeometryDescriptor gd = sf.getFeatureType().getGeometryDescriptor();
+                                tb.add(
+                                        "the_geom",
+                                        gd.getType().getBinding(),
+                                        gd.getCoordinateReferenceSystem());
+                                SimpleFeatureType sft = tb.buildFeatureType();
+                                sds.createSchema(sft);
 
-                            @Override
-                            public void visit(Feature feature) {
-                                try {
-                                    SimpleFeature sf = (SimpleFeature) feature;
-                                    String fileName = (String) sf.getAttribute("location");
-                                    int idx = fileName.lastIndexOf(".");
-                                    Geometry g = (Geometry) sf.getDefaultGeometry();
-                                    String filename = fileName.substring(0, idx);
-                                    File shpFile = new File(testMosaic, filename + ".shp");
-                                    ShapefileDataStore sds =
-                                            new ShapefileDataStore(URLs.fileToUrl(shpFile));
-                                    SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
-                                    tb.setName(filename);
-                                    GeometryDescriptor gd =
-                                            sf.getFeatureType().getGeometryDescriptor();
-                                    tb.add(
-                                            "the_geom",
-                                            gd.getType().getBinding(),
-                                            gd.getCoordinateReferenceSystem());
-                                    SimpleFeatureType sft = tb.buildFeatureType();
-                                    sds.createSchema(sft);
-
-                                    SimpleFeatureBuilder fb = new SimpleFeatureBuilder(sft);
-                                    fb.add(g);
-                                    SimpleFeature footprintFeature = fb.buildFeature(null);
-                                    SimpleFeatureStore fs =
-                                            (SimpleFeatureStore) sds.getFeatureSource();
-                                    fs.addFeatures(DataUtilities.collection(footprintFeature));
-                                    sds.dispose();
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
+                                SimpleFeatureBuilder fb = new SimpleFeatureBuilder(sft);
+                                fb.add(g);
+                                SimpleFeature footprintFeature = fb.buildFeature(null);
+                                SimpleFeatureStore fs = (SimpleFeatureStore) sds.getFeatureSource();
+                                fs.addFeatures(DataUtilities.collection(footprintFeature));
+                                sds.dispose();
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
                             }
                         },
                         null);
@@ -627,14 +607,14 @@ public class ImageMosaicFootprintsTest {
 
             // Background Values
             ParameterValue<double[]> bg = ImageMosaicFormat.BACKGROUND_VALUES.createValue();
-            double[] bgValues = new double[] {0, 255, 0};
+            double[] bgValues = {0, 255, 0};
             bg.setValue(bgValues);
             paramList.add(bg);
 
             // GRIDGEOMETRY (specify a chunk of the whole envelope)
-            final GeneralEnvelope oldEnvelope = reader.getOriginalEnvelope();
-            final GeneralEnvelope cropEnvelope =
-                    new GeneralEnvelope(
+            final GeneralBounds oldEnvelope = reader.getOriginalEnvelope();
+            final GeneralBounds cropEnvelope =
+                    new GeneralBounds(
                             new double[] {
                                 oldEnvelope.getLowerCorner().getOrdinate(0)
                                         + oldEnvelope.getSpan(0) / 4,
@@ -744,20 +724,20 @@ public class ImageMosaicFootprintsTest {
         // check the footprints have been applied by pocking the output image
         byte[] pixel = new byte[3];
         // Mar Ionio, should be black
-        coverage.evaluate(new DirectPosition2D(16.87, 40.19), pixel);
+        coverage.evaluate(new Position2D(16.87, 40.19), pixel);
         assertEquals(0, pixel[0]);
         assertEquals(0, pixel[1]);
         assertEquals(0, pixel[2]);
         // Golfo di La Spezia, should be black
-        coverage.evaluate(new DirectPosition2D(9.12, 44.25), pixel);
+        coverage.evaluate(new Position2D(9.12, 44.25), pixel);
         assertEquals(0, pixel[0]);
         assertEquals(0, pixel[1]);
         assertEquals(0, pixel[2]);
         // Sardinia, not black
-        coverage.evaluate(new DirectPosition2D(9, 40), pixel);
+        coverage.evaluate(new Position2D(9, 40), pixel);
         assertTrue(pixel[0] + pixel[1] + pixel[2] > 0);
         // Piedmont, not black
-        coverage.evaluate(new DirectPosition2D(8, 45), pixel);
+        coverage.evaluate(new Position2D(8, 45), pixel);
         assertTrue(pixel[0] + pixel[1] + pixel[2] > 0);
     }
 
@@ -912,25 +892,25 @@ public class ImageMosaicFootprintsTest {
         // check the footprints have been applied by pocking the output image
         byte[] pixel = new byte[3];
         // Close to San Marino, black if we have the insets
-        coverage.evaluate(new DirectPosition2D(12.54, 44.03), pixel);
+        coverage.evaluate(new Position2D(12.54, 44.03), pixel);
         assertEquals(0, pixel[0]);
         assertEquals(0, pixel[1]);
         assertEquals(0, pixel[2]);
         // Inner BORDER gets black with FULL insets
-        coverage.evaluate(new DirectPosition2D(11.52, 44.57), pixel);
+        coverage.evaluate(new Position2D(11.52, 44.57), pixel);
         assertEquals(0, pixel[0]);
         assertEquals(0, pixel[1]);
         assertEquals(0, pixel[2]);
         // Golfo di La Spezia, should be black
-        coverage.evaluate(new DirectPosition2D(9.12, 44.25), pixel);
+        coverage.evaluate(new Position2D(9.12, 44.25), pixel);
         assertEquals(0, pixel[0]);
         assertEquals(0, pixel[1]);
         assertEquals(0, pixel[2]);
         // Sardinia, not black
-        coverage.evaluate(new DirectPosition2D(9, 40), pixel);
+        coverage.evaluate(new Position2D(9, 40), pixel);
         assertTrue(pixel[0] + pixel[1] + pixel[2] > 0);
         // Piedmont, not black
-        coverage.evaluate(new DirectPosition2D(8, 45), pixel);
+        coverage.evaluate(new Position2D(8, 45), pixel);
         assertTrue(pixel[0] + pixel[1] + pixel[2] > 0);
         disposeCoverage(coverage);
 
@@ -966,7 +946,6 @@ public class ImageMosaicFootprintsTest {
         params[2] = gg2DParam;
 
         coverage = reader.read(params);
-        MathTransform tr = reader.getOriginalGridToWorld(PixelInCell.CELL_CORNER);
         reader.dispose();
         assertNotNull(coverage);
 
@@ -974,7 +953,7 @@ public class ImageMosaicFootprintsTest {
         pixel = new byte[4];
         // Close to San Marino, black if we have the insets
         coverage.evaluate(
-                new DirectPosition2D(
+                new Position2D(
                         coverage.getEnvelope().getMinimum(0) + 1e-3,
                         coverage.getEnvelope().getMinimum(1) + 1e-3),
                 pixel);
@@ -1001,23 +980,23 @@ public class ImageMosaicFootprintsTest {
         //        // check the footprints have been applied by pocking the output image
         byte[] pixel = new byte[3];
         // Close to San Marino, black if we have the insets
-        coverage.evaluate(new DirectPosition2D(12.54, 44.03), pixel);
+        coverage.evaluate(new Position2D(12.54, 44.03), pixel);
         assertEquals(0, pixel[0]);
         assertEquals(0, pixel[1]);
         assertEquals(0, pixel[2]);
         // Inner BORDER should not get black with border insets
-        coverage.evaluate(new DirectPosition2D(11.52, 44.57), pixel);
+        coverage.evaluate(new Position2D(11.52, 44.57), pixel);
         assertTrue(pixel[0] + pixel[1] + pixel[2] > 0);
         // Golfo di La Spezia, should be black
-        coverage.evaluate(new DirectPosition2D(9.12, 44.25), pixel);
+        coverage.evaluate(new Position2D(9.12, 44.25), pixel);
         assertEquals(0, pixel[0]);
         assertEquals(0, pixel[1]);
         assertEquals(0, pixel[2]);
         // Sardinia, not black
-        coverage.evaluate(new DirectPosition2D(9, 40), pixel);
+        coverage.evaluate(new Position2D(9, 40), pixel);
         assertTrue(pixel[0] + pixel[1] + pixel[2] > 0);
         // Piedmont, not black
-        coverage.evaluate(new DirectPosition2D(8, 45), pixel);
+        coverage.evaluate(new Position2D(8, 45), pixel);
         assertTrue(pixel[0] + pixel[1] + pixel[2] > 0);
         disposeCoverage(coverage);
 
@@ -1053,7 +1032,6 @@ public class ImageMosaicFootprintsTest {
         params[2] = gg2DParam;
 
         coverage = reader.read(params);
-        MathTransform tr = reader.getOriginalGridToWorld(PixelInCell.CELL_CORNER);
         reader.dispose();
         assertNotNull(coverage);
 
@@ -1061,7 +1039,7 @@ public class ImageMosaicFootprintsTest {
         pixel = new byte[4];
         // Close to San Marino, black if we have the insets
         coverage.evaluate(
-                new DirectPosition2D(
+                new Position2D(
                         coverage.getEnvelope().getMinimum(0) + 1e-3,
                         coverage.getEnvelope().getMinimum(1) + 1e-3),
                 pixel);
@@ -1115,20 +1093,20 @@ public class ImageMosaicFootprintsTest {
         // check the footprints have been applied by pocking the output image
         byte[] pixel = new byte[3];
         // Close to San Marino, black if we have the insets
-        coverage.evaluate(new DirectPosition2D(12.54, 44.03), pixel);
+        coverage.evaluate(new Position2D(12.54, 44.03), pixel);
         assertEquals(0, pixel[0]);
         assertEquals(0, pixel[1]);
         assertEquals(0, pixel[2]);
         // Golfo di La Spezia, should be black
-        coverage.evaluate(new DirectPosition2D(9.12, 44.25), pixel);
+        coverage.evaluate(new Position2D(9.12, 44.25), pixel);
         assertEquals(0, pixel[0]);
         assertEquals(0, pixel[1]);
         assertEquals(0, pixel[2]);
         // Sardinia, not black
-        coverage.evaluate(new DirectPosition2D(9, 40), pixel);
+        coverage.evaluate(new Position2D(9, 40), pixel);
         assertTrue(pixel[0] + pixel[1] + pixel[2] > 0);
         // Piedmont, not black
-        coverage.evaluate(new DirectPosition2D(8, 45), pixel);
+        coverage.evaluate(new Position2D(8, 45), pixel);
         assertTrue(pixel[0] + pixel[1] + pixel[2] > 0);
         disposeCoverage(coverage);
     }
@@ -1149,7 +1127,7 @@ public class ImageMosaicFootprintsTest {
         GridCoverage2D coverage = reader.read(params);
 
         byte[] result = new byte[4];
-        DirectPosition2D position = new DirectPosition2D();
+        Position2D position = new Position2D();
         position.setLocation(1, 1);
         coverage.evaluate(position, result);
 
@@ -1159,29 +1137,29 @@ public class ImageMosaicFootprintsTest {
         // Transparent
         assertEquals(0, result[3]);
 
-        position = new DirectPosition2D();
+        position = new Position2D();
         position.setLocation(-1, -1);
         coverage.evaluate(position, result);
 
         // Blue
         assertEquals(0, result[0]);
         assertEquals(0, result[1]);
-        assertTrue(0 != result[2]);
-        assertTrue(0 != result[3]);
+        assertNotEquals(0, result[2]);
+        assertNotEquals(0, result[3]);
         reader.dispose();
     }
 
     @Test
     public void testFootprintRGB() throws FileNotFoundException, IOException {
-        testFootprint(TestData.file(this, "footprint_rgb"));
+        checkFootprint(TestData.file(this, "footprint_rgb"));
     }
 
     @Test
     public void testFootprintRGBA() throws FileNotFoundException, IOException {
-        testFootprint(TestData.file(this, "footprint_rgba"));
+        checkFootprint(TestData.file(this, "footprint_rgba"));
     }
 
-    public void testFootprint(File mosaic) throws IOException {
+    public void checkFootprint(File mosaic) throws IOException {
         ImageMosaicReader reader =
                 (ImageMosaicReader) new ImageMosaicFormatFactory().createFormat().getReader(mosaic);
 
@@ -1194,25 +1172,25 @@ public class ImageMosaicFootprintsTest {
         GridCoverage2D coverage = reader.read(params);
 
         byte[] result = new byte[4];
-        DirectPosition2D position = new DirectPosition2D();
+        Position2D position = new Position2D();
         position.setLocation(1, 1);
         coverage.evaluate(position, result);
 
         // Red
-        assertTrue(0 != result[0]);
+        assertNotEquals(0, result[0]);
         assertEquals(0, result[1]);
         assertEquals(0, result[2]);
-        assertTrue(0 != result[3]);
+        assertNotEquals(0, result[3]);
 
-        position = new DirectPosition2D();
+        position = new Position2D();
         position.setLocation(-1, -1);
         coverage.evaluate(position, result);
 
         // Blue
         assertEquals(0, result[0]);
         assertEquals(0, result[1]);
-        assertTrue(0 != result[2]);
-        assertTrue(0 != result[3]);
+        assertNotEquals(0, result[2]);
+        assertNotEquals(0, result[3]);
 
         reader.dispose();
     }
@@ -1229,7 +1207,7 @@ public class ImageMosaicFootprintsTest {
 
         // Evaluate results
         byte[] results = new byte[4];
-        DirectPosition2D position = new DirectPosition2D();
+        Position2D position = new Position2D();
         // Should be 0
         position.setLocation(-86.724, 25.085);
         results = coverage.evaluate(position, results);
@@ -1240,10 +1218,10 @@ public class ImageMosaicFootprintsTest {
         // Should be > 0
         position.setLocation(-86.252, 27.7984);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be 0
         position.setLocation(-87.937, 26.144);
         results = coverage.evaluate(position, results);
@@ -1254,10 +1232,10 @@ public class ImageMosaicFootprintsTest {
         // Should be > 0
         position.setLocation(-89.084, 27.133);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be 0
         position.setLocation(-89.763, 25.167);
         results = coverage.evaluate(position, results);
@@ -1310,7 +1288,7 @@ public class ImageMosaicFootprintsTest {
 
         // Evaluate results
         byte[] results = new byte[4];
-        DirectPosition2D position = new DirectPosition2D();
+        Position2D position = new Position2D();
         // Should be 0
         position.setLocation(-86.724, 25.085);
         results = coverage.evaluate(position, results);
@@ -1321,10 +1299,10 @@ public class ImageMosaicFootprintsTest {
         // Should be > 0
         position.setLocation(-86.252, 27.7984);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be 0
         position.setLocation(-87.937, 26.144);
         results = coverage.evaluate(position, results);
@@ -1335,10 +1313,10 @@ public class ImageMosaicFootprintsTest {
         // Should be > 0
         position.setLocation(-89.084, 27.133);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be 0
         position.setLocation(-89.763, 25.167);
         results = coverage.evaluate(position, results);
@@ -1361,37 +1339,37 @@ public class ImageMosaicFootprintsTest {
 
         // Evaluate results
         byte[] results = new byte[4];
-        DirectPosition2D position = new DirectPosition2D();
+        Position2D position = new Position2D();
         // Should be 0 but since the mask is subsampled, it may happen that the
         // final pixel is not masked
         position.setLocation(-86.724, 25.085);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be > 0
         position.setLocation(-86.252, 27.7984);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be  0 but since the mask is subsampled, it may happen that the
         // final pixel is not masked
         position.setLocation(-87.937, 26.144);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be > 0
         position.setLocation(-89.084, 27.133);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be 0
         position.setLocation(-89.763, 25.167);
         results = coverage.evaluate(position, results);
@@ -1414,7 +1392,7 @@ public class ImageMosaicFootprintsTest {
 
         // Evaluate results
         byte[] results = new byte[4];
-        DirectPosition2D position = new DirectPosition2D();
+        Position2D position = new Position2D();
         // Should be 0
         position.setLocation(-86.724, 25.085);
         results = coverage.evaluate(position, results);
@@ -1425,10 +1403,10 @@ public class ImageMosaicFootprintsTest {
         // Should be > 0
         position.setLocation(-86.252, 27.7984);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be  0
         position.setLocation(-87.937, 26.144);
         results = coverage.evaluate(position, results);
@@ -1437,14 +1415,14 @@ public class ImageMosaicFootprintsTest {
         assertEquals(results[2], 0);
         assertEquals(results[3], 0);
         // Should be > 0
-        position.setLocation(-89.084, 27.133);
+        position.setLocation(-89.084, 27.1);
         results = coverage.evaluate(position, results);
-        assertTrue(results[0] != 0);
-        assertTrue(results[1] != 0);
-        assertTrue(results[2] != 0);
-        assertTrue(results[3] != 0);
+        assertNotEquals(results[0], 0);
+        assertNotEquals(results[1], 0);
+        assertNotEquals(results[2], 0);
+        assertNotEquals(results[3], 0);
         // Should be 0
-        position.setLocation(-89.763, 25.167);
+        position.setLocation(-89.763, 25.2);
         results = coverage.evaluate(position, results);
         assertEquals(results[0], 0);
         assertEquals(results[1], 0);
@@ -1555,12 +1533,11 @@ public class ImageMosaicFootprintsTest {
                 reader.getOriginalEnvelope().getCoordinateReferenceSystem();
 
         GridEnvelope2D gridRange = new GridEnvelope2D(0, 0, 100, 100);
-        Envelope requestEnvelope =
+        Bounds requestEnvelope =
                 new ReferencedEnvelope(989960, 990800, 217380, 219200, coordinateReferenceSystem);
         GridGeometry2D readGeometry = new GridGeometry2D(gridRange, requestEnvelope);
         readGeom.setValue(readGeometry);
-        GeneralParameterValue[] readParams =
-                new GeneralParameterValue[] {footprintBehaviorParam, readGeom};
+        GeneralParameterValue[] readParams = {footprintBehaviorParam, readGeom};
         GridCoverage2D coverage = reader.read(readParams);
 
         int numComponents = coverage.getRenderedImage().getColorModel().getNumComponents();

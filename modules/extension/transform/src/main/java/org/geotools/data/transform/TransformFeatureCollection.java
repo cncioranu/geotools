@@ -20,10 +20,19 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.sort.SortedFeatureIterator;
 import org.geotools.data.store.EmptyFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
@@ -35,17 +44,8 @@ import org.geotools.feature.visitor.MaxVisitor;
 import org.geotools.feature.visitor.MinVisitor;
 import org.geotools.feature.visitor.UniqueVisitor;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.util.ProgressListener;
 
 /**
  * A transforming collection based on the {@link TransformFeatureSource} definitions
@@ -70,17 +70,27 @@ class TransformFeatureCollection extends AbstractFeatureCollection {
         this.query = query;
     }
 
-    /** Creates a sub-schema with only the selected attributes */
+    /**
+     * Creates a sub-schema with only the selected attributes.
+     *
+     * <p>Transformer is going to trust that the source can handle any reprojection.
+     */
     static SimpleFeatureType retypeSchema(SimpleFeatureType schema, Query query) {
-        if (query.getPropertyNames() == Query.ALL_NAMES) {
+        if (query.getPropertyNames() == Query.ALL_NAMES
+                && CRS.equalsIgnoreMetadata(
+                        schema.getCoordinateReferenceSystem(),
+                        query.getCoordinateSystemReproject())) {
             return schema;
         } else {
-            return SimpleFeatureTypeBuilder.retype(schema, query.getPropertyNames());
+            return SimpleFeatureTypeBuilder.retype(schema, query);
         }
     }
 
     @Override
-    @SuppressWarnings("PMD.CloseResource") // convoluted logic, but "fi" is closed or returned
+    @SuppressWarnings({
+        "PMD.CloseResource",
+        "PMD.UseTryWithResources"
+    }) // convoluted logic, but "fi" is closed or returned
     protected Iterator<SimpleFeature> openIterator() {
         SimpleFeatureIterator fi = null;
         Iterator<SimpleFeature> result = null;
@@ -121,7 +131,7 @@ class TransformFeatureCollection extends AbstractFeatureCollection {
 
             result = new SimpleFeatureIteratorIterator(transformed);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Transform failure: " + e.getMessage(), e);
         } finally {
             // if result is null, an exception has occurred, close the wrapped iterator
             if (result == null) {
@@ -146,20 +156,14 @@ class TransformFeatureCollection extends AbstractFeatureCollection {
             }
 
             // sigh, fall back to brute force computation
-            SimpleFeatureIterator fi = null;
-            try {
+            try (SimpleFeatureIterator fi = source.getFeatures(query).features()) {
                 size = 0;
-                fi = source.getFeatures(query).features();
                 while (fi.hasNext()) {
                     fi.next();
                     size++;
                 }
 
                 return size;
-            } finally {
-                if (fi != null) {
-                    fi.close();
-                }
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -175,9 +179,7 @@ class TransformFeatureCollection extends AbstractFeatureCollection {
             }
 
             // sigh, fall back to brute force computation
-            SimpleFeatureIterator fi = null;
-            try {
-                fi = source.getFeatures(query).features();
+            try (SimpleFeatureIterator fi = source.getFeatures(query).features()) {
                 while (fi.hasNext()) {
                     SimpleFeature f = fi.next();
                     BoundingBox bb = f.getBounds();
@@ -192,10 +194,6 @@ class TransformFeatureCollection extends AbstractFeatureCollection {
                 }
 
                 return re;
-            } finally {
-                if (fi != null) {
-                    fi.close();
-                }
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -256,7 +254,8 @@ class TransformFeatureCollection extends AbstractFeatureCollection {
 
     @Override
     public void accepts(
-            org.opengis.feature.FeatureVisitor visitor, org.opengis.util.ProgressListener progress)
+            org.geotools.api.feature.FeatureVisitor visitor,
+            org.geotools.api.util.ProgressListener progress)
             throws IOException {
         if (isTypeCompatible(visitor, transformer.getSchema())) {
             delegateVisitor(visitor, progress);
@@ -291,11 +290,7 @@ class TransformFeatureCollection extends AbstractFeatureCollection {
 
     protected void delegateVisitor(FeatureVisitor visitor, ProgressListener progress)
             throws IOException {
-        Name typeName = transformer.getSource().getName();
         Query txQuery = transformer.transformQuery(query);
-        source.getDataStore()
-                .getFeatureSource(typeName)
-                .getFeatures(txQuery)
-                .accepts(visitor, progress);
+        transformer.getSource().getFeatures(txQuery).accepts(visitor, progress);
     }
 }

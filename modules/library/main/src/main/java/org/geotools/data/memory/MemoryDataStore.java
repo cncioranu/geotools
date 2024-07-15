@@ -20,13 +20,17 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.store.ContentDataStore;
@@ -36,10 +40,6 @@ import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.FeatureTypes;
 import org.geotools.util.SuppressFBWarnings;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
 
 /**
  * This is an example implementation of a DataStore used for testing.
@@ -64,6 +64,7 @@ public class MemoryDataStore extends ContentDataStore {
     }
 
     /** Use MemoryState to manage internal storage. */
+    @Override
     protected MemoryState createContentState(ContentEntry entry) {
         return new MemoryState((MemoryEntry) entry);
     }
@@ -91,7 +92,7 @@ public class MemoryDataStore extends ContentDataStore {
         addFeatures(collection);
     }
 
-    public MemoryDataStore(SimpleFeature[] array) {
+    public MemoryDataStore(SimpleFeature... array) {
         addFeatures(array);
     }
 
@@ -198,13 +199,13 @@ public class MemoryDataStore extends ContentDataStore {
      * @param features Array of features to add
      * @throws IllegalArgumentException If provided feature array is empty
      */
-    public void addFeatures(SimpleFeature[] features) {
+    public void addFeatures(SimpleFeature... features) {
         if ((features == null) || (features.length == 0)) {
             throw new IllegalArgumentException("Provided features are empty");
         }
         synchronized (entries) {
-            for (int i = 0; i < features.length; i++) {
-                addFeatureInternal(features[i]);
+            for (SimpleFeature feature : features) {
+                addFeatureInternal(feature);
             }
         }
     }
@@ -296,18 +297,14 @@ public class MemoryDataStore extends ContentDataStore {
      * @return List of type names
      * @see org.geotools.data.ContentDataStore#getFeatureTypes()
      */
+    @Override
     protected List<Name> createTypeNames() {
         List<Name> names = new ArrayList<>(this.entries.keySet());
-        Collections.sort(
-                names,
-                new Comparator<Name>() {
-                    public int compare(Name n1, Name n2) {
-                        return n1.toString().compareTo(n2.toString());
-                    }
-                });
+        Collections.sort(names, (n1, n2) -> n1.toString().compareTo(n2.toString()));
         return names;
     }
 
+    @Override
     protected ContentFeatureSource createFeatureSource(ContentEntry entry) {
         return createFeatureSource(entry, Query.ALL);
     }
@@ -324,8 +321,9 @@ public class MemoryDataStore extends ContentDataStore {
      *
      * @param featureType SimpleFeatureType to be added
      * @throws IOException If featureType already exists
-     * @see org.geotools.data.DataStore#createSchema(org.geotools.feature.SimpleFeatureType)
+     * @see DataStore#createSchema(org.geotools.feature.SimpleFeatureType)
      */
+    @Override
     public void createSchema(SimpleFeatureType featureType) throws IOException {
         Name typeName = featureType.getName();
         if (entries.containsKey(typeName)) {

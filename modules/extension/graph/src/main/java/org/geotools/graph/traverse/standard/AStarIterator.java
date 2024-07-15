@@ -78,10 +78,9 @@ public class AStarIterator extends SourceGraphIterator {
     private HashMap<Node, AStarNode> m_nodemap;
 
     public AStarIterator(Node source, AStarFunctions afuncs) {
-        AStarNode asn;
 
         m_afuncs = afuncs;
-        asn = new AStarNode(source, afuncs.h(source));
+        AStarNode asn = new AStarNode(source, afuncs.h(source));
         asn.setG(0);
         setSource(source);
         m_nodemap = new HashMap<>();
@@ -121,10 +120,9 @@ public class AStarIterator extends SourceGraphIterator {
     @Override
     public void cont(Graphable current, GraphTraversal traversal) {
         Node currdn = (Node) current;
-        AStarNode currAsn;
         AStarNode nextAsn;
 
-        currAsn = m_nodemap.get(currdn);
+        AStarNode currAsn = m_nodemap.get(currdn);
         if (currAsn == null) {
             throw new IllegalArgumentException("AStarIterator: The node is not in the open list");
         }
@@ -177,13 +175,10 @@ public class AStarIterator extends SourceGraphIterator {
 
     /** Decides which node has more priority */
     private static Comparator<AStarNode> comparator =
-            new Comparator<AStarNode>() {
-                @Override
-                public int compare(AStarNode o1, AStarNode o2) {
-                    AStarNode n1 = o1;
-                    AStarNode n2 = o2;
-                    return (n1.getF() < n2.getF() ? -1 : n1.getF() > n2.getF() ? 1 : 0);
-                }
+            (o1, o2) -> {
+                AStarNode n1 = o1;
+                AStarNode n2 = o2;
+                return (n1.getF() < n2.getF() ? -1 : n1.getF() > n2.getF() ? 1 : 0);
             };
 
     /**

@@ -25,13 +25,13 @@ import java.awt.geom.Rectangle2D;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.text.MessageFormat;
 import java.util.Locale;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.metadata.extent.GeographicBoundingBox;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.Utilities;
-import org.opengis.geometry.Envelope;
-import org.opengis.metadata.extent.GeographicBoundingBox;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Geographic position of the dataset. This is only an approximate so specifying the coordinate
@@ -125,10 +125,10 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
      *
      * <p>When coordinate transformation is required, the target geographic CRS is not necessarly
      * {@linkplain org.geotools.referencing.crs.DefaultGeographicCRS#WGS84 WGS84}. This method
-     * preserves the same {@linkplain org.opengis.referencing.datum.Ellipsoid ellipsoid} than in the
-     * envelope CRS when possible. This is because geographic bounding box are only approximative
-     * and the ISO specification do not mandates a particular CRS, so we avoid transformations that
-     * are not strictly necessary.
+     * preserves the same {@linkplain org.geotools.api.referencing.datum.Ellipsoid ellipsoid} than
+     * in the envelope CRS when possible. This is because geographic bounding box are only
+     * approximative and the ISO specification do not mandates a particular CRS, so we avoid
+     * transformations that are not strictly necessary.
      *
      * <p><strong>Note:</strong> This constructor is available only if the referencing module is on
      * the classpath.
@@ -138,16 +138,14 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
      * @throws TransformException if the envelope can't be transformed.
      * @since 2.2
      */
-    public GeographicBoundingBoxImpl(final Envelope envelope) throws TransformException {
+    public GeographicBoundingBoxImpl(final Bounds envelope) throws TransformException {
         super(true);
         if (constructor == null) {
             // No need to synchronize; not a big deal if we set this field twice.
-            constructor =
-                    getMethod(
-                            "copy", new Class[] {Envelope.class, GeographicBoundingBoxImpl.class});
+            constructor = getMethod("copy", Bounds.class, GeographicBoundingBoxImpl.class);
         }
         try {
-            invoke(constructor, new Object[] {envelope, this});
+            invoke(constructor, envelope, this);
         } catch (InvocationTargetException exception) {
             final Throwable cause = exception.getTargetException();
             if (cause instanceof TransformException) {
@@ -199,6 +197,7 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
      *
      * @return The western-most longitude between -180 and +180°.
      */
+    @Override
     public double getWestBoundLongitude() {
         return westBoundLongitude;
     }
@@ -220,6 +219,7 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
      *
      * @return The eastern-most longitude between -180 and +180°.
      */
+    @Override
     public double getEastBoundLongitude() {
         return eastBoundLongitude;
     }
@@ -241,6 +241,7 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
      *
      * @return The southern-most latitude between -90 and +90°.
      */
+    @Override
     public double getSouthBoundLatitude() {
         return southBoundLatitude;
     }
@@ -262,6 +263,7 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
      *
      * @return The northern-most latitude between -90 and +90°.
      */
+    @Override
     public double getNorthBoundLatitude() {
         return northBoundLatitude;
     }
@@ -374,7 +376,8 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
         final Boolean inc2 = box.getInclusion();
         ensureNonNull("inclusion", inc2);
         if (inc1.booleanValue() != inc2.booleanValue()) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$1, "box"));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$1, "box"));
         }
         final double xmin = box.getWestBoundLongitude();
         final double xmax = box.getEastBoundLongitude();
@@ -479,12 +482,10 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
         if (toString == null) {
             // No need to synchronize.
             toString =
-                    getMethod(
-                            "toString",
-                            new Class[] {GeographicBoundingBox.class, String.class, Locale.class});
+                    getMethod("toString", GeographicBoundingBox.class, String.class, Locale.class);
         }
         try {
-            return String.valueOf(invoke(toString, new Object[] {box, pattern, locale}));
+            return String.valueOf(invoke(toString, box, pattern, locale));
         } catch (InvocationTargetException exception) {
             throw new UndeclaredThrowableException(exception.getTargetException());
         }
@@ -494,13 +495,13 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
      * Returns a helper method which depends on the referencing module. We use reflection since we
      * can't have a direct dependency to this module.
      */
-    private static Method getMethod(final String name, final Class<?>[] arguments) {
+    private static Method getMethod(final String name, final Class<?>... arguments) {
         try {
             return Class.forName("org.geotools.referencing.util.BoundingBoxes")
                     .getMethod(name, arguments);
         } catch (ClassNotFoundException exception) {
             throw new UnsupportedOperationException(
-                    Errors.format(ErrorKeys.MISSING_MODULE_$1, "referencing"), exception);
+                    MessageFormat.format(ErrorKeys.MISSING_MODULE_$1, "referencing"), exception);
         } catch (NoSuchMethodException exception) {
             // Should never happen if we didn't broke our BoundingBoxes helper class.
             throw new AssertionError(exception);
@@ -508,7 +509,7 @@ public class GeographicBoundingBoxImpl extends GeographicExtentImpl
     }
 
     /** Invokes the specified method with the specified arguments. */
-    private static Object invoke(final Method method, final Object[] arguments)
+    private static Object invoke(final Method method, final Object... arguments)
             throws InvocationTargetException {
         try {
             return method.invoke(null, arguments);

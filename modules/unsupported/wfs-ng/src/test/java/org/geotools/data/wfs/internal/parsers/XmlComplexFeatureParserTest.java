@@ -16,6 +16,10 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
 import org.geotools.data.complex.feature.type.ComplexFeatureTypeFactoryImpl;
 import org.geotools.data.complex.feature.type.FeatureTypeRegistry;
 import org.geotools.data.complex.util.EmfComplexFeatureReader;
@@ -25,10 +29,6 @@ import org.geotools.gml3.complex.GmlFeatureTypeRegistryConfiguration;
 import org.geotools.xml.resolver.SchemaResolver;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opengis.feature.Feature;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
 
 /**
  * Tests @{@link XmlComplexFeatureParser}.
@@ -102,7 +102,7 @@ public class XmlComplexFeatureParserTest {
 
         // Assert
         Assert.assertEquals(
-                "FeatureImpl:MineType<MineType id=er.mine.S0000001>=[ComplexAttributeImpl:MineNamePropertyType=[ComplexAttributeImpl:MineName<MineNameType id=MINENAMETYPE_TYPE_1>=[ComplexAttributeImpl:MineNameType=[AttributeImpl:isPreferred<boolean id=isPreferred_1>=true, AttributeImpl:mineName<string id=mineName_1>=Pieces of Eight - Admiral Hill]]], ComplexAttributeImpl:MineNamePropertyType=[ComplexAttributeImpl:MineName<MineNameType id=MINENAMETYPE_TYPE_2>=[ComplexAttributeImpl:MineNameType=[AttributeImpl:isPreferred<boolean id=isPreferred_2>=false, AttributeImpl:mineName<string id=mineName_2>=Admiral Hill S - W Shear (WAMIN)]]]]",
+                "FeatureImpl:MineType<MineType id=er.mine.S0000001>=[ComplexAttributeImpl:mineName<MineNamePropertyType>=[ComplexAttributeImpl:MineName<MineNameType id=MINENAMETYPE_TYPE_1>=[ComplexAttributeImpl:MineName<MineNameType>=[AttributeImpl:isPreferred<boolean id=isPreferred_1>=true, AttributeImpl:mineName<string id=mineName_1>=Pieces of Eight - Admiral Hill]]], ComplexAttributeImpl:mineName<MineNamePropertyType>=[ComplexAttributeImpl:MineName<MineNameType id=MINENAMETYPE_TYPE_2>=[ComplexAttributeImpl:MineName<MineNameType>=[AttributeImpl:isPreferred<boolean id=isPreferred_2>=false, AttributeImpl:mineName<string id=mineName_2>=Admiral Hill S - W Shear (WAMIN)]]]]",
                 feature.toString());
     }
 
@@ -121,7 +121,7 @@ public class XmlComplexFeatureParserTest {
 
         // Assert
         Assert.assertEquals(
-                "FeatureImpl:MineType<MineType id=er.mine.S0000005>=[ComplexAttributeImpl:MineNamePropertyType=[ComplexAttributeImpl:MineName<MineNameType>=[ComplexAttributeImpl:MineNameType=[AttributeImpl:isPreferred<boolean>=true, AttributeImpl:mineName<string>=Aspacia]]]]",
+                "FeatureImpl:MineType<MineType id=er.mine.S0000005>=[ComplexAttributeImpl:mineName<MineNamePropertyType>=[ComplexAttributeImpl:MineName<MineNameType>=[ComplexAttributeImpl:MineName<MineNameType>=[AttributeImpl:isPreferred<boolean>=true, AttributeImpl:mineName<string>=Aspacia]]]]",
                 feature.toString());
     }
 
@@ -132,7 +132,7 @@ public class XmlComplexFeatureParserTest {
 
         // Act
         Feature feature = mineParser.parse();
-        Object[] properties = feature.getProperties("MineNamePropertyType").toArray();
+        Object[] properties = feature.getProperties("mineName").toArray();
 
         // Assert
         Assert.assertSame(properties[0], properties[1]);
@@ -145,7 +145,7 @@ public class XmlComplexFeatureParserTest {
 
         // Act
         Feature feature = mineParser.parse();
-        Object[] properties = feature.getProperties("MineNamePropertyType").toArray();
+        Object[] properties = feature.getProperties("mineName").toArray();
 
         // Assert
         Assert.assertEquals(properties[0], properties[1]);
@@ -158,7 +158,7 @@ public class XmlComplexFeatureParserTest {
 
         // Act
         Feature feature = mineParser.parse();
-        Object[] properties = feature.getProperties("MineNamePropertyType").toArray();
+        Object[] properties = feature.getProperties("mineName").toArray();
 
         // Assert
         Assert.assertEquals(properties[0], properties[1]);
@@ -188,8 +188,8 @@ public class XmlComplexFeatureParserTest {
                 getParser("wfs_response_xlink_target_in_another_feature_below.xml");
 
         // Act
-        Property mineNamePropertyType1 = mineParser.parse().getProperty("MineNamePropertyType");
-        Property mineNamePropertyType2 = mineParser.parse().getProperty("MineNamePropertyType");
+        Property mineNamePropertyType1 = mineParser.parse().getProperty("mineName");
+        Property mineNamePropertyType2 = mineParser.parse().getProperty("mineName");
 
         // Assert
         Assert.assertEquals(mineNamePropertyType1, mineNamePropertyType2);
@@ -233,10 +233,10 @@ public class XmlComplexFeatureParserTest {
                 "AttributeImpl:name<CodeType>=[AttributeImpl:simpleContent<string>=rd001]",
                 names[1].toString());
         Assert.assertEquals(
-                "ComplexAttributeImpl:BoreholeCollarPropertyType=[FeatureImpl:BoreholeCollar<BoreholeCollarType id=gsml.borehole.collar.rd001>=[FeatureImpl:BoreholeCollarType<BoreholeCollarType id=gsml.borehole.collar.rd001>=[ComplexAttributeImpl:elevation<DirectPositionType>=[AttributeImpl:simpleContent<doubleList>=0.0]]]]",
-                feature.getProperty("BoreholeCollarPropertyType").toString());
+                "ComplexAttributeImpl:collarLocation<BoreholeCollarPropertyType>=[FeatureImpl:BoreholeCollar<BoreholeCollarType id=gsml.borehole.collar.rd001>=[FeatureImpl:BoreholeCollar<BoreholeCollarType id=gsml.borehole.collar.rd001>=[ComplexAttributeImpl:elevation<DirectPositionType>=[AttributeImpl:simpleContent<doubleList>=0.0]]]]",
+                feature.getProperty("collarLocation").toString());
         Assert.assertEquals(
-                "ComplexAttributeImpl:BoreholeDetailsPropertyType=[ComplexAttributeImpl:BoreholeDetails<BoreholeDetailsType>=[ComplexAttributeImpl:BoreholeDetailsType=[ComplexAttributeImpl:driller<ReferenceType>=[], AttributeImpl:drillingMethod<BoreholeDrillingMethodCodeType>=Diamond, AttributeImpl:startPoint<BoreholeStartPointCodeType>=natural ground surface, AttributeImpl:inclinationType<BoreholeInclinationCodeType>=vertical, ComplexAttributeImpl:coredInterval<BoundingShapeType>=[ComplexAttributeImpl:BoundingShapeType=[ComplexAttributeImpl:Envelope<EnvelopeType>=[ComplexAttributeImpl:EnvelopeType=[ComplexAttributeImpl:lowerCorner<DirectPositionType>=[AttributeImpl:simpleContent<doubleList>=0.0], ComplexAttributeImpl:upperCorner<DirectPositionType>=[AttributeImpl:simpleContent<doubleList>=324.6]]]]], ComplexAttributeImpl:coreCustodian<ReferenceType>=[]]]]",
-                feature.getProperty("BoreholeDetailsPropertyType").toString());
+                "ComplexAttributeImpl:indexData<BoreholeDetailsPropertyType>=[ComplexAttributeImpl:BoreholeDetails<BoreholeDetailsType>=[ComplexAttributeImpl:BoreholeDetails<BoreholeDetailsType>=[ComplexAttributeImpl:driller<ReferenceType>=[], AttributeImpl:drillingMethod<BoreholeDrillingMethodCodeType>=Diamond, AttributeImpl:startPoint<BoreholeStartPointCodeType>=natural ground surface, AttributeImpl:inclinationType<BoreholeInclinationCodeType>=vertical, ComplexAttributeImpl:coredInterval<BoundingShapeType>=[ComplexAttributeImpl:coredInterval<BoundingShapeType>=[ComplexAttributeImpl:Envelope<EnvelopeType>=[ComplexAttributeImpl:Envelope<EnvelopeType>=[ComplexAttributeImpl:lowerCorner<DirectPositionType>=[AttributeImpl:simpleContent<doubleList>=0.0], ComplexAttributeImpl:upperCorner<DirectPositionType>=[AttributeImpl:simpleContent<doubleList>=324.6]]]]], ComplexAttributeImpl:coreCustodian<ReferenceType>=[]]]]",
+                feature.getProperty("indexData").toString());
     }
 }

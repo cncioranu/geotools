@@ -16,11 +16,11 @@
  */
 package org.geotools.data.simple;
 
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.feature.FeatureCollection;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.sort.SortBy;
 
 /**
  * Access to "simple" Feature content where each feature has the same SimpleFeatureType.
@@ -87,9 +87,12 @@ public interface SimpleFeatureCollection
      * }
      * </code></pre>
      */
+    @Override
     public SimpleFeatureIterator features();
 
+    @Override
     public SimpleFeatureCollection subCollection(Filter filter);
 
+    @Override
     public SimpleFeatureCollection sort(SortBy order);
 }

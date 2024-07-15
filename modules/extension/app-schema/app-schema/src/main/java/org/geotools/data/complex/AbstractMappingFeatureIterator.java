@@ -28,11 +28,25 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 import net.opengis.wfs20.ResolveValueType;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.FeatureFactory;
+import org.geotools.api.feature.GeometryAttribute;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.FeatureTypeFactory;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.appschema.feature.AppSchemaFeatureFactoryImpl;
 import org.geotools.appschema.filter.FilterFactoryImplNamespaceAware;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
 import org.geotools.data.complex.feature.type.ComplexFeatureTypeFactoryImpl;
 import org.geotools.data.complex.feature.type.Types;
 import org.geotools.data.complex.filter.XPath;
@@ -46,21 +60,6 @@ import org.geotools.xlink.XLINK;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureFactory;
-import org.opengis.feature.GeometryAttribute;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.FeatureTypeFactory;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.NamespaceSupport;
 
@@ -78,7 +77,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     public static final GeometryFactory GEOMETRY_FACTORY =
             new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING));
 
-    protected FilterFactory2 filterFac = CommonFactoryFinder.getFilterFactory2(null);
+    protected FilterFactory filterFac = CommonFactoryFinder.getFilterFactory(null);
 
     protected FeatureTypeFactory ftf = new ComplexFeatureTypeFactoryImpl();
 
@@ -355,11 +354,13 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     }
 
     /** Shall not be called, just throws an UnsupportedOperationException */
+    @Override
     public void remove() {
         throw new UnsupportedOperationException();
     }
 
     /** Closes the underlying FeatureIterator */
+    @Override
     public void close() {
         closeSourceFeatures();
     }
@@ -400,6 +401,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
      *
      * @see java.util.Iterator#next()
      */
+    @Override
     public Feature next() {
         boolean hasNext = false;
         try {
@@ -628,7 +630,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         // FIXME should set a child Property.. but be careful for things that
         // are smuggled in there internally and don't exist in the schema, like
         // XSDTypeDefinition, CRS etc.
-        if (targetAttributes.size() > 0) {
+        if (!targetAttributes.isEmpty()) {
             target.getUserData().put(Attributes.class, targetAttributes);
         }
 
@@ -638,7 +640,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     protected void setGeometryUserData(Attribute target, Map<Name, Object> targetAttributes) {
         // with geometry objects, set ID and attributes in geometry object
         if (target instanceof GeometryAttribute
-                && (targetAttributes.size() > 0 || target.getIdentifier() != null)) {
+                && (!targetAttributes.isEmpty() || target.getIdentifier() != null)) {
             Geometry geom;
             if (target.getValue() == null) {
                 // create empty geometry if null but attributes
@@ -668,7 +670,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
                 if (target.getIdentifier() != null) {
                     newUserData.put("gml:id", target.getIdentifier().toString());
                 }
-                if (targetAttributes.size() > 0) {
+                if (!targetAttributes.isEmpty()) {
                     newUserData.put(Attributes.class, targetAttributes);
                 }
 
@@ -700,5 +702,6 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
 
     protected abstract Feature computeNext() throws IOException;
 
+    @Override
     public abstract boolean hasNext();
 }

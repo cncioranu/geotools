@@ -44,8 +44,7 @@ public class TransparencyTest {
 
             reader = new GeoTiffReader(file);
 
-            GridCoverage2D coverage = null;
-            coverage = reader.read(null);
+            GridCoverage2D coverage = reader.read(null);
             RenderedImage ri = coverage.getRenderedImage();
             ImageWorker worker = new ImageWorker(ri);
             double[] mins = worker.retainLastBand().getMinimums();
@@ -57,7 +56,7 @@ public class TransparencyTest {
             // Ensure the top left area is fully transparent
             worker = worker.crop(0, 0, 39, 19).retainLastBand();
             mins = worker.getMinimums();
-            double maxs[] = worker.getMaximums();
+            double[] maxs = worker.getMaximums();
             assertEquals(0, mins[0], 1E-6);
             assertEquals(0, maxs[0], 1E-6);
 
@@ -118,8 +117,7 @@ public class TransparencyTest {
 
             reader = new GeoTiffReader(file);
 
-            GridCoverage2D coverage = null;
-            coverage = reader.read(null);
+            GridCoverage2D coverage = reader.read(null);
             RenderedImage ri = coverage.getRenderedImage();
             ImageWorker worker = new ImageWorker(ri);
             double noData = (double) worker.getNoData().getMin();
@@ -175,8 +173,7 @@ public class TransparencyTest {
 
             reader = new GeoTiffReader(file);
 
-            GridCoverage2D coverage = null;
-            coverage = reader.read(null);
+            GridCoverage2D coverage = reader.read(null);
             RenderedImage ri = coverage.getRenderedImage();
             ImageWorker worker = new ImageWorker(ri);
             double noData = (double) worker.getNoData().getMin();

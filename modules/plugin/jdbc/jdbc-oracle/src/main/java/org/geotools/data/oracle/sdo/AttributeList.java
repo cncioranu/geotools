@@ -76,6 +76,7 @@ public class AttributeList extends AbstractList {
      *
      * @see java.util.List#get(int)
      */
+    @Override
     public Object get(int index) {
         rangeCheck(index);
         return Array.get(ARRAY, START + STEP * index + OFFSET);
@@ -93,7 +94,7 @@ public class AttributeList extends AbstractList {
     }
 
     public double[] toDoubleArray() {
-        double array[] = new double[size()];
+        double[] array = new double[size()];
         for (int i = 0; i < size(); i++) {
             array[i] = getDouble(i);
         }
@@ -101,7 +102,7 @@ public class AttributeList extends AbstractList {
     }
 
     public Object[] toObjectArray() {
-        Object array[] = new Object[size()];
+        Object[] array = new Object[size()];
         for (int i = 0; i < size(); i++) {
             array[i] = get(i);
         }
@@ -123,6 +124,7 @@ public class AttributeList extends AbstractList {
      *
      * @see java.util.Collection#size()
      */
+    @Override
     public int size() {
         return SIZE;
     }

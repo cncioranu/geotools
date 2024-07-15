@@ -29,6 +29,12 @@ import java.io.Writer;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.crs.ForceCoordinateSystemFeatureResults;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.FeatureCollection;
@@ -45,12 +51,6 @@ import org.json.simple.JSONStreamAware;
 import org.json.simple.parser.JSONParser;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Reads and writes feature objects to and from geojson.
@@ -282,10 +282,8 @@ public class FeatureJSON {
 
             if (bounds != null) {
                 if (encodeFeatureCollectionBounds) {
-                    obj.put(
-                            "bbox",
-                            new JSONStreamAware() {
-                                public void writeJSONString(Writer out) throws IOException {
+                    JSONStreamAware writer =
+                            out ->
                                     JSONArray.writeJSONString(
                                             Arrays.asList(
                                                     bounds.getMinX(),
@@ -293,8 +291,7 @@ public class FeatureJSON {
                                                     bounds.getMaxX(),
                                                     bounds.getMaxY()),
                                             out);
-                                }
-                            });
+                    obj.put("bbox", writer);
                 }
             }
 
@@ -634,6 +631,7 @@ public class FeatureJSON {
             return sb.toString();
         }
 
+        @Override
         public String toJSONString() {
             return toJSONString(feature);
         }
@@ -649,13 +647,13 @@ public class FeatureJSON {
             this.gjson = gjson;
         }
 
+        @Override
         public void writeJSONString(Writer out) throws IOException {
             FeatureEncoder featureEncoder =
                     new FeatureEncoder((SimpleFeatureType) features.getSchema());
 
             out.write("[");
-            FeatureIterator i = features.features();
-            try {
+            try (FeatureIterator i = features.features()) {
                 if (i.hasNext()) {
                     SimpleFeature f = (SimpleFeature) i.next();
                     out.write(featureEncoder.toJSONString(f));
@@ -665,10 +663,6 @@ public class FeatureJSON {
                         f = (SimpleFeature) i.next();
                         out.write(featureEncoder.toJSONString(f));
                     }
-                }
-            } finally {
-                if (i != null) {
-                    i.close();
                 }
             }
             out.write("]");
@@ -696,6 +690,7 @@ public class FeatureJSON {
             return handler;
         }
 
+        @Override
         public boolean hasNext() {
             if (next != null) {
                 return true;
@@ -709,6 +704,7 @@ public class FeatureJSON {
             return next != null;
         }
 
+        @Override
         public SimpleFeature next() {
             SimpleFeature feature = next;
             next = null;
@@ -728,6 +724,7 @@ public class FeatureJSON {
             throw new UnsupportedOperationException();
         }
 
+        @Override
         public void close() {
             if (reader != null) {
                 try {

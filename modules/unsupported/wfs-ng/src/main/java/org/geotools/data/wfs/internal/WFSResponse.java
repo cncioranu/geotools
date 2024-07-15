@@ -18,14 +18,15 @@ package org.geotools.data.wfs.internal;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
-import org.geotools.data.ows.HTTPResponse;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.ows.Response;
+import org.geotools.http.HTTPResponse;
 import org.geotools.ows.ServiceException;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * A handle to a WFS response that contains the input stream to the actual contents and some well
@@ -35,7 +36,6 @@ import org.opengis.feature.simple.SimpleFeatureType;
  * @version $Id$
  * @since 2.6
  */
-@SuppressWarnings("nls")
 public class WFSResponse extends Response {
 
     private static final Logger LOGGER = Logging.getLogger(WFSResponse.class);
@@ -60,13 +60,13 @@ public class WFSResponse extends Response {
 
         String charset = httpResponse.getResponseHeader("Charset");
         if (charset == null) {
-            this.charset = Charset.forName("UTF-8");
+            this.charset = StandardCharsets.UTF_8;
         } else {
             try {
                 this.charset = Charset.forName(charset);
             } catch (Exception e) {
                 // TODO log
-                this.charset = Charset.forName("UTF-8");
+                this.charset = StandardCharsets.UTF_8;
             }
         }
         this.contentType = httpResponse.getContentType();
@@ -90,6 +90,7 @@ public class WFSResponse extends Response {
      *
      * @return the content type of the response
      */
+    @Override
     public String getContentType() {
         return contentType;
     }

@@ -35,10 +35,14 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.geometry.BoundingBox;
 import org.geotools.coverage.util.FeatureUtilities;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
-import org.geotools.data.Transaction;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.sort.SortedFeatureReader;
@@ -55,10 +59,6 @@ import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.ItemVisitor;
 import org.locationtech.jts.index.strtree.STRtree;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.geometry.BoundingBox;
 
 /**
  * This class simply builds an SRTREE spatial index in memory for fast indexed geometric queries.
@@ -110,6 +110,7 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
          *
          * @see org.locationtech.jts.index.ItemVisitor#visitItem(java.lang.Object)
          */
+        @Override
         public void visitItem(Object o) {
             if (maxGranules > 0 && granuleIndex > maxGranules) {
                 return; // Skip
@@ -138,12 +139,12 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
             final Properties params,
             AbstractGTDataStoreGranuleCatalog wrappedCatalogue,
             final Hints hints) {
-        super(hints);
+        super(hints, wrappedCatalogue.getConfigurations());
         Utilities.ensureNonNull("params", params);
         this.wrappedCatalogue = wrappedCatalogue;
         this.typeName = (String) params.get("TypeName");
         if (typeName == null) {
-            wrappedCatalogue.getValidTypeNames().iterator().next();
+            this.typeName = wrappedCatalogue.getValidTypeNames().iterator().next();
         }
     }
 
@@ -195,14 +196,7 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
         try {
 
             wrappedCatalogue.getGranuleDescriptors(
-                    new Query(typeName),
-                    new GranuleCatalogVisitor() {
-
-                        @Override
-                        public void visit(GranuleDescriptor granule, SimpleFeature o) {
-                            features.add(granule);
-                        }
-                    });
+                    new Query(typeName), (granule, o) -> features.add(granule));
             if (features == null)
                 throw new NullPointerException(
                         "The provided SimpleFeatureCollection is null, it's impossible to create an index!");
@@ -282,6 +276,7 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
         }
     }
 
+    @Override
     public void dispose() {
         final Lock l = rwLock.writeLock();
         try {
@@ -306,6 +301,7 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
         }
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     public SimpleFeatureCollection getGranules(Query q) throws IOException {
         q = mergeHints(q);
@@ -372,6 +368,7 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
         return getGranules(this.getBounds(typeName));
     }
 
+    @Override
     public void getGranuleDescriptors(Query q, GranuleCatalogVisitor visitor) throws IOException {
         Utilities.ensureNonNull("q", q);
         final Lock lock = rwLock.readLock();
@@ -393,8 +390,7 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
                 @SuppressWarnings("unchecked")
                 final List<GranuleDescriptor> unfilteredGranules = index.query(requestedBBox);
                 List<GranuleDescriptor> granules =
-                        unfilteredGranules
-                                .stream()
+                        unfilteredGranules.stream()
                                 .filter(gd -> filter.evaluate(gd.getOriginator()))
                                 .collect(Collectors.toList());
 
@@ -421,6 +417,7 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
         }
     }
 
+    @Override
     public BoundingBox getBounds(String typeName) {
         final Lock lock = rwLock.readLock();
         try {
@@ -463,6 +460,7 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
         return typeName != null ? new String[] {typeName} : null;
     }
 
+    @Override
     public void computeAggregateFunction(Query query, FeatureCalc function) throws IOException {
         query = mergeHints(query);
         final Lock lock = rwLock.readLock();
@@ -561,5 +559,10 @@ class STRTreeGranuleCatalog extends GranuleCatalog {
         } finally {
             lock.unlock();
         }
+    }
+
+    @Override
+    protected String getParentLocation() {
+        return wrappedCatalogue.getParentLocation();
     }
 }

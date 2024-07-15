@@ -21,8 +21,8 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import org.geotools.data.ows.HTTPClient;
-import org.geotools.data.ows.HTTPResponse;
+import org.geotools.http.HTTPClient;
+import org.geotools.http.HTTPResponse;
 
 /**
  * @author ImranR
@@ -70,6 +70,14 @@ public class MockHTTPClient implements HTTPClient {
 
     @Override
     public void setPassword(String password) {}
+
+    @Override
+    public Map<String, String> getExtraParams() {
+        return null;
+    }
+
+    @Override
+    public void setExtraParams(Map<String, String> extraParams) {}
 
     @Override
     public int getConnectTimeout() {

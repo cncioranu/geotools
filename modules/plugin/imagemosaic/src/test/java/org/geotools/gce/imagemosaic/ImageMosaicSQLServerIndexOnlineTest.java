@@ -38,37 +38,30 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.DimensionDescriptor;
 import org.geotools.coverage.util.FeatureUtilities;
-import org.geotools.data.Query;
 import org.geotools.filter.SortByImpl;
-import org.geotools.gce.imagemosaic.catalog.GranuleCatalogVisitor;
 import org.geotools.gce.imagemosaic.catalog.sqlserver.SQLServerDatastoreWrapper;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.test.OnlineTestCase;
 import org.geotools.test.TestData;
 import org.geotools.util.NumberRange;
 import org.geotools.util.factory.Hints;
-import org.geotools.util.logging.Logging;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
 
 /** Testing using a SQLServer database for storing the index for the ImageMosaic */
 public class ImageMosaicSQLServerIndexOnlineTest extends OnlineTestCase {
-
-    private static final Logger LOGGER =
-            Logging.getLogger(ImageMosaicSQLServerIndexOnlineTest.class);
 
     static final String tempFolderNoEpsg = "rgbNoEpsg";
 
@@ -196,7 +189,7 @@ public class ImageMosaicSQLServerIndexOnlineTest extends OnlineTestCase {
             // limit yourself to reading just a bit of it
             final ParameterValue<GridGeometry2D> gg =
                     AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-            final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+            final GeneralBounds envelope = reader.getOriginalEnvelope();
             final Dimension dim = new Dimension();
             dim.setSize(
                     reader.getOriginalGridRange().getSpan(0) / 2.0,
@@ -350,29 +343,20 @@ public class ImageMosaicSQLServerIndexOnlineTest extends OnlineTestCase {
                 query.setMaxFeatures(1);
 
                 // sorting
-                final SortBy[] clauses =
-                        new SortBy[] {
-                            new SortByImpl(
-                                    FeatureUtilities.DEFAULT_FILTER_FACTORY.property("ingestion"),
-                                    SortOrder.DESCENDING),
-                            new SortByImpl(
-                                    FeatureUtilities.DEFAULT_FILTER_FACTORY.property("elevation"),
-                                    SortOrder.ASCENDING),
-                        };
+                final SortBy[] clauses = {
+                    new SortByImpl(
+                            FeatureUtilities.DEFAULT_FILTER_FACTORY.property("ingestion"),
+                            SortOrder.DESCENDING),
+                    new SortByImpl(
+                            FeatureUtilities.DEFAULT_FILTER_FACTORY.property("elevation"),
+                            SortOrder.ASCENDING),
+                };
                 query.setSortBy(clauses);
             }
 
             // checking that we get a single feature and that feature is correct
             final Collection<GranuleDescriptor> features = new ArrayList<>();
-            rasterManager.getGranuleDescriptors(
-                    query,
-                    new GranuleCatalogVisitor() {
-
-                        @Override
-                        public void visit(GranuleDescriptor granule, SimpleFeature o) {
-                            features.add(granule);
-                        }
-                    });
+            rasterManager.getGranuleDescriptors(query, (granule, o) -> features.add(granule));
             assertEquals(features.size(), 1);
             GranuleDescriptor granule = features.iterator().next();
             SimpleFeature sf = granule.getOriginator();
@@ -387,28 +371,19 @@ public class ImageMosaicSQLServerIndexOnlineTest extends OnlineTestCase {
             assertEquals(((Integer) elevation).intValue(), 0);
 
             // Reverting order (the previous timestamp shouldn't match anymore)
-            final SortBy[] clauses =
-                    new SortBy[] {
-                        new SortByImpl(
-                                FeatureUtilities.DEFAULT_FILTER_FACTORY.property("ingestion"),
-                                SortOrder.ASCENDING),
-                        new SortByImpl(
-                                FeatureUtilities.DEFAULT_FILTER_FACTORY.property("elevation"),
-                                SortOrder.DESCENDING),
-                    };
+            final SortBy[] clauses = {
+                new SortByImpl(
+                        FeatureUtilities.DEFAULT_FILTER_FACTORY.property("ingestion"),
+                        SortOrder.ASCENDING),
+                new SortByImpl(
+                        FeatureUtilities.DEFAULT_FILTER_FACTORY.property("elevation"),
+                        SortOrder.DESCENDING),
+            };
             query.setSortBy(clauses);
 
             // checking that we get a single feature and that feature is correct
             features.clear();
-            rasterManager.getGranuleDescriptors(
-                    query,
-                    new GranuleCatalogVisitor() {
-
-                        @Override
-                        public void visit(GranuleDescriptor granule, SimpleFeature o) {
-                            features.add(granule);
-                        }
-                    });
+            rasterManager.getGranuleDescriptors(query, (granule1, o) -> features.add(granule1));
             assertEquals(features.size(), 1);
             granule = features.iterator().next();
             sf = granule.getOriginator();
@@ -439,22 +414,19 @@ public class ImageMosaicSQLServerIndexOnlineTest extends OnlineTestCase {
 
     private void dropTables(String[] tables, String database) throws Exception {
         // delete tables
-        Connection connection = null;
-        Statement st = null;
-        try {
-            connection =
-                    DriverManager.getConnection(
-                            "jdbc:sqlserver://"
-                                    + fixture.getProperty("host")
-                                    + ":"
-                                    + fixture.getProperty("port")
-                                    + ";databaseName="
-                                    + (database != null
-                                            ? database
-                                            : fixture.getProperty("database")),
-                            fixture.getProperty("user"),
-                            fixture.getProperty("passwd"));
-            st = connection.createStatement();
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                "jdbc:sqlserver://"
+                                        + fixture.getProperty("host")
+                                        + ":"
+                                        + fixture.getProperty("port")
+                                        + ";databaseName="
+                                        + (database != null
+                                                ? database
+                                                : fixture.getProperty("database")),
+                                fixture.getProperty("user"),
+                                fixture.getProperty("passwd"));
+                Statement st = connection.createStatement()) {
             for (String table : tables) {
                 StringBuilder sb = new StringBuilder("DROP TABLE IF EXISTS ");
                 String schema = fixture.getProperty("schema");
@@ -462,28 +434,10 @@ public class ImageMosaicSQLServerIndexOnlineTest extends OnlineTestCase {
                 sb.append(table);
                 st.execute(sb.toString());
             }
-        } finally {
-
-            if (st != null) {
-                try {
-                    st.close();
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
-                }
-            }
-
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
-                }
-            }
         }
     }
 
     /** Complex test for SQLServer store wrapping. */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
     public void testSQLServerWrapping() throws Exception {
         ImageMosaicReader reader = null;
@@ -545,7 +499,7 @@ public class ImageMosaicSQLServerIndexOnlineTest extends OnlineTestCase {
             // limit yourself to reading just a bit of it
             final ParameterValue<GridGeometry2D> gg =
                     AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-            final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+            final GeneralBounds envelope = reader.getOriginalEnvelope();
             final Dimension dim = new Dimension();
             dim.setSize(
                     reader.getOriginalGridRange().getSpan(0) / 2.0,

@@ -19,18 +19,18 @@ package org.geotools.util.factory;
 import java.awt.RenderingHints;
 import java.io.IOException;
 import java.io.Writer;
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.referencing.AuthorityFactory;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.Classes;
 import org.geotools.util.TableWriter;
 import org.geotools.util.Utilities;
-import org.opengis.referencing.AuthorityFactory;
 
 /**
  * Skeletal implementation of factories. This base classe provides no {@code createFoo} methods,
@@ -198,7 +198,7 @@ public class AbstractFactory implements Factory, RegistrableFactory {
         this.priority = priority;
         if (priority < MINIMUM_PRIORITY || priority > MAXIMUM_PRIORITY) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "priority", priority));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "priority", priority));
         }
     }
 
@@ -260,6 +260,7 @@ public class AbstractFactory implements Factory, RegistrableFactory {
      *
      * @return The map of hints, or an empty map if none.
      */
+    @Override
     public Map<RenderingHints.Key, ?> getImplementationHints() {
         return unmodifiableHints;
     }
@@ -278,6 +279,7 @@ public class AbstractFactory implements Factory, RegistrableFactory {
      * @see #MINIMUM_PRIORITY
      * @see #MAXIMUM_PRIORITY
      */
+    @Override
     @SuppressWarnings("unchecked")
     public void onRegistration(final FactoryRegistry registry, final Class<?> category) {
         registry.getFactories(category, false)
@@ -308,6 +310,7 @@ public class AbstractFactory implements Factory, RegistrableFactory {
      *     deregistered.
      * @param category The registry category from which this object is being deregistered.
      */
+    @Override
     public void onDeregistration(final FactoryRegistry registry, final Class category) {
         // No action needed.
     }

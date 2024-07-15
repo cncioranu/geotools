@@ -19,10 +19,10 @@ package org.geotools.jdbc;
 import java.io.IOException;
 import java.sql.Connection;
 import java.util.NoSuchElementException;
-import org.geotools.data.DelegatingFeatureReader;
-import org.geotools.data.FeatureReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
+import org.geotools.api.data.DelegatingFeatureReader;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 
 public class JDBCClosingFeatureReader
         implements DelegatingFeatureReader<SimpleFeatureType, SimpleFeature> {
@@ -33,23 +33,28 @@ public class JDBCClosingFeatureReader
         this.reader = reader;
     }
 
+    @Override
     public FeatureReader<SimpleFeatureType, SimpleFeature> getDelegate() {
         return reader;
     }
 
+    @Override
     public SimpleFeatureType getFeatureType() {
-        return (SimpleFeatureType) reader.getFeatureType();
+        return reader.getFeatureType();
     }
 
+    @Override
     public boolean hasNext() throws IOException {
         return reader.hasNext();
     }
 
+    @Override
     public SimpleFeature next()
             throws IOException, IllegalArgumentException, NoSuchElementException {
-        return (SimpleFeature) reader.next();
+        return reader.next();
     }
 
+    @Override
     @SuppressWarnings({"PMD.CloseResource", "unchecked"}) // we are actually closing
     public void close() throws IOException {
         FeatureReader<SimpleFeatureType, SimpleFeature> r = reader;

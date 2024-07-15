@@ -25,6 +25,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.visitor.AbstractCalcResult;
@@ -34,10 +38,6 @@ import org.geotools.util.Converters;
 import org.geotools.util.DateRange;
 import org.geotools.util.Range;
 import org.geotools.util.Utilities;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Generates a list of NumberRanges from a collection
@@ -174,12 +174,13 @@ class RangeVisitor implements FeatureCalc {
         visit((Feature) feature);
     }
 
+    @Override
     public void visit(Feature feature) {
         // we ignore null attributes
         final Object firstValue = expr1.evaluate(feature);
         final Object secondValue = expr2.evaluate(feature);
         if (firstValue != null && secondValue != null) {
-            set.add((Range) Utils.createRange(firstValue, secondValue));
+            set.add(Utils.createRange(firstValue, secondValue));
         }
     }
 
@@ -195,7 +196,6 @@ class RangeVisitor implements FeatureCalc {
             if (collection != null) {
                 this.set = new HashSet<>(collection);
             } else {
-                @SuppressWarnings("unchecked")
                 Set<Range> singleton = Collections.singleton((Range) newSet);
                 this.set = new HashSet<>(singleton);
             }
@@ -226,8 +226,9 @@ class RangeVisitor implements FeatureCalc {
         }
     }
 
+    @Override
     public CalcResult getResult() {
-        if (set.size() < 1) {
+        if (set.isEmpty()) {
             return CalcResult.NULL_RESULT;
         }
         return new RangeResult(set);
@@ -240,10 +241,12 @@ class RangeVisitor implements FeatureCalc {
             ranges = newSet;
         }
 
+        @Override
         public Object getValue() {
             return new HashSet<>(ranges);
         }
 
+        @Override
         public boolean isCompatible(CalcResult targetResults) {
             // list each calculation result which can merge with this type of result
             if (targetResults instanceof RangeResult || targetResults == CalcResult.NULL_RESULT)
@@ -251,6 +254,7 @@ class RangeVisitor implements FeatureCalc {
             return false;
         }
 
+        @Override
         public CalcResult merge(CalcResult resultsToAdd) {
             if (!isCompatible(resultsToAdd)) {
                 throw new IllegalArgumentException("Parameter is not a compatible type");

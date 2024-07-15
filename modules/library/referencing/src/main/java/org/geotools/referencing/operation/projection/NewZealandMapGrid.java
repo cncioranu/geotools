@@ -20,16 +20,16 @@ import static java.lang.Math.PI;
 
 import java.awt.geom.Point2D;
 import java.util.Collection;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.metadata.math.Complex;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * The NZMG (New Zealand Map Grid) projection.
@@ -72,33 +72,31 @@ public class NewZealandMapGrid extends MapProjection {
     };
 
     /** Coefficients for inverse projection. */
-    private static final double[] TPHI =
-            new double[] {
-                1.5627014243,
-                0.5185406398,
-                -0.03333098,
-                -0.1052906,
-                -0.0368594,
-                0.007317,
-                0.01220,
-                0.00394,
-                -0.0013
-            };
+    private static final double[] TPHI = {
+        1.5627014243,
+        0.5185406398,
+        -0.03333098,
+        -0.1052906,
+        -0.0368594,
+        0.007317,
+        0.01220,
+        0.00394,
+        -0.0013
+    };
 
     /** Coefficients for forward projection. */
-    private static final double[] TPSI =
-            new double[] {
-                0.6399175073,
-                -0.1358797613,
-                0.063294409,
-                -0.02526853,
-                0.0117879,
-                -0.0055161,
-                0.0026906,
-                -0.001333,
-                0.00067,
-                -0.00034
-            };
+    private static final double[] TPSI = {
+        0.6399175073,
+        -0.1358797613,
+        0.063294409,
+        -0.02526853,
+        0.0117879,
+        -0.0055161,
+        0.0026906,
+        -0.001333,
+        0.00067,
+        -0.00034
+    };
 
     /** Constructs a new map projection with default parameter values. */
     protected NewZealandMapGrid() {
@@ -117,6 +115,7 @@ public class NewZealandMapGrid extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -137,13 +136,14 @@ public class NewZealandMapGrid extends MapProjection {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(final double x, final double y, final Point2D ptDst)
             throws ProjectionException {
         final double dphi = (y - latitudeOfOrigin) * (180 / PI * 3600E-5);
         double dphi_pow_i = dphi;
         double dpsi = 0;
-        for (int i = 0; i < TPSI.length; i++) {
-            dpsi += (TPSI[i] * dphi_pow_i);
+        for (double v : TPSI) {
+            dpsi += (v * dphi_pow_i);
             dphi_pow_i *= dphi;
         }
         // See implementation note in class javadoc.
@@ -166,6 +166,7 @@ public class NewZealandMapGrid extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(
             final double x, final double y, final Point2D ptDst) throws ProjectionException {
         // See implementation note in class javadoc.
@@ -270,6 +271,7 @@ public class NewZealandMapGrid extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         public MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             return new NewZealandMapGrid(parameters);

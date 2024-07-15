@@ -59,6 +59,7 @@ public class MultiPointHandler implements ShapeHandler {
      *
      * @return int Shapefile.MULTIPOINT
      */
+    @Override
     public ShapeType getShapeType() {
         return shapeType;
     }
@@ -68,6 +69,7 @@ public class MultiPointHandler implements ShapeHandler {
      *
      * @return int The length of the record that this shapepoint will take up in a shapefile
      */
+    @Override
     public int getLength(Object geometry) {
         MultiPoint mp = (MultiPoint) geometry;
 
@@ -99,6 +101,7 @@ public class MultiPointHandler implements ShapeHandler {
         return geometryFactory.createMultiPoint((CoordinateSequence) null);
     }
 
+    @Override
     public Object read(ByteBuffer buffer, ShapeType type, boolean flatGeometry) {
         if (type == ShapeType.NULL) {
             return createNull();
@@ -141,12 +144,18 @@ public class MultiPointHandler implements ShapeHandler {
             }
         }
 
-        if ((shapeType == ShapeType.MULTIPOINTZ || shapeType == ShapeType.MULTIPOINTM)
-                && !flatGeometry) {
+        boolean isArcZWithM =
+                shapeType == ShapeType.MULTIPOINTZ && (dbuffer.remaining() >= numpoints + 2);
+        if ((isArcZWithM || shapeType == ShapeType.MULTIPOINTM) && !flatGeometry) {
             ((Buffer) dbuffer).position(dbuffer.position() + 2);
 
             dbuffer.get(ordinates, 0, numpoints);
             for (int t = 0; t < numpoints; t++) {
+                // Page 2 of the spec says that values less than 10E-38 are
+                // NaNs
+                if (ordinates[t] < -10e38) {
+                    ordinates[t] = Double.NaN;
+                }
                 cs.setOrdinate(t, CoordinateSequence.M, ordinates[t]); // m
             }
         }
@@ -154,6 +163,7 @@ public class MultiPointHandler implements ShapeHandler {
         return geometryFactory.createMultiPoint(cs);
     }
 
+    @Override
     public void write(ByteBuffer buffer, Object geometry) {
         MultiPoint mp = (MultiPoint) geometry;
 

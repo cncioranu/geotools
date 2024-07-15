@@ -21,7 +21,6 @@ import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.Writer;
-import java.util.Iterator;
 import java.util.StringTokenizer;
 import org.geotools.graph.build.GraphGenerator;
 import org.geotools.graph.structure.Edge;
@@ -57,6 +56,7 @@ public abstract class TextfileReaderWriter extends AbstractReaderWriter
      *
      * @see GraphGenerator#read()
      */
+    @Override
     public Graph read() throws Exception {
         // get the underlying generator
         GraphGenerator generator = (GraphGenerator) getProperty(GENERATOR);
@@ -87,6 +87,7 @@ public abstract class TextfileReaderWriter extends AbstractReaderWriter
      *
      * <p>* @see GraphGenerator#write()
      */
+    @Override
     public void write(Graph g) throws Exception {
         // create the file writer
         try (BufferedWriter out =
@@ -94,15 +95,15 @@ public abstract class TextfileReaderWriter extends AbstractReaderWriter
 
             // check NODES property
             if (getProperty(NODES) != null) {
-                for (Iterator itr = g.getNodes().iterator(); itr.hasNext(); ) {
-                    writeNode(out, (Node) itr.next());
+                for (Node node : g.getNodes()) {
+                    writeNode(out, node);
                 }
             }
 
             // check EDGES property
             if (getProperty(EDGES) != null) {
-                for (Iterator itr = g.getEdges().iterator(); itr.hasNext(); ) {
-                    writeEdge(out, (Edge) itr.next());
+                for (Edge edge : g.getEdges()) {
+                    writeEdge(out, edge);
                 }
             }
         }

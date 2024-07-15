@@ -17,11 +17,19 @@
 package org.geotools.temporal.reference;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import org.geotools.api.temporal.CalendarDate;
+import org.geotools.api.temporal.CalendarEra;
+import org.geotools.api.temporal.IndeterminateValue;
+import org.geotools.api.temporal.Instant;
+import org.geotools.api.temporal.JulianDate;
+import org.geotools.api.temporal.Period;
+import org.geotools.api.temporal.TemporalReferenceSystem;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.temporal.object.DefaultCalendarDate;
@@ -33,14 +41,6 @@ import org.geotools.util.SimpleInternationalString;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.temporal.CalendarDate;
-import org.opengis.temporal.CalendarEra;
-import org.opengis.temporal.IndeterminateValue;
-import org.opengis.temporal.Instant;
-import org.opengis.temporal.JulianDate;
-import org.opengis.temporal.Period;
-import org.opengis.temporal.TemporalReferenceSystem;
-import org.opengis.util.InternationalString;
 
 /** @author Mehdi Sidhoum (Geomatys) */
 public class DefaultCalendarEraTest {
@@ -110,21 +110,21 @@ public class DefaultCalendarEraTest {
     @Test
     public void testGetName() {
         InternationalString result = calendarEra1.getName();
-        assertFalse(calendarEra2.getName().equals(result));
+        assertNotEquals(calendarEra2.getName(), result);
     }
 
     /** Test of getReferenceEvent method, of class DefaultCalendarEra. */
     @Test
     public void testGetReferenceEvent() {
         InternationalString result = calendarEra1.getReferenceEvent();
-        assertFalse(calendarEra2.getReferenceEvent().equals(result));
+        assertNotEquals(calendarEra2.getReferenceEvent(), result);
     }
 
     /** Test of getReferenceDate method, of class DefaultCalendarEra. */
     @Test
     public void testGetReferenceDate() {
         CalendarDate result = calendarEra1.getReferenceDate();
-        assertFalse(calendarEra2.getReferenceDate().equals(result));
+        assertNotEquals(calendarEra2.getReferenceDate(), result);
     }
 
     /** Test of getJulianReference method, of class DefaultCalendarEra. */
@@ -138,7 +138,7 @@ public class DefaultCalendarEraTest {
     @Test
     public void testGetEpochOfUse() {
         Period result = calendarEra1.getEpochOfUse();
-        assertFalse(calendarEra2.getEpochOfUse().equals(result));
+        assertNotEquals(calendarEra2.getEpochOfUse(), result);
     }
 
     /** Test of setName method, of class DefaultCalendarEra. */
@@ -146,7 +146,7 @@ public class DefaultCalendarEraTest {
     public void testSetName() {
         InternationalString result = calendarEra1.getName();
         ((DefaultCalendarEra) calendarEra1).setName(new SimpleInternationalString("new Era"));
-        assertFalse(calendarEra1.getName().equals(result));
+        assertNotEquals(calendarEra1.getName(), result);
     }
 
     /** Test of setReferenceEvent method, of class DefaultCalendarEra. */
@@ -155,7 +155,7 @@ public class DefaultCalendarEraTest {
         InternationalString result = calendarEra1.getReferenceEvent();
         ((DefaultCalendarEra) calendarEra1)
                 .setReferenceEvent(new SimpleInternationalString("new Era description"));
-        assertFalse(calendarEra1.getReferenceEvent().equals(result));
+        assertNotEquals(calendarEra1.getReferenceEvent(), result);
     }
 
     /** Test of setReferenceDate method, of class DefaultCalendarEra. */
@@ -165,7 +165,7 @@ public class DefaultCalendarEraTest {
         int[] date = {1950, 6, 10};
         ((DefaultCalendarEra) calendarEra1)
                 .setReferenceDate(new DefaultCalendarDate(null, null, null, date));
-        assertFalse(calendarEra1.getReferenceDate().equals(result));
+        assertNotEquals(calendarEra1.getReferenceDate(), result);
     }
 
     /** Test of setJulianReference method, of class DefaultCalendarEra. */
@@ -174,7 +174,7 @@ public class DefaultCalendarEraTest {
         JulianDate result = calendarEra1.getJulianReference();
         ((DefaultCalendarEra) calendarEra1)
                 .setJulianReference(new DefaultJulianDate(null, null, 785410));
-        assertFalse(calendarEra1.getJulianReference().equals(result));
+        assertNotEquals(calendarEra1.getJulianReference(), result);
     }
 
     /** Test of setEpochOfUse method, of class DefaultCalendarEra. */
@@ -187,13 +187,13 @@ public class DefaultCalendarEraTest {
                         new DefaultPeriod(
                                 new DefaultInstant(new DefaultPosition(cal.getTime())),
                                 new DefaultInstant(new DefaultPosition(new Date()))));
-        assertFalse(calendarEra1.getEpochOfUse().equals(result));
+        assertNotEquals(calendarEra1.getEpochOfUse(), result);
     }
 
     /** Test of getDatingSystem method, of class DefaultCalendarEra. */
     @Test
     public void testGetDatingSystem() {
-        Collection<org.opengis.temporal.Calendar> result =
+        Collection<org.geotools.api.temporal.Calendar> result =
                 ((DefaultCalendarEra) calendarEra1).getDatingSystem();
         assertEquals(((DefaultCalendarEra) calendarEra2).getDatingSystem(), result);
     }
@@ -201,22 +201,22 @@ public class DefaultCalendarEraTest {
     /** Test of equals method, of class DefaultCalendarEra. */
     @Test
     public void testEquals() {
-        assertFalse(calendarEra1.equals(null));
+        assertNotEquals(null, calendarEra1);
         assertEquals(calendarEra1, calendarEra1);
-        assertFalse(calendarEra1.equals(calendarEra2));
+        assertNotEquals(calendarEra1, calendarEra2);
     }
 
     /** Test of hashCode method, of class DefaultCalendarEra. */
     @Test
     public void testHashCode() {
         int result = calendarEra1.hashCode();
-        assertFalse(calendarEra2.hashCode() == result);
+        assertNotEquals(calendarEra2.hashCode(), result);
     }
 
     /** Test of toString method, of class DefaultCalendarEra. */
     @Test
     public void testToString() {
         String result = calendarEra1.toString();
-        assertFalse(calendarEra2.toString().equals(result));
+        assertNotEquals(calendarEra2.toString(), result);
     }
 }

@@ -17,12 +17,14 @@
 package org.geotools.data.joining;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.geotools.data.Query;
+import java.util.Objects;
+import org.geotools.api.data.Query;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.data.complex.FeatureTypeMapping;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.sort.SortBy;
 
 /**
  * Special Query that includes joining information
@@ -59,6 +61,25 @@ public class JoiningQuery extends Query {
 
         public void setJoiningKeyName(Expression joiningKeyName) {
             this.joiningKeyName = joiningKeyName;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            if (!super.equals(o)) return false;
+            QueryJoin queryJoin = (QueryJoin) o;
+            return Objects.equals(joiningTypeName, queryJoin.joiningTypeName)
+                    && Objects.equals(foreignKeyName, queryJoin.foreignKeyName)
+                    && Objects.equals(joiningKeyName, queryJoin.joiningKeyName)
+                    && Arrays.equals(sortBy, queryJoin.sortBy);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Objects.hash(joiningTypeName, foreignKeyName, joiningKeyName);
+            result = 31 * result + Arrays.hashCode(sortBy);
+            return result;
         }
     }
 

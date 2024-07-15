@@ -21,6 +21,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -28,7 +29,6 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 
 /**
  * A set of miscellaneous methods working on {@link Class} objects.
@@ -308,7 +308,7 @@ public final class Classes {
      * <blockquote>
      *
      * <code>
-     * if (sameInterfaces(cs1, cs2, {@linkplain org.opengis.referencing.cs.CoordinateSystem}.class))
+     * if (sameInterfaces(cs1, cs2, {@linkplain org.geotools.api.referencing.cs.CoordinateSystem}.class))
      * </code>
      *
      * </blockquote>
@@ -338,8 +338,7 @@ public final class Classes {
          * loops j=[0..n].
          */
         int n = 0;
-        for (int i = 0; i < c2.length; i++) {
-            final Class<?> c = c2[i];
+        for (Class<?> c : c2) {
             if (base.isAssignableFrom(c)) {
                 c2[n++] = c;
             }
@@ -349,8 +348,7 @@ public final class Classes {
          * this interface exists also in the 'c2' array. Order doesn't matter.
          */
         compare:
-        for (int i = 0; i < c1.length; i++) {
-            final Class<?> c = c1[i];
+        for (final Class<?> c : c1) {
             if (base.isAssignableFrom(c)) {
                 for (int j = 0; j < n; j++) {
                     if (c.equals(c2[j])) {
@@ -478,7 +476,7 @@ public final class Classes {
         if (String.class.equals(type)) {
             return (T) value;
         }
-        throw new IllegalArgumentException(Errors.format(ErrorKeys.UNKNOW_TYPE_$1, type));
+        throw new IllegalArgumentException(MessageFormat.format(ErrorKeys.UNKNOW_TYPE_$1, type));
     }
 
     /**

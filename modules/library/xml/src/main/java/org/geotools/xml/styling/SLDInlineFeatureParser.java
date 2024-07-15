@@ -18,8 +18,13 @@ package org.geotools.xml.styling;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Hashtable;
-import org.geotools.data.DataStore;
+import java.util.HashMap;
+import java.util.Map;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
@@ -28,10 +33,6 @@ import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.filter.ExpressionDOMParser;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -39,7 +40,7 @@ import org.w3c.dom.NodeList;
 public class SLDInlineFeatureParser {
 
     /** hash table that takes a epsg# to its definition* */
-    private static Hashtable<Integer, CoordinateReferenceSystem> SRSLookup = new Hashtable<>();
+    private static Map<Integer, CoordinateReferenceSystem> SRSLookup = new HashMap<>();
 
     public SimpleFeatureType featureType = null;
     public DataStore dataStore = null;
@@ -70,7 +71,7 @@ public class SLDInlineFeatureParser {
                     "SLD InlineFeature Parser - couldnt determine a FeatureType.  See help for whats supported."); // shouldnt get here
 
         makeFeatures(root, isFeatureCollection);
-        if (features.size() == 0)
+        if (features.isEmpty())
             throw new Exception("SLD InlineFeature Parser - didnt find any features!");
 
         buildStore();
@@ -223,7 +224,7 @@ public class SLDInlineFeatureParser {
             }
         }
         ExpressionDOMParser parser =
-                new ExpressionDOMParser(CommonFactoryFinder.getFilterFactory2(null));
+                new ExpressionDOMParser(CommonFactoryFinder.getFilterFactory(null));
         return parser.gml(root);
     }
 
@@ -444,8 +445,11 @@ public class SLDInlineFeatureParser {
         return null;
     }
 
-    public synchronized int getUID() {
-        return uniqueNumber++;
+    public int getUID() {
+        // use a static lock to protect a static variable
+        synchronized (SLDInlineFeatureParser.class) {
+            return uniqueNumber++;
+        }
     }
 
     /**
@@ -463,8 +467,7 @@ public class SLDInlineFeatureParser {
      * the epsg.properties file. I cannot image a system with more than a dozen CRSs in it...
      */
     private CoordinateReferenceSystem getSRS(int epsg) throws Exception {
-        CoordinateReferenceSystem result =
-                (CoordinateReferenceSystem) SRSLookup.get(Integer.valueOf(epsg));
+        CoordinateReferenceSystem result = SRSLookup.get(Integer.valueOf(epsg));
         if (result == null) {
             // make and add to hash
             result = CRS.decode("EPSG:" + epsg);

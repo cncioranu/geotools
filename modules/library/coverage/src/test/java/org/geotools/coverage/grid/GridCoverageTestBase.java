@@ -41,17 +41,17 @@ import java.util.Random;
 import javax.imageio.ImageIO;
 import javax.measure.MetricPrefix;
 import javax.media.jai.RasterFactory;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.Category;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.CoverageTestBase;
 import org.geotools.coverage.GridSampleDimension;
-import org.geotools.geometry.Envelope2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.test.TestData;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import si.uom.SI;
 
 /**
@@ -92,12 +92,8 @@ public class GridCoverageTestBase extends CoverageTestBase {
          * (longitude,latitude) coordinates, pixels of 0.25 degrees and a lower
          * left corner at 10°W 30°N.
          */
-        final GridCoverage2D coverage; // The final grid coverage.
-        final BufferedImage image; // The GridCoverage's data.
-        final WritableRaster raster; // The image's data as a raster.
-        final Rectangle2D bounds; // The GridCoverage's envelope.
-        final GridSampleDimension band; // The only image's band.
-        band =
+        // The only image's band.
+        final GridSampleDimension band =
                 new GridSampleDimension(
                         "Temperature",
                         new Category[] {
@@ -107,17 +103,20 @@ public class GridCoverageTestBase extends CoverageTestBase {
                             new Category("Temperature", null, BEGIN_VALID, 256)
                         },
                         SI.CELSIUS);
-        image = new BufferedImage(120, 80, BufferedImage.TYPE_BYTE_INDEXED);
-        raster = image.getRaster();
+        // The GridCoverage's data.
+        final BufferedImage image = new BufferedImage(120, 80, BufferedImage.TYPE_BYTE_INDEXED);
+        // The image's data as a raster.
+        final WritableRaster raster = image.getRaster();
         for (int i = raster.getWidth(); --i >= 0; ) {
             for (int j = raster.getHeight(); --j >= 0; ) {
                 raster.setSample(i, j, 0, random.nextInt(256));
             }
         }
-        bounds =
+        // The GridCoverage's envelope.
+        final Rectangle2D bounds =
                 new Rectangle2D.Double(
                         -10, 30, PIXEL_SIZE * image.getWidth(), PIXEL_SIZE * image.getHeight());
-        final GeneralEnvelope envelope = new GeneralEnvelope(crs);
+        final GeneralBounds envelope = new GeneralBounds(crs);
         envelope.setRange(0, bounds.getMinX(), bounds.getMaxX());
         envelope.setRange(1, bounds.getMinY(), bounds.getMaxY());
         for (int i = envelope.getDimension(); --i >= 2; ) {
@@ -126,7 +125,8 @@ public class GridCoverageTestBase extends CoverageTestBase {
         }
         final Hints hints = new Hints(Hints.TILE_ENCODING, "raw");
         final GridCoverageFactory factory = CoverageFactoryFinder.getGridCoverageFactory(hints);
-        coverage =
+        // The final grid coverage.
+        final GridCoverage2D coverage =
                 factory.create(
                         "Test", image, envelope, new GridSampleDimension[] {band}, null, null);
         assertEquals("raw", coverage.tileEncoding);
@@ -168,6 +168,7 @@ public class GridCoverageTestBase extends CoverageTestBase {
                 private final GridCoverage2D[] cached = new GridCoverage2D[6];
 
                 /** Returns the number of available coverages which may be used as example. */
+                @Override
                 public int size() {
                     return cached.length;
                 }
@@ -178,6 +179,7 @@ public class GridCoverageTestBase extends CoverageTestBase {
                  * @param number The example number, from 0 inclusive to {@link #size()} exclusive.
                  * @return The "real world" grid coverage.
                  */
+                @Override
                 public synchronized GridCoverage2D get(final int number) {
                     GridCoverage2D coverage = cached[number];
                     if (coverage == null) {
@@ -323,23 +325,13 @@ public class GridCoverageTestBase extends CoverageTestBase {
                                         raster.setSample(x, y, 0, x + y);
                                     }
                                 }
-                                final Color[] colors =
-                                        new Color[] {
-                                            Color.BLUE,
-                                            Color.CYAN,
-                                            Color.WHITE,
-                                            Color.YELLOW,
-                                            Color.RED
-                                        };
+                                final Color[] colors = {
+                                    Color.BLUE, Color.CYAN, Color.WHITE, Color.YELLOW, Color.RED
+                                };
                                 return factory.create(
                                         "Float coverage",
                                         raster,
-                                        new Envelope2D(
-                                                DefaultGeographicCRS.WGS84,
-                                                35,
-                                                -41,
-                                                35 + 45,
-                                                -41 + 46),
+                                        ReferencedEnvelope.rect(35, -41, 35 + 45, -41 + 46),
                                         null,
                                         null,
                                         null,
@@ -368,12 +360,7 @@ public class GridCoverageTestBase extends CoverageTestBase {
                                 return factory.create(
                                         "UInt16 coverage",
                                         image,
-                                        new Envelope2D(
-                                                DefaultGeographicCRS.WGS84,
-                                                35,
-                                                -41,
-                                                35 + 45,
-                                                -41 + 46));
+                                        ReferencedEnvelope.rect(35, -41, 35 + 45, -41 + 46));
                             }
                     }
                     /*
@@ -389,7 +376,7 @@ public class GridCoverageTestBase extends CoverageTestBase {
                         throw new AssertionError(e);
                     }
                     final String filename = new File(path).getName();
-                    final GeneralEnvelope envelope = new GeneralEnvelope(bounds);
+                    final GeneralBounds envelope = new GeneralBounds(bounds);
                     envelope.setCoordinateReferenceSystem(crs);
                     return factory.create(filename, image, envelope, bands, null, null);
                 }
@@ -403,6 +390,7 @@ public class GridCoverageTestBase extends CoverageTestBase {
      * @throws IOException if an I/O operation was needed and failed.
      * @throws ClassNotFoundException Should never happen.
      */
+    @SuppressWarnings("BanSerializableRead")
     protected static GridCoverage2D serialize(GridCoverage2D coverage)
             throws IOException, ClassNotFoundException {
         coverage.tileEncoding = null;
@@ -411,19 +399,14 @@ public class GridCoverageTestBase extends CoverageTestBase {
          * But we want to test the default GridCoverage2D encoding.
          */
         final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        final ObjectOutputStream out = new ObjectOutputStream(buffer);
-        try {
+        try (ObjectOutputStream out = new ObjectOutputStream(buffer)) {
             out.writeObject(coverage);
-        } finally {
-            out.close();
         }
-        final ObjectInputStream in =
-                new ObjectInputStream(new ByteArrayInputStream(buffer.toByteArray()));
+
         GridCoverage2D read;
-        try {
+        try (ObjectInputStream in =
+                new ObjectInputStream(new ByteArrayInputStream(buffer.toByteArray()))) {
             read = (GridCoverage2D) in.readObject();
-        } finally {
-            in.close();
         }
         assertNotSame(read, coverage);
         coverage = read;

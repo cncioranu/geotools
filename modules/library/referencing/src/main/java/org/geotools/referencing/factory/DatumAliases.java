@@ -36,6 +36,24 @@ import java.util.logging.LogRecord;
 import javax.measure.Unit;
 import javax.measure.quantity.Angle;
 import javax.measure.quantity.Length;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.referencing.AuthorityFactory;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.Datum;
+import org.geotools.api.referencing.datum.DatumFactory;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.datum.EngineeringDatum;
+import org.geotools.api.referencing.datum.GeodeticDatum;
+import org.geotools.api.referencing.datum.ImageDatum;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.datum.PrimeMeridian;
+import org.geotools.api.referencing.datum.TemporalDatum;
+import org.geotools.api.referencing.datum.VerticalDatum;
+import org.geotools.api.referencing.datum.VerticalDatumType;
+import org.geotools.api.util.GenericName;
+import org.geotools.api.util.ScopedName;
 import org.geotools.metadata.i18n.LoggingKeys;
 import org.geotools.metadata.i18n.Loggings;
 import org.geotools.referencing.AbstractIdentifiedObject;
@@ -44,24 +62,6 @@ import org.geotools.referencing.datum.AbstractDatum;
 import org.geotools.util.LocalName;
 import org.geotools.util.NameFactory;
 import org.geotools.util.XArray;
-import org.opengis.metadata.Identifier;
-import org.opengis.referencing.AuthorityFactory;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.Datum;
-import org.opengis.referencing.datum.DatumFactory;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.datum.EngineeringDatum;
-import org.opengis.referencing.datum.GeodeticDatum;
-import org.opengis.referencing.datum.ImageDatum;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.datum.PrimeMeridian;
-import org.opengis.referencing.datum.TemporalDatum;
-import org.opengis.referencing.datum.VerticalDatum;
-import org.opengis.referencing.datum.VerticalDatumType;
-import org.opengis.util.GenericName;
-import org.opengis.util.ScopedName;
 
 /**
  * A datum factory that add {@linkplain IdentifiedObject#getAlias aliases} to a datum name before to
@@ -71,7 +71,7 @@ import org.opengis.util.ScopedName;
  * them. Two datum with different names are considered incompatible, unless some datum shift method
  * are specified (e.g. {@linkplain org.geotools.referencing.datum.BursaWolfParameters Bursa-Wolf
  * parameters}). Unfortunatly, different softwares often use different names for the same datum,
- * which result in {@link org.opengis.referencing.operation.OperationNotFoundException} when
+ * which result in {@link org.geotools.api.referencing.operation.OperationNotFoundException} when
  * attempting to convert coordinates from one {@linkplain CoordinateReferenceSystem coordinate
  * reference system} to an other one. For example "<cite>Nouvelle Triangulation Française
  * (Paris)</cite>" and "<cite>NTF (Paris meridian)</cite>" are actually the same datum. This {@code
@@ -281,8 +281,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
                          * in order to avoid constructing them again when they will be needed.
                          */
                         final String[] names = elements.toArray(new String[elements.size()]);
-                        for (int i = 0; i < names.length; i++) {
-                            final String name = names[i];
+                        for (final String name : names) {
                             final String key = toCaseless(name);
                             final Object[] previous = aliasMap.put(key, names);
                             if (previous != null && previous != NEED_LOADING) {
@@ -368,8 +367,8 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
          */
         int count = 0;
         GenericName[] names = new GenericName[aliases.length];
-        for (int i = 0; i < aliases.length; i++) {
-            final CharSequence alias = (CharSequence) aliases[i];
+        for (Object o : aliases) {
+            final CharSequence alias = (CharSequence) o;
             if (alias != null) {
                 if (count < authorities.length) {
                     final LocalName authority = authorities[count];
@@ -382,8 +381,8 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
             }
         }
         names = XArray.resize(names, count);
-        for (int i = 0; i < names.length; i++) {
-            final String alias = names[i].tip().toString();
+        for (GenericName genericName : names) {
+            final String alias = genericName.tip().toString();
             final Object[] previous = aliasMap.put(toCaseless(alias), names);
             assert previous == names || Arrays.equals(aliases, previous) : alias;
         }
@@ -449,8 +448,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
      */
     private static final int putAll(final GenericName[] names, final Map<String, GenericName> map) {
         int ignored = 0;
-        for (int i = 0; i < names.length; i++) {
-            final GenericName name = names[i];
+        for (final GenericName name : names) {
             final GenericName scoped = name.toFullyQualifiedName();
             final String key = toCaseless(scoped.toString());
             final GenericName old = map.put(key, name);
@@ -468,6 +466,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
      * @param properties Name and other properties to give to the new object.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public synchronized EngineeringDatum createEngineeringDatum(final Map<String, ?> properties)
             throws FactoryException {
         return getDatumFactory().createEngineeringDatum(addAliases(properties));
@@ -481,6 +480,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
      * @param primeMeridian Prime meridian to use in new geodetic datum.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public synchronized GeodeticDatum createGeodeticDatum(
             final Map<String, ?> properties,
             final Ellipsoid ellipsoid,
@@ -498,6 +498,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
      *     attributes.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public synchronized ImageDatum createImageDatum(
             final Map<String, ?> properties, final PixelInCell pixelInCell)
             throws FactoryException {
@@ -511,6 +512,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
      * @param origin The date and time origin of this temporal datum.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public synchronized TemporalDatum createTemporalDatum(
             final Map<String, ?> properties, final Date origin) throws FactoryException {
         return getDatumFactory().createTemporalDatum(addAliases(properties), origin);
@@ -523,6 +525,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
      * @param type The type of this vertical datum (often geoidal).
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public synchronized VerticalDatum createVerticalDatum(
             final Map<String, ?> properties, final VerticalDatumType type) throws FactoryException {
         return getDatumFactory().createVerticalDatum(addAliases(properties), type);
@@ -537,6 +540,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
      * @param unit Linear units of ellipsoid axes.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public synchronized Ellipsoid createEllipsoid(
             final Map<String, ?> properties,
             final double semiMajorAxis,
@@ -556,6 +560,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
      * @param unit Linear units of major axis.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public synchronized Ellipsoid createFlattenedSphere(
             final Map<String, ?> properties,
             final double semiMajorAxis,
@@ -575,6 +580,7 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
      * @param angularUnit Angular units of longitude.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public synchronized PrimeMeridian createPrimeMeridian(
             final Map<String, ?> properties, final double longitude, final Unit<Angle> angularUnit)
             throws FactoryException {

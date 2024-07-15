@@ -17,14 +17,17 @@
 package org.geotools.coverage.processing;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.awt.image.ColorModel;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
 import javax.media.jai.PlanarImage;
+import org.geotools.api.coverage.ColorInterpretation;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.TypeMap;
@@ -32,10 +35,6 @@ import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.Viewer;
 import org.geotools.image.ImageWorker;
 import org.junit.Test;
-import org.opengis.coverage.ColorInterpretation;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Tests the SelectSampleDimension operation.
@@ -53,7 +52,7 @@ public final class BandSelectTest extends GridProcessingTestBase {
          * Get the source coverage and build the cropped envelope.
          */
         final GridCoverage2D source = EXAMPLES.get(2);
-        final Envelope envelope = source.getEnvelope();
+        final Bounds envelope = source.getEnvelope();
         final RenderedImage rgbImage =
                 new ImageWorker(source.getRenderedImage())
                         .forceComponentColorModel()
@@ -61,7 +60,7 @@ public final class BandSelectTest extends GridProcessingTestBase {
         final GridCoverage2D newCoverage =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create("sample", rgbImage, envelope);
-        assertTrue(newCoverage.getNumSampleDimensions() == 3);
+        assertEquals(3, newCoverage.getNumSampleDimensions());
 
         /*
          * Do the crop without conserving the envelope.
@@ -91,7 +90,7 @@ public final class BandSelectTest extends GridProcessingTestBase {
          * Get the source coverage and build the cropped envelope.
          */
         final GridCoverage2D source = EXAMPLES.get(2);
-        final Envelope envelope = source.getEnvelope();
+        final Bounds envelope = source.getEnvelope();
         final RenderedImage rgbImage =
                 new ImageWorker(source.getRenderedImage())
                         .forceComponentColorModel()
@@ -103,14 +102,13 @@ public final class BandSelectTest extends GridProcessingTestBase {
         // setting bands names.
         for (int i = 0; i < numBands; i++) {
             final ColorInterpretation colorInterpretation = TypeMap.getColorInterpretation(cm, i);
-            if (colorInterpretation == null)
-                assertFalse("Unrecognized sample dimension type", true);
+            if (colorInterpretation == null) fail("Unrecognized sample dimension type");
             bands[i] = new GridSampleDimension(colorInterpretation.name());
         }
         final GridCoverage2D newCoverage =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create("sample", rgbImage, envelope, bands, null, null);
-        assertTrue(newCoverage.getNumSampleDimensions() == 3);
+        assertEquals(3, newCoverage.getNumSampleDimensions());
 
         /*
          * Do the band select on band 0
@@ -159,7 +157,7 @@ public final class BandSelectTest extends GridProcessingTestBase {
          * Get the source coverage and build the cropped envelope.
          */
         final GridCoverage2D source = EXAMPLES.get(4);
-        final Envelope envelope = source.getEnvelope();
+        final Bounds envelope = source.getEnvelope();
         final RenderedImage rgbImage =
                 new ImageWorker(source.getRenderedImage())
                         .forceComponentColorModel()

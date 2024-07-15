@@ -27,6 +27,15 @@ import javax.media.jai.InterpolationNearest;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.iterator.RectIter;
 import javax.media.jai.iterator.RectIterFactory;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.metadata.spatial.PixelOrientation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -36,7 +45,7 @@ import org.geotools.feature.collection.AdaptorFeatureCollection;
 import org.geotools.feature.collection.BaseSimpleFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
-import org.geotools.geometry.DirectPosition2D;
+import org.geotools.geometry.Position2D;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -52,18 +61,6 @@ import org.geotools.util.factory.GeoTools;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
 
 /**
  * A process that wraps a {@link GridCoverage2D} as a collection of point feature. Optional
@@ -79,41 +76,36 @@ import org.opengis.referencing.operation.MathTransform2D;
  * @author Simone Giannecchini, GeoSolutions
  */
 @DescribeProcess(
-    title = "Raster As Point Collection",
-    description =
-            "Returns a collection of point features for the pixels of a raster.  The band values are provided as attributes."
-)
+        title = "Raster As Point Collection",
+        description =
+                "Returns a collection of point features for the pixels of a raster.  The band values are provided as attributes.")
 public class RasterAsPointCollectionProcess implements RasterProcess {
 
     @DescribeResult(name = "result", description = "Point features")
     public SimpleFeatureCollection execute(
             @DescribeParameter(name = "data", description = "Input raster") GridCoverage2D gc2d,
             @DescribeParameter(
-                        name = "targetCRS",
-                        description = "CRS in which the points will be displayed",
-                        min = 0
-                    )
+                            name = "targetCRS",
+                            description = "CRS in which the points will be displayed",
+                            min = 0)
                     CoordinateReferenceSystem targetCRS,
             @DescribeParameter(
-                        name = "scale",
-                        description = "scale",
-                        min = 0,
-                        defaultValue = "1.0f"
-                    )
+                            name = "scale",
+                            description = "scale",
+                            min = 0,
+                            defaultValue = "1.0f")
                     Float scaleFactor,
             @DescribeParameter(
-                        name = "interpolation",
-                        description = "interpolation",
-                        min = 0,
-                        defaultValue = "InterpolationNearest"
-                    )
+                            name = "interpolation",
+                            description = "interpolation",
+                            min = 0,
+                            defaultValue = "InterpolationNearest")
                     Interpolation interpolation,
             @DescribeParameter(
-                        name = "emisphere",
-                        description = "Add Emishpere",
-                        min = 0,
-                        defaultValue = "False"
-                    )
+                            name = "emisphere",
+                            description = "Add Emishpere",
+                            min = 0,
+                            defaultValue = "False")
                     Boolean emisphere)
             throws ProcessException {
         if (gc2d == null) {
@@ -205,9 +197,6 @@ public class RasterAsPointCollectionProcess implements RasterProcess {
 
         /** Optional transformation from the coverage CRS to WGS84 */
         private MathTransform transformToWGS84;
-
-        /** Index for the North Dimension of the coverage CRS */
-        private int northDimension = -1;
 
         /** Target CRS indicating that the input Coverage has been reprojected */
         private CoordinateReferenceSystem targetCRS;
@@ -341,26 +330,6 @@ public class RasterAsPointCollectionProcess implements RasterProcess {
                         if (!transform.isIdentity()) {
                             this.transformToWGS84 = transform;
                         }
-
-                        final CoordinateSystem coordinateSystem = coverageCRS.getCoordinateSystem();
-                        // save also latitude axis
-                        final int dimension = coordinateSystem.getDimension();
-                        for (int i = 0; i < dimension; i++) {
-                            CoordinateSystemAxis axis = coordinateSystem.getAxis(i);
-                            if (axis.getDirection().absolute().compareTo(AxisDirection.NORTH)
-                                    == 0) {
-                                this.northDimension = i;
-                                break;
-                            }
-                        }
-                        // If the northDimension has not been found then an exception is thrown
-                        if (northDimension < 0) {
-                            final IOException ioe =
-                                    new IOException(
-                                            "Unable to find nort dimension in the coverage CRS+ "
-                                                    + coverageCRS.toWKT());
-                            throw ioe;
-                        }
                     } catch (FactoryException e) {
                         throw new IOException(e);
                     }
@@ -444,10 +413,10 @@ public class RasterAsPointCollectionProcess implements RasterProcess {
         private final Coordinate sourceCoordinate = new Coordinate();
 
         /** Position of the Point in the source CRS */
-        private DirectPosition2D sourceCRSPosition;
+        private Position2D sourceCRSPosition;
 
         /** Position of the Point in the target CRS */
-        private DirectPosition2D targetCRSPosition;
+        private Position2D targetCRSPosition;
 
         public RasterAsPointFeatureIterator(final RasterAsPointFeatureCollection fc) {
 
@@ -479,21 +448,24 @@ public class RasterAsPointCollectionProcess implements RasterProcess {
 
             // grid convergence angle manager
             if (fc.gridConvergenceAngleCorrectionNeeded) {
-                sourceCRSPosition = new DirectPosition2D();
-                targetCRSPosition = new DirectPosition2D(fc.targetCRS);
+                sourceCRSPosition = new Position2D();
+                targetCRSPosition = new Position2D(fc.targetCRS);
             }
         }
 
         /** Closes this iterator */
+        @Override
         public void close() {
             // NO OP
         }
 
         /** Tells us whether or not we have more elements to iterate on. */
+        @Override
         public boolean hasNext() {
             return index < size;
         }
 
+        @Override
         public SimpleFeature next() throws NoSuchElementException {
 
             if (!hasNext()) {
@@ -588,26 +560,17 @@ public class RasterAsPointCollectionProcess implements RasterProcess {
             if (fc.emisphere) {
                 // If the Coverage CRS is WGS84 then the Y coordinate value indicates the associated
                 // Hemisphere
-                if (fc.transformToWGS84 == null) {
-                    if (point.getY() >= 0) {
-                        fb.add("N");
-                    } else {
-                        fb.add("S");
-                    }
-                } else {
+                Point wgs84Point = point;
+                if (fc.transformToWGS84 != null) {
                     try {
                         // Else the point must be reprojected previously in order to define the
                         // Hemisphere
-                        Point wgs84Point = (Point) JTS.transform(point, fc.transformToWGS84);
-                        if (wgs84Point.getCoordinate().getOrdinate(fc.northDimension) >= 0) {
-                            fb.add("N");
-                        } else {
-                            fb.add("S");
-                        }
+                        wgs84Point = (Point) JTS.transform(point, fc.transformToWGS84);
                     } catch (Exception e) {
                         throw new IOException(e);
                     }
                 }
+                fb.add(wgs84Point.getY() >= 0 ? "N" : "S");
             }
         }
     }

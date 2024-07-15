@@ -26,7 +26,15 @@ import java.util.List;
 import java.util.Map;
 import javax.xml.namespace.QName;
 import org.eclipse.xsd.XSDElementDeclaration;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.identity.FeatureId;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.feature.NameImpl;
+import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.LiteCoordinateSequence;
 import org.geotools.geometry.jts.SingleCurvedGeometry;
 import org.geotools.gml2.SrsSyntax;
@@ -43,13 +51,6 @@ import org.geotools.xsd.XSD;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Feature;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.identity.FeatureId;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
@@ -94,7 +95,7 @@ public class GML3EncodingUtils {
         }
 
         try {
-            String crsCode = GML2EncodingUtils.toURI(crs, srsSyntax);
+            String crsCode = GML2EncodingUtils.toURI(crs, srsSyntax, true);
 
             if (crsCode != null) {
                 return new URI(crsCode);
@@ -106,8 +107,10 @@ public class GML3EncodingUtils {
         }
     }
 
+    /** @deprecated please use {@link org.geotools.geometry.jts.JTS#getCRS(Geometry)} */
+    @Deprecated
     static CoordinateReferenceSystem getCRS(Geometry g) {
-        return GML2EncodingUtils.getCRS(g);
+        return JTS.getCRS(g);
     }
 
     /** Get uomLabels for the geometry if set in app-schema mapping configuration. */

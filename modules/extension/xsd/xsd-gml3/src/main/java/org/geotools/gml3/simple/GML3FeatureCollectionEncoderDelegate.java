@@ -21,6 +21,8 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.xsd.XSDElementDeclaration;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.geometry.jts.CircularRing;
 import org.geotools.geometry.jts.CircularString;
@@ -46,8 +48,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.helpers.NamespaceSupport;
 
@@ -186,16 +186,19 @@ public class GML3FeatureCollectionEncoderDelegate
             }
         }
 
+        @Override
         public List getFeatureProperties(
                 SimpleFeature f, XSDElementDeclaration element, Encoder e) {
             return GML3EncodingUtils.INSTANCE.AbstractFeatureTypeGetProperties(
                     f, element, e.getSchemaIndex(), e.getConfiguration());
         }
 
+        @Override
         public EnvelopeEncoder createEnvelopeEncoder(Encoder e) {
             return new EnvelopeEncoder(e, gmlPrefix, gmlUri);
         }
 
+        @Override
         public void setSrsNameAttribute(AttributesImpl atts, CoordinateReferenceSystem crs) {
 
             URI srsName = GML3EncodingUtils.toURI(crs, srsSyntax);
@@ -209,28 +212,33 @@ public class GML3FeatureCollectionEncoderDelegate
                     null, "srsDimension", "srsDimension", null, String.valueOf(dimension));
         }
 
+        @Override
         public void initFidAttribute(AttributesImpl atts) {
             atts.addAttribute(GML.NAMESPACE, "id", "gml:id", null, "");
         }
 
+        @Override
         public void startFeatures(GMLWriter handler) throws Exception {
             if (!encodeSeparateMember) {
                 handler.startElement(featureMembers, null);
             }
         }
 
+        @Override
         public void startFeature(GMLWriter handler) throws Exception {
             if (encodeSeparateMember) {
                 handler.startElement(featureMember, null);
             }
         }
 
+        @Override
         public void endFeature(GMLWriter handler) throws Exception {
             if (encodeSeparateMember) {
                 handler.endElement(featureMember);
             }
         }
 
+        @Override
         public void endFeatures(GMLWriter handler) throws Exception {
             if (!encodeSeparateMember) {
                 handler.endElement(featureMembers);

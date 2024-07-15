@@ -23,12 +23,12 @@ import java.awt.event.KeyEvent;
 import javax.swing.JComponent;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.swing.wizard.JWizard.Controller;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.WKTWriter;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /** Text field for filling in a Geometry parameter using WKT. */
 public class JGeometryField extends ParamField {
@@ -38,10 +38,12 @@ public class JGeometryField extends ParamField {
         super(parameter);
     }
 
+    @Override
     public JComponent doLayout() {
         text = new JTextArea(40, 3);
         text.addKeyListener(
                 new KeyAdapter() {
+                    @Override
                     public void keyReleased(KeyEvent e) {
                         validate();
                     }
@@ -57,6 +59,7 @@ public class JGeometryField extends ParamField {
         return scroll;
     }
 
+    @Override
     public Object getValue() {
         WKTReader reader = new WKTReader();
         String wkt = text.getText();
@@ -90,6 +93,7 @@ public class JGeometryField extends ParamField {
         }
     }
 
+    @Override
     public void setValue(Object value) {
         Geometry geom = (Geometry) value;
 
@@ -99,14 +103,17 @@ public class JGeometryField extends ParamField {
         text.setText(wkt);
     }
 
+    @Override
     public void addListener(Controller controller) {
         text.addKeyListener(controller);
     }
 
+    @Override
     public void removeListener(Controller controller) {
         text.addKeyListener(controller);
     }
 
+    @Override
     public boolean validate() {
         WKTReader reader = new WKTReader();
         String wkt = text.getText();

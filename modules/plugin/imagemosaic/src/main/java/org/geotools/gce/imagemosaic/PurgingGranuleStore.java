@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,30 +32,31 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.geotools.api.data.CloseableIterator;
+import org.geotools.api.data.FileGroupProvider;
+import org.geotools.api.data.FileServiceInfo;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.ServiceInfo;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.NilExpression;
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.GranuleRemovalPolicy;
 import org.geotools.coverage.grid.io.GranuleStore;
 import org.geotools.coverage.grid.io.StructuredGridCoverage2DReader;
-import org.geotools.data.CloseableIterator;
-import org.geotools.data.FileGroupProvider;
-import org.geotools.data.FileServiceInfo;
-import org.geotools.data.Query;
-import org.geotools.data.ServiceInfo;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.visitor.Aggregate;
 import org.geotools.feature.visitor.CalcResult;
 import org.geotools.feature.visitor.GroupByVisitor;
 import org.geotools.filter.Filters;
 import org.geotools.gce.imagemosaic.catalog.CatalogConfigurationBean;
+import org.geotools.gce.imagemosaic.catalog.CatalogConfigurationBeans;
 import org.geotools.gce.imagemosaic.catalog.GranuleCatalogVisitor;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.NilExpression;
-import org.opengis.filter.expression.PropertyName;
 
 /**
  * {@link GranuleStore} that purges a file data/metadata only if no coverage still refers to it (by
@@ -96,14 +98,35 @@ class PurgingGranuleStore extends GranuleStoreDecorator {
                         countGranulesMatchingLocations(countsByFilter.keySet());
                 Set<String> removedLocations =
                         getRemovedLocations(countsByFilter, countsByLocation);
-
-                // apply the purge policy as needed
                 boolean deleteData = policy == GranuleRemovalPolicy.ALL;
-                Filter removedLocationsFilter = buildLocationsFilter(manager, removedLocations);
-                manager.getGranuleCatalog()
-                        .getGranuleDescriptors(
-                                new Query(manager.getTypeName(), removedLocationsFilter),
-                                new FileRemovingGranuleVisitor(deleteData));
+
+                // for single files, we can be efficient and do a single pass, for files
+                // providing multiple granules, not, as the descriptor is going to be created
+                // during the visit, whether we use it or not, and that may cause the involved
+                // reader to re-init itself (e.g., NetCDF would re-index its contents), causing
+                // a loop of init and deletion which is slowing down removal a lot.
+                Set<String> singleGranules =
+                        removedLocations.stream()
+                                .filter(l -> countsByLocation.get(l) == 1)
+                                .collect(Collectors.toSet());
+                Set<String> multiGranules =
+                        removedLocations.stream()
+                                .filter(l -> countsByLocation.get(l) > 1)
+                                .collect(Collectors.toSet());
+
+                // quick pass over the single granule locations
+                removeGranuleFiles(deleteData, singleGranules);
+
+                // for the multi-granule, go over one file at a time
+                for (String multiGranule : multiGranules) {
+                    Filter removedLocationsFilter =
+                            buildLocationsFilter(manager, Collections.singleton(multiGranule));
+                    Query q = buildQuery();
+                    q.setFilter(removedLocationsFilter);
+                    q.setMaxFeatures(1);
+                    manager.getGranuleCatalog()
+                            .getGranuleDescriptors(q, new FileRemovingGranuleVisitor(deleteData));
+                }
 
                 // do the removal inside the catalog
                 removed = delegate.removeGranules(filter);
@@ -113,6 +136,25 @@ class PurgingGranuleStore extends GranuleStoreDecorator {
         }
 
         return removed;
+    }
+
+    private void removeGranuleFiles(boolean deleteData, Set<String> singleGranules)
+            throws IOException {
+        Filter removedLocationsFilter = buildLocationsFilter(manager, singleGranules);
+        Query q = buildQuery();
+        q.setFilter(removedLocationsFilter);
+        manager.getGranuleCatalog()
+                .getGranuleDescriptors(q, new FileRemovingGranuleVisitor(deleteData));
+    }
+
+    private Query buildQuery() {
+        return buildQuery(manager.getTypeName());
+    }
+
+    private Query buildQuery(String typeName) {
+        Query q = new Query(typeName);
+        q.getHints().put(CatalogConfigurationBeans.COVERAGE_NAME, manager.getName());
+        return q;
     }
 
     private Set<String> getRemovedLocations(
@@ -132,8 +174,7 @@ class PurgingGranuleStore extends GranuleStoreDecorator {
     private Filter buildLocationsFilter(RasterManager manager, Set<String> locations) {
         PropertyName locationProperty = getLocationProperty(manager);
         List<Filter> filters =
-                locations
-                        .stream()
+                locations.stream()
                         .map(l -> FF.equal(locationProperty, FF.literal(l), false))
                         .collect(Collectors.toList());
         return Filters.or(FF, filters);
@@ -174,18 +215,16 @@ class PurgingGranuleStore extends GranuleStoreDecorator {
         // the result is a map going from list of grouping attributes to value
         @SuppressWarnings("unchecked")
         Map<List<String>, Integer> map = result.toMap();
-        return map.entrySet()
-                .stream()
+        return map.entrySet().stream()
                 .collect(Collectors.toMap(x -> x.getKey().get(0), x -> x.getValue()));
     }
 
     private CalcResult countGranulesMatchingCalc(Filter filter, RasterManager manager)
             throws IOException {
-        Query q = new Query(manager.getTypeName());
+        Query q = buildQuery(manager.getTypeName());
         q.setFilter(filter);
         SimpleFeatureCollection lc = manager.getGranuleCatalog().getGranules(q);
-        List<Expression> groupByExpressions =
-                Arrays.asList((Expression) getLocationProperty(manager));
+        List<Expression> groupByExpressions = Arrays.asList(getLocationProperty(manager));
         GroupByVisitor groupVisitor =
                 new GroupByVisitor(Aggregate.COUNT, NilExpression.NIL, groupByExpressions, null);
         lc.accepts(groupVisitor, null);
@@ -211,8 +250,10 @@ class PurgingGranuleStore extends GranuleStoreDecorator {
 
         @Override
         public void visit(GranuleDescriptor granule, SimpleFeature feature) {
-            AbstractGridCoverage2DReader reader = granule.getReader();
+            AbstractGridCoverage2DReader reader = null;
             try {
+
+                reader = granule.getReader();
                 File granuleFile = URLs.urlToFile(granule.getGranuleUrl());
                 // check common sidecars not handled by the readers
                 if (granuleFile != null) {

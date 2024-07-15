@@ -27,6 +27,8 @@ import java.util.Set;
 import javax.xml.namespace.QName;
 import org.eclipse.xsd.XSDSchema;
 import org.eclipse.xsd.util.XSDSchemaLocationResolver;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.Schema;
 import org.geotools.feature.NameImpl;
 import org.geotools.gml2.ReferencingDirectiveLeakPreventer;
 import org.geotools.gml2.SubstitutionGroupLeakPreventer;
@@ -34,8 +36,6 @@ import org.geotools.gml3.v3_2.gmd.GMD;
 import org.geotools.xlink.XLINK;
 import org.geotools.xsd.Schemas;
 import org.geotools.xsd.XSD;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.Schema;
 
 /**
  * This interface contains the qualified names of all the types,elements, and attributes in the
@@ -56,17 +56,20 @@ public final class GML extends XSD {
     /** private constructor */
     private GML() {}
 
+    @Override
     protected void addDependencies(Set<XSD> dependencies) {
         dependencies.add(XLINK.getInstance());
         dependencies.add(GMD.getInstance());
     }
 
     /** Returns 'http://www.opengis.net/gml/3.2'. */
+    @Override
     public String getNamespaceURI() {
         return NAMESPACE;
     }
 
     /** Returns the location of 'gml.xsd.'. */
+    @Override
     public String getSchemaLocation() {
         return getClass().getResource("gml.xsd").toString();
     }
@@ -2574,6 +2577,7 @@ public final class GML extends XSD {
                         Collections.emptyList(),
                         Collections.singletonList(
                                 new XSDSchemaLocationResolver() {
+                                    @Override
                                     public String resolveSchemaLocation(
                                             XSDSchema xsdSchema,
                                             String namespaceURI,
@@ -2593,9 +2597,7 @@ public final class GML extends XSD {
                                                         .resolve(schemaLocationURI)
                                                         .toString();
                                             }
-                                        } catch (URISyntaxException e) {
-                                            throw new RuntimeException(e);
-                                        } catch (MalformedURLException e) {
+                                        } catch (URISyntaxException | MalformedURLException e) {
                                             throw new RuntimeException(e);
                                         }
                                     }

@@ -25,9 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import org.apache.commons.jxpath.JXPathException;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
 import org.geotools.appschema.feature.AppSchemaAttributeBuilder;
 import org.geotools.appschema.util.XmlXpathUtilites;
-import org.geotools.data.Query;
 import org.geotools.data.complex.PathAttributeList.Pair;
 import org.geotools.data.complex.feature.type.Types;
 import org.geotools.data.complex.util.ComplexFeatureConstants;
@@ -38,12 +44,6 @@ import org.geotools.data.complex.xml.XmlXpathFilterData;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.type.ComplexTypeImpl;
 import org.geotools.filter.LiteralExpressionImpl;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
 import org.xml.sax.Attributes;
 
 /**
@@ -116,10 +116,12 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
                         : mapping.getFeatureIdExpression().toString();
     }
 
+    @Override
     protected FeatureIterator<? extends Feature> getSourceFeatureIterator() {
         return null;
     }
 
+    @Override
     protected boolean isSourceFeatureIteratorNull() {
         return xmlResponse == null;
     }
@@ -277,6 +279,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
         att.getUserData().put(ComplexFeatureConstants.MAPPED_ATTRIBUTE_INDEX, index);
     }
 
+    @Override
     protected void setClientProperties(
             final Attribute target,
             final Object xpathPrefix,
@@ -321,7 +324,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
         // FIXME should set a child Property.. but be careful for things that
         // are smuggled in there internally and don't exist in the schema, like
         // XSDTypeDefinition, CRS etc.
-        if (targetAttributes.size() > 0) {
+        if (!targetAttributes.isEmpty()) {
             target.getUserData().put(Attributes.class, targetAttributes);
         }
         setGeometryUserData(target, targetAttributes);
@@ -353,8 +356,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
 
             List<Pair> ls = elements.get(attMapping.getParentLabel());
             if (ls != null) {
-                for (int i = 0; i < ls.size(); i++) {
-                    Pair parentAttribute = ls.get(i);
+                for (Pair parentAttribute : ls) {
                     String countXpath = parentAttribute.getXpath();
                     // if instance path not set, then only count the root node
                     if (attMapping.getInstanceXpath() != null) {
@@ -506,6 +508,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
         }
     }
 
+    @Override
     protected boolean unprocessedFeatureExists() {
         if (indexCounter <= count) {
             return true;
@@ -514,10 +517,12 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
         }
     }
 
+    @Override
     protected boolean sourceFeatureIteratorHasNext() {
         return indexCounter <= count;
     }
 
+    @Override
     protected boolean isNextSourceFeatureNull() {
         return indexCounter > count;
     }
@@ -554,6 +559,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
                 mapping.getNamespaces(), expressionValue, xmlResponse.getDoc());
     }
 
+    @Override
     protected void closeSourceFeatures() {
         if (sourceFeatures != null) {
             xmlResponse = null;
@@ -589,8 +595,6 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
             return !isNextSourceFeatureNull();
         }
 
-        boolean exists = false;
-
         if (featureCounter >= requestMaxFeatures) {
             return false;
         }
@@ -598,7 +602,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
             return false;
         }
         // make sure features are unique by mapped id
-        exists = unprocessedFeatureExists();
+        boolean exists = unprocessedFeatureExists();
 
         if (!exists) {
             LOGGER.finest("no more features, produced " + featureCounter);

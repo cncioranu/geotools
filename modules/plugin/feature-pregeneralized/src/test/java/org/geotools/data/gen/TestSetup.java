@@ -29,29 +29,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import org.geotools.TestData;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.FileDataStoreFactorySpi;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.Filter;
 import org.geotools.data.DefaultRepository;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.FileDataStoreFactorySpi;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
 import org.geotools.data.gen.tool.Toolbox;
 import org.geotools.data.memory.MemoryDataStore;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeImpl;
 import org.geotools.feature.type.GeometryDescriptorImpl;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.Filter;
 
 public class TestSetup {
 
@@ -103,30 +103,29 @@ public class TestSetup {
                             ds.getSchema(), "dsStreams_5_10_20_50", "streams_5_10_20_50");
 
             // StreamsFeatureSource = ds.getFeatureSource(typeName);
-            Transaction t = new DefaultTransaction();
             Query query = new Query(typeName, Filter.INCLUDE);
-            FeatureReader<SimpleFeatureType, SimpleFeature> reader = ds.getFeatureReader(query, t);
-            while (reader.hasNext()) {
+            try (Transaction t = new DefaultTransaction();
+                    FeatureReader<SimpleFeatureType, SimpleFeature> reader =
+                            ds.getFeatureReader(query, t)) {
+                while (reader.hasNext()) {
 
-                SimpleFeature stream = reader.next();
+                    SimpleFeature stream = reader.next();
 
-                POINTMAP.get(0.0)
-                        .put(
-                                stream.getID(),
-                                ((Geometry) stream.getDefaultGeometry()).getNumPoints());
+                    POINTMAP.get(0.0)
+                            .put(
+                                    stream.getID(),
+                                    ((Geometry) stream.getDefaultGeometry()).getNumPoints());
 
-                addGeneralizedFeatureVertical(stream, dsStreams_5, 5.0);
-                addGeneralizedFeatureVertical(stream, dsStreams_10, 10.0);
-                addGeneralizedFeatureVertical(stream, dsStreams_20, 20.0);
-                addGeneralizedFeatureVertical(stream, dsStreams_50, 50.0);
+                    addGeneralizedFeatureVertical(stream, dsStreams_5, 5.0);
+                    addGeneralizedFeatureVertical(stream, dsStreams_10, 10.0);
+                    addGeneralizedFeatureVertical(stream, dsStreams_20, 20.0);
+                    addGeneralizedFeatureVertical(stream, dsStreams_50, 50.0);
 
-                addGeneralizedFeatureMixed(stream, dsStreams_5_10, 5.0, 10.0);
-                addGeneralizedFeatureMixed(stream, dsStreams_20_50, 20.0, 50.0);
-                addGeneralizedFeatureHorizontal(stream, dsStreams_5_10_20_50);
+                    addGeneralizedFeatureMixed(stream, dsStreams_5_10, 5.0, 10.0);
+                    addGeneralizedFeatureMixed(stream, dsStreams_20_50, 20.0, 50.0);
+                    addGeneralizedFeatureHorizontal(stream, dsStreams_5_10_20_50);
+                }
             }
-
-            reader.close();
-            t.close();
 
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -307,7 +306,6 @@ public class TestSetup {
     }
 
     private static void createShapeFilePyramd() throws IOException {
-        URL url = null;
 
         File baseDir = new File("target" + File.separator + "0");
         if (baseDir.exists() == false) baseDir.mkdir();
@@ -317,13 +315,13 @@ public class TestSetup {
         String propFileName =
                 "target" + File.separator + "0" + File.separator + "streams.properties";
         File propFile = new File(propFileName);
-        FileOutputStream out = new FileOutputStream(propFile);
-        String line = ShapefileDataStoreFactory.URLP.key + "=" + "file:target/0/streams.shp\n";
-        out.write(line.getBytes());
-        out.close();
+        try (FileOutputStream out = new FileOutputStream(propFile)) {
+            String line = ShapefileDataStoreFactory.URLP.key + "=" + "file:target/0/streams.shp\n";
+            out.write(line.getBytes());
+        }
         // ////////
 
-        url = TestData.url("shapes/streams.shp");
+        URL url = TestData.url("shapes/streams.shp");
 
         ShapefileDataStore shapeDS =
                 (ShapefileDataStore) new ShapefileDataStoreFactory().createDataStore(url);
@@ -339,21 +337,16 @@ public class TestSetup {
 
         ds.createSchema(fs.getSchema());
         ds.forceSchemaCRS(fs.getSchema().getCoordinateReferenceSystem());
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
-                ds.getFeatureWriter(ds.getTypeNames()[0], Transaction.AUTO_COMMIT);
-
-        SimpleFeatureIterator it = fs.getFeatures().features();
-        try {
+        try (FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                        ds.getFeatureWriter(ds.getTypeNames()[0], Transaction.AUTO_COMMIT);
+                SimpleFeatureIterator it = fs.getFeatures().features()) {
             while (it.hasNext()) {
                 SimpleFeature f = it.next();
                 SimpleFeature fNew = writer.next();
                 fNew.setAttributes(f.getAttributes());
                 writer.write();
             }
-        } finally {
-            it.close();
         }
-        writer.close();
         ds.dispose();
         shapeDS.dispose();
 

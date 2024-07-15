@@ -25,9 +25,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import org.geotools.TestData;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
-import org.geotools.data.DataStoreFinder;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.DataStoreFinder;
 import org.junit.Test;
 
 /**
@@ -44,7 +44,7 @@ public class ServiceTest extends TestCaseSupport {
         Iterator<DataStoreFactorySpi> list = DataStoreFinder.getAvailableDataStores();
         boolean found = false;
         while (list.hasNext()) {
-            DataStoreFactorySpi fac = (DataStoreFactorySpi) list.next();
+            DataStoreFactorySpi fac = list.next();
             if (fac instanceof ShapefileDataStoreFactory) {
                 found = true;
                 assertNotNull(fac.getDescription());

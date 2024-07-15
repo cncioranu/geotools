@@ -25,6 +25,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,15 +33,14 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.annotation.UML;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.CheckedCollection;
 import org.geotools.util.Classes;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.Utilities;
 import org.geotools.util.XArray;
-import org.opengis.annotation.UML;
-import org.opengis.util.InternationalString;
 
 /**
  * The getters declared in a GeoAPI interface, together with setters (if any) declared in the
@@ -200,7 +200,8 @@ final class PropertyAccessor {
             final Integer old = mapping.put(lower, index);
             if (old != null && !old.equals(index)) {
                 throw new IllegalArgumentException(
-                        Errors.format(ErrorKeys.PARAMETER_NAME_CLASH_$4, name, index, lower, old));
+                        MessageFormat.format(
+                                ErrorKeys.PARAMETER_NAME_CLASH_$4, name, index, lower, old));
             }
         }
     }
@@ -279,8 +280,7 @@ final class PropertyAccessor {
             if (getters == null) {
                 getters = type.getMethods();
                 int count = 0;
-                for (int i = 0; i < getters.length; i++) {
-                    final Method candidate = getters[i];
+                for (Method candidate : getters) {
                     if (candidate.getAnnotation(Deprecated.class) != null) {
                         // Ignores deprecated methods.
                         continue;
@@ -312,8 +312,8 @@ final class PropertyAccessor {
 
     /** Returns {@code true} if the specified method is on the exclusion list. */
     private static boolean isExcluded(final String name) {
-        for (int i = 0; i < EXCLUDES.length; i++) {
-            if (name.equals(EXCLUDES[i])) {
+        for (String exclude : EXCLUDES) {
+            if (name.equals(exclude)) {
                 return true;
             }
         }
@@ -322,8 +322,8 @@ final class PropertyAccessor {
 
     /**
      * Returns the prefix of the specified method name. If the method name don't starts with a
-     * prefix (for example {@link org.opengis.metadata.quality.ConformanceResult#pass()}), then this
-     * method returns an empty string.
+     * prefix (for example {@link org.geotools.api.metadata.quality.ConformanceResult#pass()}), then
+     * this method returns an empty string.
      */
     private static String prefix(final String name) {
         if (name.startsWith(GET)) {
@@ -369,7 +369,8 @@ final class PropertyAccessor {
         if (index != null) {
             return index;
         }
-        throw new IllegalArgumentException(Errors.format(ErrorKeys.UNKNOW_PARAMETER_NAME_$1, key));
+        throw new IllegalArgumentException(
+                MessageFormat.format(ErrorKeys.UNKNOW_PARAMETER_NAME_$1, key));
     }
 
     /**
@@ -439,7 +440,7 @@ final class PropertyAccessor {
 
     /**
      * Gets a value from the specified metadata. We do not expect any checked exception to be
-     * thrown, since {@code org.opengis.metadata} do not declare any.
+     * thrown, since {@code org.geotools.api.metadata} do not declare any.
      *
      * @param method The method to use for the query.
      * @param metadata The metadata object to query.
@@ -481,7 +482,7 @@ final class PropertyAccessor {
             final Method setter = setters[index];
             if (setter != null) {
                 final Object old = get(getter, metadata);
-                set(getter, setter, metadata, new Object[] {value});
+                set(getter, setter, metadata, value);
                 return old;
             } else {
                 key = getter.getName();
@@ -490,7 +491,8 @@ final class PropertyAccessor {
         } else {
             key = String.valueOf(index);
         }
-        throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$1, key));
+        throw new IllegalArgumentException(
+                MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$1, key));
     }
 
     /**
@@ -507,7 +509,7 @@ final class PropertyAccessor {
             final Method getter,
             final Method setter,
             final Object metadata,
-            final Object[] arguments)
+            final Object... arguments)
             throws ClassCastException {
         final Class<?>[] paramTypes = setter.getParameterTypes();
         for (int i = 0; i < paramTypes.length; i++) {
@@ -601,7 +603,7 @@ final class PropertyAccessor {
             if (parsed == null) {
                 final ClassCastException e =
                         new ClassCastException(
-                                Errors.format(
+                                MessageFormat.format(
                                         ErrorKeys.ILLEGAL_CLASS_$2,
                                         argument.getClass(),
                                         elementType));
@@ -666,8 +668,7 @@ final class PropertyAccessor {
             final Object metadata1, final Object metadata2, final boolean skipNulls) {
         assert type.isInstance(metadata1) : metadata1;
         assert type.isInstance(metadata2) : metadata2;
-        for (int i = 0; i < getters.length; i++) {
-            final Method method = getters[i];
+        for (final Method method : getters) {
             final Object value1 = get(method, metadata1);
             final Object value2 = get(method, metadata2);
             final boolean empty1 = isEmpty(value1);
@@ -750,10 +751,10 @@ final class PropertyAccessor {
         if (setters != null) {
             return true;
         }
-        for (int i = 0; i < getters.length; i++) {
+        for (Method getter : getters) {
             // Immutable objects usually don't need to be cloned. So if
             // an object is cloneable, it is probably not immutable.
-            if (Cloneable.class.isAssignableFrom(getters[i].getReturnType())) {
+            if (Cloneable.class.isAssignableFrom(getter.getReturnType())) {
                 return true;
             }
         }
@@ -769,8 +770,8 @@ final class PropertyAccessor {
     public int hashCode(final Object metadata) {
         assert type.isInstance(metadata) : metadata;
         int code = 0;
-        for (int i = 0; i < getters.length; i++) {
-            final Object value = get(getters[i], metadata);
+        for (Method getter : getters) {
+            final Object value = get(getter, metadata);
             if (!isEmpty(value)) {
                 code += value.hashCode();
             }
@@ -782,8 +783,8 @@ final class PropertyAccessor {
     public int count(final Object metadata, final int max) {
         assert type.isInstance(metadata) : metadata;
         int count = 0;
-        for (int i = 0; i < getters.length; i++) {
-            if (!isEmpty(get(getters[i], metadata))) {
+        for (Method getter : getters) {
+            if (!isEmpty(get(getter, metadata))) {
                 if (++count >= max) {
                     break;
                 }

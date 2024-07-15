@@ -24,21 +24,22 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.ProjectedCRS;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.operation.projection.AzimuthalEquidistant;
 import org.geotools.referencing.operation.projection.EquatorialOrthographic;
 import org.geotools.referencing.operation.projection.EquidistantCylindrical;
+import org.geotools.referencing.operation.projection.GeostationarySatellite;
 import org.geotools.referencing.operation.projection.Gnomonic;
 import org.geotools.referencing.operation.projection.ObliqueOrthographic;
 import org.geotools.referencing.operation.projection.PolarOrthographic;
 import org.geotools.referencing.operation.projection.Stereographic;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.ProjectedCRS;
 
 /**
  * Tests {@link AutoCRSFactory}.
@@ -221,5 +222,31 @@ public final class AUTOTest {
                         .parameter(centreLatCode)
                         .doubleValue();
         assertEquals(42.56, centreLat, 1e-9);
+    }
+
+    @Test
+    public void test97004() throws Exception {
+        ProjectedCRS crs = factory.createProjectedCRS("AUTO:97004,9001,20,0");
+        assertEquals("GEOS", crs.getConversionFromBase().getMethod().getName().getCode());
+        assertTrue(
+                crs.getConversionFromBase().getMathTransform()
+                        instanceof GeostationarySatellite.Ellipsoidal);
+
+        String centreLongCode =
+                GeostationarySatellite.Provider.CENTRAL_MERIDIAN.getName().getCode();
+        double centreLong =
+                crs.getConversionFromBase()
+                        .getParameterValues()
+                        .parameter(centreLongCode)
+                        .doubleValue();
+        assertEquals(20, centreLong, 1e-9);
+
+        String heightCode = GeostationarySatellite.Provider.SATELLITE_HEIGHT.getName().getCode();
+        double height =
+                crs.getConversionFromBase()
+                        .getParameterValues()
+                        .parameter(heightCode)
+                        .doubleValue();
+        assertEquals(Auto97004.SATELLITE_HEIGHT, height, 1e-9);
     }
 }

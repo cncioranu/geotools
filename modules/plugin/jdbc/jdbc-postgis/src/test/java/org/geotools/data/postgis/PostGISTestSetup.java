@@ -31,13 +31,10 @@ public class PostGISTestSetup extends JDBCTestSetup {
     @Override
     protected void initializeDatabase() throws Exception {
         DataSource dataSource = getDataSource();
-        Connection cx = dataSource.getConnection();
-        try {
+        try (Connection cx = dataSource.getConnection()) {
             PostGISDialect dialect = new PostGISDialect(new JDBCDataStore());
             postgisVersion = dialect.getVersion(cx);
             pgsqlVersion = dialect.getPostgreSQLVersion(cx);
-        } finally {
-            cx.close();
         }
     }
 
@@ -82,6 +79,7 @@ public class PostGISTestSetup extends JDBCTestSetup {
         runSafe("DROP TABLE \"ft1\"");
         runSafe("DROP TABLE \"ft2\"");
         runSafe("DROP TABLE \"ft3\"");
+        runSafe("DROP TABLE \"ft4\"");
 
         run(
                 "CREATE TABLE \"ft1\"(" //
@@ -119,6 +117,33 @@ public class PostGISTestSetup extends JDBCTestSetup {
                         + "\"stringProperty\" varchar)");
         run(
                 "INSERT INTO \"ft3\" VALUES(0, ST_GeometryFromText('POINT(0 0)', 4326), 0, 0.0, 'zero')");
+
+        // ft4: like the others but with more equal values
+        run(
+                "CREATE TABLE \"ft4\"(" //
+                        + "\"id\" serial primary key, " //
+                        + "\"geometry\" geometry, " //
+                        + "\"intProperty\" int," //
+                        + "\"doubleProperty\" double precision, " //
+                        + "\"stringProperty\" varchar)");
+        run(
+                "INSERT INTO \"ft4\" VALUES(0, ST_GeometryFromText('POINT(0 0)', 4326), 0, 0.0, 'zero')");
+
+        run(
+                "INSERT INTO \"ft4\" VALUES(1, ST_GeometryFromText('POINT(1 1)', 4326), 1, 1.1, 'one')");
+
+        run(
+                "INSERT INTO \"ft4\" VALUES(2, ST_GeometryFromText('POINT(2 2)', 4326), 1, 1.1, 'one_2')");
+
+        run(
+                "INSERT INTO \"ft4\" VALUES(3, ST_GeometryFromText('POINT(3 3)', 4326), 1, 1.1, 'one_2')");
+
+        run(
+                "INSERT INTO \"ft4\" VALUES(4, ST_GeometryFromText('POINT(4 4)', 4326), 2, 2.2, 'two')");
+        run(
+                "INSERT INTO \"ft4\" VALUES(5, ST_GeometryFromText('POINT(5 5)', 4326), 2, 2.2, 'two_2')");
+        run(
+                "INSERT INTO \"ft4\" VALUES(6, ST_GeometryFromText('POINT(6 6)', 4326), 3, 3.3, 'three')");
     }
 
     @Override

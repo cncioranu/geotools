@@ -16,22 +16,24 @@
  */
 package org.geotools.data.wps.response;
 
+import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 import net.opengis.ows11.ExceptionReportType;
 import net.opengis.wps10.ExecuteResponseType;
-import org.geotools.data.ows.HTTPResponse;
 import org.geotools.data.ows.Response;
+import org.geotools.http.HTTPResponse;
 import org.geotools.ows.ServiceException;
 import org.geotools.wps.WPSConfiguration;
 import org.geotools.xsd.Configuration;
 import org.geotools.xsd.Parser;
 import org.xml.sax.SAXException;
-import org.xmlpull.mxp1.MXParser;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * Represents the response from a server after an ExecuteProcess request has been issued.
@@ -46,6 +48,7 @@ public class ExecuteProcessResponse extends Response {
     private String rawContentType;
 
     /** */
+    @SuppressWarnings("PMD.UseTryWithResources") // multiple init points for InputStream
     public ExecuteProcessResponse(HTTPResponse httpResponse, boolean raw)
             throws IOException, ServiceException {
         super(httpResponse);
@@ -68,13 +71,22 @@ public class ExecuteProcessResponse extends Response {
                     inputStream.mark(8192);
 
                     try {
-                        XmlPullParser parser = new MXParser();
-                        parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
-                        parser.setInput(inputStream, "UTF-8");
-                        parser.nextTag();
+                        XMLInputFactory factory = XMLInputFactory.newFactory();
+                        // disable DTDs
+                        factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+                        // disable external entities
+                        factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+                        XMLStreamReader parser =
+                                factory.createXMLStreamReader(inputStream, "UTF-8");
+                        // position at root element
+                        while (parser.hasNext()) {
+                            if (START_ELEMENT == parser.next()) {
+                                break;
+                            }
+                        }
 
                         // get the first tag name
-                        String name = parser.getName();
+                        String name = parser.getName().getLocalPart();
                         inputStream.reset();
                         if ("ServiceException".equals(name)
                                 || "ExceptionReport".equals(name)
@@ -82,7 +94,7 @@ public class ExecuteProcessResponse extends Response {
                             parseDocumentResponse(inputStream);
                             return;
                         }
-                    } catch (XmlPullParserException e) {
+                    } catch (XMLStreamException e) {
                         throw new IOException("Failed to parse the response", e);
                     }
                 } else {
@@ -112,9 +124,7 @@ public class ExecuteProcessResponse extends Response {
         try {
             // object = DocumentFactory.getInstance(inputStream, hints, Level.WARNING);
             object = parser.parse(inputStream);
-        } catch (SAXException e) {
-            throw (IOException) new IOException().initCause(e);
-        } catch (ParserConfigurationException e) {
+        } catch (SAXException | ParserConfigurationException e) {
             throw (IOException) new IOException().initCause(e);
         }
 

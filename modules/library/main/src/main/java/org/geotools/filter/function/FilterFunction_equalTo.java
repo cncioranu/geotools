@@ -20,21 +20,21 @@ package org.geotools.filter.function;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.MultiValuedFilter.MatchAction;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.MultiValuedFilter.MatchAction;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
 
 public class FilterFunction_equalTo extends FunctionExpressionImpl {
-    private static FilterFactory2 ff;
+    private static FilterFactory ff;
 
-    private static FilterFactory2 getFilterFactory2() {
+    private static FilterFactory getFilterFactory() {
         if (ff == null) {
-            ff = CommonFactoryFinder.getFilterFactory2();
+            ff = CommonFactoryFinder.getFilterFactory();
         }
         return ff;
     }
@@ -63,6 +63,7 @@ public class FilterFunction_equalTo extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         Expression arg0 = getExpression(0);
         Expression arg1 = getExpression(1);
@@ -70,7 +71,7 @@ public class FilterFunction_equalTo extends FunctionExpressionImpl {
 
         if (getParameters().size() > 2) {
             try { // attempt to get value and perform conversion
-                matchAction = (MatchAction) getExpression(2).evaluate(feature, MatchAction.class);
+                matchAction = getExpression(2).evaluate(feature, MatchAction.class);
             } catch (Exception e) // probably a type error
             {
                 throw new IllegalArgumentException(
@@ -79,8 +80,8 @@ public class FilterFunction_equalTo extends FunctionExpressionImpl {
         }
         Filter equalTo =
                 matchAction == null
-                        ? getFilterFactory2().equal(arg0, arg1, false)
-                        : getFilterFactory2().equal(arg0, arg1, false, matchAction);
+                        ? getFilterFactory().equal(arg0, arg1, false)
+                        : getFilterFactory().equal(arg0, arg1, false, matchAction);
 
         return equalTo.evaluate(feature);
     }

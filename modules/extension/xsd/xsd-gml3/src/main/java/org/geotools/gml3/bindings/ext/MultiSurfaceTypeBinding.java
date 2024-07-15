@@ -35,6 +35,7 @@ public class MultiSurfaceTypeBinding extends org.geotools.gml3.bindings.MultiSur
         super(gf);
     }
 
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
 
         // we keep the same sequence order as in the xsd:
@@ -43,7 +44,6 @@ public class MultiSurfaceTypeBinding extends org.geotools.gml3.bindings.MultiSur
         @SuppressWarnings("unchecked")
         List<MultiPolygon> surfaceMemberList = node.getChildValues("surfaceMember");
         // &lt;element minOccurs="0" ref="gml:surfaceMembers"/&gt;
-        @SuppressWarnings("unchecked")
         MultiPolygon surfaceMembers = (MultiPolygon) node.getChildValue("surfaceMembers");
 
         List<Polygon> polygons = new ArrayList<>();
@@ -64,9 +64,10 @@ public class MultiSurfaceTypeBinding extends org.geotools.gml3.bindings.MultiSur
             }
         }
 
-        return gf.createMultiPolygon((Polygon[]) polygons.toArray(new Polygon[polygons.size()]));
+        return gf.createMultiPolygon(polygons.toArray(new Polygon[polygons.size()]));
     }
 
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         if ("surfaceMembers".equals(name.getLocalPart())) {
             return super.getProperty(object, GML.surfaceMember);
@@ -79,6 +80,7 @@ public class MultiSurfaceTypeBinding extends org.geotools.gml3.bindings.MultiSur
      * to the same class, MultiPolygon. Since MultiPolygon is deprecated by gml3 and MultiSurface
      * only has children that are also mapped to MultiPolygons, Surface always wins.
      */
+    @Override
     public int compareTo(Object o) {
         if (o instanceof SurfaceTypeBinding) {
             return 1;

@@ -16,6 +16,11 @@
  */
 package org.geotools.wfs.bindings;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import java.math.BigInteger;
 import java.net.URL;
 import java.util.Collections;
@@ -23,34 +28,29 @@ import java.util.List;
 import javax.xml.namespace.QName;
 import net.opengis.wfs.QueryType;
 import net.opengis.wfs.XlinkPropertyNameType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.v1_1.OGC;
 import org.geotools.test.TestData;
 import org.geotools.wfs.WFS;
 import org.geotools.wfs.WFSTestSupport;
 import org.geotools.xsd.Binding;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.Id;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
+import org.junit.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-/**
- * Unit test suite for {@link QueryTypeBinding}
- *
- * @author Justin Deoliveira
- * @author Gabriel Roldan
- * @version $Id$
- * @since 2.5.x
- */
 public class QueryTypeBindingTest extends WFSTestSupport {
     public QueryTypeBindingTest() {
         super(WFS.QueryType, QueryType.class, Binding.OVERRIDE);
     }
 
+    @Override
+    @Test
     public void testParse() throws Exception {
         final URL resource = TestData.getResource(this, "QueryTypeBindingTest.xml");
         buildDocument(resource);
@@ -78,8 +78,7 @@ public class QueryTypeBindingTest extends WFSTestSupport {
         assertEquals("property1", query.getPropertyName().get(0));
         assertEquals("property2", query.getPropertyName().get(1));
 
-        XlinkPropertyNameType xlink;
-        xlink = (XlinkPropertyNameType) query.getXlinkPropertyName().get(0);
+        XlinkPropertyNameType xlink = (XlinkPropertyNameType) query.getXlinkPropertyName().get(0);
         assertEquals("gt:propertyA/gt:propertyB", xlink.getValue());
         assertEquals("*", xlink.getTraverseXlinkDepth());
         assertEquals(BigInteger.valueOf(10), xlink.getTraverseXlinkExpiry());
@@ -89,8 +88,7 @@ public class QueryTypeBindingTest extends WFSTestSupport {
         assertEquals("1", xlink.getTraverseXlinkDepth());
         assertNull(xlink.getTraverseXlinkExpiry());
 
-        Function function;
-        function = (Function) query.getFunction().get(0);
+        Function function = (Function) query.getFunction().get(0);
         assertNotNull(function);
         assertEquals("max", function.getName());
 
@@ -103,7 +101,8 @@ public class QueryTypeBindingTest extends WFSTestSupport {
         assertTrue(query.getSortBy().get(0) instanceof SortBy);
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
+    @Test
     public void testEncode() throws Exception {
         final QueryType query = buildTestQuery();
 

@@ -37,6 +37,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import it.geosolutions.imageio.pam.PAMDataset;
 import it.geosolutions.imageio.pam.PAMDataset.PAMRasterBand;
@@ -48,7 +49,6 @@ import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.color.ColorSpace;
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.ComponentColorModel;
@@ -107,6 +107,32 @@ import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.apache.commons.io.filefilter.OrFileFilter;
 import org.apache.commons.io.filefilter.RegexFileFilter;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.data.CloseableIterator;
+import org.geotools.api.data.DataStoreFinder;
+import org.geotools.api.data.FileGroupProvider.FileGroup;
+import org.geotools.api.data.FileResourceInfo;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
@@ -116,6 +142,7 @@ import org.geotools.coverage.grid.io.DimensionDescriptor;
 import org.geotools.coverage.grid.io.GranuleRemovalPolicy;
 import org.geotools.coverage.grid.io.GranuleSource;
 import org.geotools.coverage.grid.io.GranuleStore;
+import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.coverage.grid.io.HarvestedSource;
 import org.geotools.coverage.grid.io.OverviewPolicy;
@@ -123,29 +150,26 @@ import org.geotools.coverage.grid.io.StructuredGridCoverage2DReader;
 import org.geotools.coverage.grid.io.UnknownFormat;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.coverage.util.FeatureUtilities;
-import org.geotools.data.CloseableIterator;
-import org.geotools.data.DataStoreFinder;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.FileGroupProvider.FileGroup;
-import org.geotools.data.FileResourceInfo;
-import org.geotools.data.Query;
-import org.geotools.data.ResourceInfo;
-import org.geotools.data.Transaction;
+import org.geotools.data.shapefile.ShapefileDataStore;
+import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.visitor.UniqueVisitor;
 import org.geotools.filter.text.ecql.ECQL;
 import org.geotools.gce.imagemosaic.Utils.Prop;
+import org.geotools.gce.imagemosaic.catalog.CachingDataStoreGranuleCatalog;
 import org.geotools.gce.imagemosaic.catalog.GranuleCatalog;
+import org.geotools.gce.imagemosaic.catalog.LockingGranuleCatalog;
+import org.geotools.gce.imagemosaic.catalog.QueryCacheGranuleCatalog;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer;
 import org.geotools.gce.imagemosaic.catalog.index.IndexerUtils;
 import org.geotools.gce.imagemosaic.catalog.index.ParametersType;
 import org.geotools.gce.imagemosaic.catalog.index.ParametersType.Parameter;
 import org.geotools.gce.imagemosaic.catalogbuilder.CatalogBuilderConfiguration;
-import org.geotools.geometry.Envelope2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.ImageWorker;
 import org.geotools.image.test.ImageAssert;
@@ -158,6 +182,7 @@ import org.geotools.util.DateRange;
 import org.geotools.util.NumberRange;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -171,22 +196,6 @@ import org.junit.rules.TemporaryFolder;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LinearRing;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Testing {@link ImageMosaicReader}.
@@ -197,9 +206,7 @@ import org.opengis.referencing.operation.TransformException;
  */
 public class ImageMosaicReaderTest {
 
-    private static final String OS_NAME = System.getProperty("os.name");
-
-    private static final FilterFactory2 FF = FeatureUtilities.DEFAULT_FILTER_FACTORY;
+    private static final FilterFactory FF = FeatureUtilities.DEFAULT_FILTER_FACTORY;
 
     private static final double DELTA = 1E-4;
 
@@ -217,6 +224,7 @@ public class ImageMosaicReaderTest {
 
     private URL mixedSampleModelURL;
     private URL coverageBandsURL;
+    private URL coverageBands2URL;
 
     private URL heterogeneousGranulesURL;
 
@@ -250,7 +258,7 @@ public class ImageMosaicReaderTest {
 
     private URL imposedEnvelopeURL;
 
-    private static final String H2_SAMPLE_PROPERTIES =
+    static final String H2_SAMPLE_PROPERTIES =
             "SPI=org.geotools.data.h2.H2DataStoreFactory\n"
                     + "dbtype=h2\n"
                     + "Loose\\ bbox=true #important for performances\n"
@@ -289,7 +297,6 @@ public class ImageMosaicReaderTest {
 
     /** Tests the {@link ImageMosaicReader} with default parameters for the various input params. */
     @Test
-    //        @Ignore
     public void alpha() throws Exception {
 
         final String testName = "alpha-";
@@ -381,12 +388,10 @@ public class ImageMosaicReaderTest {
         colorModel = coverage.getRenderedImage().getColorModel();
         assertTrue(colorModel.hasAlpha());
         assertTrue(colorModel instanceof ComponentColorModel);
-        ;
     }
 
     /** Tests the {@link ImageMosaicReader} with default parameters for the various input params. */
     @Test
-    //	@Ignore
     public void overviews() throws Exception {
         final AbstractGridFormat format = TestUtils.getFormat(overviewURL);
         ParameterValueGroup readParams = format.getReadParameters();
@@ -409,7 +414,7 @@ public class ImageMosaicReaderTest {
         // limit yourself to reading just a bit of it
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final Dimension dim = new Dimension();
         dim.setSize(
                 reader.getOriginalGridRange().getSpan(0) / 2.0,
@@ -428,14 +433,25 @@ public class ImageMosaicReaderTest {
         tileSize.setValue("128,128");
 
         // Test the output coverage
-        TestUtils.checkCoverage(
-                reader, new GeneralParameterValue[] {gg, useJai, tileSize}, "overviews test");
+        GridCoverage2D coverage =
+                TestUtils.checkCoverage(
+                        reader,
+                        new GeneralParameterValue[] {gg, useJai, tileSize},
+                        "overviews test");
+        RenderedImage image = coverage.getRenderedImage();
+        assertEquals(128, image.getTileWidth());
+        assertEquals(128, image.getTileHeight());
+        // source images are smaller than the tile size, make sure they have not been inflated
+        for (RenderedImage source : image.getSources()) {
+            assertEquals(70, source.getTileWidth());
+            assertEquals(94, source.getTileHeight());
+        }
+        coverage.dispose(true);
         reader.dispose();
     }
 
     /** */
     @Test
-    // @Ignore
     public void readingResolutions() throws Exception {
         final AbstractGridFormat format = TestUtils.getFormat(overviewURL);
         final ImageMosaicReader reader = getReader(overviewURL, format);
@@ -460,7 +476,6 @@ public class ImageMosaicReaderTest {
     }
 
     @Test
-    // @Ignore
     public void timeElevationH2() throws Exception {
 
         final File workDir = new File(TestData.file(this, "."), "water_temp3");
@@ -518,7 +533,7 @@ public class ImageMosaicReaderTest {
         // limit yourself to reading just a bit of it
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final Dimension dim = new Dimension();
         dim.setSize(
                 reader.getOriginalGridRange().getSpan(0) / 2.0,
@@ -552,11 +567,9 @@ public class ImageMosaicReaderTest {
 
         // Testing the FileGroupProvider
         int groups = 0;
-        CloseableIterator<FileGroup> filesIterator = null;
-        try {
-            Query query = new Query("water_temp3");
-            query.setFilter(FF.like(FF.property("location"), "*100_20081031T00*"));
-            filesIterator = fileInfo.getFiles(query);
+        Query query = new Query("water_temp3");
+        query.setFilter(FF.like(FF.property("location"), "*100_20081031T00*"));
+        try (CloseableIterator<FileGroup> filesIterator = fileInfo.getFiles(query)) {
             while (filesIterator.hasNext()) {
                 FileGroup group = filesIterator.next();
                 if (groups == 0) {
@@ -572,10 +585,6 @@ public class ImageMosaicReaderTest {
                     assertEquals(envelope.getMaximum(1), metadataBBOX.getMaxY(), DELTA);
                 }
                 groups++;
-            }
-        } finally {
-            if (filesIterator != null) {
-                filesIterator.close();
             }
         }
         // Check the fileGroupProvider returned 4 fileGroups
@@ -609,7 +618,6 @@ public class ImageMosaicReaderTest {
      * the TypeName=MOSAICNAME into the generated MOSAICNAME.properties file
      */
     @Test
-    // @Ignore
     public void testTypeNameBackwardsCompatibility() throws Exception {
 
         final File workDir = new File(TestData.file(this, "."), "water_temp5");
@@ -793,7 +801,7 @@ public class ImageMosaicReaderTest {
         // limit yourself to reading just a bit of it
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final Dimension dim = new Dimension();
         dim.setSize(
                 reader.getOriginalGridRange().getSpan(0) / 2.0,
@@ -909,7 +917,7 @@ public class ImageMosaicReaderTest {
         final ImageMosaicReader reader = getReader(imposedEnvelopeURL, format);
 
         // check envelope
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         assertNotNull(envelope);
 
         assertEquals(-180.0, envelope.getMinimum(0), 1E-6);
@@ -967,7 +975,7 @@ public class ImageMosaicReaderTest {
         // limit yourself to reading just a bit of it
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final Dimension dim = new Dimension();
         dim.setSize(
                 reader.getOriginalGridRange().getSpan(0) / 2.0,
@@ -987,12 +995,7 @@ public class ImageMosaicReaderTest {
         final SimpleDateFormat formatD = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         formatD.setTimeZone(TimeZone.getTimeZone("GMT"));
         final Date timeD = formatD.parse("2004-02-01T00:00:00.000Z");
-        time.setValue(
-                new ArrayList<Date>() {
-                    {
-                        add(timeD);
-                    }
-                });
+        time.setValue(List.of(timeD));
 
         // Test the output coverage
         TestUtils.checkCoverage(
@@ -1002,14 +1005,10 @@ public class ImageMosaicReaderTest {
         // Test the output coverage
         reader = getReader(timeURL, format);
         time.setValue(
-                new ArrayList<DateRange>() {
-                    {
-                        add(
-                                new DateRange(
-                                        formatD.parse("2004-02-01T00:00:00.000Z"),
-                                        formatD.parse("2004-03-01T00:00:00.000Z")));
-                    }
-                });
+                List.of(
+                        new DateRange(
+                                formatD.parse("2004-02-01T00:00:00.000Z"),
+                                formatD.parse("2004-03-01T00:00:00.000Z"))));
         TestUtils.checkCoverage(
                 reader, new GeneralParameterValue[] {gg, useJai, time}, "time test");
 
@@ -1037,8 +1036,6 @@ public class ImageMosaicReaderTest {
 
     /** Simple test method accessing time and 2 custom dimensions for the sample dataset */
     @Test
-    // @Ignore
-    @SuppressWarnings("rawtypes")
     public void timeAdditionalDim() throws Exception {
 
         final AbstractGridFormat format = TestUtils.getFormat(timeAdditionalDomainsURL);
@@ -1066,12 +1063,7 @@ public class ImageMosaicReaderTest {
         final SimpleDateFormat formatD = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         formatD.setTimeZone(TimeZone.getTimeZone("GMT"));
         final Date timeD = formatD.parse("2008-10-31T00:00:00.000Z");
-        time.setValue(
-                new ArrayList<Date>() {
-                    {
-                        add(timeD);
-                    }
-                });
+        time.setValue(List.of(timeD));
 
         // specify additional Dimensions
         Set<ParameterDescriptor<List>> params = reader.getDynamicParameters();
@@ -1085,30 +1077,19 @@ public class ImageMosaicReaderTest {
                 ParameterValue<List<String>> value = (ParameterValue) param.createValue();
 
                 dateValue = value;
-                dateValue.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedDate);
-                            }
-                        });
+                dateValue.setValue(List.of(selectedDate));
             } else if (param.getName().getCode().equalsIgnoreCase("DEPTH")) {
                 @SuppressWarnings("unchecked")
                 ParameterValue<List<String>> value = (ParameterValue) param.createValue();
                 depthValue = value;
-                depthValue.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedWaveLength);
-                            }
-                        });
+                depthValue.setValue(List.of(selectedWaveLength));
             }
         }
         assertNotNull(depthValue);
         assertNotNull(dateValue);
 
         // Test the output coverage
-        GeneralParameterValue[] values =
-                new GeneralParameterValue[] {useJai, time, dateValue, depthValue};
+        GeneralParameterValue[] values = {useJai, time, dateValue, depthValue};
         final GridCoverage2D coverage = TestUtils.getCoverage(reader, values, true);
         final String fileSource =
                 (String) coverage.getProperty(AbstractGridCoverage2DReader.FILE_SOURCE_PROPERTY);
@@ -1122,7 +1103,6 @@ public class ImageMosaicReaderTest {
 
     /** Simple test method accessing time and 2 custom dimensions for the sample dataset */
     @Test
-    @SuppressWarnings("rawtypes")
     public void timeAdditionalDimRanges() throws Exception {
 
         final AbstractGridFormat format = TestUtils.getFormat(timeAdditionalDomainsRangeURL);
@@ -1173,20 +1153,10 @@ public class ImageMosaicReaderTest {
             // specify time
             final ParameterValue<List> time = ImageMosaicFormat.TIME.createValue();
             final Date timeD = parseTimeStamp("2008-11-01T00:00:00.000Z");
-            time.setValue(
-                    new ArrayList<Date>() {
-                        {
-                            add(timeD);
-                        }
-                    });
+            time.setValue(List.of(timeD));
 
             final ParameterValue<List> elevation = ImageMosaicFormat.ELEVATION.createValue();
-            elevation.setValue(
-                    new ArrayList<Double>() {
-                        {
-                            add(34d); // Elevation
-                        }
-                    });
+            elevation.setValue(List.of(34d));
 
             // specify additional Dimensions
             Set<ParameterDescriptor<List>> params = reader.getDynamicParameters();
@@ -1199,30 +1169,19 @@ public class ImageMosaicReaderTest {
                     @SuppressWarnings("unchecked")
                     ParameterValue<List<String>> value = (ParameterValue) param.createValue();
                     dateValue = value;
-                    dateValue.setValue(
-                            new ArrayList<String>() {
-                                {
-                                    add(selectedDate);
-                                }
-                            });
+                    dateValue.setValue(List.of(selectedDate));
                 } else if (param.getName().getCode().equalsIgnoreCase("WAVELENGTH")) {
                     @SuppressWarnings("unchecked")
                     ParameterValue<List<String>> value = (ParameterValue) param.createValue();
                     waveLength = value;
-                    waveLength.setValue(
-                            new ArrayList<String>() {
-                                {
-                                    add(selectedWaveLength);
-                                }
-                            });
+                    waveLength.setValue(List.of(selectedWaveLength));
                 }
             }
             assertNotNull(waveLength);
             assertNotNull(dateValue);
 
             // Test the output coverage
-            GeneralParameterValue[] values =
-                    new GeneralParameterValue[] {useJai, dateValue, time, waveLength, elevation};
+            GeneralParameterValue[] values = {useJai, dateValue, time, waveLength, elevation};
             final GridCoverage2D coverage = TestUtils.getCoverage(reader, values, true);
             final String fileSource =
                     (String)
@@ -1241,8 +1200,7 @@ public class ImageMosaicReaderTest {
 
     /** Simple test method to test emptyMosaic creation support followed by harvesting. dataset */
     @Test
-    // @Ignore
-    public void testEmpytMosaic() throws Exception {
+    public void testEmptyMosaic() throws Exception {
 
         final File workDir = new File(TestData.file(this, "."), "emptyMosaic");
         if (!workDir.mkdir()) {
@@ -1279,7 +1237,6 @@ public class ImageMosaicReaderTest {
         FileUtils.copyDirectory(source, directory1);
 
         // ok, let's create a mosaic with a single granule and check its times
-        URL harvestSingleURL = fileToUrl(directory1);
         File renamed = new File(directory1, "temp_020_099_20081101T000000_20081104T000000.tiff");
 
         try {
@@ -1306,8 +1263,7 @@ public class ImageMosaicReaderTest {
             GranuleSource granules = reader.getGranules(coverageName, true);
             assertEquals(1, granules.getCount(Query.ALL));
             Query q = new Query(Query.ALL);
-            SimpleFeatureIterator fi = granules.getGranules(q).features();
-            try {
+            try (SimpleFeatureIterator fi = granules.getGranules(q).features()) {
                 assertTrue(fi.hasNext());
                 SimpleFeature f = fi.next();
                 String expected =
@@ -1317,8 +1273,6 @@ public class ImageMosaicReaderTest {
                 assertEquals(
                         "2008-11-01T00:00:00.000Z",
                         ConvertersHack.convert(f.getAttribute("time"), String.class));
-            } finally {
-                fi.close();
             }
 
         } finally {
@@ -1396,7 +1350,6 @@ public class ImageMosaicReaderTest {
         FileUtils.copyDirectory(source, directory1);
 
         // ok, let's create a mosaic with a single granule and check its times
-        URL harvestSingleURL = fileToUrl(directory1);
         File renamed = new File(directory1, "NCOM_wattemp_000_20081031T0000000_12.tiff");
 
         try {
@@ -1421,8 +1374,7 @@ public class ImageMosaicReaderTest {
             GranuleSource granules = reader.getGranules(coverageName, true);
             assertEquals(1, granules.getCount(Query.ALL));
             Query q = new Query(Query.ALL);
-            SimpleFeatureIterator fi = granules.getGranules(q).features();
-            try {
+            try (SimpleFeatureIterator fi = granules.getGranules(q).features()) {
                 assertTrue(fi.hasNext());
                 SimpleFeature f = fi.next();
                 String expected =
@@ -1432,8 +1384,6 @@ public class ImageMosaicReaderTest {
                 assertEquals(
                         "2008-10-31T00:00:00.000Z",
                         ConvertersHack.convert(f.getAttribute("time"), String.class));
-            } finally {
-                fi.close();
             }
 
         } finally {
@@ -1443,7 +1393,6 @@ public class ImageMosaicReaderTest {
 
     /** Simple test method accessing time and 2 custom dimensions for the sample dataset */
     @Test
-    @SuppressWarnings("rawtypes")
     public void granuleSourceTest() throws Exception {
 
         final AbstractGridFormat format = TestUtils.getFormat(timeAdditionalDomainsRangeURL);
@@ -1454,7 +1403,7 @@ public class ImageMosaicReaderTest {
         final int granules = source.getCount(null);
         final SimpleFeatureType type = source.getSchema();
         assertEquals(
-                "SimpleFeatureTypeImpl time_domainsRanges identified extends polygonFeature(the_geom:MultiPolygon,location:location,time:time,endtime:endtime,date:date,lowz:lowz,highz:highz,loww:loww,highw:highw)",
+                "SimpleFeatureTypeImpl time_domainsRanges identified extends polygonFeature(the_geom:MultiPolygon,location:String,time:Date,endtime:Date,date:String,lowz:Integer,highz:Integer,loww:Integer,highw:Integer)",
                 type.toString());
         assertEquals(granules, 12);
 
@@ -1494,20 +1443,10 @@ public class ImageMosaicReaderTest {
         // specify time
         final ParameterValue<List> time = ImageMosaicFormat.TIME.createValue();
         final Date timeD = parseTimeStamp("2008-11-01T00:00:00.000Z");
-        time.setValue(
-                new ArrayList<Date>() {
-                    {
-                        add(timeD);
-                    }
-                });
+        time.setValue(List.of(timeD));
 
         final ParameterValue<List> elevation = ImageMosaicFormat.ELEVATION.createValue();
-        elevation.setValue(
-                new ArrayList<Double>() {
-                    {
-                        add(34d); // Elevation
-                    }
-                });
+        elevation.setValue(List.of(34d));
 
         // specify additional Dimensions
         Set<ParameterDescriptor<List>> params = reader.getDynamicParameters();
@@ -1520,22 +1459,12 @@ public class ImageMosaicReaderTest {
                 @SuppressWarnings("unchecked")
                 ParameterValue<List<String>> value = (ParameterValue) param.createValue();
                 dateValue = value;
-                dateValue.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedDate);
-                            }
-                        });
+                dateValue.setValue(List.of(selectedDate));
             } else if (param.getName().getCode().equalsIgnoreCase("WAVELENGTH")) {
                 @SuppressWarnings("unchecked")
                 ParameterValue<List<String>> value = (ParameterValue) param.createValue();
                 waveLength = value;
-                waveLength.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedWaveLength);
-                            }
-                        });
+                waveLength.setValue(List.of(selectedWaveLength));
             }
         }
         assertNotNull(waveLength);
@@ -1557,8 +1486,7 @@ public class ImageMosaicReaderTest {
         assertNotNull(clazz);
 
         // Test the output coverage
-        GeneralParameterValue[] values =
-                new GeneralParameterValue[] {useJai, dateValue, time, waveLength, elevation};
+        GeneralParameterValue[] values = {useJai, dateValue, time, waveLength, elevation};
         final GridCoverage2D coverage = TestUtils.getCoverage(reader, values, true);
         final String fileSource =
                 (String) coverage.getProperty(AbstractGridCoverage2DReader.FILE_SOURCE_PROPERTY);
@@ -1707,12 +1635,7 @@ public class ImageMosaicReaderTest {
         useJai.setValue(false);
 
         final ParameterValue<List> elevation = ImageMosaicFormat.ELEVATION.createValue();
-        elevation.setValue(
-                new ArrayList<Double>() {
-                    {
-                        add(34d); // Elevation
-                    }
-                });
+        elevation.setValue(List.of(34d));
 
         // specify additional Dimensions
         Set<ParameterDescriptor<List>> params = reader.getDynamicParameters();
@@ -1723,18 +1646,12 @@ public class ImageMosaicReaderTest {
                 @SuppressWarnings("unchecked")
                 ParameterValue<List<String>> value = (ParameterValue) param.createValue();
                 waveLength = value;
-                waveLength.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedWaveLength);
-                            }
-                        });
+                waveLength.setValue(List.of(selectedWaveLength));
             }
         }
         assertNotNull(waveLength);
 
-        GeneralParameterValue[] values =
-                new GeneralParameterValue[] {useJai, time, waveLength, elevation};
+        GeneralParameterValue[] values = {useJai, time, waveLength, elevation};
         return TestUtils.getCoverage(reader, values, false);
     }
 
@@ -1787,8 +1704,7 @@ public class ImageMosaicReaderTest {
         sort.setValue("depth A");
 
         // Test the output coverage
-        GeneralParameterValue[] values =
-                new GeneralParameterValue[] {useJai, tileSize, time, mergeStack, sort};
+        GeneralParameterValue[] values = {useJai, tileSize, time, mergeStack, sort};
         final GridCoverage2D coverage = TestUtils.getCoverage(reader, values, false);
         assertNotNull(coverage);
 
@@ -1855,7 +1771,6 @@ public class ImageMosaicReaderTest {
      * => Pixel Size = (0.666666666666667,-0.666666666666667); 0 overviews
      */
     @Test
-    // @Ignore
     public void testHeterogeneousGranules() throws Exception {
 
         final AbstractGridFormat format = TestUtils.getFormat(heterogeneousGranulesURL);
@@ -1863,7 +1778,7 @@ public class ImageMosaicReaderTest {
 
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final Dimension dim = new Dimension();
         dim.setSize(10, 10);
         final Rectangle rasterArea = ((GridEnvelope2D) reader.getOriginalGridRange());
@@ -1945,7 +1860,6 @@ public class ImageMosaicReaderTest {
     }
 
     @Test
-    // @Ignore
     public void errors() throws Exception {
         final Hints hints =
                 new Hints(Hints.DEFAULT_COORDINATE_REFERENCE_SYSTEM, CRS.decode("EPSG:4326", true));
@@ -1967,7 +1881,7 @@ public class ImageMosaicReaderTest {
                             .getReader(rgbURL, new Hints(Hints.MOSAIC_LOCATION_ATTRIBUTE, "aaaa"));
             Assert.assertNull(reader);
         } catch (Throwable e) {
-            Assert.fail(e.getLocalizedMessage());
+            fail(e.getLocalizedMessage());
         }
         //		try {
         //			reader=(AbstractGridCoverage2DReader) ((AbstractGridFormat)
@@ -1987,7 +1901,7 @@ public class ImageMosaicReaderTest {
             reader.dispose();
             Assert.assertTrue(true);
         } catch (Throwable e) {
-            Assert.fail(e.getLocalizedMessage());
+            fail(e.getLocalizedMessage());
         }
 
         //		try {
@@ -2017,7 +1931,7 @@ public class ImageMosaicReaderTest {
             // read the coverage
             @SuppressWarnings("unused")
             GridCoverage2D gc = reader.read(null);
-            Assert.fail("MAX_ALLOWED_TILES was not respected");
+            fail("MAX_ALLOWED_TILES was not respected");
         } catch (Throwable e) {
 
             if (reader != null) reader.dispose();
@@ -2038,7 +1952,7 @@ public class ImageMosaicReaderTest {
             gc.dispose(true);
             reader.dispose();
         } catch (Exception e) {
-            Assert.fail(e.getLocalizedMessage());
+            fail(e.getLocalizedMessage());
         }
     }
 
@@ -2104,9 +2018,9 @@ public class ImageMosaicReaderTest {
         // crop
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope oldEnvelope = reader.getOriginalEnvelope();
-        final GeneralEnvelope cropEnvelope =
-                new GeneralEnvelope(
+        final GeneralBounds oldEnvelope = reader.getOriginalEnvelope();
+        final GeneralBounds cropEnvelope =
+                new GeneralBounds(
                         new double[] {
                             oldEnvelope.getLowerCorner().getOrdinate(0)
                                     + oldEnvelope.getSpan(0) / 2,
@@ -2146,14 +2060,14 @@ public class ImageMosaicReaderTest {
         reader.dispose();
     }
 
-    void assertEnvelope(Envelope expected, Envelope actual, double tolerance) {
+    void assertEnvelope(Bounds expected, Bounds actual, double tolerance) {
         assertEquals(expected.getMinimum(0), actual.getMinimum(0), tolerance);
         assertEquals(expected.getMaximum(0), actual.getMaximum(0), tolerance);
         assertEquals(expected.getMinimum(1), actual.getMinimum(1), tolerance);
         assertEquals(expected.getMaximum(1), actual.getMaximum(1), tolerance);
     }
 
-    void assertContainsEnvelope(Envelope expected, Envelope contained, double tolerance) {
+    void assertContainsEnvelope(Bounds expected, Bounds contained, double tolerance) {
         assertTrue(expected.getMinimum(0) < contained.getMinimum(0) + tolerance);
         assertTrue(expected.getMaximum(0) > contained.getMaximum(0) - tolerance);
         assertTrue(expected.getMinimum(1) < contained.getMinimum(1) + tolerance);
@@ -2193,9 +2107,10 @@ public class ImageMosaicReaderTest {
         // ask to extract an area that is inside the coverage bbox, but in a hole (no data)
         final ParameterValue<GridGeometry2D> ggp =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        Envelope2D env =
-                new Envelope2D(reader.getCoordinateReferenceSystem(), 500000, 3200000, 1000, 1000);
-        GridGeometry2D gg = new GridGeometry2D(new GridEnvelope2D(0, 0, 100, 100), (Envelope) env);
+        ReferencedEnvelope env =
+                ReferencedEnvelope.rect(
+                        500000, 3200000, 1000, 1000, reader.getCoordinateReferenceSystem());
+        GridGeometry2D gg = new GridGeometry2D(new GridEnvelope2D(0, 0, 100, 100), (Bounds) env);
         ggp.setValue(gg);
 
         // red background
@@ -2205,7 +2120,7 @@ public class ImageMosaicReaderTest {
         // read and check we actually got a coverage in the requested area
         GridCoverage2D coverage = reader.read(new GeneralParameterValue[] {ggp, bgp});
         assertNotNull(coverage);
-        assertTrue(coverage.getEnvelope2D().intersects((Rectangle2D) env));
+        assertTrue(coverage.getEnvelope2D().intersects((BoundingBox) env));
 
         // and that the color is the expected one given the background values provided
         int[] pixel = new int[4];
@@ -2257,8 +2172,9 @@ public class ImageMosaicReaderTest {
         // ask to extract an area that is inside the coverage bbox, but in a hole (no data)
         final ParameterValue<GridGeometry2D> ggp =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        Envelope2D env = new Envelope2D(reader.getCoordinateReferenceSystem(), 10, 41, 1, 1);
-        GridGeometry2D gg = new GridGeometry2D(new GridEnvelope2D(0, 0, 50, 50), (Envelope) env);
+        ReferencedEnvelope env =
+                ReferencedEnvelope.rect(10, 41, 1, 1, reader.getCoordinateReferenceSystem());
+        GridGeometry2D gg = new GridGeometry2D(new GridEnvelope2D(0, 0, 50, 50), (Bounds) env);
         ggp.setValue(gg);
 
         // Select 2 bands
@@ -2272,7 +2188,7 @@ public class ImageMosaicReaderTest {
         // read and check we actually got a coverage in the requested area
         GridCoverage2D coverage = reader.read(new GeneralParameterValue[] {ggp, bgp, bands});
         assertNotNull(coverage);
-        assertTrue(coverage.getEnvelope2D().intersects((Rectangle2D) env));
+        assertTrue(coverage.getEnvelope2D().intersects((BoundingBox) env));
 
         // Since we have requested a void area (no data within the mosaic's definition area)
         // check that the returned image respects the number of components from band selection
@@ -2292,7 +2208,6 @@ public class ImageMosaicReaderTest {
     }
 
     @Test
-    // @Ignore
     public void testRequestInOut() throws Exception {
         final AbstractGridFormat format = TestUtils.getFormat(rgbAURL, null);
         final ImageMosaicReader reader = getReader(rgbAURL, format);
@@ -2303,14 +2218,14 @@ public class ImageMosaicReaderTest {
         // inside the raster, and partly outside
         final ParameterValue<GridGeometry2D> ggp =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        Envelope2D env =
-                new Envelope2D(
-                        reader.getCoordinateReferenceSystem(),
+        ReferencedEnvelope env =
+                ReferencedEnvelope.rect(
                         44887,
                         2299342,
                         646897 - 44887,
-                        3155705 - 2299342);
-        GridGeometry2D gg = new GridGeometry2D(new GridEnvelope2D(0, 0, 100, 100), (Envelope) env);
+                        3155705 - 2299342,
+                        reader.getCoordinateReferenceSystem());
+        GridGeometry2D gg = new GridGeometry2D(new GridEnvelope2D(0, 0, 100, 100), (Bounds) env);
         ggp.setValue(gg);
 
         // red background
@@ -2320,8 +2235,8 @@ public class ImageMosaicReaderTest {
         // read and check we actually got a coverage in the requested area
         GridCoverage2D coverage = reader.read(new GeneralParameterValue[] {ggp, bgp});
         assertNotNull(coverage);
-        final Envelope2D envelope2d = coverage.getEnvelope2D();
-        assertTrue(envelope2d.contains((Rectangle2D) env));
+        final ReferencedEnvelope ReferencedEnvelope = coverage.getEnvelope2D();
+        assertTrue(ReferencedEnvelope.contains((BoundingBox) env));
 
         // and that the color is the expected one given the background values provided
         int[] pixel = new int[4];
@@ -2346,9 +2261,9 @@ public class ImageMosaicReaderTest {
             // the output should be transparent
             final ParameterValue<GridGeometry2D> ggp =
                     AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-            Envelope2D env = new Envelope2D(reader.getCoordinateReferenceSystem(), 19, 45, 1, 1);
-            GridGeometry2D gg =
-                    new GridGeometry2D(new GridEnvelope2D(0, 0, 50, 50), (Envelope) env);
+            ReferencedEnvelope env =
+                    ReferencedEnvelope.rect(19, 45, 1, 1, reader.getCoordinateReferenceSystem());
+            GridGeometry2D gg = new GridGeometry2D(new GridEnvelope2D(0, 0, 50, 50), (Bounds) env);
             ggp.setValue(gg);
 
             // Setting transparency
@@ -2359,12 +2274,11 @@ public class ImageMosaicReaderTest {
             // read and check we actually got a coverage in the requested area
             GridCoverage2D coverage = reader.read(new GeneralParameterValue[] {ggp, transparent});
             assertNotNull(coverage);
-            assertTrue(coverage.getEnvelope2D().contains((Rectangle2D) env));
+            assertTrue(coverage.getEnvelope2D().contains((BoundingBox) env));
 
-            int[] pixel =
-                    new int[] {
-                        Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE
-                    };
+            int[] pixel = {
+                Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE
+            };
             coverage.evaluate(new Point2D.Double(20, 45), pixel);
             assertEquals(0, pixel[0]);
             assertEquals(0, pixel[1]);
@@ -2399,6 +2313,7 @@ public class ImageMosaicReaderTest {
         rgbURL = TestData.url(this, "rgb");
         mixedSampleModelURL = TestData.url(this, "mixed_sample_model");
         coverageBandsURL = TestData.url(this, "coverage_bands");
+        coverageBands2URL = TestData.url(this, "coverage_bands_heterogeneous");
         heterogeneousGranulesURL = TestData.url(this, "heterogeneous");
         timeURL = TestData.url(this, "time_geotiff");
         timeFormatURL = TestData.url(this, "time_format_geotiff");
@@ -2476,8 +2391,6 @@ public class ImageMosaicReaderTest {
 
     /** Simple test method accessing time and 2 custom dimensions for the sample dataset */
     @Test
-    // @Ignore
-    @SuppressWarnings("rawtypes")
     public void timeAdditionalDimNoResultsDueToWrongDim() throws Exception {
 
         final AbstractGridFormat format = TestUtils.getFormat(timeAdditionalDomainsURL);
@@ -2504,12 +2417,7 @@ public class ImageMosaicReaderTest {
         final SimpleDateFormat formatD = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         formatD.setTimeZone(TimeZone.getTimeZone("GMT"));
         final Date timeD = formatD.parse("2008-10-31T00:00:00.000Z");
-        time.setValue(
-                new ArrayList<Date>() {
-                    {
-                        add(timeD);
-                    }
-                });
+        time.setValue(List.of(timeD));
 
         // specify additional Dimensions
         Set<ParameterDescriptor<List>> params = reader.getDynamicParameters();
@@ -2520,27 +2428,16 @@ public class ImageMosaicReaderTest {
         for (ParameterDescriptor<List> param : params) {
             if (param.getName().getCode().equalsIgnoreCase("DATE")) {
                 dateValue = param.createValue();
-                dateValue.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedDate);
-                            }
-                        });
+                dateValue.setValue(List.of(selectedDate));
             } else if (param.getName().getCode().equalsIgnoreCase("DEPTH")) {
                 depthValue = param.createValue();
-                depthValue.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedWaveLength);
-                            }
-                        });
+                depthValue.setValue(List.of(selectedWaveLength));
             }
         }
         assertNotNull(depthValue);
         assertNotNull(dateValue);
         // Test the output coverage
-        GeneralParameterValue[] values =
-                new GeneralParameterValue[] {useJai, time, dateValue, depthValue};
+        GeneralParameterValue[] values = {useJai, time, dateValue, depthValue};
         final GridCoverage2D coverage = TestUtils.getCoverage(reader, values, false);
         assertNull(coverage);
 
@@ -2609,8 +2506,7 @@ public class ImageMosaicReaderTest {
         sort.setValue("polarization A");
 
         // Test the output coverage
-        GeneralParameterValue[] values =
-                new GeneralParameterValue[] {useJai, tileSize, time, polariz, paramStacked, sort};
+        GeneralParameterValue[] values = {useJai, tileSize, time, polariz, paramStacked, sort};
         final GridCoverage2D coverage = TestUtils.getCoverage(reader, values, false);
         assertNotNull(coverage);
 
@@ -2717,8 +2613,7 @@ public class ImageMosaicReaderTest {
             GranuleSource granules = reader.getGranules(coverageName, true);
             assertEquals(2, granules.getCount(Query.ALL));
             Query q = new Query(Query.ALL);
-            SimpleFeatureIterator fi = granules.getGranules(q).features();
-            try {
+            try (SimpleFeatureIterator fi = granules.getGranules(q).features()) {
                 assertTrue(fi.hasNext());
                 SimpleFeature f = fi.next();
                 assertEquals("world.200402.3x5400x2700.tiff", f.getAttribute("location"));
@@ -2733,8 +2628,6 @@ public class ImageMosaicReaderTest {
                 assertEquals(
                         "2004-05-01T00:00:00.000Z",
                         ConvertersHack.convert(f.getAttribute("time"), String.class));
-            } finally {
-                fi.close();
             }
 
         } finally {
@@ -2768,7 +2661,7 @@ public class ImageMosaicReaderTest {
         URL harvestSingleURL = fileToUrl(directory1);
         final AbstractGridFormat format = TestUtils.getFormat(harvestSingleURL);
         ImageMosaicReader reader = getReader(harvestSingleURL, format);
-        GeneralEnvelope singleGranuleEnvelope = reader.getOriginalEnvelope();
+        GeneralBounds singleGranuleEnvelope = reader.getOriginalEnvelope();
         // System.out.println(singleGranuleEnvelope);
 
         // now push back all the files, and harvest them
@@ -2778,17 +2671,18 @@ public class ImageMosaicReaderTest {
         reader.harvest(null, directory1, null);
 
         // the envelope should have been updated
-        GeneralEnvelope fullEnvelope = reader.getOriginalEnvelope();
+        GeneralBounds fullEnvelope = reader.getOriginalEnvelope();
         assertTrue(fullEnvelope.contains(singleGranuleEnvelope, true));
         assertTrue(fullEnvelope.getSpan(0) > singleGranuleEnvelope.getSpan(0));
         assertTrue(fullEnvelope.getSpan(1) > singleGranuleEnvelope.getSpan(1));
 
         // make a request in a bbox that's outside of the original envelope
         MathTransform mt = reader.getOriginalGridToWorld(PixelInCell.CELL_CORNER);
-        Envelope env = new Envelope2D(DefaultGeographicCRS.WGS84, 10, 40, 15, 45);
+        Bounds env = ReferencedEnvelope.rect(10, 40, 15, 45);
         GridEnvelope2D rasterEnvelope =
                 new GridEnvelope2D(
-                        new Envelope2D(CRS.transform(mt.inverse(), env)), PixelInCell.CELL_CORNER);
+                        new ReferencedEnvelope(CRS.transform(mt.inverse(), env)),
+                        PixelInCell.CELL_CORNER);
         GridGeometry2D gg = new GridGeometry2D(rasterEnvelope, env);
         final ParameterValue<GridGeometry2D> ggParameter =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
@@ -2806,7 +2700,7 @@ public class ImageMosaicReaderTest {
                                 + "OR location = 'global_mosaic_9.png' "
                                 + "OR location = 'global_mosaic_4.png'"));
 
-        GeneralEnvelope reducedEnvelope = reader.getOriginalEnvelope();
+        GeneralBounds reducedEnvelope = reader.getOriginalEnvelope();
         assertTrue(fullEnvelope.contains(reducedEnvelope, true));
         assertTrue(reducedEnvelope.contains(singleGranuleEnvelope, true));
         assertTrue(fullEnvelope.getSpan(0) > reducedEnvelope.getSpan(0));
@@ -2841,8 +2735,6 @@ public class ImageMosaicReaderTest {
         URL harvestSingleURL = URLs.fileToUrl(directory1);
         final AbstractGridFormat format = TestUtils.getFormat(harvestSingleURL);
         ImageMosaicReader reader = getReader(harvestSingleURL, format);
-        GeneralEnvelope singleGranuleEnvelope = reader.getOriginalEnvelope();
-        // System.out.println(singleGranuleEnvelope);
 
         // now create a second reader that won't be informed of the harvesting changes
         // (simulating changes over a cluster, where the bbox information won't be updated from one
@@ -2859,10 +2751,11 @@ public class ImageMosaicReaderTest {
         // second reader does not have the metadata updated, but can still respond to the
         // request
         MathTransform mt = reader.getOriginalGridToWorld(PixelInCell.CELL_CORNER);
-        Envelope env = new Envelope2D(DefaultGeographicCRS.WGS84, 10, 40, 15, 45);
+        Bounds env = ReferencedEnvelope.rect(10, 40, 15, 45);
         GridEnvelope2D rasterEnvelope =
                 new GridEnvelope2D(
-                        new Envelope2D(CRS.transform(mt.inverse(), env)), PixelInCell.CELL_CORNER);
+                        new ReferencedEnvelope(CRS.transform(mt.inverse(), env)),
+                        PixelInCell.CELL_CORNER);
         GridGeometry2D gg = new GridGeometry2D(rasterEnvelope, env);
         final ParameterValue<GridGeometry2D> ggParameter =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
@@ -2919,8 +2812,7 @@ public class ImageMosaicReaderTest {
             GranuleSource granules = reader.getGranules(coverageName, true);
             assertEquals(2, granules.getCount(Query.ALL));
             Query q = new Query(Query.ALL);
-            SimpleFeatureIterator fi = granules.getGranules(q).features();
-            try {
+            try (SimpleFeatureIterator fi = granules.getGranules(q).features()) {
                 assertTrue(fi.hasNext());
                 SimpleFeature f = fi.next();
                 assertEquals("passA2006128194218.tiff", f.getAttribute("location"));
@@ -2929,8 +2821,6 @@ public class ImageMosaicReaderTest {
                         "../singleHarvestRGBA2/passA2006128211927.tiff"
                                 .replace('/', File.separatorChar);
                 assertEquals(expected, f.getAttribute("location"));
-            } finally {
-                fi.close();
             }
         } finally {
             reader.dispose();
@@ -2994,7 +2884,7 @@ public class ImageMosaicReaderTest {
 
         // another variant that used to cause problems
         Query q = new Query("rgba");
-        q.setPropertyNames(new String[] {"location"});
+        q.setPropertyNames("location");
         features = gs.getGranules(q);
         first = DataUtilities.first(features);
         assertEquals("rgba", first.getType().getTypeName());
@@ -3444,8 +3334,7 @@ public class ImageMosaicReaderTest {
             GranuleSource granules = reader.getGranules(coverageName, true);
             assertEquals(2, granules.getCount(Query.ALL));
             Query q = new Query(Query.ALL);
-            SimpleFeatureIterator fi = granules.getGranules(q).features();
-            try {
+            try (SimpleFeatureIterator fi = granules.getGranules(q).features()) {
                 assertTrue(fi.hasNext());
                 SimpleFeature f = fi.next();
 
@@ -3458,8 +3347,6 @@ public class ImageMosaicReaderTest {
                 assertEquals(
                         "2004-05-01T00:00:00.000Z",
                         ConvertersHack.convert(f.getAttribute("time"), String.class));
-            } finally {
-                fi.close();
             }
         } finally {
             reader.dispose();
@@ -3730,27 +3617,17 @@ public class ImageMosaicReaderTest {
         }
 
         // Editing indexer RootMosaicDirectory path
-        InputStream stream = null;
-        OutputStream outStream = null;
-        try {
+        final String indexerPath = directory1.getCanonicalPath() + "/indexer.properties";
+        String path = directory1.getCanonicalPath();
+        path = path.replace("\\", "/");
 
-            final String indexerPath = directory1.getCanonicalPath() + "/indexer.properties";
-            stream = new FileInputStream(indexerPath);
-            String path = directory1.getCanonicalPath();
-            path = path.replace("\\", "/");
-            Properties prop = new Properties();
+        Properties prop = new Properties();
+        try (InputStream stream = new FileInputStream(indexerPath)) {
             prop.load(stream);
-
-            outStream = new FileOutputStream(indexerPath);
+        }
+        try (OutputStream outStream = new FileOutputStream(indexerPath)) {
             prop.setProperty(Prop.ROOT_MOSAIC_DIR, path);
             prop.store(outStream, null);
-        } finally {
-            if (stream != null) {
-                stream.close();
-            }
-            if (outStream != null) {
-                outStream.close();
-            }
         }
         // move month 5 to another dir, we'll harvet it later
         String monthFiveName = "world.200405.3x5400x2700.tiff";
@@ -3795,8 +3672,7 @@ public class ImageMosaicReaderTest {
             GranuleSource granules = reader.getGranules(coverageName, true);
             assertEquals(2, granules.getCount(Query.ALL));
             Query q = new Query(Query.ALL);
-            SimpleFeatureIterator fi = granules.getGranules(q).features();
-            try {
+            try (SimpleFeatureIterator fi = granules.getGranules(q).features()) {
                 assertTrue(fi.hasNext());
                 SimpleFeature f = fi.next();
                 assertEquals("world.200402.3x5400x2700.tiff", f.getAttribute("location"));
@@ -3811,8 +3687,6 @@ public class ImageMosaicReaderTest {
                 assertEquals(
                         "2004-05-01T00:00:00.000Z",
                         ConvertersHack.convert(f.getAttribute("time"), String.class));
-            } finally {
-                fi.close();
             }
 
         } finally {
@@ -3845,24 +3719,14 @@ public class ImageMosaicReaderTest {
         }
 
         // Editing indexer RootMosaicDirectory path
-        InputStream stream = null;
-        OutputStream outStream = null;
-        try {
-            final File indexer = new File(mosaic, "indexer.properties");
-            stream = new FileInputStream(indexer);
-            Properties prop = new Properties();
+        final File indexer = new File(mosaic, "indexer.properties");
+        Properties prop = new Properties();
+        try (InputStream stream = new FileInputStream(indexer)) {
             prop.load(stream);
-
-            outStream = new FileOutputStream(indexer);
+        }
+        try (OutputStream outStream = new FileOutputStream(indexer)) {
             prop.setProperty(Prop.INDEXING_DIRECTORIES, data.getCanonicalPath());
             prop.store(outStream, null);
-        } finally {
-            if (stream != null) {
-                stream.close();
-            }
-            if (outStream != null) {
-                outStream.close();
-            }
         }
 
         // ok, let's create the mosaic and check it harvested the data in the "data" directory
@@ -3922,7 +3786,7 @@ public class ImageMosaicReaderTest {
         // limit yourself to reading just a bit of it
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final Dimension dim = new Dimension();
         dim.setSize(
                 reader.getOriginalGridRange().getSpan(0) / 2.0,
@@ -3955,20 +3819,10 @@ public class ImageMosaicReaderTest {
         for (ParameterDescriptor<List> param : params) {
             if (param.getName().getCode().equalsIgnoreCase("DAT")) {
                 dateValue = param.createValue();
-                dateValue.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedDate);
-                            }
-                        });
+                dateValue.setValue(List.of(selectedDate));
             } else if (param.getName().getCode().equalsIgnoreCase("DEPTH")) {
                 depthValue = param.createValue();
-                depthValue.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedWaveLength);
-                            }
-                        });
+                depthValue.setValue(List.of(selectedWaveLength));
             }
         }
         // Test the output coverage
@@ -4162,27 +4016,8 @@ public class ImageMosaicReaderTest {
         time.setValue(timeValues);
 
         GridCoverage2D coverage = reader.read(new GeneralParameterValue[] {time});
-        Object object = coverage.getProperty(Utils.PAM_DATASET);
-        assertNotNull(object);
-        assertTrue(object instanceof PAMDataset);
-        PAMDataset dataset = (PAMDataset) object;
-        PAMRasterBand band = dataset.getPAMRasterBand().get(0);
-
-        PAMParser parser = PAMParser.getInstance();
-        assertEquals(
-                0, Double.parseDouble(parser.getMetadataValue(band, "STATISTICS_MINIMUM")), DELTA);
-        assertEquals(
-                255.0,
-                Double.parseDouble(parser.getMetadataValue(band, "STATISTICS_MAXIMUM")),
-                DELTA);
-        assertEquals(
-                73.0352,
-                Double.parseDouble(parser.getMetadataValue(band, "STATISTICS_MEAN")),
-                DELTA);
-        assertEquals(
-                84.3132,
-                Double.parseDouble(parser.getMetadataValue(band, "STATISTICS_STDDEV")),
-                DELTA);
+        Object object = coverage.getProperty(GridCoverage2DReader.PAM_DATASET);
+        checkPAMDataset(object, 73.0352, 84.3132);
 
         reader.dispose();
     }
@@ -4200,7 +4035,32 @@ public class ImageMosaicReaderTest {
         assertNotNull(metadataNames);
 
         GridCoverage2D coverage = reader.read(null);
-        Object object = coverage.getProperty(Utils.PAM_DATASET);
+        Object object = coverage.getProperty(GridCoverage2DReader.PAM_DATASET);
+        checkPAMDataset(object, 72.6912, 83.2542);
+
+        reader.dispose();
+    }
+
+    @Test
+    public void testPAMInternalMerged() throws Exception {
+        final URL timePamURL = TestData.url(this, "pam-internal");
+
+        final AbstractGridFormat format = TestUtils.getFormat(timePamURL);
+        assertNotNull(format);
+        ImageMosaicReader reader = getReader(timePamURL, format);
+        assertNotNull(format);
+
+        final String[] metadataNames = reader.getMetadataNames();
+        assertNotNull(metadataNames);
+
+        GridCoverage2D coverage = reader.read(null);
+        Object object = coverage.getProperty(GridCoverage2DReader.PAM_DATASET);
+        checkPAMDataset(object, 72.6912, 83.2542);
+
+        reader.dispose();
+    }
+
+    private static void checkPAMDataset(Object object, double mean, double stddev) {
         assertNotNull(object);
         assertTrue(object instanceof PAMDataset);
         PAMDataset dataset = (PAMDataset) object;
@@ -4214,15 +4074,11 @@ public class ImageMosaicReaderTest {
                 Double.parseDouble(parser.getMetadataValue(band, "STATISTICS_MAXIMUM")),
                 DELTA);
         assertEquals(
-                72.6912,
-                Double.parseDouble(parser.getMetadataValue(band, "STATISTICS_MEAN")),
-                DELTA);
+                mean, Double.parseDouble(parser.getMetadataValue(band, "STATISTICS_MEAN")), DELTA);
         assertEquals(
-                83.2542,
+                stddev,
                 Double.parseDouble(parser.getMetadataValue(band, "STATISTICS_STDDEV")),
                 DELTA);
-
-        reader.dispose();
     }
 
     @Test
@@ -4287,8 +4143,6 @@ public class ImageMosaicReaderTest {
 
     /**
      * Tests {@link ImageMosaicReader} asking to crop the lower left quarter of the input coverage.
-     *
-     * @param title to use when showing image.
      */
     @Test
     public void testExpandToRGB() throws Exception {
@@ -4435,7 +4289,7 @@ public class ImageMosaicReaderTest {
         ImageMosaicReader reader = getReader(testURL, format);
 
         // create the same BBOX with strange CRS
-        final GeneralEnvelope targetBBOX = new GeneralEnvelope(reader.getOriginalEnvelope());
+        final GeneralBounds targetBBOX = new GeneralBounds(reader.getOriginalEnvelope());
         targetBBOX.setCoordinateReferenceSystem(CRS.parseWKT(strangeWGS84));
 
         // create the GridGeometry
@@ -4472,7 +4326,7 @@ public class ImageMosaicReaderTest {
         // limit yourself to reading just a bit of it
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final Dimension dim = new Dimension();
         dim.setSize(
                 reader.getOriginalGridRange().getSpan(0) / 2.0,
@@ -4491,7 +4345,7 @@ public class ImageMosaicReaderTest {
         tileSize.setValue("128,128");
 
         // Test the output coverage
-        GeneralParameterValue[] values = new GeneralParameterValue[] {gg, useJai, tileSize};
+        GeneralParameterValue[] values = {gg, useJai, tileSize};
         final GridCoverage2D coverage =
                 TestUtils.checkCoverage(reader, values, "external overviews test");
 
@@ -4501,7 +4355,7 @@ public class ImageMosaicReaderTest {
         assertNotNull(fileLocation);
         assertTrue(fileLocation instanceof String);
         String path = (String) fileLocation;
-        assertTrue(!path.isEmpty());
+        assertFalse(path.isEmpty());
         assertTrue(path.endsWith(".ovr"));
         reader.dispose();
     }
@@ -4694,14 +4548,48 @@ public class ImageMosaicReaderTest {
         reader.dispose();
     }
 
+    @Test
+    public void testHeterogeneousConfigs() throws Exception {
+        // we have 2 coverages in this mosaic:
+        // - a gray coverage with homogeneous granules
+        // - a RGB coverage with heterogeneous granules
+
+        File mosaicFolder = URLs.urlToFile(coverageBands2URL);
+        for (File configFile :
+                mosaicFolder.listFiles(
+                        (FileFilter)
+                                FileFilterUtils.or(
+                                        FileFilterUtils.suffixFileFilter("db"),
+                                        FileFilterUtils.suffixFileFilter(Utils.SAMPLE_IMAGE_NAME),
+                                        FileFilterUtils.and(
+                                                FileFilterUtils.suffixFileFilter(".properties"),
+                                                FileFilterUtils.notFileFilter(
+                                                        FileFilterUtils.or(
+                                                                FileFilterUtils.nameFileFilter(
+                                                                        "indexer.properties"),
+                                                                FileFilterUtils.nameFileFilter(
+                                                                        "datastore.properties"))))))) {
+            configFile.delete();
+        }
+        // Before GEOT-6958 fix, this read would have thrown a
+        // java.lang.NullPointerException: Argument "overviewsController" should not be null.
+        // due to the reader assuming to deal with an homogeneous mosaic whilst it's actually
+        // heterogeneous
+
+        AbstractGridFormat format = TestUtils.getFormat(coverageBands2URL);
+        ImageMosaicReader reader = getReader(coverageBands2URL, format);
+        reader.read("rgb", null);
+        reader.dispose();
+    }
+
     private void testMultiCoverages(ImageMosaicReader reader) throws IOException {
         String[] coverageNames = reader.getGridCoverageNames();
         Arrays.sort(coverageNames);
         assertNotNull(coverageNames);
         int coverageCount = coverageNames.length;
         assertEquals(2, coverageCount);
-        String[] expectedNames = new String[] {"gray", "rgb"};
-        int[] expectedTypes = new int[] {ColorSpace.TYPE_GRAY, ColorSpace.TYPE_RGB};
+        String[] expectedNames = {"gray", "rgb"};
+        int[] expectedTypes = {ColorSpace.TYPE_GRAY, ColorSpace.TYPE_RGB};
         for (int i = 0; i < coverageCount; i++) {
             String coverageName = coverageNames[i];
             assertEquals(expectedNames[i], coverageName);
@@ -4725,8 +4613,9 @@ public class ImageMosaicReaderTest {
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
         MathTransform mt = reader.getOriginalGridToWorld(PixelInCell.CELL_CORNER);
-        GeneralEnvelope ge = CRS.transform(mt.inverse(), box);
-        GridEnvelope2D range = new GridEnvelope2D(new Envelope2D(ge), PixelInCell.CELL_CENTER);
+        GeneralBounds ge = CRS.transform(mt.inverse(), box);
+        GridEnvelope2D range =
+                new GridEnvelope2D(new ReferencedEnvelope(ge), PixelInCell.CELL_CENTER);
         gg.setValue(new GridGeometry2D(range, mt, box.getCoordinateReferenceSystem()));
 
         GridCoverage2D coverage = reader.read(new GeneralParameterValue[] {gg});
@@ -4778,7 +4667,7 @@ public class ImageMosaicReaderTest {
         // reading the mosaic with its own envelope (should be empty, so the request will be emtpy)
         // this should return an empty coverage
         ParameterValue<GridGeometry2D> gg = AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        GeneralBounds envelope = reader.getOriginalEnvelope();
         Rectangle rasterArea = ((GridEnvelope2D) reader.getOriginalGridRange());
         GridEnvelope2D range = new GridEnvelope2D(rasterArea);
         gg.setValue(new GridGeometry2D(range, envelope));
@@ -4798,9 +4687,9 @@ public class ImageMosaicReaderTest {
         final ParameterValue<double[]> bkg = ImageMosaicFormat.BACKGROUND_VALUES.createValue();
         bkg.setValue(new double[] {-9999.0});
         gg = AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        Envelope2D env = new Envelope2D(reader.getCoordinateReferenceSystem(), 0, 0, 1000, 1000);
-        GridGeometry2D gg2D =
-                new GridGeometry2D(new GridEnvelope2D(0, 0, 100, 100), (Envelope) env);
+        ReferencedEnvelope env =
+                ReferencedEnvelope.rect(0, 0, 1000, 1000, reader.getCoordinateReferenceSystem());
+        GridGeometry2D gg2D = new GridGeometry2D(new GridEnvelope2D(0, 0, 100, 100), (Bounds) env);
         gg.setValue(gg2D);
         coverage = reader.read(new GeneralParameterValue[] {bkg, gg, useJai, tileSize});
         assertNull(coverage);
@@ -4881,7 +4770,7 @@ public class ImageMosaicReaderTest {
         // reading the mosaic with its own envelope (should be empty, so the request will be emtpy)
         // this should return an empty coverage
         ParameterValue<GridGeometry2D> gg = AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        GeneralBounds envelope = reader.getOriginalEnvelope();
         Rectangle rasterArea = ((GridEnvelope2D) reader.getOriginalGridRange());
         GridEnvelope2D range = new GridEnvelope2D(rasterArea);
         gg.setValue(new GridGeometry2D(range, envelope));
@@ -4901,9 +4790,9 @@ public class ImageMosaicReaderTest {
         final ParameterValue<double[]> bkg = ImageMosaicFormat.BACKGROUND_VALUES.createValue();
         bkg.setValue(new double[] {-9999.0});
         gg = AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        Envelope2D env = new Envelope2D(reader.getCoordinateReferenceSystem(), 0, 0, 1000, 1000);
-        GridGeometry2D gg2D =
-                new GridGeometry2D(new GridEnvelope2D(0, 0, 100, 100), (Envelope) env);
+        ReferencedEnvelope env =
+                ReferencedEnvelope.rect(0, 0, 1000, 1000, reader.getCoordinateReferenceSystem());
+        GridGeometry2D gg2D = new GridGeometry2D(new GridEnvelope2D(0, 0, 100, 100), (Bounds) env);
         gg.setValue(gg2D);
         coverage = reader.read(new GeneralParameterValue[] {bkg, gg, useJai, tileSize});
         assertNull(coverage);
@@ -4924,11 +4813,11 @@ public class ImageMosaicReaderTest {
         SimpleFeature first = DataUtilities.first(granules.getGranules(Query.ALL));
         // poison it
         first.setAttribute("location", "global_mosaic_11-invalid.png");
-        Transaction t = new DefaultTransaction();
-        granules.setTransaction(t);
-        granules.addGranules(DataUtilities.collection(first));
-        t.commit();
-        t.close();
+        try (Transaction t = new DefaultTransaction()) {
+            granules.setTransaction(t);
+            granules.addGranules(DataUtilities.collection(first));
+            t.commit();
+        }
 
         // Test the output coverage
         TestUtils.checkCoverage(reader, new GeneralParameterValue[0], "Ignore invalid granule");
@@ -4986,38 +4875,38 @@ public class ImageMosaicReaderTest {
         ResourceInfo info = reader.getInfo(reader.getGridCoverageNames()[0]);
         assertTrue(info instanceof FileResourceInfo);
         FileResourceInfo fileInfo = (FileResourceInfo) info;
-        CloseableIterator<FileGroup> files = fileInfo.getFiles(null);
-        List<FileGroup> fileGroups = new ArrayList<>();
-        Set<File> mainFiles = new HashSet<>();
-        Set<File> supportFiles = new HashSet<>();
-        while (files.hasNext()) {
-            FileGroup group = files.next();
-            fileGroups.add(group);
-            mainFiles.add(group.getMainFile());
-            supportFiles.addAll(group.getSupportFiles());
+        try (CloseableIterator<FileGroup> files = fileInfo.getFiles(null)) {
+            List<FileGroup> fileGroups = new ArrayList<>();
+            Set<File> mainFiles = new HashSet<>();
+            Set<File> supportFiles = new HashSet<>();
+            while (files.hasNext()) {
+                FileGroup group = files.next();
+                fileGroups.add(group);
+                mainFiles.add(group.getMainFile());
+                supportFiles.addAll(group.getSupportFiles());
+            }
+            assertEquals(3, fileGroups.size());
+            assertEquals(3, mainFiles.size());
+            assertEquals(6, supportFiles.size());
+            File dir = URLs.urlToFile(indexURL);
+            String[] mainFilesPaths = dir.list(FileFilterUtils.suffixFileFilter(".gif"));
+            String[] supportFilesPaths =
+                    dir.list(
+                            FileFilterUtils.and(
+                                    FileFilterUtils.or(
+                                            FileFilterUtils.suffixFileFilter(".prj"),
+                                            FileFilterUtils.suffixFileFilter(".wld")),
+                                    FileFilterUtils.notFileFilter(
+                                            FileFilterUtils.prefixFileFilter("index"))));
+            for (String filePath : mainFilesPaths) {
+                final File myFile = new File(dir, filePath);
+                assertTrue(mainFiles.contains(myFile));
+            }
+            for (String filePath : supportFilesPaths) {
+                final File myFile = new File(dir, filePath);
+                assertTrue(supportFiles.contains(myFile));
+            }
         }
-        assertEquals(3, fileGroups.size());
-        assertEquals(3, mainFiles.size());
-        assertEquals(6, supportFiles.size());
-        File dir = URLs.urlToFile(indexURL);
-        String[] mainFilesPaths = dir.list(FileFilterUtils.suffixFileFilter(".gif"));
-        String[] supportFilesPaths =
-                dir.list(
-                        FileFilterUtils.and(
-                                FileFilterUtils.or(
-                                        FileFilterUtils.suffixFileFilter(".prj"),
-                                        FileFilterUtils.suffixFileFilter(".wld")),
-                                FileFilterUtils.notFileFilter(
-                                        FileFilterUtils.prefixFileFilter("index"))));
-        for (String filePath : mainFilesPaths) {
-            final File myFile = new File(dir, filePath);
-            assertTrue(mainFiles.contains(myFile));
-        }
-        for (String filePath : supportFilesPaths) {
-            final File myFile = new File(dir, filePath);
-            assertTrue(supportFiles.contains(myFile));
-        }
-
         reader.dispose();
     }
 
@@ -5030,36 +4919,36 @@ public class ImageMosaicReaderTest {
         ResourceInfo info = reader.getInfo(reader.getGridCoverageNames()[0]);
         assertTrue(info instanceof FileResourceInfo);
         FileResourceInfo fileInfo = (FileResourceInfo) info;
-        CloseableIterator<FileGroup> files = fileInfo.getFiles(null);
-        List<FileGroup> fileGroups = new ArrayList<>();
-        Set<File> mainFiles = new HashSet<>();
-        Set<File> supportFiles = new HashSet<>();
-        while (files.hasNext()) {
-            FileGroup group = files.next();
-            fileGroups.add(group);
-            mainFiles.add(group.getMainFile());
-            supportFiles.addAll(group.getSupportFiles());
+        try (CloseableIterator<FileGroup> files = fileInfo.getFiles(null)) {
+            List<FileGroup> fileGroups = new ArrayList<>();
+            Set<File> mainFiles = new HashSet<>();
+            Set<File> supportFiles = new HashSet<>();
+            while (files.hasNext()) {
+                FileGroup group = files.next();
+                fileGroups.add(group);
+                mainFiles.add(group.getMainFile());
+                supportFiles.addAll(group.getSupportFiles());
+            }
+            assertEquals(2, fileGroups.size());
+            assertEquals(2, mainFiles.size());
+            assertEquals(2, supportFiles.size());
+            File dir = URLs.urlToFile(overviewURL);
+            String[] mainFilesPaths = dir.list(FileFilterUtils.suffixFileFilter(".tif"));
+            String[] supportFilesPaths =
+                    dir.list(
+                            FileFilterUtils.and(
+                                    FileFilterUtils.or(FileFilterUtils.suffixFileFilter(".ovr")),
+                                    FileFilterUtils.notFileFilter(
+                                            FileFilterUtils.prefixFileFilter("index"))));
+            for (String filePath : mainFilesPaths) {
+                final File myFile = new File(dir, filePath);
+                assertTrue(mainFiles.contains(myFile));
+            }
+            for (String filePath : supportFilesPaths) {
+                final File myFile = new File(dir, filePath);
+                assertTrue(supportFiles.contains(myFile));
+            }
         }
-        assertEquals(2, fileGroups.size());
-        assertEquals(2, mainFiles.size());
-        assertEquals(2, supportFiles.size());
-        File dir = URLs.urlToFile(overviewURL);
-        String[] mainFilesPaths = dir.list(FileFilterUtils.suffixFileFilter(".tif"));
-        String[] supportFilesPaths =
-                dir.list(
-                        FileFilterUtils.and(
-                                FileFilterUtils.or(FileFilterUtils.suffixFileFilter(".ovr")),
-                                FileFilterUtils.notFileFilter(
-                                        FileFilterUtils.prefixFileFilter("index"))));
-        for (String filePath : mainFilesPaths) {
-            final File myFile = new File(dir, filePath);
-            assertTrue(mainFiles.contains(myFile));
-        }
-        for (String filePath : supportFilesPaths) {
-            final File myFile = new File(dir, filePath);
-            assertTrue(supportFiles.contains(myFile));
-        }
-
         reader.dispose();
     }
 
@@ -5098,8 +4987,8 @@ public class ImageMosaicReaderTest {
         GridCoverage2D expected = granuleReader.read(null);
 
         // check footprint is the same
-        final Envelope expectedEnvelope = expected.getEnvelope();
-        final Envelope actualEnvelope = coverage.getEnvelope();
+        final Bounds expectedEnvelope = expected.getEnvelope();
+        final Bounds actualEnvelope = coverage.getEnvelope();
         final double EPS = 1e-6;
         assertEquals(expectedEnvelope.getMinimum(0), actualEnvelope.getMinimum(0), EPS);
         assertEquals(expectedEnvelope.getMinimum(1), actualEnvelope.getMinimum(1), EPS);
@@ -5469,12 +5358,12 @@ public class ImageMosaicReaderTest {
     @Ignore(
             "Does not work due to limitations in ContentDataStore transaction handling, not even with rw locking")
     public void testConcurrentHarvestAndRemoveShapefile() throws Exception {
-        testConcurrentHarvestAndRemove(f -> {}, 20);
+        checkConcurrentHarvestAndRemove(f -> {}, 20);
     }
 
     @Test
     public void testConcurrentHarvestAndRemoveH2() throws Exception {
-        testConcurrentHarvestAndRemove(
+        checkConcurrentHarvestAndRemove(
                 f -> {
                     // place H2 file in the dir
                     try (FileWriter out = new FileWriter(new File(f, "datastore.properties"))) {
@@ -5488,7 +5377,7 @@ public class ImageMosaicReaderTest {
                 10);
     }
 
-    public void testConcurrentHarvestAndRemove(Consumer<File> mosaicCustomizer, int loops)
+    public void checkConcurrentHarvestAndRemove(Consumer<File> mosaicCustomizer, int loops)
             throws Exception {
         File source = URLs.urlToFile(rgbURL);
         File testDataDir = TestData.file(this, ".");
@@ -5587,7 +5476,7 @@ public class ImageMosaicReaderTest {
                     failed = true;
                 }
             }
-            assertFalse("Terminating test due to previus failures", failed);
+            assertFalse("Terminating test due to previous failures", failed);
 
             // check that all the files are there
             assertEquals(
@@ -5728,11 +5617,9 @@ public class ImageMosaicReaderTest {
             assertThat(
                     groupFirst.getMainFile().getPath().toLowerCase(),
                     endsWith("global_mosaic_0.png"));
-            System.out.println(groupFirst.getSupportFiles());
+            // System.out.println(groupFirst.getSupportFiles());
             assertThat(
-                    groupFirst
-                            .getSupportFiles()
-                            .stream()
+                    groupFirst.getSupportFiles().stream()
                             .map(f -> f.getName())
                             .collect(Collectors.toList()),
                     Matchers.containsInAnyOrder(
@@ -5746,9 +5633,7 @@ public class ImageMosaicReaderTest {
                     groupLast.getMainFile().getPath().toLowerCase(),
                     endsWith("global_mosaic_9.png"));
             assertThat(
-                    groupLast
-                            .getSupportFiles()
-                            .stream()
+                    groupLast.getSupportFiles().stream()
                             .map(f -> f.getName())
                             .collect(Collectors.toList()),
                     Matchers.containsInAnyOrder(
@@ -5812,11 +5697,12 @@ public class ImageMosaicReaderTest {
         File workDir = new File(TestData.file(this, "."), "testWrong");
         if (!workDir.mkdir()) {
             FileUtils.deleteDirectory(workDir);
-            workDir = new File(workDir, "rgba");
-            if (!workDir.mkdir()) {
-                FileUtils.deleteDirectory(workDir);
-            }
-            assertTrue("Unable to create workdir:" + workDir, workDir.mkdir());
+            assertTrue("Unable to create workdir:" + workDir, workDir.mkdirs());
+        }
+        workDir = new File(workDir, "rgba");
+        if (!workDir.mkdir()) {
+            FileUtils.deleteDirectory(workDir);
+            assertTrue("Unable to create workdir:" + workDir, workDir.mkdirs());
         }
         final File source = TestData.file(this, "rgba");
         FileUtils.copyDirectory(source, workDir);
@@ -5833,5 +5719,365 @@ public class ImageMosaicReaderTest {
         GridCoverage2D gc = reader.read(null);
         Assert.assertNotNull(gc);
         reader.dispose();
+    }
+
+    @Test
+    public void testConcurrentMosaic() throws Exception {
+        // instantiate image mosaic reader
+        AbstractGridFormat format = TestUtils.getFormat(rgbURL);
+        compareSequentialParallel(rgbURL, format);
+    }
+
+    @Test
+    public void testConcurrentMosaicDanglingReference() throws Exception {
+        // prepare a copy of RGB
+        File containerDir = new File("./target", "testConcurrentDangling");
+        containerDir.mkdir();
+        assertTrue(containerDir.isDirectory());
+        File workDir = new File(containerDir, "rgb");
+        if (workDir.isDirectory()) {
+            FileUtils.deleteQuietly(workDir);
+        }
+        workDir.mkdir();
+        assertTrue(workDir.isDirectory());
+
+        final File source = TestData.file(this, "rgb");
+        FileUtils.copyDirectory(source, workDir);
+
+        // instantiate image mosaic reader, let it create the shapefile
+        ImageMosaicFormat format = new ImageMosaicFormat();
+        format.getReader(workDir).dispose();
+
+        // alter the mosaic, send some locations to non-existing places
+        File shp = new File(workDir, "rgb.shp");
+        ShapefileDataStore shpStore = new ShapefileDataStore(fileToUrl(shp));
+        SimpleFeatureStore shpFeatures = (SimpleFeatureStore) shpStore.getFeatureSource();
+        Filter f2f = FF.equal(FF.property("location"), FF.literal("global_mosaic_2.png"), true);
+        Filter f9f = FF.equal(FF.property("location"), FF.literal("global_mosaic_9.png"), true);
+        shpFeatures.modifyFeatures("location", "rgb_not_there.png", FF.or(f2f, f9f));
+        shpStore.dispose();
+
+        compareSequentialParallel(workDir, format);
+    }
+
+    private void compareSequentialParallel(Object source, AbstractGridFormat format)
+            throws IOException {
+        ExecutorService es =
+                Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        ImageMosaicReader mtReader = null, reader = null;
+        try {
+            // sequential read
+            reader = (ImageMosaicReader) format.getReader(source);
+            GridCoverage2D coverage = TestUtils.checkCoverage(reader, null, null);
+
+            // mt read
+            Hints hints = new Hints(Hints.EXECUTOR_SERVICE, es);
+            mtReader = (ImageMosaicReader) format.getReader(source, hints);
+            ParameterValue<Boolean> mtParam = ImageMosaicFormat.ALLOW_MULTITHREADING.createValue();
+            mtParam.setValue(true);
+            ParameterValue<Boolean> ioParam = ImageMosaicFormat.USE_JAI_IMAGEREAD.createValue();
+            ioParam.setValue(false);
+            GeneralParameterValue[] params = {mtParam, ioParam};
+            GridCoverage2D mtCoverage = TestUtils.checkCoverage(mtReader, params, null);
+
+            assertEquals(coverage.getEnvelope2D(), mtCoverage.getEnvelope2D());
+            ImageAssert.assertEquals(coverage.getRenderedImage(), mtCoverage.getRenderedImage(), 0);
+        } finally {
+            if (reader != null) reader.dispose();
+            if (mtReader != null) mtReader.dispose();
+        }
+    }
+
+    @Test
+    public void testSkipOverviews() throws IOException {
+        // copy over the RGB mosaic
+        String workDirName = "skipOverviews";
+        File workDir = new File(TestData.file(this, "."), workDirName);
+        if (!workDir.mkdir()) {
+            FileUtils.deleteDirectory(workDir);
+            if (!workDir.mkdir()) {
+                fail("Unable to create workdir:" + workDir);
+            }
+        }
+        final File source = TestData.file(this, "rgba");
+        FileUtils.copyDirectory(source, workDir);
+        // clean up config files created by other tests
+        for (File file : workDir.listFiles(f -> f.getName().startsWith("rgba."))) {
+            file.delete();
+        }
+
+        // add an indexer telling the mosaic to skip overviews
+        try (FileWriter out = new FileWriter(new File(workDir, "indexer.properties"), true)) {
+            out.write(Prop.SKIP_EXTERNAL_OVERVIEWS + "=true");
+            out.flush();
+        }
+        ImageMosaicFormat format = new ImageMosaicFormat();
+        ImageMosaicReader reader = format.getReader(workDir);
+        try {
+            // check the property was transferred to the main mosaic config
+            try (FileReader fr = new FileReader(new File(workDir, workDirName + ".properties"))) {
+                Properties p = new Properties();
+                p.load(fr);
+                assertEquals("true", p.getProperty(Prop.SKIP_EXTERNAL_OVERVIEWS));
+            }
+
+            // check the catalog is actually skipping overviews
+            RasterManager manager = reader.rasterManagers.get(workDirName);
+            manager.granuleCatalog.getGranuleDescriptors(
+                    new Query(workDirName),
+                    (granule, feature) ->
+                            assertTrue(granule.getMaskOverviewProvider().isSkipExternalLookup()));
+        } finally {
+            if (reader != null) reader.dispose();
+        }
+
+        // check again, from a reader initialized from the property file rather than by indexing
+        ImageMosaicReader reader2 = format.getReader(workDir);
+        try {
+            // check the catalog is actually skipping overviews
+            RasterManager manager = reader2.rasterManagers.get(workDirName);
+            manager.granuleCatalog.getGranuleDescriptors(
+                    new Query(workDirName),
+                    (granule, feature) ->
+                            assertTrue(granule.getMaskOverviewProvider().isSkipExternalLookup()));
+        } finally {
+            if (reader2 != null) reader2.dispose();
+        }
+    }
+
+    @Test
+    public void testMultilocation() throws Exception {
+        // copy the data and get the reader
+        File directory =
+                setupTestDirectory(
+                        this, TestData.url(this, "coverage_multilocation"), "multilocation");
+        Properties prop = new Properties();
+        prop.put("url", URLs.fileToUrl(new File(directory, "multilocation.shp")).toExternalForm());
+        prop.put("SPI", ShapefileDataStoreFactory.class.getName());
+        try (FileOutputStream fos =
+                new FileOutputStream(new File(directory, "datastore.properties"))) {
+            prop.store(fos, null);
+        }
+
+        // the reader has two coverages
+        ImageMosaicReader reader = getReader(directory);
+        assertThat(
+                Arrays.asList(reader.getGridCoverageNames()), CoreMatchers.hasItems("rgb", "gray"));
+
+        // rgb comes from the rgb_sample file
+        GridCoverage2D rgb = reader.read("rgb", null);
+        assertThat(
+                (String) rgb.getProperty(AbstractGridCoverage2DReader.FILE_SOURCE_PROPERTY),
+                CoreMatchers.endsWith("rgb_sample.tif"));
+        rgb.dispose(true);
+
+        GridCoverage2D gray = reader.read("gray", null);
+        assertThat(
+                (String) gray.getProperty(AbstractGridCoverage2DReader.FILE_SOURCE_PROPERTY),
+                CoreMatchers.endsWith("gray_sample.tif"));
+        gray.dispose(true);
+
+        reader.dispose();
+    }
+
+    /** Query caching should cause no differences, just testing the same images come out */
+    @Test
+    public void testMultiLocationCached() throws Exception {
+        // copy the data and get the reader
+        File directory =
+                setupTestDirectory(
+                        this, TestData.url(this, "coverage_multilocation"), "multilocation");
+        Properties prop = new Properties();
+        prop.put("url", URLs.fileToUrl(new File(directory, "multilocation.shp")).toExternalForm());
+        prop.put("SPI", ShapefileDataStoreFactory.class.getName());
+        try (FileOutputStream fos =
+                new FileOutputStream(new File(directory, "datastore.properties"))) {
+            prop.store(fos, null);
+        }
+
+        // immediate read, avoids need for disposing images and sticks them in memory
+        ParameterValue<Boolean> imageRead = ImageMosaicFormat.USE_JAI_IMAGEREAD.createValue();
+        imageRead.setValue(false);
+        GeneralParameterValue[] params = {imageRead};
+
+        // the reader has two coverages
+        ImageMosaicReader reader = getReader(directory);
+
+        // rgb comes from the rgb_sample file
+        GridCoverage2D rgb = reader.read("rgb", params);
+        RenderedImage rgbNonCached = rgb.getRenderedImage();
+
+        GridCoverage2D gray = reader.read("gray", params);
+        RenderedImage grayNonCached = gray.getRenderedImage();
+
+        reader.dispose();
+
+        // enable caching
+        prop.put(Prop.QUERY_CACHE_MAX_FEATURES, "10000");
+        prop.put(Prop.QUERY_CACHE_MAX_AGE, "60000");
+        try (FileOutputStream fos =
+                new FileOutputStream(new File(directory, "datastore.properties"))) {
+            prop.store(fos, null);
+        }
+
+        // get images again
+        reader = getReader(directory);
+        RenderedImage rgbCached = reader.read("rgb", params).getRenderedImage();
+        RenderedImage grayCached = reader.read("gray", params).getRenderedImage();
+
+        // drill into the catalog wrappers, verify that we are using a query caching one
+        GranuleCatalog catalog = reader.rasterManagers.get("rgb").getGranuleCatalog();
+        assertThat(catalog, CoreMatchers.instanceOf(LockingGranuleCatalog.class));
+        catalog = ((LockingGranuleCatalog) catalog).getAdaptee();
+        assertThat(catalog, CoreMatchers.instanceOf(CachingDataStoreGranuleCatalog.class));
+        assertThat(
+                ((CachingDataStoreGranuleCatalog) catalog).getAdaptee(),
+                CoreMatchers.instanceOf(QueryCacheGranuleCatalog.class));
+
+        reader.dispose();
+
+        ImageAssert.assertEquals(rgbNonCached, rgbCached, 0);
+        ImageAssert.assertEquals(grayNonCached, grayCached, 0);
+    }
+
+    @Test
+    public void testAlphaOverlap() throws Exception {
+        URL alphaOverlap = TestData.url(this, "alpha-overlap/");
+        final AbstractGridFormat format = TestUtils.getFormat(alphaOverlap);
+        File mosaicFile = URLs.urlToFile(alphaOverlap);
+        final ImageMosaicReader reader =
+                (ImageMosaicReader) format.getReader(mosaicFile.getAbsolutePath());
+        GridCoverage2D coverage = null;
+        try {
+            coverage = reader.read(null);
+            File sample =
+                    new File(
+                            "src/test/resources/org/geotools/gce/imagemosaic/test-data/rgba-overlap.png");
+            ImageAssert.assertEquals(sample, coverage.getRenderedImage(), 0);
+        } finally {
+            if (coverage != null) coverage.dispose(true);
+            reader.dispose();
+        }
+    }
+
+    @Test
+    public void testPropertySelection() throws Exception {
+        final File workDir = new File("./target", "water_temp_selection");
+        if (!workDir.mkdir()) {
+            FileUtils.deleteDirectory(workDir);
+            assertTrue("Unable to create workdir:" + workDir, workDir.mkdir());
+        }
+        File zipFile = new File(workDir, "watertemp.zip");
+        FileUtils.copyFile(TestData.file(this, "watertemp.zip"), zipFile);
+        TestData.unzip(zipFile, workDir);
+
+        // append the parameter to the indexer.properties
+        try (FileWriter out = new FileWriter(new File(workDir, "indexer.properties"), true)) {
+            out.write(Prop.PROPERTY_SELECTION + "=true");
+            out.flush();
+        }
+
+        // read everything, will populate the cache
+        ImageMosaicReader reader = getReader(workDir);
+        GridCoverage2D coverage = reader.read(null);
+        coverage.dispose(true);
+
+        String name = reader.getGridCoverageNames()[0];
+        RasterManager rm = reader.getRasterManager(name);
+        assertTrue(
+                rm.getConfiguration().getCatalogConfigurationBean().isPropertySelectionEnabled());
+        rm.getGranuleCatalog()
+                .getGranuleDescriptors(
+                        new Query(name),
+                        (granule, feature) -> {
+                            SimpleFeature originator = granule.getOriginator();
+                            // mandatory properties are there
+                            assertNotNull(originator.getProperty("the_geom"));
+                            assertNotNull(originator.getProperty("location"));
+                            // others have been skipped
+                            assertNull(originator.getProperty("elevation"));
+                            assertNull(originator.getProperty("ingestion"));
+                        });
+
+        // however going straight onto the granules provides full properties
+        GranuleSource granules = reader.getGranules(name, true);
+        granules.getGranules(Query.ALL)
+                .accepts(
+                        f -> {
+                            // all properties are there
+                            assertNotNull(f.getProperty("the_geom"));
+                            assertNotNull(f.getProperty("location"));
+                            assertNotNull(f.getProperty("elevation"));
+                            assertNotNull(f.getProperty("ingestion"));
+                        },
+                        null);
+
+        // clean up
+        reader.dispose();
+    }
+
+    @Test
+    public void testRecurseOff() throws Exception {
+        // create the base mosaic we are going to use
+        File mosaicSource = TestData.file(this, "rgb");
+        String mosaicName = "rgb-recurse-off";
+        File targetRgba = new File("target", mosaicName);
+        File subfolder = new File(targetRgba, "subfolder");
+        FileUtils.deleteQuietly(targetRgba);
+        FileUtils.copyDirectory(mosaicSource, targetRgba);
+        assertTrue(subfolder.mkdir());
+        // move most files to a subdirectory
+        Arrays.stream(
+                        targetRgba.listFiles(
+                                f ->
+                                        !f.getName().matches("global_mosaic_\\d\\..*")
+                                                && !f.isDirectory()))
+                .forEach(f -> f.renameTo(new File(subfolder, f.getName())));
+
+        // setup the indexer with the recurse off
+        Properties properties = new Properties();
+        properties.put(Prop.RECURSIVE, "false");
+        try (FileOutputStream fos =
+                new FileOutputStream(new File(targetRgba, "indexer.properties"))) {
+            properties.store(fos, null);
+        }
+
+        final ImageMosaicReader reader = getReader(fileToUrl(targetRgba));
+        // only the 10 files with a single digit left in the root folder have been
+        // indexed, the others in the subfolder have been ignored
+        assertEquals(10, reader.getGranules(mosaicName, true).getCount(Query.ALL));
+
+        reader.dispose();
+    }
+
+    @Test
+    public void testWhiteSlivers() throws Exception {
+        URL slivers = TestData.url(this, "sliver/");
+        final AbstractGridFormat format = TestUtils.getFormat(slivers);
+        File mosaicFile = URLs.urlToFile(slivers);
+        final ImageMosaicReader reader =
+                (ImageMosaicReader) format.getReader(mosaicFile.getAbsolutePath());
+        GridCoverage2D coverage = null;
+        try {
+            final ParameterValue<GridGeometry2D> gg =
+                    AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
+            final GeneralBounds envelope = reader.getOriginalEnvelope();
+            final Dimension dim = new Dimension();
+            GridEnvelope gridRange = reader.getOriginalGridRange();
+            dim.setSize(gridRange.getSpan(0) / 15.8, gridRange.getSpan(1) / 15.8);
+            final Rectangle rasterArea = ((GridEnvelope2D) gridRange);
+            rasterArea.setSize(dim);
+            final GridEnvelope2D range = new GridEnvelope2D(rasterArea);
+            gg.setValue(new GridGeometry2D(range, envelope));
+
+            coverage = reader.read(new GeneralParameterValue[] {gg});
+            File sample =
+                    new File(
+                            "src/test/resources/org/geotools/gce/imagemosaic/test-data/no-slivers.png");
+            ImageAssert.assertEquals(sample, coverage.getRenderedImage(), 0);
+        } finally {
+            if (coverage != null) coverage.dispose(true);
+            reader.dispose();
+        }
     }
 }

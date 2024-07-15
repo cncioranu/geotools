@@ -25,7 +25,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
-import org.geotools.data.FIDReader;
+import org.geotools.api.data.FIDReader;
 import org.geotools.data.shapefile.files.FileReader;
 import org.geotools.data.shapefile.files.ShpFiles;
 import org.geotools.data.shapefile.files.StreamLogging;
@@ -38,7 +38,7 @@ import org.geotools.util.URLs;
  *
  * @author Jesse
  */
-public class IndexedFidReader implements FIDReader, FileReader {
+public class IndexedFidReader implements FIDReader, FileReader, AutoCloseable {
     private static final Logger LOGGER =
             org.geotools.util.logging.Logging.getLogger(IndexedFidReader.class);
     private ReadableByteChannel readChannel;
@@ -65,9 +65,25 @@ public class IndexedFidReader implements FIDReader, FileReader {
     }
 
     private void init(ShpFiles shpFiles, ReadableByteChannel in) throws IOException {
+        this.readChannel = in;
+        boolean initialized = false;
+        try {
+            doInit(shpFiles);
+            initialized = true;
+        } finally {
+            if (!initialized) {
+                try {
+                    close();
+                } catch (IOException e) {
+                    // do nothing
+                }
+            }
+        }
+    }
+
+    private void doInit(ShpFiles shpFiles) throws IOException {
         this.typeName = shpFiles.getTypeName() + ".";
         this.fidBuilder = new StringBuilder(typeName);
-        this.readChannel = in;
         streamLogger.open();
         getHeader(shpFiles);
 
@@ -234,6 +250,8 @@ public class IndexedFidReader implements FIDReader, FileReader {
         }
     }
 
+    @Override
+    @SuppressWarnings("PMD.UseTryWithResources") // not instantiated here
     public void close() throws IOException {
         try {
             if (buffer != null) {
@@ -246,6 +264,7 @@ public class IndexedFidReader implements FIDReader, FileReader {
         }
     }
 
+    @Override
     @SuppressWarnings("PMD.CloseResource") // FileChannel managed as a field
     public boolean hasNext() throws IOException {
         if (done) {
@@ -267,6 +286,7 @@ public class IndexedFidReader implements FIDReader, FileReader {
         return buffer.remaining() != 0;
     }
 
+    @Override
     public String next() throws IOException {
         if (!hasNext()) {
             throw new NoSuchElementException(
@@ -306,6 +326,7 @@ public class IndexedFidReader implements FIDReader, FileReader {
         return currentId;
     }
 
+    @Override
     public String id() {
         return getClass().getName();
     }

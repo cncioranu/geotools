@@ -1,14 +1,17 @@
 package org.geotools.jdbc;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Arrays;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Not;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Query;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.Not;
+import org.junit.Test;
 
 public abstract class JDBCThreeValuedLogicOnlineTest extends JDBCTestSupport {
 
@@ -23,6 +26,7 @@ public abstract class JDBCThreeValuedLogicOnlineTest extends JDBCTestSupport {
     @Override
     protected abstract JDBCThreeValuedLogicTestSetup createTestSetup();
 
+    @Test
     public void testSimpleNegation() throws Exception {
         Not filter = ff.not(ff.equal(ff.property(aname(A)), ff.literal(10), false));
         ContentFeatureSource fs = dataStore.getFeatureSource(tname(ABC));
@@ -30,6 +34,7 @@ public abstract class JDBCThreeValuedLogicOnlineTest extends JDBCTestSupport {
         assertEquals(2, count);
     }
 
+    @Test
     public void testBetweenNegation() throws Exception {
         Not filter =
                 ff.not(
@@ -45,6 +50,7 @@ public abstract class JDBCThreeValuedLogicOnlineTest extends JDBCTestSupport {
         assertEquals("n_n_n", f.getAttribute(aname(NAME)));
     }
 
+    @Test
     public void testNegateOr() throws Exception {
         // not(a > 3 or b = 5 or c < 0)
         Filter fa = ff.greater(ff.property(aname(A)), ff.literal(3));
@@ -58,6 +64,7 @@ public abstract class JDBCThreeValuedLogicOnlineTest extends JDBCTestSupport {
         assertEquals(2, count);
     }
 
+    @Test
     public void test() throws Exception {
         Not filter =
                 ff.not(

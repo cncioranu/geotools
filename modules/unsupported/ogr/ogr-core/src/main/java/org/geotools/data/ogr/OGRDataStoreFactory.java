@@ -25,8 +25,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
 import org.geotools.util.logging.Logging;
 
 /**
@@ -35,7 +35,6 @@ import org.geotools.util.logging.Logging;
  * @author Andrea Aime, GeoSolution
  * @version $Id$
  */
-@SuppressWarnings("rawtypes")
 public abstract class OGRDataStoreFactory implements DataStoreFactorySpi {
 
     protected static Logger LOGGER = Logging.getLogger(OGRDataStoreFactory.class);
@@ -128,8 +127,8 @@ public abstract class OGRDataStoreFactory implements DataStoreFactorySpi {
 
     protected abstract OGR createOGR();
 
+    @Override
     public boolean canProcess(Map<String, ?> params) {
-        boolean accept = false;
         String ogrName = null;
         String ogrDriver = null;
         try {
@@ -143,24 +142,24 @@ public abstract class OGRDataStoreFactory implements DataStoreFactorySpi {
             // yes, I am eating this
         }
 
-        accept = canProcess(ogrName, ogrDriver);
+        boolean accept = canProcess(ogrName, ogrDriver);
         return accept;
     }
 
+    @Override
     public DataStore createDataStore(Map<String, ?> params) throws IOException {
         return createNewDataStore(params);
     }
 
     /** Not implemented yet. */
+    @Override
     public DataStore createNewDataStore(Map<String, ?> params) throws IOException {
-
-        DataStore ds;
 
         String ogrName = (String) OGR_NAME.lookUp(params);
         String ogrDriver = (String) OGR_DRIVER_NAME.lookUp(params);
         URI namespace = (URI) NAMESPACEP.lookUp(params);
         OGR ogr = createOGR();
-        ds =
+        DataStore ds =
                 new OGRDataStore(
                         ogrName,
                         ogrDriver,
@@ -171,6 +170,7 @@ public abstract class OGRDataStoreFactory implements DataStoreFactorySpi {
         return ds;
     }
 
+    @Override
     public String getDisplayName() {
         return "OGR";
     }
@@ -181,6 +181,7 @@ public abstract class OGRDataStoreFactory implements DataStoreFactorySpi {
      * @return String a human readable description of the type of restore supported by this
      *     datastore.
      */
+    @Override
     public String getDescription() {
         return "Uses OGR as a data source";
     }
@@ -193,6 +194,7 @@ public abstract class OGRDataStoreFactory implements DataStoreFactorySpi {
      * @task REVISIT: I'm just adding this method to compile, maintainer should revisit to check for
      *     any libraries that may be necessary for datastore creations.
      */
+    @Override
     public final boolean isAvailable() {
         return isAvailable(true);
     }
@@ -230,8 +232,9 @@ public abstract class OGRDataStoreFactory implements DataStoreFactorySpi {
     /**
      * Describe parameters.
      *
-     * @see org.geotools.data.DataStoreFactorySpi#getParametersInfo()
+     * @see DataStoreFactorySpi#getParametersInfo()
      */
+    @Override
     public Param[] getParametersInfo() {
         return new Param[] {
             OGR_NAME,
@@ -292,6 +295,7 @@ public abstract class OGRDataStoreFactory implements DataStoreFactorySpi {
         return result;
     }
 
+    @Override
     public Map<RenderingHints.Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }

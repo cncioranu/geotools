@@ -30,15 +30,15 @@ import net.opengis.ows11.LanguageStringType;
 import net.opengis.ows11.WGS84BoundingBoxType;
 import net.opengis.wfs20.FeatureTypeType;
 import net.opengis.wfs20.OutputFormatListType;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.data.wfs.internal.FeatureTypeInfo;
 import org.geotools.data.wfs.internal.Loggers;
 import org.geotools.data.wfs.internal.WFSConfig;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.TransformException;
 
 public class FeatureTypeInfoImpl implements FeatureTypeInfo {
 
@@ -60,7 +60,6 @@ public class FeatureTypeInfoImpl implements FeatureTypeInfo {
 
     @Override
     public Set<String> getKeywords() {
-        @SuppressWarnings("unchecked")
         List<KeywordsType> keywords = eType.getKeywords();
         Set<String> ret;
         if (keywords == null) {
@@ -116,13 +115,7 @@ public class FeatureTypeInfoImpl implements FeatureTypeInfo {
         ReferencedEnvelope nativeBounds;
         try {
             nativeBounds = wgs84Bounds.transform(crs, true);
-        } catch (TransformException e) {
-            Loggers.MODULE.log(
-                    Level.WARNING,
-                    "Can't transform bounds of " + getName() + " to " + getDefaultSRS(),
-                    e);
-            nativeBounds = new ReferencedEnvelope(crs);
-        } catch (FactoryException e) {
+        } catch (TransformException | FactoryException e) {
             Loggers.MODULE.log(
                     Level.WARNING,
                     "Can't transform bounds of " + getName() + " to " + getDefaultSRS(),
@@ -155,16 +148,18 @@ public class FeatureTypeInfoImpl implements FeatureTypeInfo {
     public ReferencedEnvelope getWGS84BoundingBox() {
 
         List<WGS84BoundingBoxType> bboxList = eType.getWGS84BoundingBox();
-        if (bboxList != null && bboxList.size() > 0) {
+        if (bboxList == null || bboxList.isEmpty()) {
+            return null;
+        } else {
             WGS84BoundingBoxType bboxType = bboxList.get(0);
             @SuppressWarnings("unchecked")
             List<Double> lowerCorner = bboxType.getLowerCorner();
             @SuppressWarnings("unchecked")
             List<Double> upperCorner = bboxType.getUpperCorner();
-            double minLon = (Double) lowerCorner.get(0);
-            double minLat = (Double) lowerCorner.get(1);
-            double maxLon = (Double) upperCorner.get(0);
-            double maxLat = (Double) upperCorner.get(1);
+            double minLon = lowerCorner.get(0);
+            double minLat = lowerCorner.get(1);
+            double maxLon = upperCorner.get(0);
+            double maxLat = upperCorner.get(1);
 
             ReferencedEnvelope latLonBounds =
                     new ReferencedEnvelope(
@@ -172,7 +167,6 @@ public class FeatureTypeInfoImpl implements FeatureTypeInfo {
 
             return latLonBounds;
         }
-        return null;
     }
 
     @Override

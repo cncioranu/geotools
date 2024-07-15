@@ -25,13 +25,10 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -46,11 +43,26 @@ import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.geotools.api.data.DataAccess;
+import org.geotools.api.data.DataAccessFinder;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.GeometryAttribute;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.appschema.filter.FilterFactoryImplReportInvalidProperty;
-import org.geotools.data.DataAccess;
-import org.geotools.data.DataAccessFinder;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.FeatureSource;
 import org.geotools.data.complex.AppSchemaDataAccessRegistry;
 import org.geotools.data.complex.AttributeMapping;
 import org.geotools.data.complex.FeatureTypeMapping;
@@ -68,7 +80,6 @@ import org.geotools.data.complex.util.XPathUtil.Step;
 import org.geotools.data.complex.util.XPathUtil.StepList;
 import org.geotools.data.complex.xml.XmlFeatureSource;
 import org.geotools.data.joining.JoiningNestedAttributeMapping;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.type.AttributeDescriptorImpl;
 import org.geotools.feature.type.FeatureTypeFactoryImpl;
@@ -77,27 +88,16 @@ import org.geotools.filter.expression.PropertyAccessor;
 import org.geotools.filter.expression.PropertyAccessorFactory;
 import org.geotools.filter.text.cql2.CQL;
 import org.geotools.filter.text.cql2.CQLException;
+import org.geotools.filter.visitor.DuplicatingFilterVisitor;
 import org.geotools.jdbc.JDBCFeatureSource;
 import org.geotools.jdbc.JDBCFeatureStore;
+import org.geotools.jdbc.JoinPropertyName;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
 import org.geotools.xml.resolver.SchemaCache;
 import org.geotools.xml.resolver.SchemaCatalog;
 import org.geotools.xml.resolver.SchemaResolver;
 import org.geotools.xsd.SchemaIndex;
-import org.opengis.feature.Feature;
-import org.opengis.feature.GeometryAttribute;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -120,6 +120,9 @@ public class AppSchemaDataAccessConfigurator {
     public static String PROPERTY_ENCODE_NESTED_FILTERS = "app-schema.encodeNestedFilters";
 
     public static final String PROPERTY_REPLACE_OR_UNION = "app-schema.orUnionReplace";
+
+    /** Whether the mapping is for an include. */
+    private boolean isInclude = false;
 
     private AppSchemaDataAccessDTO config;
 
@@ -172,17 +175,18 @@ public class AppSchemaDataAccessConfigurator {
 
     /** Creates a new ComplexDataStoreConfigurator object. */
     private AppSchemaDataAccessConfigurator(
-            AppSchemaDataAccessDTO config, DataAccessMap dataStoreMap) {
+            AppSchemaDataAccessDTO config, DataAccessMap dataStoreMap, boolean isInclude) {
         this.config = config;
         this.dataStoreMap = dataStoreMap;
+        this.isInclude = isInclude;
         namespaces = new NamespaceSupport();
         declareNamespaces(config);
     }
 
     private void declareNamespaces(AppSchemaDataAccessDTO config) {
         Map nsMap = config.getNamespaces();
-        for (Iterator it = nsMap.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry entry = (Entry) it.next();
+        for (Object o : nsMap.entrySet()) {
+            Entry entry = (Entry) o;
             String prefix = (String) entry.getKey();
             String namespace = (String) entry.getValue();
             namespaces.declarePrefix(prefix, namespace);
@@ -204,8 +208,8 @@ public class AppSchemaDataAccessConfigurator {
             if (evaluatedURLs.contains(url.toExternalForm())) return;
             else evaluatedURLs.add(url.toExternalForm());
             AppSchemaDataAccessDTO config = configReader.parse(url);
-            for (Iterator it = config.getNamespaces().entrySet().iterator(); it.hasNext(); ) {
-                Map.Entry entry = (Entry) it.next();
+            for (Entry<String, String> stringStringEntry : config.getNamespaces().entrySet()) {
+                Entry entry = (Entry) stringStringEntry;
                 String prefix = (String) entry.getKey();
                 String namespace = (String) entry.getValue();
                 if (namespaces.getURI(prefix) == null) namespaces.declarePrefix(prefix, namespace);
@@ -233,9 +237,22 @@ public class AppSchemaDataAccessConfigurator {
      *     FeatureType mapping definitions
      * @throws IOException if any error occurs while creating the mappings
      */
+    public static Set<FeatureTypeMapping> buildMappings(
+            AppSchemaDataAccessDTO config, boolean isInclude) throws IOException {
+        return buildMappings(config, new DataAccessMap(), isInclude);
+    }
+
+    /**
+     * Takes a config object and creates a set of mappings, assumes the mappings are not from
+     * includes
+     *
+     * @param config the configuration object
+     * @return a Set of {@link org.geotools.data.complex.FeatureTypeMapping} source to target
+     * @throws IOException if any error occurs while creating the mappings
+     */
     public static Set<FeatureTypeMapping> buildMappings(AppSchemaDataAccessDTO config)
             throws IOException {
-        return buildMappings(config, new DataAccessMap());
+        return buildMappings(config, new DataAccessMap(), false);
     }
 
     /**
@@ -245,12 +262,14 @@ public class AppSchemaDataAccessConfigurator {
      * @see AppSchemaDataAccessConfigurator#buildMappings(AppSchemaDataAccessDTO)
      * @param sourceDataStoreMap map holding the source data stores created so far, e.g. while
      *     parsing App-Schema configuration files included by the one currently being processed
+     * @param isInclude whether the mappings are for an include
      */
     public static Set<FeatureTypeMapping> buildMappings(
-            AppSchemaDataAccessDTO config, DataAccessMap sourceDataStoreMap) throws IOException {
-        AppSchemaDataAccessConfigurator mappingsBuilder;
+            AppSchemaDataAccessDTO config, DataAccessMap sourceDataStoreMap, boolean isInclude)
+            throws IOException {
 
-        mappingsBuilder = new AppSchemaDataAccessConfigurator(config, sourceDataStoreMap);
+        AppSchemaDataAccessConfigurator mappingsBuilder =
+                new AppSchemaDataAccessConfigurator(config, sourceDataStoreMap, isInclude);
         Set<FeatureTypeMapping> mappingObjects = mappingsBuilder.buildMappings();
 
         return mappingObjects;
@@ -272,7 +291,7 @@ public class AppSchemaDataAccessConfigurator {
                 // -create source datastores
                 sourceDataStores = acquireSourceDatastores();
                 // -create FeatureType mappings
-                featureTypeMappings = createFeatureTypeMappings(sourceDataStores);
+                featureTypeMappings = createFeatureTypeMappings(sourceDataStores, isInclude);
                 return featureTypeMappings;
             } finally {
                 disposeUnusedSourceDataStores(sourceDataStores, featureTypeMappings);
@@ -315,13 +334,14 @@ public class AppSchemaDataAccessConfigurator {
     }
 
     private Set<FeatureTypeMapping> createFeatureTypeMappings(
-            Map<String, DataAccess<FeatureType, Feature>> sourceDataStores) throws IOException {
+            Map<String, DataAccess<FeatureType, Feature>> sourceDataStores, boolean isInclude)
+            throws IOException {
         Set mappingsConfigs = config.getTypeMappings();
 
         Set<FeatureTypeMapping> featureTypeMappings = new HashSet<>();
 
-        for (Iterator it = mappingsConfigs.iterator(); it.hasNext(); ) {
-            TypeMapping dto = (TypeMapping) it.next();
+        for (Object mappingsConfig : mappingsConfigs) {
+            TypeMapping dto = (TypeMapping) mappingsConfig;
             try {
                 FeatureSource<? extends FeatureType, ? extends Feature> featureSource =
                         getFeatureSource(dto, sourceDataStores);
@@ -359,9 +379,7 @@ public class AppSchemaDataAccessConfigurator {
                 FeatureSource<SimpleFeatureType, SimpleFeature> indexFeatureSource =
                         getIndexFeatureSource(dto, sourceDataStores);
 
-                FeatureTypeMapping mapping;
-
-                mapping =
+                FeatureTypeMapping mapping =
                         FeatureTypeMappingFactory.getInstance(
                                 featureSource,
                                 indexFeatureSource,
@@ -378,6 +396,8 @@ public class AppSchemaDataAccessConfigurator {
                 if (mappingName != null) {
                     mapping.setName(Types.degloseName(mappingName, namespaces));
                 }
+                // indicate whether the mapping is from an include
+                mapping.setInclude(isInclude);
                 featureTypeMappings.add(mapping);
             } catch (Exception e) {
                 LOGGER.warning(
@@ -504,10 +524,11 @@ public class AppSchemaDataAccessConfigurator {
             throws IOException {
         List<AttributeMapping> attMappings = new LinkedList<>();
 
-        for (Iterator it = attDtos.iterator(); it.hasNext(); ) {
+        /** Label and parent label are specific for web service backend */
+        for (Object dto : attDtos) {
 
-            org.geotools.data.complex.config.AttributeMapping attDto;
-            attDto = (org.geotools.data.complex.config.AttributeMapping) it.next();
+            org.geotools.data.complex.config.AttributeMapping attDto =
+                    (org.geotools.data.complex.config.AttributeMapping) dto;
 
             String idExpr = attDto.getIdentifierExpression();
             String idXpath = null;
@@ -551,9 +572,8 @@ public class AppSchemaDataAccessConfigurator {
                                             this.namespaces));
             // if the data source is a data access, the input XPath expression is the source
             // expression
-            final Expression sourceExpression;
 
-            sourceExpression =
+            final Expression sourceExpression =
                     (inputXPath == null)
                             ? parseOgcCqlExpression(sourceExpr)
                             : new AttributeExpressionImpl(
@@ -679,8 +699,7 @@ public class AppSchemaDataAccessConfigurator {
      * mappings xml configuration file)
      */
     private void validateConfiguredNamespaces(StepList targetXPathSteps) {
-        for (Iterator it = targetXPathSteps.iterator(); it.hasNext(); ) {
-            Step step = (Step) it.next();
+        for (Step step : targetXPathSteps) {
             QName name = step.getName();
             if (!XMLConstants.DEFAULT_NS_PREFIX.equals(name.getPrefix())) {
                 if (XMLConstants.DEFAULT_NS_PREFIX.equals(name.getNamespaceURI())) {
@@ -742,20 +761,51 @@ public class AppSchemaDataAccessConfigurator {
         final Map<Name, Expression> clientProperties = new HashMap<>();
 
         if (dto.getClientProperties().size() > 0) {
-            for (Iterator it = dto.getClientProperties().entrySet().iterator(); it.hasNext(); ) {
-                Map.Entry entry = (Map.Entry) it.next();
+            for (Entry<String, String> stringStringEntry : dto.getClientProperties().entrySet()) {
+                Entry entry = (Entry) stringStringEntry;
                 String name = (String) entry.getKey();
                 Name qName = Types.degloseName(name, namespaces);
                 String cqlExpression = (String) entry.getValue();
-                final Expression expression = parseOgcCqlExpression(cqlExpression);
-                clientProperties.put(qName, expression);
+                Expression expression = parseOgcCqlExpression(cqlExpression);
+                Expression fixedExpr =
+                        fixClientPropertyIfJDBCMultipleValueIsPresent(dto, expression);
+                clientProperties.put(qName, fixedExpr);
             }
         }
-
         // add anonymous attributes
         addAnonymousAttributes(dto, clientProperties);
 
         return clientProperties;
+    }
+
+    // fix the PropertyName of a ClientProperty specified for an AttributeMapping
+    // that has JDBCMultipleValueDirective
+    private Expression fixClientPropertyIfJDBCMultipleValueIsPresent(
+            org.geotools.data.complex.config.AttributeMapping dto, Expression clientPropertyExpr) {
+        MultipleValue multipleValue = dto.getMultipleValue();
+        if (multipleValue instanceof JdbcMultipleValue) {
+            JdbcMultipleValue jdbcMultipleValue = (JdbcMultipleValue) multipleValue;
+            DuplicatingFilterVisitor duplicatingFilterVisitor =
+                    new DuplicatingFilterVisitor() {
+                        @Override
+                        public Object visit(PropertyName propertyName, Object extraData) {
+                            // create a JoinPropertyName out of the PropertyName
+                            // using the JDBCMultipleValue id as an alias.
+                            // the same alias is being used by the JoiningJDBCFeatureSource
+                            // when joining the targetTable
+                            JoinPropertyName joinPn =
+                                    new JoinPropertyName(
+                                            null,
+                                            jdbcMultipleValue.getId(),
+                                            propertyName.getPropertyName());
+                            joinPn.namespaceSupport = propertyName.getNamespaceContext();
+                            return joinPn;
+                        }
+                    };
+            clientPropertyExpr =
+                    (Expression) clientPropertyExpr.accept(duplicatingFilterVisitor, null);
+        }
+        return clientPropertyExpr;
     }
 
     private void addAnonymousAttributes(
@@ -810,8 +860,7 @@ public class AppSchemaDataAccessConfigurator {
 
         final List schemaFiles = config.getTargetSchemasUris();
 
-        EmfComplexFeatureReader schemaParser;
-        schemaParser = EmfComplexFeatureReader.newInstance();
+        EmfComplexFeatureReader schemaParser = EmfComplexFeatureReader.newInstance();
         schemaParser.setResolver(buildResolver());
 
         // create a single type registry for all the schemas in the config
@@ -820,8 +869,8 @@ public class AppSchemaDataAccessConfigurator {
         schemaURIs = new HashMap<>(schemaFiles.size());
         String nameSpace;
         String schemaLocation;
-        for (Iterator it = schemaFiles.iterator(); it.hasNext(); ) {
-            schemaLocation = (String) it.next();
+        for (Object schemaFile : schemaFiles) {
+            schemaLocation = (String) schemaFile;
             final URL schemaUrl = resolveResourceLocation(baseUrl, schemaLocation);
             AppSchemaDataAccessConfigurator.LOGGER.fine(
                     "parsing schema " + schemaUrl.toExternalForm());
@@ -916,14 +965,12 @@ public class AppSchemaDataAccessConfigurator {
                 getClass().getName(), "acquireSourceDatastores");
 
         final Map<String, DataAccess<FeatureType, Feature>> datastores = new LinkedHashMap<>();
-        @SuppressWarnings("unchecked")
         final List<SourceDataStore> dsParams = config.getSourceDataStores();
         String id;
 
         for (SourceDataStore dsconfig : dsParams) {
             id = dsconfig.getId();
 
-            @SuppressWarnings("unchecked")
             Map<String, Serializable> datastoreParams = dsconfig.getParams();
 
             datastoreParams = resolveRelativePaths(datastoreParams);
@@ -999,22 +1046,18 @@ public class AppSchemaDataAccessConfigurator {
      */
     @SuppressWarnings("serial")
     private static final List<String> SAFE_DATASTORE_PARAMS =
-            Collections.unmodifiableList(
-                    new ArrayList<String>() {
-                        {
-                            add("url"); // shapefile
-                            add("directory"); // propertyfile
-                            add("namespace"); // just about everything
-                            add("dbtype"); // jdbc
-                            add("jndiReferenceName"); // jdni
-                            // these are all various jdbc options
-                            add("host");
-                            add("port");
-                            add("database");
-                            add("schema");
-                            add("user");
-                        }
-                    });
+            List.of(
+                    "url", // shapefile
+                    "directory", // propertyfile
+                    "namespace", // just about everything
+                    "dbtype", // jdbc
+                    "jndiReferenceName", // jdni
+                    // these are all various jdbc options
+                    "host",
+                    "port",
+                    "database",
+                    "schema",
+                    "user");
 
     /**
      * Return datastore params filtered to include only known-safe parameters. We cannot try to find
@@ -1043,9 +1086,8 @@ public class AppSchemaDataAccessConfigurator {
 
         AppSchemaDataAccessConfigurator.LOGGER.entering(
                 getClass().getName(), "resolveRelativePaths");
-        for (Map.Entry<String, Serializable> entry :
-                (Set<Map.Entry<String, Serializable>>) datastoreParams.entrySet()) {
-            String key = (String) entry.getKey();
+        for (Map.Entry<String, Serializable> entry : datastoreParams.entrySet()) {
+            String key = entry.getKey();
             String value = (String) entry.getValue();
 
             if (value != null && value.startsWith("file:")) {
@@ -1053,7 +1095,7 @@ public class AppSchemaDataAccessConfigurator {
                 // any file paths entered without this prefix will remain unchanged
                 String oldValue = value;
                 String resolvedDataPath = null;
-                String inputDataPath = (String) value.substring("file:".length());
+                String inputDataPath = value.substring("file:".length());
                 File f = new File(inputDataPath);
 
                 if (!f.isAbsolute()) {

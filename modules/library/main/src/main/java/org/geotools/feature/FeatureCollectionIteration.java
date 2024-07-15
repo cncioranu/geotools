@@ -18,9 +18,9 @@
  */
 package org.geotools.feature;
 
-import org.opengis.feature.Feature;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.PropertyDescriptor;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.PropertyDescriptor;
 
 /**
  * The FeatureCollectionIteration provides a depth first traversal of a SimpleFeatureCollection
@@ -102,7 +102,7 @@ public class FeatureCollectionIteration {
      */
     protected void iterate(FeatureIterator<?> iterator) {
         while (iterator.hasNext()) {
-            walker((Feature) iterator.next());
+            walker(iterator.next());
         }
         iterator.close();
     }

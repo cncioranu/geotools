@@ -59,6 +59,7 @@ public class AttributeGroupHandler extends XSIElementHandler {
     }
 
     /** @see java.lang.Object#hashCode() */
+    @Override
     @SuppressWarnings("PMD.OverrideBothEqualsAndHashcode")
     public int hashCode() {
         return (LOCALNAME.hashCode()
@@ -69,6 +70,7 @@ public class AttributeGroupHandler extends XSIElementHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getHandler(java.lang.String, java.lang.String) */
+    @Override
     public XSIElementHandler getHandler(String namespaceURI, String localName) throws SAXException {
         if (SchemaHandler.namespaceURI.equalsIgnoreCase(namespaceURI)) {
             // child types
@@ -119,6 +121,7 @@ public class AttributeGroupHandler extends XSIElementHandler {
      * @see org.geotools.xml.XSIElementHandler#startElement(java.lang.String, java.lang.String,
      *     org.xml.sax.Attributes)
      */
+    @Override
     public void startElement(String namespaceURI, String localName, Attributes atts) {
         id = atts.getValue("", "id");
 
@@ -140,6 +143,7 @@ public class AttributeGroupHandler extends XSIElementHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getLocalName() */
+    @Override
     public String getLocalName() {
         return LOCALNAME;
     }
@@ -174,12 +178,12 @@ public class AttributeGroupHandler extends XSIElementHandler {
                     if ((ag != null) && (ag.getAttributes() != null)) {
                         Attribute[] aa = ag.getAttributes();
 
-                        for (int j = 0; j < aa.length; j++) h.add(aa[j]);
+                        for (Attribute attribute : aa) h.add(attribute);
                     }
                 }
             }
 
-            attributes = (Attribute[]) h.toArray(new Attribute[h.size()]);
+            attributes = h.toArray(new Attribute[h.size()]);
         }
 
         String name1 = this.name;
@@ -212,11 +216,13 @@ public class AttributeGroupHandler extends XSIElementHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getHandlerType() */
+    @Override
     public int getHandlerType() {
         return DEFAULT;
     }
 
     /** @see org.geotools.xml.XSIElementHandler#endElement(java.lang.String, java.lang.String) */
+    @Override
     public void endElement(String namespaceURI, String localName) {
         // do nothing
     }

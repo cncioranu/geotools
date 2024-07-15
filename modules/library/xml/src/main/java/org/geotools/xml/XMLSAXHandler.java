@@ -96,6 +96,7 @@ public class XMLSAXHandler extends DefaultHandler {
      * @exception java.io.IOException If there is an error setting up the new input source.
      * @exception org.xml.sax.SAXException Any SAX exception, possibly wrapping another exception.
      */
+    @Override
     public InputSource resolveEntity(String publicId, String systemId)
             throws SAXException, IOException {
         // avoid dtd files
@@ -163,6 +164,7 @@ public class XMLSAXHandler extends DefaultHandler {
      *
      * @see org.xml.sax.ContentHandler#endDocument()
      */
+    @Override
     public void endDocument() {
         document = ((DocumentHandler) handlers.pop());
     }
@@ -172,6 +174,7 @@ public class XMLSAXHandler extends DefaultHandler {
      *
      * @see org.xml.sax.ContentHandler#startDocument()
      */
+    @Override
     public void startDocument() {
         try {
             document = new DocumentHandler(ehf);
@@ -187,6 +190,7 @@ public class XMLSAXHandler extends DefaultHandler {
      *
      * @see org.xml.sax.ContentHandler#characters(char[], int, int)
      */
+    @Override
     public void characters(char[] ch, int start, int length) throws SAXException {
         characters.append(ch, start, length);
     }
@@ -203,7 +207,7 @@ public class XMLSAXHandler extends DefaultHandler {
             characters.setLength(0);
 
             if ((text != null) && !"".equals(text)) {
-                ((XMLElementHandler) handlers.peek()).characters(text);
+                handlers.peek().characters(text);
             }
         } catch (SAXException e) {
             logger.warning(e.toString());
@@ -230,6 +234,7 @@ public class XMLSAXHandler extends DefaultHandler {
      * @see org.xml.sax.ContentHandler#endElement(java.lang.String, java.lang.String,
      *     java.lang.String)
      */
+    @Override
     public void endElement(String namespaceURI, String localName, String qName)
             throws SAXException {
         handleCharacters();
@@ -237,7 +242,7 @@ public class XMLSAXHandler extends DefaultHandler {
         XMLElementHandler handler = null;
         try {
 
-            handler = (XMLElementHandler) handlers.peek();
+            handler = handlers.peek();
             URI uri = new URI(namespaceURI);
             handler.endElement(uri, localName, hints);
         } catch (Exception e) {
@@ -261,7 +266,7 @@ public class XMLSAXHandler extends DefaultHandler {
         } finally {
             handlers.pop(); // we must do this or leak memory
             if (handler != null && !handlers.isEmpty()) {
-                XMLElementHandler parent = ((XMLElementHandler) handlers.peek());
+                XMLElementHandler parent = handlers.peek();
                 if (parent instanceof ComplexElementHandler) {
                     ComplexElementHandler complexParent = (ComplexElementHandler) parent;
                     String typename = complexParent.getType().getClass().getName();
@@ -280,8 +285,7 @@ public class XMLSAXHandler extends DefaultHandler {
         StringBuffer msg = new StringBuffer(e.getLocalizedMessage());
         StackTraceElement[] trace = e.getStackTrace();
 
-        for (int i = 0; i < trace.length; i++) {
-            StackTraceElement element = trace[i];
+        for (StackTraceElement element : trace) {
             msg.append("    ");
             msg.append(element.toString());
             msg.append("\n");
@@ -295,13 +299,14 @@ public class XMLSAXHandler extends DefaultHandler {
      * @see org.xml.sax.ContentHandler#startElement(java.lang.String, java.lang.String,
      *     java.lang.String, org.xml.sax.Attributes)
      */
+    @Override
     public void startElement(String namespaceURI, String localName, String qName, Attributes atts)
             throws SAXException {
         characters.setLength(0);
 
         checkStatus();
 
-        if (schemaProxy.size() != 0) {
+        if (!schemaProxy.isEmpty()) {
             logger.fine("ADDING NAMESPACES: " + schemaProxy.size());
 
             String t = atts.getValue("http://www.w3.org/2001/XMLSchema-instance", "schemaLocation");
@@ -322,7 +327,7 @@ public class XMLSAXHandler extends DefaultHandler {
                     for (int i = 0; i < (targ2uri.length / 2); i++) {
                         String uri = targ2uri[(i * 2) + 1];
                         String targ = targ2uri[i * 2];
-                        String prefix = (String) schemaProxy.get(targ);
+                        String prefix = schemaProxy.get(targ);
                         URI targUri = null;
 
                         boolean set = false;
@@ -353,12 +358,12 @@ public class XMLSAXHandler extends DefaultHandler {
                 }
             }
 
-            if (schemaProxy.size() != 0) {
+            if (!schemaProxy.isEmpty()) {
                 Iterator it = schemaProxy.keySet().iterator();
 
                 while (it.hasNext()) {
                     String targ = (String) it.next();
-                    String prefix = (String) schemaProxy.get(targ);
+                    String prefix = schemaProxy.get(targ);
                     ehf.startPrefixMapping(prefix, targ);
 
                     it.remove();
@@ -369,7 +374,7 @@ public class XMLSAXHandler extends DefaultHandler {
         logger.finest("Moving on to finding the element handler");
 
         try {
-            XMLElementHandler parent = ((XMLElementHandler) handlers.peek());
+            XMLElementHandler parent = handlers.peek();
             logger.finest(
                     "Parent Node = "
                             + parent.getClass().getName()
@@ -444,6 +449,7 @@ public class XMLSAXHandler extends DefaultHandler {
      *
      * @see org.xml.sax.ErrorHandler#error(org.xml.sax.SAXParseException)
      */
+    @Override
     public void error(SAXParseException exception) {
         logger.severe("ERROR " + exception.getMessage());
         logger.severe("col " + locator.getColumnNumber() + ", line " + locator.getLineNumber());
@@ -454,6 +460,7 @@ public class XMLSAXHandler extends DefaultHandler {
      *
      * @see org.xml.sax.ErrorHandler#fatalError(org.xml.sax.SAXParseException)
      */
+    @Override
     public void fatalError(SAXParseException exception) throws SAXException {
         logger.severe("FATAL " + exception.getMessage());
         if (locator != null) {
@@ -467,6 +474,7 @@ public class XMLSAXHandler extends DefaultHandler {
      *
      * @see org.xml.sax.ErrorHandler#warning(org.xml.sax.SAXParseException)
      */
+    @Override
     public void warning(SAXParseException exception) {
         logger.warning("WARN " + exception.getMessage());
         logger.severe("col " + locator.getColumnNumber() + ", line " + locator.getLineNumber());
@@ -477,12 +485,14 @@ public class XMLSAXHandler extends DefaultHandler {
      *
      * @see org.xml.sax.ContentHandler#setDocumentLocator(org.xml.sax.Locator)
      */
+    @Override
     public void setDocumentLocator(Locator locator) {
         super.setDocumentLocator(locator);
         this.locator = locator;
     }
 
     /** @see org.xml.sax.ContentHandler#endPrefixMapping(java.lang.String) */
+    @Override
     public void endPrefixMapping(String prefix) {
         // hard coded schemas should not be removed.  For example.  GML and WFS
         if (prefix.equals("gml") || prefix.equals("wfs")) return;
@@ -490,6 +500,7 @@ public class XMLSAXHandler extends DefaultHandler {
     }
 
     /** @see org.xml.sax.ContentHandler#startPrefixMapping(java.lang.String, java.lang.String) */
+    @Override
     public void startPrefixMapping(String prefix, String uri) {
         if ("http://www.w3.org/2001/XMLSchema-instance".equals(uri)) {
             return;

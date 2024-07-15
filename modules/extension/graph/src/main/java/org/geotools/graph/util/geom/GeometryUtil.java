@@ -17,7 +17,6 @@
 package org.geotools.graph.util.geom;
 
 import java.util.Collection;
-import java.util.Iterator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -31,11 +30,11 @@ public class GeometryUtil {
     private static GeometryFactory geomFactory;
     private static PrecisionModel precModel;
 
-    public static boolean isEqual(Coordinate[] c1, Coordinate c2[]) {
+    public static boolean isEqual(Coordinate[] c1, Coordinate[] c2) {
         return (isEqual(c1, c2, false));
     }
 
-    public static boolean isEqual(Coordinate[] c1, Coordinate c2[], boolean reverse) {
+    public static boolean isEqual(Coordinate[] c1, Coordinate[] c2, boolean reverse) {
         if (c1.length != c2.length) return (false);
 
         if (!reverse) {
@@ -197,8 +196,8 @@ public class GeometryUtil {
     public static double averageDistance(LineString to, Collection from) {
         double avg = 0;
         int n = 0;
-        for (Iterator itr = from.iterator(); itr.hasNext(); ) {
-            LineString ls = (LineString) itr.next();
+        for (Object o : from) {
+            LineString ls = (LineString) o;
             n += ls.getNumPoints();
             for (int i = 0; i < ls.getNumPoints(); i++) {
                 avg += ls.getPointN(i).distance(to);
@@ -218,8 +217,8 @@ public class GeometryUtil {
             y += c.y;
         }
 
-        x /= (double) n;
-        y /= (double) n;
+        x /= n;
+        y /= n;
 
         LineString simple =
                 gf().createLineString(

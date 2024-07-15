@@ -25,12 +25,12 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.imageio.netcdf.cv.CoordinateHandlerSpi.CoordinateHandler;
 import org.geotools.imageio.netcdf.utilities.NetCDFCRSUtilities;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import ucar.ma2.Array;
 import ucar.ma2.ArrayChar;
 import ucar.ma2.ArrayChar.StringIterator;
@@ -81,17 +81,23 @@ public abstract class CoordinateVariable<T> {
         }
 
         @Override
-        public T getMinimum() {
+        public synchronized T getMinimum() {
+            // Made it synchronized since axis1D values retrieval
+            // does cached read on its underlying
             return convertValue(axis1D.getMinValue());
         }
 
         @Override
-        public T getMaximum() {
+        public synchronized T getMaximum() {
+            // Made it synchronized since axis1D values retrieval
+            // does cached read on its underlying
             return convertValue(axis1D.getMaxValue());
         }
 
         @Override
-        public List<T> getAll() {
+        public synchronized List<T> getAll() {
+            // Made it synchronized since axis1D values retrieval
+            // does cached read on its underlying
             return new AbstractList<T>() {
                 @Override
                 public T get(int index) {
@@ -153,6 +159,7 @@ public abstract class CoordinateVariable<T> {
         }
 
         @Override
+        @SuppressWarnings("deprecation") // no Alternative for Dimension.getFullName
         public synchronized T get(Map<String, Integer> indexMap) {
             int i = indexMap.get(coordinateAxis.getFullName());
             int j =
@@ -240,7 +247,7 @@ public abstract class CoordinateVariable<T> {
         return null;
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public static CoordinateVariable<?> create(CoordinateAxis coordinateAxis) {
         Utilities.ensureNonNull("coordinateAxis", coordinateAxis);
 

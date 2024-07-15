@@ -35,17 +35,17 @@ import net.opengis.wps10.ResponseDocumentType;
 import net.opengis.wps10.ResponseFormType;
 import net.opengis.wps10.WPSCapabilitiesType;
 import org.eclipse.emf.ecore.EObject;
-import org.geotools.data.ResourceInfo;
-import org.geotools.data.ServiceInfo;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.data.ServiceInfo;
 import org.geotools.data.ows.GetCapabilitiesRequest;
-import org.geotools.data.ows.HTTPClient;
-import org.geotools.data.ows.HTTPResponse;
-import org.geotools.data.ows.SimpleHttpClient;
 import org.geotools.data.ows.Specification;
 import org.geotools.data.wps.request.DescribeProcessRequest;
 import org.geotools.data.wps.request.ExecuteProcessRequest;
 import org.geotools.data.wps.response.DescribeProcessResponse;
 import org.geotools.data.wps.response.ExecuteProcessResponse;
+import org.geotools.http.HTTPClient;
+import org.geotools.http.HTTPClientFinder;
+import org.geotools.http.HTTPResponse;
 import org.geotools.ows.ServiceException;
 import org.geotools.wps.WPS;
 
@@ -90,12 +90,12 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
         @SuppressWarnings("unchecked")
         Iterator<OperationType> iterator = cap.getOperationsMetadata().getOperation().iterator();
         while (iterator.hasNext()) {
-            OperationType next = (OperationType) iterator.next();
+            OperationType next = iterator.next();
             if (operation.compareToIgnoreCase(next.getName()) == 0) {
                 @SuppressWarnings("unchecked")
                 Iterator<DCPType> iterator2 = next.getDCP().iterator();
                 while (iterator2.hasNext()) {
-                    DCPType next2 = (DCPType) iterator2.next();
+                    DCPType next2 = iterator2.next();
                     HTTPType http = next2.getHTTP();
                     if (getGet && !http.getGet().isEmpty()) {
                         RequestMethodType rmt = (RequestMethodType) http.getGet().get(0);
@@ -145,7 +145,7 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
             throws IOException, ServiceException {
         super(
                 getOperationURL("getcapabilities", capabilities, true),
-                new SimpleHttpClient(),
+                HTTPClientFinder.createClient(),
                 capabilities);
     }
 
@@ -170,6 +170,7 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
     }
 
     /** Sets up the specifications/versions that this server is capable of communicating with. */
+    @Override
     protected void setupSpecifications() {
         specs = new Specification[1];
         specs[0] = new WPS1_0_0();
@@ -186,6 +187,7 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
         return null;
     }
 
+    @Override
     public AbstractWPSGetCapabilitiesResponse issueRequest(GetCapabilitiesRequest request)
             throws IOException, ServiceException {
         return (AbstractWPSGetCapabilitiesResponse) internalIssueRequest(request);
@@ -203,9 +205,8 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
 
     public ExecuteProcessResponse issueStatusRequest(URL statusURL)
             throws IOException, ServiceException {
-        final HTTPResponse httpResponse;
 
-        httpResponse = httpClient.get(statusURL);
+        final HTTPResponse httpResponse = httpClient.get(statusURL);
 
         // a request with status can never use raw requests
         return new ExecuteProcessResponse(httpResponse, false);
@@ -218,7 +219,7 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
      * @return a WPSCapabilitiesType object, representing the Capabilities of the server
      */
     public WPSCapabilitiesType getCapabilities() {
-        return (WPSCapabilitiesType) capabilities;
+        return capabilities;
     }
 
     public DescribeProcessRequest createDescribeProcessRequest()
@@ -297,11 +298,12 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
         private Set<String> keywords;
 
         WPSInfo() {
-            keywords = new HashSet<String>();
+            keywords = new HashSet<>();
             keywords.add("WPS");
             keywords.add(serverURL.toString());
         }
 
+        @Override
         public String getDescription() {
             String description = null;
             if ((description == null) && (serverURL != null)) {
@@ -311,10 +313,12 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
             return description;
         }
 
+        @Override
         public Set<String> getKeywords() {
             return keywords;
         }
 
+        @Override
         public URI getPublisher() {
             try {
                 return new URI(serverURL.getProtocol() + ":" + serverURL.getHost());
@@ -329,6 +333,7 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
          *
          * @return WPS.getInstance().getNamespaceURI();
          */
+        @Override
         public URI getSchema() {
             return makeURI(WPS.getInstance().getNamespaceURI());
         }
@@ -339,14 +344,14 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
          * <p>We make an effort here to look in the capabilities document provided for the
          * unambiguous capabilities URI.
          */
+        @Override
         public URI getSource() {
             try {
                 URL source = getOperationURL("getcapabilities", capabilities, true);
 
                 // URL source = getCapabilities().getRequest().getGetCapabilities().getGet();
                 return source.toURI();
-            } catch (NullPointerException huh) {
-            } catch (URISyntaxException e) {
+            } catch (NullPointerException | URISyntaxException huh) {
             }
             try {
                 return serverURL.toURI();
@@ -355,6 +360,7 @@ public class WebProcessingService extends AbstractWPS<WPSCapabilitiesType, Objec
             }
         }
 
+        @Override
         public String getTitle() {
             if (serverURL == null) {
                 return "Unavailable";

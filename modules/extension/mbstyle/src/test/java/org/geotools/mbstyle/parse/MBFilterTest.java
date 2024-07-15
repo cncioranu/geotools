@@ -17,21 +17,22 @@
 package org.geotools.mbstyle.parse;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Collections;
 import java.util.Set;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.style.SemanticType;
 import org.geotools.filter.text.ecql.ECQL;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.junit.Test;
-import org.opengis.filter.Filter;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.style.SemanticType;
 
 public class MBFilterTest {
 
@@ -54,7 +55,7 @@ public class MBFilterTest {
                         "['all',['==', 'class', 'street_limited'],['>=', 'admin_level', 3],['!in', '$type', 'Polygon']]");
         MBFilter mbfilter = new MBFilter(json);
         Set<SemanticType> types = mbfilter.semanticTypeIdentifiers();
-        assertTrue(!types.contains(SemanticType.POLYGON));
+        assertFalse(types.contains(SemanticType.POLYGON));
         Filter filter = mbfilter.filter();
         assertEquals(
                 "class = 'street_limited' AND admin_level >= 3 AND NOT ((dimension(geometry()) = 2 AND NOT (isCoverage() = true)))",
@@ -63,17 +64,13 @@ public class MBFilterTest {
 
     @Test
     public void type() throws ParseException {
-        JSONArray json;
-        MBFilter mbfilter;
-        Filter filter;
-        Set<SemanticType> types;
 
         // common $type examples
-        json = array("['in', '$type','LineString']");
-        mbfilter = new MBFilter(json);
-        types = mbfilter.semanticTypeIdentifiers();
+        JSONArray json = array("['in', '$type','LineString']");
+        MBFilter mbfilter = new MBFilter(json);
+        Set<SemanticType> types = mbfilter.semanticTypeIdentifiers();
         assertTrue(types.contains(SemanticType.LINE) && types.size() == 1);
-        filter = mbfilter.filter();
+        Filter filter = mbfilter.filter();
         assertEquals("dimension(geometry()) IN (1)", ECQL.toCQL(filter));
 
         json = array("['in', '$type','Polygon']");
@@ -130,13 +127,10 @@ public class MBFilterTest {
 
     @Test
     public void id() throws ParseException {
-        JSONArray json;
-        MBFilter mbfilter;
-        Filter filter;
 
-        json = array("['has', '$id','foo.1']");
-        mbfilter = new MBFilter(json);
-        filter = mbfilter.filter();
+        JSONArray json = array("['has', '$id','foo.1']");
+        MBFilter mbfilter = new MBFilter(json);
+        Filter filter = mbfilter.filter();
         assertEquals("IN ('foo.1')", ECQL.toCQL(filter));
 
         json = array("['in', '$id','foo.1','foo.2']");
@@ -171,12 +165,10 @@ public class MBFilterTest {
 
     @Test
     public void comparisonFilters() throws ParseException {
-        JSONArray json;
-        MBFilter mbfilter;
 
         // being really quick here, no need to check null / instanceof if we just cast
-        json = array("['==', 'key', 'value']");
-        mbfilter = new MBFilter(json);
+        JSONArray json = array("['==', 'key', 'value']");
+        MBFilter mbfilter = new MBFilter(json);
         PropertyIsEqualTo equal = (PropertyIsEqualTo) mbfilter.filter();
         assertEquals("key", ((PropertyName) equal.getExpression1()).getPropertyName());
         assertEquals("value", ((Literal) equal.getExpression2()).getValue());
@@ -212,11 +204,9 @@ public class MBFilterTest {
 
     @Test
     public void comparisonFilterExpressions() throws ParseException {
-        JSONArray json;
-        MBFilter mbfilter;
 
-        json = array("['==', ['get', 'key'], 'value']");
-        mbfilter = new MBFilter(json);
+        JSONArray json = array("['==', ['get', 'key'], 'value']");
+        MBFilter mbfilter = new MBFilter(json);
         PropertyIsEqualTo equal = (PropertyIsEqualTo) mbfilter.filter();
         assertEquals("key", ((PropertyName) equal.getExpression1()).getPropertyName());
         assertEquals("value", ((Literal) equal.getExpression2()).getValue());

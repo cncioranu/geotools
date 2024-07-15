@@ -16,13 +16,21 @@
  */
 package org.geotools.referencing.factory.epsg;
 
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.EngineeringCRS;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.crs.DefaultEngineeringCRS;
@@ -31,14 +39,6 @@ import org.geotools.referencing.datum.DefaultEngineeringDatum;
 import org.geotools.referencing.factory.DirectAuthorityFactory;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.EngineeringCRS;
-import org.opengis.util.InternationalString;
 
 /**
  * A factory providing a EPSG code for a cartesian engineering systems
@@ -81,6 +81,7 @@ public class CartesianAuthorityFactory extends DirectAuthorityFactory
         return Citations.EPSG;
     }
 
+    @Override
     public Set<String> getAuthorityCodes(Class<? extends IdentifiedObject> type)
             throws FactoryException {
         if (type.isAssignableFrom(EngineeringCRS.class)) {
@@ -92,6 +93,7 @@ public class CartesianAuthorityFactory extends DirectAuthorityFactory
         }
     }
 
+    @Override
     public InternationalString getDescriptionText(String code)
             throws NoSuchAuthorityCodeException, FactoryException {
         if (code.equals("EPSG:" + GENERIC_2D_CODE)) {
@@ -106,6 +108,7 @@ public class CartesianAuthorityFactory extends DirectAuthorityFactory
      * Creates an object from the specified code. The default implementation delegates to <code>
      * {@linkplain #createCoordinateReferenceSystem createCoordinateReferenceSystem}(code)</code> .
      */
+    @Override
     public IdentifiedObject createObject(final String code) throws FactoryException {
         return createCoordinateReferenceSystem(code);
     }
@@ -114,6 +117,7 @@ public class CartesianAuthorityFactory extends DirectAuthorityFactory
      * Creates a coordinate reference system from the specified code. The default implementation
      * delegates to <code>{@linkplain #createEngineeringCRS(String)}(code)</code>.
      */
+    @Override
     public CoordinateReferenceSystem createCoordinateReferenceSystem(final String code)
             throws FactoryException {
         return createEngineeringCRS(code);
@@ -133,7 +137,7 @@ public class CartesianAuthorityFactory extends DirectAuthorityFactory
             throws NoSuchAuthorityCodeException {
         String authority = "EPSG";
         return new NoSuchAuthorityCodeException(
-                Errors.format(
+                MessageFormat.format(
                         ErrorKeys.NO_SUCH_AUTHORITY_CODE_$3, code, authority, EngineeringCRS.class),
                 authority,
                 code);

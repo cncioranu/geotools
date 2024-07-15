@@ -20,21 +20,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.FeatureTypeFactory;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.GeometryType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.util.InternationalString;
 import org.geotools.data.DataUtilities;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.util.Classes;
 import org.geotools.util.SimpleInternationalString;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.FeatureTypeFactory;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.GeometryType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.util.InternationalString;
 
 /**
  * Builder for attribute types and descriptors.
@@ -102,7 +102,7 @@ public class AttributeTypeBuilder {
     /** restrictions */
     protected List<Filter> restrictions;
     /** string description */
-    protected String description;
+    protected InternationalString description;
     /** identifiable flag */
     protected boolean isIdentifiable = false;
     /** bound java class */
@@ -222,7 +222,7 @@ public class AttributeTypeBuilder {
             restrictions().addAll(type.getRestrictions());
         }
 
-        description = type.getDescription() != null ? type.getDescription().toString() : null;
+        description = type.getDescription();
         isIdentifiable = type.isIdentified();
         binding = type.getBinding();
         superType = type.getSuper();
@@ -267,6 +267,10 @@ public class AttributeTypeBuilder {
     }
 
     public void setDescription(String description) {
+        this.description = description != null ? new SimpleInternationalString(description) : null;
+    }
+
+    public void setDescription(InternationalString description) {
         this.description = description;
     }
 
@@ -435,17 +439,6 @@ public class AttributeTypeBuilder {
         return type;
     }
 
-    protected String typeName() {
-        if (name == null) {
-            return Classes.getShortName(binding);
-        }
-        return name;
-    }
-
-    private InternationalString description() {
-        return description != null ? new SimpleInternationalString(description) : null;
-    }
-
     /**
      * Builds the geometry attribute type.
      *
@@ -468,22 +461,37 @@ public class AttributeTypeBuilder {
         return type;
     }
 
+    private Name name() {
+        if (name == null) {
+            name = Classes.getShortName(binding);
+        }
+        return separator == null
+                ? new NameImpl(namespaceURI, name)
+                : new NameImpl(namespaceURI, separator, name);
+    }
+
+    private InternationalString description() {
+        return description;
+    }
+
     /**
      * Builds an attribute descriptor first building an attribute type from internal state.
      *
-     * <p>If {@link #crs} has been set via {@link #setCRS(CoordinateReferenceSystem)} the internal
-     * attribute type will be built via {@link #buildGeometryType()}, otherwise it will be built via
-     * {@link #buildType()}.
+     * <p>If {@link #crs} has been set via {@link #setCRS(CoordinateReferenceSystem)}, or {@link
+     * #binding} is of Geometry. The internal attribute type will be built via {@link
+     * #buildGeometryType()}, and {@link #buildDescriptor(String, GeometryType)} will be called.
      *
-     * <p>This method calls through to {@link #buildDescriptor(String, AttributeType)}.
+     * <p>Otherwise it will be built via {@link #buildType()}, and {@link #buildDescriptor(String,
+     * AttributeType)} will be called.
      *
      * @param name The name of the descriptor.
      * @see #buildDescriptor(String, AttributeType)
+     * @throws IllegalStateException If no binding is set
      */
     public AttributeDescriptor buildDescriptor(String name) {
-        setName(name);
-        if (binding == null)
+        if (binding == null) {
             throw new IllegalStateException("No binding has been provided for this attribute");
+        }
         if (crs != null || Geometry.class.isAssignableFrom(binding)) {
             return buildDescriptor(name, buildGeometryType());
         } else {
@@ -560,14 +568,6 @@ public class AttributeTypeBuilder {
             return 1;
         }
         return maxOccurs;
-    }
-
-    private Name name() {
-        if (separator == null) {
-            return new NameImpl(namespaceURI, typeName());
-        } else {
-            return new NameImpl(namespaceURI, separator, typeName());
-        }
     }
 
     private Object defaultValue() {

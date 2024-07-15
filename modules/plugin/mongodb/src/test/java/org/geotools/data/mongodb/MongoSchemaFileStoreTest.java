@@ -36,12 +36,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.commons.io.IOUtils;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.mongodb.data.SchemaStoreDirectory;
 import org.geotools.data.mongodb.data.SchemaStoreDirectoryProvider;
 import org.geotools.feature.NameImpl;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /** @author tkunicki@boundlessgeo.com */
 public class MongoSchemaFileStoreTest extends MongoSchemaStoreTest<MongoSchemaFileStore> {
@@ -88,7 +88,7 @@ public class MongoSchemaFileStoreTest extends MongoSchemaStoreTest<MongoSchemaFi
         File test = createUniqueTempDirectory();
         try {
             assertThat(test.exists(), is(equalTo(false)));
-            MongoSchemaStore mss = new MongoSchemaFileStore(test.toURI().toString());
+            new MongoSchemaFileStore(test.toURI().toString());
             assertThat(test.exists(), is(equalTo(true)));
             assertThat(test.isDirectory(), is(equalTo(true)));
         } finally {
@@ -101,7 +101,7 @@ public class MongoSchemaFileStoreTest extends MongoSchemaStoreTest<MongoSchemaFi
         File test = createUniqueTempDirectory();
         try {
             assertThat(test.exists(), is(equalTo(false)));
-            MongoSchemaStore mss = new MongoSchemaFileStore(test.toURI());
+            new MongoSchemaFileStore(test.toURI());
             assertThat(test.exists(), is(equalTo(true)));
             assertThat(test.isDirectory(), is(equalTo(true)));
         } finally {
@@ -217,7 +217,7 @@ public class MongoSchemaFileStoreTest extends MongoSchemaStoreTest<MongoSchemaFi
         File test = createUniqueTempDirectory();
         try {
             assertThat(test.exists(), is(equalTo(false)));
-            MongoSchemaStore mss = new MongoSchemaFileStore(test);
+            new MongoSchemaFileStore(test);
             assertThat(test.exists(), is(equalTo(true)));
             assertThat(test.isDirectory(), is(equalTo(true)));
         } finally {

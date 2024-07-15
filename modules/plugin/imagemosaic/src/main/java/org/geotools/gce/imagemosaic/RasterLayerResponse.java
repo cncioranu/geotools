@@ -56,6 +56,26 @@ import javax.media.jai.ROI;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.operator.ConstantDescriptor;
 import javax.media.jai.operator.MosaicDescriptor;
+import org.geotools.api.coverage.ColorInterpretation;
+import org.geotools.api.coverage.SampleDimension;
+import org.geotools.api.coverage.SampleDimensionType;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.Category;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.TypeMap;
@@ -68,9 +88,7 @@ import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.footprint.FootprintBehavior;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.coverage.util.FeatureUtilities;
-import org.geotools.data.DataSourceException;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.gce.imagemosaic.OverviewsController.OverviewLevel;
 import org.geotools.gce.imagemosaic.catalog.GranuleCatalogVisitor;
@@ -79,8 +97,7 @@ import org.geotools.gce.imagemosaic.granulecollector.DefaultSubmosaicProducer;
 import org.geotools.gce.imagemosaic.granulecollector.DefaultSubmosaicProducerFactory;
 import org.geotools.gce.imagemosaic.granulecollector.SubmosaicProducer;
 import org.geotools.gce.imagemosaic.granulecollector.SubmosaicProducerFactory;
-import org.geotools.geometry.Envelope2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.geometry.util.XRectangle2D;
@@ -97,24 +114,6 @@ import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.util.Assert;
-import org.opengis.coverage.ColorInterpretation;
-import org.opengis.coverage.SampleDimension;
-import org.opengis.coverage.SampleDimensionType;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
-import org.opengis.util.InternationalString;
 
 /**
  * A RasterLayerResponse. An instance of this class is produced everytime a requestCoverage is
@@ -125,7 +124,6 @@ import org.opengis.util.InternationalString;
  * @author Stefan Alfons Krueger (alfonx), Wikisquare.de : Support for
  *     jar:file:foo.jar/bar.properties URLs
  */
-@SuppressWarnings("rawtypes")
 public class RasterLayerResponse {
 
     private final SubmosaicProducerFactory submosaicProducerFactory;
@@ -198,7 +196,7 @@ public class RasterLayerResponse {
                 Unit<?> unit) {
             super(
                     description,
-                    !Double.isNaN(nodata)
+                    !Double.isInfinite(nodata)
                             ? new Category[] {
                                 new Category(
                                         Vocabulary.formatInternational(VocabularyKeys.NODATA),
@@ -316,6 +314,7 @@ public class RasterLayerResponse {
          * <p>If not {@link MergeBehavior#STACK}ing is required, we collect them all together with
          * an include filter.
          */
+        @Override
         public void visit(GranuleDescriptor granuleDescriptor, SimpleFeature sf) {
             //
             // load raster data
@@ -418,7 +417,7 @@ public class RasterLayerResponse {
                     LOGGER.fine("Submosaic producer being called: " + collector.toString());
                 }
                 final List<MosaicElement> preparedMosaic = collector.createMosaic();
-                if (preparedMosaic.size() > 0
+                if (!preparedMosaic.isEmpty()
                         && !preparedMosaic.stream().allMatch(p -> p == null)) {
                     size += preparedMosaic.size();
                     mosaicInputs.addAll(preparedMosaic);
@@ -469,7 +468,7 @@ public class RasterLayerResponse {
     private GridCoverageFactory coverageFactory;
 
     /** The base envelope related to the input coverage */
-    private GeneralEnvelope coverageEnvelope;
+    private GeneralBounds coverageEnvelope;
 
     private RasterManager rasterManager;
 
@@ -598,9 +597,6 @@ public class RasterLayerResponse {
             return;
         }
 
-        // add extra parameters to image parameters reader
-        baseReadParameters.setBands(request.getBands());
-
         // assemble granules
         final MosaicOutput mosaic = prepareResponse();
         if (mosaic == null || mosaic.image == null) {
@@ -634,7 +630,7 @@ public class RasterLayerResponse {
     }
 
     /**
-     * This method loads the granules which overlap the requested {@link GeneralEnvelope} using the
+     * This method loads the granules which overlap the requested {@link GeneralBounds} using the
      * provided values for alpha and input ROI.
      *
      * @return the mosaic output for the request
@@ -654,6 +650,9 @@ public class RasterLayerResponse {
             // === init raster bounds
             initRasterBounds();
 
+            // === inits the native band selection
+            initBands();
+
             // === init excess granule removal if needed
             initExcessGranuleRemover();
 
@@ -662,10 +661,13 @@ public class RasterLayerResponse {
             final Query query = queryBuilder.build();
 
             // === collect granules
-            final MosaicProducer visitor =
-                    new MosaicProducer(
-                            submosaicProducerFactory.createProducers(
-                                    this.getRequest(), this.getRasterManager(), this, false));
+            List<SubmosaicProducer> producers =
+                    submosaicProducerFactory.createProducers(
+                            this.getRequest(), this.getRasterManager(), this, false);
+            for (SubmosaicProducer producer : producers) {
+                producer.init(query);
+            }
+            final MosaicProducer visitor = new MosaicProducer(producers);
             rasterManager.getGranuleDescriptors(query, visitor);
 
             // get those granules and create the final mosaic
@@ -706,6 +708,9 @@ public class RasterLayerResponse {
                 List<SubmosaicProducer> collectors =
                         submosaicProducerFactory.createProducers(
                                 this.getRequest(), this.getRasterManager(), this, true);
+                for (SubmosaicProducer producer : collectors) {
+                    producer.init(query);
+                }
                 final MosaicProducer dryRunVisitor = new MosaicProducer(true, collectors);
                 final Utils.BBOXFilterExtractor bboxExtractor = new Utils.BBOXFilterExtractor();
                 query.getFilter().accept(bboxExtractor, null);
@@ -719,6 +724,7 @@ public class RasterLayerResponse {
                                                 .getName()),
                                 bboxExtractor.getBBox()));
                 query.setMaxFeatures(1);
+                query.setSortBy(null);
                 rasterManager.getGranuleDescriptors(query, dryRunVisitor);
                 if (dryRunVisitor.granulesNumber > 0) {
                     LOGGER.fine(
@@ -752,6 +758,12 @@ public class RasterLayerResponse {
         }
     }
 
+    /** Sets up native band selection */
+    private void initBands() {
+        // add extra parameters to image parameters reader
+        baseReadParameters.setBands(request.getBands());
+    }
+
     private void initExcessGranuleRemover() {
         if (request.getExcessGranuleRemovalPolicy() == ExcessGranulePolicy.ROI) {
             Dimension tileDimensions = request.getTileDimensions();
@@ -777,7 +789,7 @@ public class RasterLayerResponse {
      * @throws TransformException In case transformation fails during the process.
      */
     private void initRasterBounds() throws TransformException {
-        final GeneralEnvelope tempRasterBounds = CRS.transform(finalWorldToGridCorner, mosaicBBox);
+        final GeneralBounds tempRasterBounds = CRS.transform(finalWorldToGridCorner, mosaicBBox);
         rasterBounds = tempRasterBounds.toRectangle2D().getBounds();
 
         // SG using the above may lead to problems since the reason is that may be a little (1 px)
@@ -786,7 +798,8 @@ public class RasterLayerResponse {
         // GridEnvelope
         // Javadoc)
         rasterBounds =
-                new GridEnvelope2D(new Envelope2D(tempRasterBounds), PixelInCell.CELL_CORNER);
+                new GridEnvelope2D(
+                        new ReferencedEnvelope(tempRasterBounds), PixelInCell.CELL_CORNER);
         if (rasterBounds.width == 0) rasterBounds.width++;
         if (rasterBounds.height == 0) rasterBounds.height++;
         if (oversampledRequest) rasterBounds.grow(2, 2);
@@ -795,11 +808,12 @@ public class RasterLayerResponse {
         // larger
         // (the above expansion might have made them so)
         if (!request.spatialRequestHelper.isSupportingAlternativeCRSOutput()) {
-            final GeneralEnvelope levelRasterArea_ =
+            final GeneralBounds levelRasterArea_ =
                     CRS.transform(
                             finalWorldToGridCorner, request.spatialRequestHelper.getCoverageBBox());
             final GridEnvelope2D levelRasterArea =
-                    new GridEnvelope2D(new Envelope2D(levelRasterArea_), PixelInCell.CELL_CORNER);
+                    new GridEnvelope2D(
+                            new ReferencedEnvelope(levelRasterArea_), PixelInCell.CELL_CORNER);
             XRectangle2D.intersect(levelRasterArea, rasterBounds, rasterBounds);
         }
     }
@@ -824,7 +838,7 @@ public class RasterLayerResponse {
             final double[] requestRes = spatialRequestHelper.getComputedResolution();
 
             BoundingBox computedBBox = spatialRequestHelper.getComputedBBox();
-            GeneralEnvelope requestedRasterArea =
+            GeneralBounds requestedRasterArea =
                     CRS.transform(baseGridToWorld.inverse(), computedBBox);
             double minxRaster = Math.round(requestedRasterArea.getMinimum(0));
             double minyRaster = Math.round(requestedRasterArea.getMinimum(1));
@@ -1252,7 +1266,7 @@ public class RasterLayerResponse {
             properties.put(GridCoverage2DReader.SOURCE_URL_PROPERTY, sourceUrl);
         }
         if (mosaicOutput.pamDataset != null) {
-            properties.put(Utils.PAM_DATASET, mosaicOutput.pamDataset);
+            properties.put(GridCoverage2DReader.PAM_DATASET, mosaicOutput.pamDataset);
         }
         // Setting NoData as the NoData for the first Band
         ImageWorker w = new ImageWorker(image);
@@ -1414,6 +1428,7 @@ public class RasterLayerResponse {
         RasterManager originalRasterManager = originalRequest.getRasterManager();
         RasterManager manager =
                 originalRasterManager.getForGranuleCRS(
+                        request,
                         templateDescriptor,
                         this.mosaicBBox,
                         originalRequest.spatialRequestHelper.isSupportingAlternativeCRSOutput()
@@ -1437,10 +1452,10 @@ public class RasterLayerResponse {
                             String crsAttribute = manager.getCrsAttribute();
                             String granuleCRSCode =
                                     (String)
-                                            templateDescriptor
-                                                    .getOriginator()
-                                                    .getAttribute(crsAttribute);
-                            FilterFactory2 ff = FeatureUtilities.DEFAULT_FILTER_FACTORY;
+                                            Utils.getAttribute(
+                                                    templateDescriptor.getOriginator(),
+                                                    crsAttribute);
+                            FilterFactory ff = FeatureUtilities.DEFAULT_FILTER_FACTORY;
                             PropertyIsEqualTo crsFilter =
                                     ff.equal(
                                             ff.property(crsAttribute),
@@ -1453,7 +1468,7 @@ public class RasterLayerResponse {
                             final GeometryDescriptor gd =
                                     granules.getSchema().getGeometryDescriptor();
                             if (gd != null) {
-                                query.setPropertyNames(new String[] {gd.getLocalName()});
+                                query.setPropertyNames(gd.getLocalName());
                             }
                             SimpleFeatureCollection features = granules.getGranules(query);
                             ReferencedEnvelope envelope = DataUtilities.bounds(features);
@@ -1481,12 +1496,18 @@ public class RasterLayerResponse {
             return null;
         }
         RasterLayerResponse response =
-                new RasterLayerResponse(request, manager, this.submosaicProducerFactory);
+                new RasterLayerResponse(request, manager, this.submosaicProducerFactory) {
+                    @Override
+                    public void addGranulePaths(String granulesPaths) {
+                        RasterLayerResponse.this.addGranulePaths(granulesPaths);
+                    }
+                };
         // initialize enough info without actually running the output computation
         response.chooseOverview();
         response.initBBOX();
         response.initTransformations();
         response.initRasterBounds();
+        response.initBands();
 
         return response;
     }

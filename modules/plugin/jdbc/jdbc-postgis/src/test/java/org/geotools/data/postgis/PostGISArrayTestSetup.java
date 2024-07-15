@@ -16,13 +16,10 @@
  */
 package org.geotools.data.postgis;
 
-import java.util.logging.Logger;
 import org.geotools.jdbc.JDBCDelegatingTestSetup;
 import org.geotools.jdbc.JDBCTestSetup;
 
 public class PostGISArrayTestSetup extends JDBCDelegatingTestSetup {
-
-    private static final Logger LOGGER = Logger.getLogger(PostGISArrayTestSetup.class.getName());
 
     public PostGISArrayTestSetup(JDBCTestSetup delegate) {
         super(delegate);

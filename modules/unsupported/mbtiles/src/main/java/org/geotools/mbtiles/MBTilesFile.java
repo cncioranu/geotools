@@ -37,13 +37,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.jdbc.datasource.ManageableDataSource;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.jdbc.util.SqlUtil;
 import org.geotools.referencing.CRS;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Envelope;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class MBTilesFile implements AutoCloseable {
 
@@ -96,6 +96,7 @@ public class MBTilesFile implements AutoCloseable {
         }
 
         @Override
+        @SuppressWarnings("PMD.UseTryWithResources") // field closure
         public void close() throws IOException {
             try {
                 try {
@@ -133,6 +134,8 @@ public class MBTilesFile implements AutoCloseable {
     protected final String MD_FORMAT = "format";
 
     protected final String MD_BOUNDS = "bounds";
+
+    protected final String MD_CENTER = "center";
 
     protected final String MD_ATTRIBUTION = "attribution";
 
@@ -226,8 +229,7 @@ public class MBTilesFile implements AutoCloseable {
     /** Store MetaData in file */
     public void saveMetaData(MBTilesMetadata metaData) throws IOException {
         try {
-            Connection cx = connPool.getConnection();
-            try {
+            try (Connection cx = connPool.getConnection()) {
                 saveMetaDataEntry(MD_NAME, metaData.getName(), cx);
                 saveMetaDataEntry(MD_VERSION, metaData.getVersion(), cx);
                 saveMetaDataEntry(MD_DESCRIPTION, metaData.getDescription(), cx);
@@ -235,11 +237,10 @@ public class MBTilesFile implements AutoCloseable {
                 saveMetaDataEntry(MD_TYPE, metaData.getTypeStr(), cx);
                 saveMetaDataEntry(MD_FORMAT, metaData.getFormatStr(), cx);
                 saveMetaDataEntry(MD_BOUNDS, metaData.getBoundsStr(), cx);
+                saveMetaDataEntry(MD_CENTER, metaData.getCenterStr(), cx);
                 saveMetaDataEntry(MD_MINZOOM, String.valueOf(metaData.getMinZoom()), cx);
                 saveMetaDataEntry(MD_MAXZOOM, String.valueOf(metaData.getMaxZoom()), cx);
                 saveMetaDataEntry(MD_JSON, String.valueOf(metaData.getJson()), cx);
-            } finally {
-                cx.close();
             }
         } catch (SQLException e) {
             throw new IOException(e);
@@ -254,12 +255,9 @@ public class MBTilesFile implements AutoCloseable {
      */
     public void saveMinMaxZoomMetadata(int min, int max) throws IOException {
         try {
-            Connection cx = connPool.getConnection();
-            try {
+            try (Connection cx = connPool.getConnection()) {
                 saveMetaDataEntry(MD_MINZOOM, String.valueOf(min), cx);
                 saveMetaDataEntry(MD_MAXZOOM, String.valueOf(max), cx);
-            } finally {
-                cx.close();
             }
         } catch (SQLException e) {
             throw new IOException(e);
@@ -269,8 +267,7 @@ public class MBTilesFile implements AutoCloseable {
     /** Store a tile */
     public void saveTile(MBTilesTile entry) throws IOException {
         try {
-            Connection cx = connPool.getConnection();
-            try {
+            try (Connection cx = connPool.getConnection()) {
 
                 if (disableJournal) {
                     disableJournal(cx);
@@ -296,7 +293,8 @@ public class MBTilesFile implements AutoCloseable {
                             prepare(
                                             cx,
                                             format(
-                                                    "DELETE FROM %s WHERE zoom_level=? AND tile_column=? AND tile_row=?",
+                                                    "DELETE FROM %s WHERE zoom_level=? AND "
+                                                            + "tile_column=? AND tile_row=?",
                                                     TABLE_TILES))
                                     .set(entry.getZoomLevel())
                                     .set(entry.getTileColumn())
@@ -310,9 +308,6 @@ public class MBTilesFile implements AutoCloseable {
                 saveMinMaxZoomMetadata(
                         (int) Math.min(entry.getZoomLevel(), this.minZoom()),
                         (int) Math.max(entry.getZoomLevel(), this.maxZoom()));
-
-            } finally {
-                cx.close();
             }
         } catch (SQLException e) {
             throw new IOException(e);
@@ -398,20 +393,18 @@ public class MBTilesFile implements AutoCloseable {
 
     public MBTilesMetadata loadMetaData(MBTilesMetadata metaData) throws IOException {
         try {
-            Connection cx = connPool.getConnection();
-            try {
+            try (Connection cx = connPool.getConnection()) {
                 metaData.setName(loadMetaDataEntry(MD_NAME, cx));
                 metaData.setVersion(loadMetaDataEntry(MD_VERSION, cx));
                 metaData.setDescription(loadMetaDataEntry(MD_DESCRIPTION, cx));
                 metaData.setAttribution(loadMetaDataEntry(MD_ATTRIBUTION, cx));
                 metaData.setTypeStr(loadMetaDataEntry(MD_TYPE, cx));
                 metaData.setFormatStr(loadMetaDataEntry(MD_FORMAT, cx));
+                metaData.setCenterStr(loadMetaDataEntry(MD_CENTER, cx));
                 metaData.setBoundsStr(loadMetaDataEntry(MD_BOUNDS, cx));
                 metaData.setMinZoomStr(loadMetaDataEntry(MD_MINZOOM, cx));
                 metaData.setMaxZoomStr(loadMetaDataEntry(MD_MAXZOOM, cx));
                 metaData.setJson(loadMetaDataEntry(MD_JSON, cx));
-            } finally {
-                cx.close();
             }
         } catch (SQLException e) {
             throw new IOException(e);
@@ -763,6 +756,7 @@ public class MBTilesFile implements AutoCloseable {
      * <p>The application should always call this method when done with a mbtiles to prevent
      * connection leakage.
      */
+    @Override
     public void close() {
         try {
             if (connPool instanceof BasicDataSource) {
@@ -834,11 +828,8 @@ public class MBTilesFile implements AutoCloseable {
      */
     public void init() throws IOException {
         try {
-            Connection cx = connPool.getConnection();
-            try {
+            try (Connection cx = connPool.getConnection()) {
                 init(cx);
-            } finally {
-                cx.close();
             }
         } catch (SQLException e) {
             throw new IOException(e);
@@ -861,15 +852,10 @@ public class MBTilesFile implements AutoCloseable {
     }
 
     private void disableJournal(Connection cx) throws SQLException {
-        PreparedStatement prepared = prepare(cx, PRAGMA_JOURNAL_MODE_OFF).statement();
-        try {
+        try (PreparedStatement prepared = prepare(cx, PRAGMA_JOURNAL_MODE_OFF).statement()) {
             prepared.execute();
         } catch (Exception e) {
             throw new SQLException(e);
-        } finally {
-            if (prepared != null) {
-                prepared.close();
-            }
         }
     }
 

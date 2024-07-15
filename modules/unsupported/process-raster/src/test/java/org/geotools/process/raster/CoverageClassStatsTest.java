@@ -29,6 +29,9 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import javax.imageio.ImageIO;
 import javax.media.jai.TiledImage;
+import org.geotools.api.coverage.ColorInterpretation;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GeneralGridEnvelope;
@@ -46,9 +49,6 @@ import org.jaitools.imageutils.ImageUtils;
 import org.jaitools.numeric.Range;
 import org.jaitools.numeric.Statistic;
 import org.junit.Test;
-import org.opengis.coverage.ColorInterpretation;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
 
 public class CoverageClassStatsTest {
 
@@ -226,10 +226,9 @@ public class CoverageClassStatsTest {
                 new GridGeometry2D(
                         new GeneralGridEnvelope(img, 2), PixelInCell.CELL_CORNER, tx, crs, null);
 
-        GridSampleDimension[] bands =
-                new GridSampleDimension[] {
-                    new GridSampleDimension(ColorInterpretation.GRAY_INDEX.name())
-                };
+        GridSampleDimension[] bands = {
+            new GridSampleDimension(ColorInterpretation.GRAY_INDEX.name())
+        };
         return factory.create("test", img, gridGeom, bands, null, null);
     }
 }

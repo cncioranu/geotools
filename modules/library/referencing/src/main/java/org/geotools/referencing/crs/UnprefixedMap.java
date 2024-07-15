@@ -17,8 +17,8 @@
 package org.geotools.referencing.crs;
 
 import java.util.Map;
+import org.geotools.api.referencing.IdentifiedObject;
 import org.geotools.util.DerivedMap;
-import org.opengis.referencing.IdentifiedObject;
 
 /**
  * A map without the <code>"conversion."</code> prefix in front of property keys. This
@@ -75,6 +75,7 @@ final class UnprefixedMap extends DerivedMap<String, String, Object> {
      * @param key A key from the {@linkplain #base} map.
      * @return The key that this view should contains instead of {@code key}, or {@code null}.
      */
+    @Override
     protected String baseToDerived(final String key) {
         final int length = prefix.length();
         final String textualKey = key.trim();
@@ -93,6 +94,7 @@ final class UnprefixedMap extends DerivedMap<String, String, Object> {
      * @param key A key in this map.
      * @return The key stored in the {@linkplain #base} map.
      */
+    @Override
     protected String derivedToBase(final String key) {
         final String textualKey = key.trim();
         if (isPlainKey(textualKey)) {

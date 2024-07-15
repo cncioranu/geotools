@@ -22,14 +22,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.process.Process;
 import org.geotools.util.Converters;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /**
  * A helper function helping to bridge the {@link Process} world with the {@link Function} one.
@@ -67,28 +67,34 @@ class ParameterFunction implements Function {
         this.parameters = parameters;
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallbackValue;
     }
 
+    @Override
     public String getName() {
         return NAME.getName();
     }
 
+    @Override
     public FunctionName getFunctionName() {
         return NAME;
     }
 
+    @Override
     public List<Expression> getParameters() {
         return parameters;
     }
 
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public Object evaluate(Object object) {
-        if (parameters.size() < 1) {
+        if (parameters.isEmpty()) {
             throw new IllegalArgumentException(
                     "The parameter function requires at "
                             + "least one parameter, the argument name");
@@ -124,6 +130,7 @@ class ParameterFunction implements Function {
         return Collections.singletonMap(name, value);
     }
 
+    @Override
     public <T> T evaluate(Object object, Class<T> context) {
         return Converters.convert(evaluate(object), context);
     }

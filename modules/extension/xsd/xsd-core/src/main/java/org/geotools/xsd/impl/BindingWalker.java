@@ -17,7 +17,6 @@
 package org.geotools.xsd.impl;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Stack;
 import javax.xml.namespace.QName;
@@ -55,6 +54,7 @@ public class BindingWalker implements TypeWalker.Visitor {
         return loader.loadBinding(XS.ANYTYPE, context);
     }
 
+    @Override
     public boolean visit(XSDTypeDefinition type) {
         // look up the associated binding object for this type
         QName bindingName = null;
@@ -63,9 +63,7 @@ public class BindingWalker implements TypeWalker.Visitor {
             bindingName = new QName(type.getTargetNamespace(), type.getName());
         } else {
             // anonymous type, does it belong to a global element
-            for (Iterator e = type.getSchema().getElementDeclarations().iterator(); e.hasNext(); ) {
-                XSDElementDeclaration element = (XSDElementDeclaration) e.next();
-
+            for (XSDElementDeclaration element : type.getSchema().getElementDeclarations()) {
                 if (type.equals(element.getAnonymousTypeDefinition())) {
                     // TODO: this naming convention for anonymous types could conflict with
                     // other types in the schema
@@ -121,7 +119,7 @@ public class BindingWalker implements TypeWalker.Visitor {
                     // delegating to parent, because if we dont, any attributes
                     // defined by the type will not be parsed because simple
                     // types cannot have attributes.
-                    // TODO: put this somewhere else, perahps in teh factories
+                    // TODO: put this somewhere else, perhaps in the factories
                     // that create the bindings
                     bindingName = XS.ANYTYPE;
                 }
@@ -149,7 +147,7 @@ public class BindingWalker implements TypeWalker.Visitor {
             Visitor visitor,
             XSDTypeDefinition container,
             MutablePicoContainer context) {
-        BindingExecutionChain chain = (BindingExecutionChain) chains.get(component);
+        BindingExecutionChain chain = chains.get(component);
 
         if (chain == null) {
             this.container = container;
@@ -160,7 +158,7 @@ public class BindingWalker implements TypeWalker.Visitor {
             // first walk the type hierarchy to get the binding objects
             typeWalker.walk(component.getType(), this);
 
-            // also look up a binding to teh instance itself, if found it will go
+            // also look up a binding to the instance itself, if found it will go
             // at the bottom of the binding hierarchy
             if (component.getName() != null) {
                 QName qName = new QName(component.getTargetNamespace(), component.getName());
@@ -206,8 +204,8 @@ public class BindingWalker implements TypeWalker.Visitor {
             Stack<Binding> stack = new Stack<>();
 
             // visit from bottom to top
-            for (int i = 0; i < bindings.size(); i++) {
-                Binding binding = (Binding) bindings.get(i);
+            for (Object o : bindings) {
+                Binding binding = (Binding) o;
 
                 if (binding.getExecutionMode() == Binding.AFTER) {
                     // put on stack to execute after parent
@@ -222,7 +220,7 @@ public class BindingWalker implements TypeWalker.Visitor {
 
             // unwind the call stack
             while (!stack.isEmpty()) {
-                Binding binding = (Binding) stack.pop();
+                Binding binding = stack.pop();
 
                 visitor.visit(binding);
             }

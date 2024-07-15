@@ -1,11 +1,13 @@
 /*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
+ *    GeoTools Sample code and Tutorials by Open Source Geospatial Foundation, and others
+ *    https://docs.geotools.org
  *
- *    (C) 2006-2010, Open Source Geospatial Foundation (OSGeo)
+ *    To the extent possible under law, the author(s) have dedicated all copyright
+ *    and related and neighboring rights to this software to the public domain worldwide.
+ *    This software is distributed without any warranty.
  *
- *    This file is hereby placed into the Public Domain. This means anyone is
- *    free to do whatever they wish with this file. Use it well and enjoy!
+ *    You should have received a copy of the CC0 Public Domain Dedication along with this
+ *    software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 package org.geotools.render;
 
@@ -14,6 +16,7 @@ import java.awt.Rectangle;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -59,13 +62,12 @@ public class GenerateSVG {
         if (canvasSize == null) {
             canvasSize = new Dimension(300, 300); // default of 300x300
         }
-        Document document = null;
 
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder db = dbf.newDocumentBuilder();
 
         // Create an instance of org.w3c.dom.Document
-        document = db.getDOMImplementation().createDocument(null, "svg", null);
+        Document document = db.getDOMImplementation().createDocument(null, "svg", null);
 
         // Set up the map
         SVGGeneratorContext ctx1 = SVGGeneratorContext.createDefault(document);
@@ -85,12 +87,8 @@ public class GenerateSVG {
         LOGGER.finest("rendering map");
         renderer.paint(g2d, outputArea, dataArea);
         LOGGER.finest("writing to file");
-        OutputStreamWriter osw = null;
-        try {
-            osw = new OutputStreamWriter(out, "UTF-8");
+        try (OutputStreamWriter osw = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
             g2d.stream(osw);
-        } finally {
-            if (osw != null) osw.close();
         }
     }
     // exportSVG end

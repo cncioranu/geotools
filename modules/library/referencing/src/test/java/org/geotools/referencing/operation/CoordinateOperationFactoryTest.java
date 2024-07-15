@@ -22,6 +22,7 @@ import static org.geotools.referencing.crs.DefaultEngineeringCRS.GENERIC_2D;
 import static org.geotools.referencing.crs.DefaultGeographicCRS.WGS84;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
@@ -30,6 +31,19 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Set;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CompoundCRS;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.CoordinateOperationFactory;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.Operation;
+import org.geotools.api.referencing.operation.OperationNotFoundException;
+import org.geotools.api.referencing.operation.Projection;
+import org.geotools.api.referencing.operation.Transformation;
 import org.geotools.metadata.iso.quality.PositionalAccuracyImpl;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.WKT;
@@ -40,19 +54,6 @@ import org.geotools.referencing.crs.DefaultVerticalCRS;
 import org.geotools.util.factory.Hints;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CompoundCRS;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.CoordinateOperationFactory;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.Operation;
-import org.opengis.referencing.operation.OperationNotFoundException;
-import org.opengis.referencing.operation.Projection;
-import org.opengis.referencing.operation.Transformation;
 
 /**
  * Test the default coordinate operation factory.
@@ -274,20 +275,15 @@ public final class CoordinateOperationFactoryTest extends TransformTestBase {
          * Remove the TOWGS84 element and test again. An exception should be throws,
          * since no Bursa-Wolf parameters were available.
          */
-        final CoordinateReferenceSystem amputedCRS;
-        if (true) {
-            String wkt = sourceCRS.toWKT();
-            final int start = wkt.indexOf("TOWGS84");
-            assertTrue(start >= 0);
-            final int end = wkt.indexOf(']', start);
-            assertTrue(end >= 0);
-            final int comma = wkt.indexOf(',', end);
-            assertTrue(comma >= 0);
-            wkt = wkt.substring(0, start) + wkt.substring(comma + 1);
-            amputedCRS = crsFactory.createFromWKT(wkt);
-        } else {
-            amputedCRS = sourceCRS;
-        }
+        String wkt = sourceCRS.toWKT();
+        final int start = wkt.indexOf("TOWGS84");
+        assertTrue(start >= 0);
+        final int end = wkt.indexOf(']', start);
+        assertTrue(end >= 0);
+        final int comma = wkt.indexOf(',', end);
+        assertTrue(comma >= 0);
+        wkt = wkt.substring(0, start) + wkt.substring(comma + 1);
+        final CoordinateReferenceSystem amputedCRS = crsFactory.createFromWKT(wkt);
         try {
             assertNotNull(opFactory.createOperation(amputedCRS, targetCRS));
             fail("Operation without Bursa-Wolf parameters should not have been allowed.");
@@ -297,9 +293,9 @@ public final class CoordinateOperationFactoryTest extends TransformTestBase {
         /*
          * Try again with hints, asking for a lenient factory.
          */
-        CoordinateOperationFactory lenientFactory;
         Hints hints = new Hints(Hints.LENIENT_DATUM_SHIFT, Boolean.FALSE);
-        lenientFactory = ReferencingFactoryFinder.getCoordinateOperationFactory(hints);
+        CoordinateOperationFactory lenientFactory =
+                ReferencingFactoryFinder.getCoordinateOperationFactory(hints);
         assertSame(opFactory, lenientFactory);
         hints.put(Hints.LENIENT_DATUM_SHIFT, Boolean.TRUE);
         lenientFactory = ReferencingFactoryFinder.getCoordinateOperationFactory(hints);
@@ -453,8 +449,8 @@ public final class CoordinateOperationFactoryTest extends TransformTestBase {
         assertTrue(op.getSourceCRS() instanceof GeographicCRS); // 2D + 1D  --->  3D
         assertTrue(targetCRS instanceof CompoundCRS);
         assertTrue(op.getTargetCRS() instanceof GeographicCRS); // 2D + 1D  --->  3D
-        assertFalse(sourceCRS.equals(targetCRS));
-        assertFalse(op.getSourceCRS().equals(op.getTargetCRS()));
+        assertNotEquals(sourceCRS, targetCRS);
+        assertNotEquals(op.getSourceCRS(), op.getTargetCRS());
         assertFalse(mt.isIdentity());
         assertInterfaced(mt);
         // Note: Expected values below were computed with Geotools (not an external library).
@@ -483,8 +479,8 @@ public final class CoordinateOperationFactoryTest extends TransformTestBase {
         assertTrue(op.getSourceCRS() instanceof GeographicCRS); // 2D + 1D  --->  3D
         assertTrue(targetCRS instanceof CompoundCRS);
         assertTrue(op.getTargetCRS() instanceof GeographicCRS); // 2D + 1D  --->  3D
-        assertFalse(sourceCRS.equals(targetCRS));
-        assertFalse(op.getSourceCRS().equals(op.getTargetCRS()));
+        assertNotEquals(sourceCRS, targetCRS);
+        assertNotEquals(op.getSourceCRS(), op.getTargetCRS());
         assertFalse(mt.isIdentity());
         assertInterfaced(mt);
         // Note: Expected values below were computed with Geotools (not an external library).
@@ -646,9 +642,6 @@ public final class CoordinateOperationFactoryTest extends TransformTestBase {
     public void testFindOperations() throws Exception {
         final CoordinateReferenceSystem targetCRS = DefaultGeographicCRS.WGS84;
         final CoordinateReferenceSystem sourceCRS = crsFactory.createFromWKT(WKT.NAD83);
-        final CoordinateReferenceSystem sourceCRS2 =
-                crsFactory.createFromWKT(
-                        "PROJCS[\"ED50 / UTM zone 30N\",GEOGCS[\"ED50\",DATUM[\"European Datum 1950\",SPHEROID[\"International 1924\",6378388.0,297.0,AUTHORITY[\"EPSG\",\"7022\"]],TOWGS84[-116.641,-56.931,-110.559,0.893,0.921,-0.917,-3.52],AUTHORITY[\"EPSG\",\"6230\"]],PRIMEM[\"Greenwich\",0.0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.017453292519943295],AXIS[\"Geodetic latitude\",NORTH],AXIS[\"Geodetic longitude\",EAST],AUTHORITY[\"EPSG\",\"4230\"]],PROJECTION[\"Transverse_Mercator\",AUTHORITY[\"EPSG\",\"9807\"]],PARAMETER[\"central_meridian\",-3.0],PARAMETER[\"latitude_of_origin\",0.0],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000.0],PARAMETER[\"false_northing\",0.0],UNIT[\"m\",1.0],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"23030\"]]");
         Set<CoordinateOperation> operations = opFactory.findOperations(sourceCRS, targetCRS);
         int size = operations.size();
 

@@ -16,6 +16,11 @@
  */
 package org.geotools.data.postgis;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -26,9 +31,13 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.UUID;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.Transaction;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.FeatureCollection;
@@ -36,10 +45,6 @@ import org.geotools.feature.FeatureIterator;
 import org.geotools.jdbc.JDBCUDTOnlineTest;
 import org.geotools.jdbc.JDBCUDTTestSetup;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
 
 public class PostgisUDTOnlineTest extends JDBCUDTOnlineTest {
 
@@ -48,6 +53,7 @@ public class PostgisUDTOnlineTest extends JDBCUDTOnlineTest {
         return new PostgisUDTTestSetup();
     }
 
+    @Override
     public void testSchema() throws Exception {
         SimpleFeatureType type = dataStore.getSchema(tname("udt"));
         assertNotNull(type);
@@ -68,13 +74,10 @@ public class PostgisUDTOnlineTest extends JDBCUDTOnlineTest {
         assertEquals(UUID.class, type.getDescriptor(aname("ut13")).getType().getBinding());
     }
 
+    @Override
     public void testRead() throws Exception {
-        SimpleFeatureType type = dataStore.getSchema(tname("udt"));
-
         SimpleFeatureCollection features = dataStore.getFeatureSource(tname("udt")).getFeatures();
-        SimpleFeatureIterator fi = null;
-        try {
-            fi = features.features();
+        try (SimpleFeatureIterator fi = features.features()) {
             assertTrue(fi.hasNext());
             SimpleFeature item = fi.next();
             assertEquals("12ab", item.getAttribute(aname("ut")));
@@ -93,8 +96,6 @@ public class PostgisUDTOnlineTest extends JDBCUDTOnlineTest {
                     item.getAttribute(aname("ut13")).toString());
 
             assertFalse(fi.hasNext());
-        } finally {
-            fi.close();
         }
     }
 

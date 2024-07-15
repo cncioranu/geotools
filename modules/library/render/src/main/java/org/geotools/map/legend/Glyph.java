@@ -22,7 +22,8 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.image.BufferedImage;
-import org.geotools.styling.Rule;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.style.Rule;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
@@ -30,7 +31,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * Renderers a small Glyph used to represent a Map Layer in a legend.
@@ -287,8 +287,8 @@ public class Glyph {
         Stroke stroke = new BasicStroke(w);
         gc.setStroke(stroke);
 
-        int[] xs = new int[] {1, 3, 4, 6, 9, 14, 14};
-        int[] ys = new int[] {14, 9, 6, 4, 3, 1, 14};
+        int[] xs = {1, 3, 4, 6, 9, 14, 14};
+        int[] ys = {14, 9, 6, 4, 3, 1, 14};
         int nb = 7;
 
         gc.setColor(c);
@@ -429,7 +429,7 @@ public class Glyph {
      * @return Icon representing a palette
      *
      */
-    public static BufferedImage palette(Color c[]) {
+    public static BufferedImage palette(Color[] c) {
         BufferedImage bi =
                 new BufferedImage(DEFAULT_WIDTH, DEFAULT_HEIGHT, BufferedImage.TYPE_INT_ARGB);
 

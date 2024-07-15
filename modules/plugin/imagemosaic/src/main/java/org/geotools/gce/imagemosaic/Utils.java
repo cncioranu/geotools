@@ -36,8 +36,8 @@ import java.awt.image.SampleModel;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -47,7 +47,10 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.MessageFormat;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -58,6 +61,7 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.spi.ImageInputStreamSpi;
@@ -79,11 +83,22 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.apache.commons.lang3.StringUtils;
+import org.geotools.api.data.DataAccessFactory.Param;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.data.DataAccessFactory.Param;
-import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.visitor.DefaultFilterVisitor;
@@ -101,7 +116,6 @@ import org.geotools.geometry.jts.LiteCoordinateSequence;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.io.ImageIOExt;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.CRS.AxisOrder;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
@@ -118,15 +132,6 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Sparse utilities for the various mosaic classes. I use them to extract complex code from other
@@ -136,7 +141,7 @@ import org.opengis.referencing.operation.TransformException;
  */
 public class Utils {
 
-    public static final FilterFactory2 FF = CommonFactoryFinder.getFilterFactory2();
+    public static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
 
     private static final String DATABASE_KEY = "database";
 
@@ -168,7 +173,7 @@ public class Utils {
 
     private static JAXBContext CONTEXT = null;
 
-    public static final String PAM_DATASET = "PamDataset";
+    @Deprecated public static final String PAM_DATASET = GridCoverage2DReader.PAM_DATASET;
 
     static final String DEFAULT = "default";
 
@@ -176,8 +181,24 @@ public class Utils {
 
     public static final String PROPERTIES_SEPARATOR = ";";
 
+    public static final Set<String> LOG_EXCLUDES = new HashSet<>();
+
+    static final FileFilter MOSAIC_PROPERTY_FILTER =
+            f -> {
+                String name = f.getName();
+                return f.isFile()
+                        && name.endsWith(".properties")
+                        && !"indexer.properties".equals(name)
+                        && !Utils.DATASTORE_PROPERTIES.equals(name);
+            };
+
+    static {
+        LOG_EXCLUDES.add("xml");
+        LOG_EXCLUDES.add("properties");
+    }
+
     /** RGB to GRAY coefficients (for Luminance computation) */
-    public static final double RGB_TO_GRAY_MATRIX[][] = {{0.114, 0.587, 0.299, 0}};
+    public static final double[][] RGB_TO_GRAY_MATRIX = {{0.114, 0.587, 0.299, 0}};
 
     /**
      * Flag indicating whether to compute optimized crop ops (instead of standard mosaicking op)
@@ -242,6 +263,14 @@ public class Utils {
         return false;
     }
 
+    public static Object getAttribute(SimpleFeature feature, String attribute) {
+        Object value = feature.getAttribute(attribute);
+        if (value == null && attribute.indexOf('/') != -1) {
+            return FF.property(attribute).evaluate(feature);
+        }
+        return value;
+    }
+
     public static class Prop {
         public static final String LOCATION_ATTRIBUTE = "LocationAttribute";
 
@@ -299,6 +328,8 @@ public class Utils {
 
         public static final String STORE_NAME = "StoreName";
 
+        public static final String MAX_INIT_TILES = "MaxInitTiles";
+
         public static final String PATH_TYPE = "PathType";
 
         public static final String PARENT_LOCATION = "ParentLocation";
@@ -339,6 +370,8 @@ public class Utils {
 
         public static final String HETEROGENEOUS_CRS = "HeterogeneousCRS";
 
+        public static final String PROPERTY_SELECTION = "PropertySelection";
+
         public static final String GRANULE_COLLECTOR_FACTORY = "GranuleCollectorFactory";
 
         public static final String COG = "Cog";
@@ -356,6 +389,15 @@ public class Utils {
          * mosaic bounds
          */
         public static final String NO_DATA = "NoData";
+
+        /** Whether to skip checks for external overviews, when no internal overviews are found */
+        public static final String SKIP_EXTERNAL_OVERVIEWS = "SkipExternalOverviews";
+
+        public static final String QUERY_CACHE_MAX_AGE = "QueryCacheMaxAge";
+
+        public static final String QUERY_CACHE_MAX_FEATURES = "QueryCacheMaxFeatures";
+
+        public static final String COLLECT_RAT = "CollectAttributeTables";
     }
 
     /**
@@ -379,7 +421,7 @@ public class Utils {
         public Object visit(BBOX filter, Object data) {
             final ReferencedEnvelope bbox = ReferencedEnvelope.reference(filter.getBounds());
             if (this.bbox != null) {
-                this.bbox = (ReferencedEnvelope) this.bbox.intersection(bbox);
+                this.bbox = this.bbox.intersection(bbox);
             } else {
                 this.bbox = bbox;
             }
@@ -475,11 +517,26 @@ public class Utils {
             final boolean absolutePath,
             final Hints hints) {
 
+        List<String> coverageNames = getNamesFromIndexer(location);
+        if (!coverageNames.isEmpty()) {
+            boolean result = true;
+            for (String coverageName : coverageNames) {
+                result &=
+                        createMosaicInternal(location, coverageName, wildcard, absolutePath, hints);
+            }
+            return result;
+        } else {
+            return createMosaicInternal(location, indexName, wildcard, absolutePath, hints);
+        }
+    }
+
+    private static boolean createMosaicInternal(
+            String location, String indexName, String wildcard, boolean absolutePath, Hints hints) {
         // create a mosaic index builder and set the relevant elements
         final CatalogBuilderConfiguration configuration = new CatalogBuilderConfiguration();
-        // check if the indexer.properties is there
-        configuration.setHints(
-                hints); // retain hints as this may contain an instance of an ImageMosaicReader
+
+        // retain hints as this may contain an instance of an ImageMosaicReader
+        configuration.setHints(hints);
         List<Parameter> parameterList = configuration.getIndexer().getParameters().getParameter();
 
         IndexerUtils.setParam(parameterList, Prop.ABSOLUTE_PATH, Boolean.toString(absolutePath));
@@ -489,46 +546,21 @@ public class Utils {
         IndexerUtils.setParam(parameterList, Prop.INDEXING_DIRECTORIES, location);
 
         // create the builder
-        // final ImageMosaicWalker catalogBuilder = new ImageMosaicWalker(configuration);
         final ImageMosaicEventHandlers eventHandler = new ImageMosaicEventHandlers();
         final ImageMosaicConfigHandler catalogHandler =
                 new ImageMosaicConfigHandler(configuration, eventHandler);
-        final ImageMosaicWalker walker;
-        if (catalogHandler.isUseExistingSchema()) {
-            // walks existing granules in the origin store
-            walker = new ImageMosaicDatastoreWalker(catalogHandler, eventHandler);
-        } else {
-            // collects granules from the file system
-            walker = new ImageMosaicDirectoryWalker(catalogHandler, eventHandler);
-        }
+        final ImageMosaicWalker walker = catalogHandler.createWalker();
 
         // this is going to help us with catching exceptions and logging them
         final Queue<Throwable> exceptions = new LinkedList<>();
+
         try {
-
-            final ImageMosaicEventHandlers.ProcessingEventListener listener =
-                    new ImageMosaicEventHandlers.ProcessingEventListener() {
-
-                        @Override
-                        public void exceptionOccurred(
-                                ImageMosaicEventHandlers.ExceptionEvent event) {
-                            final Throwable t = event.getException();
-                            exceptions.add(t);
-                            if (LOGGER.isLoggable(Level.SEVERE)) {
-                                LOGGER.log(Level.SEVERE, t.getLocalizedMessage(), t);
-                            }
-                        }
-
-                        @Override
-                        public void getNotification(
-                                ImageMosaicEventHandlers.ProcessingEvent event) {
-                            if (LOGGER.isLoggable(Level.FINE)) {
-                                LOGGER.fine(event.getMessage());
-                            }
-                        }
-                    };
-            eventHandler.addProcessingEventListener(listener);
+            eventHandler.addProcessingEventListener(new DefaultProcessingListener(exceptions));
+            if (Boolean.valueOf(configuration.getParameter(Prop.COLLECT_RAT))) {
+                eventHandler.addProcessingEventListener(new RATCollectorListener(configuration));
+            }
             walker.run();
+            eventHandler.fireCompleted();
         } catch (Throwable e) {
             LOGGER.log(Level.SEVERE, "Unable to build mosaic", e);
             return false;
@@ -541,6 +573,65 @@ public class Utils {
             return false;
         }
         return true;
+    }
+
+    /** Simple listener collecting exceptions and logging events */
+    private static class DefaultProcessingListener
+            extends ImageMosaicEventHandlers.ProcessingEventListener {
+
+        private final Queue<Throwable> exceptions;
+
+        public DefaultProcessingListener(Queue<Throwable> exceptions) {
+            this.exceptions = exceptions;
+        }
+
+        @Override
+        public void exceptionOccurred(ImageMosaicEventHandlers.ExceptionEvent event) {
+            final Throwable t = event.getException();
+            exceptions.add(t);
+            if (LOGGER.isLoggable(Level.SEVERE)) {
+                LOGGER.log(Level.SEVERE, t.getLocalizedMessage(), t);
+            }
+        }
+
+        @Override
+        public void getNotification(ImageMosaicEventHandlers.ProcessingEvent event) {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine(event.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Returns the list of coverages to be loaded, under the following conditions:
+     *
+     * <ul>
+     *   <li>There is a indexer.xml listing coverages
+     *   <li>Instead of pulling coverage names from the reader or the file name (file driven
+     *       approach), we are just bound to use an existing store
+     * </ul>
+     *
+     * @param location
+     * @return A list of coverage names, or an empty list if the conditions above to not apply
+     * @throws IOException
+     */
+    private static List<String> getNamesFromIndexer(String location) {
+        try {
+            File indexerFile = new File(location, IndexerUtils.INDEXER_XML);
+            if (!checkFileReadable(indexerFile)) return Collections.emptyList();
+            Indexer indexer = Utils.unmarshal(indexerFile);
+            if (indexer == null
+                    || !IndexerUtils.getParameterAsBoolean(Prop.USE_EXISTING_SCHEMA, indexer))
+                return Collections.emptyList();
+            return indexer.getCoverages().getCoverage().stream()
+                    .map(c -> c.getName())
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "Failed to check if mosaic should index multiple coverages from existing schema");
+            return Collections.emptyList();
+        }
     }
 
     // Make additional filters pluggable
@@ -613,46 +704,20 @@ public class Utils {
         //
         // load the properties file
         //
-        URL propsURL = sourceURL;
-        if (!sourceURL.toExternalForm().endsWith(".properties")) {
-            propsURL = URLs.changeUrlExt(sourceURL, "properties");
-            if (propsURL.getProtocol().equals("file")) {
-                final File sourceFile = URLs.urlToFile(propsURL);
-                if (!sourceFile.exists()) {
-                    if (LOGGER.isLoggable(Level.INFO)) {
-                        LOGGER.info("properties file doesn't exist");
-                    }
-                    return null;
-                }
-            }
-        }
-
-        final Properties properties = CoverageUtilities.loadPropertiesFromURL(propsURL);
+        final Properties properties = loadProperties(sourceURL);
         if (properties == null) {
             if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Unable to load mosaic properties file");
             return null;
         }
 
         String[] pairs = null;
-        String pair[] = null;
+        String[] pair = null;
 
         //
         // imposed bbox is optional
         //
         if (!ignoreSome || !ignorePropertiesSet.contains(Prop.ENVELOPE2D)) {
-            String bboxString = properties.getProperty(Prop.ENVELOPE2D, null);
-            if (bboxString != null) {
-                bboxString = bboxString.trim();
-                try {
-                    ReferencedEnvelope bbox = parseEnvelope(bboxString);
-                    if (bbox != null) retValue.setEnvelope(bbox);
-                    else if (LOGGER.isLoggable(Level.INFO))
-                        LOGGER.info("Cannot parse imposed bbox.");
-                } catch (Exception e) {
-                    if (LOGGER.isLoggable(Level.INFO))
-                        LOGGER.log(Level.INFO, "Cannot parse imposed bbox.", e);
-                }
-            }
+            loadBBOX(retValue, properties);
         }
 
         if (!ignoreSome || !ignorePropertiesSet.contains(Prop.AUXILIARY_FILE)) {
@@ -679,34 +744,7 @@ public class Utils {
         // resolutions levels
         //
         if (!ignoreSome || !ignorePropertiesSet.contains(Prop.LEVELS)) {
-            int levelsNumber =
-                    Integer.parseInt(properties.getProperty(Prop.LEVELS_NUM, "1").trim());
-            retValue.setLevelsNum(levelsNumber);
-            if (!properties.containsKey(Prop.LEVELS)) {
-                if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Required key Levels not found.");
-                return null;
-            }
-            final String levels = properties.getProperty(Prop.LEVELS).trim();
-            pairs = levels.split(" ");
-            if (pairs.length != levelsNumber) {
-                if (LOGGER.isLoggable(Level.INFO))
-                    LOGGER.info(
-                            "Levels number is different from the provided number of levels resoltion.");
-                return null;
-            }
-            final double[][] resolutions = new double[levelsNumber][2];
-            for (int i = 0; i < levelsNumber; i++) {
-                pair = pairs[i].split(",");
-                if (pair == null || pair.length != 2) {
-                    if (LOGGER.isLoggable(Level.INFO))
-                        LOGGER.info(
-                                "OverviewLevel number is different from the provided number of levels resoltion.");
-                    return null;
-                }
-                resolutions[i][0] = Double.parseDouble(pair[0]);
-                resolutions[i][1] = Double.parseDouble(pair[1]);
-            }
-            retValue.setLevels(resolutions);
+            if (loadResolutions(retValue, properties)) return null;
         }
 
         //
@@ -820,6 +858,7 @@ public class Utils {
             }
             String coverageName = properties.getProperty(Prop.NAME).trim();
             retValue.setName(coverageName);
+            catalogConfigurationBean.setName(coverageName);
         }
 
         // need a color expansion?
@@ -858,18 +897,7 @@ public class Utils {
         // Absolute or relative path
         //
         if (!ignoreSome || !ignorePropertiesSet.contains(Prop.ABSOLUTE_PATH)) {
-            final boolean absolutePath =
-                    Boolean.valueOf(
-                            properties
-                                    .getProperty(
-                                            Prop.ABSOLUTE_PATH,
-                                            Boolean.toString(Utils.DEFAULT_PATH_BEHAVIOR))
-                                    .trim());
-            if (absolutePath) {
-                catalogConfigurationBean.setPathType(PathType.ABSOLUTE);
-            } else {
-                catalogConfigurationBean.setPathType(PathType.RELATIVE);
-            }
+            loadPathType(catalogConfigurationBean, properties);
         }
 
         if (!ignoreSome || !ignorePropertiesSet.contains(Prop.PATH_TYPE)) {
@@ -913,37 +941,26 @@ public class Utils {
 
         // target CRS
         if (!ignoreSome || !ignorePropertiesSet.contains(Prop.MOSAIC_CRS)) {
-            String crsCode = properties.getProperty(Prop.MOSAIC_CRS);
-            if (crsCode != null && !crsCode.isEmpty()) {
-                try {
-                    retValue.setCrs(decodeSrs(crsCode));
-                } catch (FactoryException e) {
-                    LOGGER.log(
-                            Level.FINE,
-                            "Unable to decode CRS of mosaic properties file. Configured CRS "
-                                    + "code was: "
-                                    + crsCode,
-                            e);
-                }
-            }
+            loadCRSCode(retValue, properties);
         }
 
         // target NoData
         if (!ignoreSome || !ignorePropertiesSet.contains(Prop.NO_DATA)) {
-            String noDataStr = properties.getProperty(Prop.NO_DATA);
-            if (noDataStr != null && !noDataStr.isEmpty()) {
-                try {
-                    double noData = Double.parseDouble(noDataStr);
-                    retValue.setNoData(noData);
-                } catch (NumberFormatException e) {
-                    LOGGER.log(
-                            Level.FINE,
-                            "Unable to decode NoData of mosaic properties file. Configured NoData "
-                                    + "code was: "
-                                    + noDataStr,
-                            e);
-                }
-            }
+            loadNoData(retValue, properties);
+        }
+
+        // external overview skip
+        if (!ignoreSome || !ignorePropertiesSet.contains(Prop.SKIP_EXTERNAL_OVERVIEWS)) {
+            catalogConfigurationBean.setSkipExternalOverviews(
+                    Boolean.parseBoolean(
+                            properties.getProperty(Prop.SKIP_EXTERNAL_OVERVIEWS, "false").trim()));
+        }
+
+        // property selection
+        if (!ignoreSome || !ignorePropertiesSet.contains(Prop.PROPERTY_SELECTION)) {
+            catalogConfigurationBean.setPropertySelectionEnabled(
+                    Boolean.parseBoolean(
+                            properties.getProperty(Prop.PROPERTY_SELECTION, "false").trim()));
         }
 
         // Also initialize the indexer here, since it will be needed later on.
@@ -951,25 +968,146 @@ public class Utils {
         Indexer indexer = loadIndexer(mosaicParentFolder);
 
         if (indexer != null) {
-            retValue.setIndexer(indexer);
-            String granuleCollectorFactorySPI =
-                    IndexerUtils.getParameter(Prop.GRANULE_COLLECTOR_FACTORY, indexer);
-            if (granuleCollectorFactorySPI == null || granuleCollectorFactorySPI.length() <= 0) {
-                boolean isHeterogeneousCRS =
-                        Boolean.parseBoolean(
-                                IndexerUtils.getParameter(Prop.HETEROGENEOUS_CRS, indexer));
-                if (isHeterogeneousCRS) {
-                    // in this case we know we need the reprojecting collector anyway, let's use it
-                    IndexerUtils.setParam(
-                            indexer,
-                            Prop.GRANULE_COLLECTOR_FACTORY,
-                            ReprojectingSubmosaicProducerFactory.class.getName());
-                }
-            }
+            loadIndexer(retValue, indexer);
         }
 
         // return value
         return retValue;
+    }
+
+    private static Properties loadProperties(URL sourceURL) {
+        URL propsURL = sourceURL;
+        if (!sourceURL.toExternalForm().endsWith(".properties")) {
+            propsURL = URLs.changeUrlExt(sourceURL, "properties");
+            if (propsURL.getProtocol().equals("file")) {
+                final File sourceFile = URLs.urlToFile(propsURL);
+                if (!sourceFile.exists()) {
+                    if (LOGGER.isLoggable(Level.INFO)) {
+                        LOGGER.info("properties file doesn't exist");
+                    }
+                    return null;
+                }
+            }
+        }
+
+        final Properties properties = CoverageUtilities.loadPropertiesFromURL(propsURL);
+        return properties;
+    }
+
+    private static void loadBBOX(MosaicConfigurationBean retValue, Properties properties) {
+        String bboxString = properties.getProperty(Prop.ENVELOPE2D, null);
+        if (bboxString != null) {
+            bboxString = bboxString.trim();
+            try {
+                ReferencedEnvelope bbox = parseEnvelope(bboxString);
+                if (bbox != null) retValue.setEnvelope(bbox);
+                else if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Cannot parse imposed bbox.");
+            } catch (Exception e) {
+                if (LOGGER.isLoggable(Level.INFO))
+                    LOGGER.log(Level.INFO, "Cannot parse imposed bbox.", e);
+            }
+        }
+    }
+
+    private static void loadIndexer(MosaicConfigurationBean retValue, Indexer indexer) {
+        retValue.setIndexer(indexer);
+        String granuleCollectorFactorySPI =
+                IndexerUtils.getParameter(Prop.GRANULE_COLLECTOR_FACTORY, indexer);
+        if (granuleCollectorFactorySPI == null || granuleCollectorFactorySPI.length() <= 0) {
+            boolean isHeterogeneousCRS =
+                    Boolean.parseBoolean(
+                            IndexerUtils.getParameter(Prop.HETEROGENEOUS_CRS, indexer));
+            if (isHeterogeneousCRS) {
+                // in this case we know we need the reprojecting collector anyway, let's use it
+                IndexerUtils.setParam(
+                        indexer,
+                        Prop.GRANULE_COLLECTOR_FACTORY,
+                        ReprojectingSubmosaicProducerFactory.class.getName());
+            }
+        }
+    }
+
+    private static void loadNoData(MosaicConfigurationBean retValue, Properties properties) {
+        String noDataStr = properties.getProperty(Prop.NO_DATA);
+        if (noDataStr != null && !noDataStr.isEmpty()) {
+            try {
+                double noData = Double.parseDouble(noDataStr);
+                retValue.setNoData(noData);
+            } catch (NumberFormatException e) {
+                LOGGER.log(
+                        Level.FINE,
+                        "Unable to decode NoData of mosaic properties file. Configured NoData "
+                                + "code was: "
+                                + noDataStr,
+                        e);
+            }
+        }
+    }
+
+    private static void loadCRSCode(MosaicConfigurationBean retValue, Properties properties) {
+        String crsCode = properties.getProperty(Prop.MOSAIC_CRS);
+        if (crsCode != null && !crsCode.isEmpty()) {
+            try {
+                retValue.setCrs(decodeSrs(crsCode));
+            } catch (FactoryException e) {
+                LOGGER.log(
+                        Level.FINE,
+                        "Unable to decode CRS of mosaic properties file. Configured CRS "
+                                + "code was: "
+                                + crsCode,
+                        e);
+            }
+        }
+    }
+
+    private static void loadPathType(
+            CatalogConfigurationBean catalogConfigurationBean, Properties properties) {
+        final boolean absolutePath =
+                Boolean.valueOf(
+                        properties
+                                .getProperty(
+                                        Prop.ABSOLUTE_PATH,
+                                        Boolean.toString(Utils.DEFAULT_PATH_BEHAVIOR))
+                                .trim());
+        if (absolutePath) {
+            catalogConfigurationBean.setPathType(PathType.ABSOLUTE);
+        } else {
+            catalogConfigurationBean.setPathType(PathType.RELATIVE);
+        }
+    }
+
+    private static boolean loadResolutions(
+            MosaicConfigurationBean retValue, Properties properties) {
+        String[] pairs;
+        String[] pair;
+        int levelsNumber = Integer.parseInt(properties.getProperty(Prop.LEVELS_NUM, "1").trim());
+        retValue.setLevelsNum(levelsNumber);
+        if (!properties.containsKey(Prop.LEVELS)) {
+            if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Required key Levels not found.");
+            return true;
+        }
+        final String levels = properties.getProperty(Prop.LEVELS).trim();
+        pairs = levels.split(" ");
+        if (pairs.length != levelsNumber) {
+            if (LOGGER.isLoggable(Level.INFO))
+                LOGGER.info(
+                        "Levels number is different from the provided number of levels resoltion.");
+            return true;
+        }
+        final double[][] resolutions = new double[levelsNumber][2];
+        for (int i = 0; i < levelsNumber; i++) {
+            pair = pairs[i].split(",");
+            if (pair == null || pair.length != 2) {
+                if (LOGGER.isLoggable(Level.INFO))
+                    LOGGER.info(
+                            "OverviewLevel number is different from the provided number of levels resoltion.");
+                return true;
+            }
+            resolutions[i][0] = Double.parseDouble(pair[0]);
+            resolutions[i][1] = Double.parseDouble(pair[1]);
+        }
+        retValue.setLevels(resolutions);
+        return false;
     }
 
     private static void setCogConfig(
@@ -996,7 +1134,7 @@ public class Utils {
             if (!ignoreSome || !ignorePropertiesSet.contains(Prop.COG_PASSWORD)) {
                 cogBean.setPassword(properties.getProperty(Prop.COG_PASSWORD));
             }
-            catalogConfigurationBean.setCogConfiguration(cogBean);
+            catalogConfigurationBean.setUrlSourceSPIProvider(cogBean);
         }
     }
 
@@ -1091,7 +1229,7 @@ public class Utils {
         Utilities.ensureNonNull("reader", reader);
         if (imageIndex < 0)
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.INDEX_OUT_OF_BOUNDS_$1, imageIndex));
+                    MessageFormat.format(ErrorKeys.INDEX_OUT_OF_BOUNDS_$1, imageIndex));
         return new Rectangle(0, 0, reader.getWidth(imageIndex), reader.getHeight(imageIndex));
     }
 
@@ -1239,6 +1377,8 @@ public class Utils {
 
     public static final boolean DEFAULT_RECURSION_BEHAVIOR = true;
 
+    public static final boolean DEFAULT_COLLECT_RAT = false;
+
     /** */
     public static Map<String, Serializable> createDataStoreParamsFromPropertiesFile(
             final URL datastoreProperties) throws IOException {
@@ -1290,17 +1430,14 @@ public class Utils {
      * @return a sample image from which we can take the sample model and color model to be used to
      *     fill holes in responses.
      */
+    @SuppressWarnings("BanSerializableRead")
     public static RenderedImage loadSampleImage(final File sampleImageFile) {
         // serialize it
-        InputStream inStream = null;
-        ObjectInputStream oiStream = null;
-        try {
-
-            // do we have the sample image??
-            if (Utils.checkFileReadable(sampleImageFile)) {
-                inStream = new BufferedInputStream(new FileInputStream(sampleImageFile));
-                oiStream = new ObjectInputStream(inStream);
-
+        // do we have the sample image??
+        if (Utils.checkFileReadable(sampleImageFile)) {
+            try (InputStream inStream =
+                            new BufferedInputStream(new FileInputStream(sampleImageFile));
+                    ObjectInputStream oiStream = new ObjectInputStream(inStream)) {
                 // load the image
                 Object object = oiStream.readObject();
                 if (object instanceof SampleImage) {
@@ -1334,39 +1471,15 @@ public class Utils {
                     }
                     return null;
                 }
-
-            } else {
+            } catch (ClassNotFoundException | IOException e) {
                 if (LOGGER.isLoggable(Level.WARNING))
-                    LOGGER.warning("Unable to find sample image for path " + sampleImageFile);
+                    LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
                 return null;
             }
-        } catch (FileNotFoundException e) {
+        } else {
             if (LOGGER.isLoggable(Level.WARNING))
-                LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
+                LOGGER.warning("Unable to find sample image for path " + sampleImageFile);
             return null;
-        } catch (IOException e) {
-            if (LOGGER.isLoggable(Level.WARNING))
-                LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-            return null;
-        } catch (ClassNotFoundException e) {
-            if (LOGGER.isLoggable(Level.WARNING))
-                LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-            return null;
-        } finally {
-            try {
-                if (inStream != null) inStream.close();
-            } catch (Throwable e) {
-
-                if (LOGGER.isLoggable(Level.FINE))
-                    LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
-            }
-            try {
-                if (oiStream != null) oiStream.close();
-            } catch (Throwable e) {
-
-                if (LOGGER.isLoggable(Level.FINE))
-                    LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
-            }
         }
     }
 
@@ -1740,10 +1853,10 @@ public class Utils {
 
     static final String ASCENDING_ORDER_IDENTIFIER = " A"; // SortOrder.ASCENDING.identifier();
 
-    public static final String SCAN_FOR_TYPENAMES = "TypeNames";
-
     public static final String SAMPLE_IMAGE_NAME_LEGACY = "sample_image";
     public static final String SAMPLE_IMAGE_NAME = "sample_image.dat";
+
+    public static final String PAM_DATASET_NAME = ".aux.xml";
 
     public static final String BBOX = "BOUNDINGBOX";
 
@@ -1772,6 +1885,7 @@ public class Utils {
      *
      * @return the deserialized histogram.
      */
+    @SuppressWarnings("BanSerializableRead")
     public static Histogram getHistogram(final String file) {
         Utilities.ensureNonNull("file", file);
         Histogram histogram = null;
@@ -1781,15 +1895,7 @@ public class Utils {
             try (ObjectInputStream objectStream =
                     new ObjectInputStream(new FileInputStream(file))) {
                 histogram = (Histogram) objectStream.readObject();
-            } catch (FileNotFoundException e) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine("Unable to parse Histogram:" + e.getLocalizedMessage());
-                }
-            } catch (IOException e) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine("Unable to parse Histogram:" + e.getLocalizedMessage());
-                }
-            } catch (ClassNotFoundException e) {
+            } catch (ClassNotFoundException | IOException e) {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.fine("Unable to parse Histogram:" + e.getLocalizedMessage());
                 }
@@ -2319,6 +2425,9 @@ public class Utils {
             return false;
         }
 
+        // if it's a xpath the type might not be known until later
+        if (locationAttributeName.contains("/")) return true;
+
         // does it have the location property?
         AttributeDescriptor location = schema.getDescriptor(locationAttributeName);
         return location != null
@@ -2390,7 +2499,7 @@ public class Utils {
         return JTS.toGeometry(sourceEnvelope);
     }
 
-    private static org.opengis.geometry.Envelope getCRSEnvelope(CoordinateReferenceSystem targetCRS)
+    private static Bounds getCRSEnvelope(CoordinateReferenceSystem targetCRS)
             throws FactoryException, NoSuchAuthorityCodeException {
         if (targetCRS.getDomainOfValidity() == null) {
             Integer code = CRS.lookupEpsgCode(targetCRS, true);
@@ -2398,7 +2507,7 @@ public class Utils {
                 CRS.decode("EPSG:" + code, CRS.getAxisOrder(targetCRS) != AxisOrder.NORTH_EAST);
             }
         }
-        org.opengis.geometry.Envelope envelope = CRS.getEnvelope(targetCRS);
+        Bounds envelope = CRS.getEnvelope(targetCRS);
         return envelope;
     }
 

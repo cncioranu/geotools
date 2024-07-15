@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.feature.FeatureCollection;
@@ -31,8 +33,6 @@ import org.geotools.feature.visitor.MinVisitor;
 import org.geotools.feature.visitor.UniqueVisitor;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Classification function for breaking a feature collection into edible chunks of "equal" size.
@@ -88,19 +88,13 @@ public class EqualIntervalFunction extends ClassificationFunction {
             }
 
             return result;
-        } catch (IllegalFilterException e) { // accepts exploded
+        } catch (IllegalFilterException | IOException e) { // accepts exploded
             LOGGER.log(
                     Level.SEVERE,
                     "EqualIntervalFunction calculate(SimpleFeatureCollection) failed",
                     e);
             return null;
-        } catch (IOException e) { // getResult().getValue() exploded
-            LOGGER.log(
-                    Level.SEVERE,
-                    "EqualIntervalFunction calculate(SimpleFeatureCollection) failed",
-                    e);
-            return null;
-        }
+        } // getResult().getValue() exploded
     }
 
     @SuppressWarnings("unchecked") // assumes it can use random comparables with numbers
@@ -183,7 +177,7 @@ public class EqualIntervalFunction extends ClassificationFunction {
         // instead)
 
         // calculate number of items to put in each of the larger bins
-        int binPop = Double.valueOf(Math.ceil((double) values.length / classNum)).intValue();
+        int binPop = (int) Math.ceil((double) values.length / classNum);
         // determine index of bin where the next bin has one less item
         int lastBigBin = values.length % classNum;
         if (lastBigBin == 0) lastBigBin = classNum;
@@ -230,6 +224,7 @@ public class EqualIntervalFunction extends ClassificationFunction {
         return new RangedClassifier(localMin, localMax);
     }
 
+    @Override
     public RangedClassifier evaluate(Object object) {
         if (!(object instanceof FeatureCollection)) {
             return null;

@@ -17,7 +17,7 @@
 package org.geotools.data.sort;
 
 import java.util.Comparator;
-import org.opengis.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeature;
 
 /** Base class for comparators working on {@link SimpleFeature} properties */
 abstract class AbstractPropertyComparator implements Comparator<SimpleFeature> {
@@ -33,6 +33,7 @@ abstract class AbstractPropertyComparator implements Comparator<SimpleFeature> {
         this.ascending = ascending;
     }
 
+    @Override
     public int compare(SimpleFeature f1, SimpleFeature f2) {
         int result = compareAscending(f1, f2);
         if (ascending) {

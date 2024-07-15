@@ -19,10 +19,11 @@ package org.geotools.data.wfs.internal;
 import static org.geotools.data.wfs.internal.WFSOperationType.GET_FEATURE;
 
 import net.opengis.wfs20.StoredQueryDescriptionType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.http.HTTPClient;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.sort.SortBy;
 
 /** */
 public class GetFeatureRequest extends WFSRequest {
@@ -40,6 +41,8 @@ public class GetFeatureRequest extends WFSRequest {
 
     private Integer maxFeatures;
 
+    private Integer startIndex;
+
     private ResultType resultType;
 
     private SortBy[] sortBy;
@@ -56,9 +59,21 @@ public class GetFeatureRequest extends WFSRequest {
 
     private Hints hints;
 
+    private final HTTPClient httpClient;
+
     GetFeatureRequest(WFSConfig config, WFSStrategy strategy) {
+        this(config, strategy, null);
+    }
+
+    /** Pass along the http client to use when parsing the response. */
+    GetFeatureRequest(WFSConfig config, WFSStrategy strategy, HTTPClient httpClient) {
         super(GET_FEATURE, config, strategy);
         resultType = ResultType.RESULTS;
+        this.httpClient = httpClient;
+    }
+
+    public HTTPClient getHTTPClient() {
+        return httpClient;
     }
 
     public String[] getPropertyNames() {
@@ -75,6 +90,10 @@ public class GetFeatureRequest extends WFSRequest {
 
     public Integer getMaxFeatures() {
         return maxFeatures;
+    }
+
+    public Integer getStartIndex() {
+        return startIndex;
     }
 
     public ResultType getResultType() {
@@ -103,6 +122,11 @@ public class GetFeatureRequest extends WFSRequest {
     /** @param maxFeatures the maxFeatures to set */
     public void setMaxFeatures(Integer maxFeatures) {
         this.maxFeatures = maxFeatures;
+    }
+
+    /** @param startIndex the startIndex to set */
+    public void setStartIndex(Integer startIndex) {
+        this.startIndex = startIndex;
     }
 
     /** @param resultType the resultType to set */

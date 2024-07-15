@@ -17,7 +17,9 @@
 package org.geotools.coverage.io;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -37,6 +39,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
+import org.geotools.api.coverage.Coverage;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.io.CoverageAccess.AccessType;
@@ -53,8 +66,6 @@ import org.geotools.coverage.io.metadata.MetadataAttribute;
 import org.geotools.coverage.io.metadata.MetadataNode;
 import org.geotools.coverage.io.util.DateRangeTreeSet;
 import org.geotools.coverage.io.util.DoubleRangeTreeSet;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.Parameter;
 import org.geotools.feature.NameImpl;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -63,15 +74,6 @@ import org.geotools.util.DateRange;
 import org.geotools.util.NumberRange;
 import org.geotools.util.factory.Hints;
 import org.junit.Test;
-import org.opengis.coverage.Coverage;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
-import org.opengis.util.ProgressListener;
 
 /** @author Nicola Lagomarsini Geosolutions */
 public class CoverageTest {
@@ -102,7 +104,7 @@ public class CoverageTest {
         assertEquals(TEST_NAME, source.getName(null));
 
         // Test additional domains Setter and getter
-        assertTrue(!source.getAdditionalDomains().isEmpty());
+        assertFalse(source.getAdditionalDomains().isEmpty());
         assertNotNull(source.getVerticalDomain());
     }
 
@@ -123,7 +125,7 @@ public class CoverageTest {
         assertNotNull(metadata);
         Map<String, MetadataAttribute> attributes = metadata.getAttributes();
         assertNotNull(attributes);
-        assertTrue(!attributes.isEmpty());
+        assertFalse(attributes.isEmpty());
         MetadataAttribute metadataAttribute = attributes.get("testAttribute");
         assertNotNull(metadataAttribute);
         assertNotNull(metadata.getNodes());
@@ -175,35 +177,35 @@ public class CoverageTest {
         request.setHandle(handle);
         request.setDomainSubset(rasterArea, gridToWorldTransform, crs);
         // Ensure that both geographic and raster area have been set
-        assertTrue(request.getRasterArea() != null);
-        assertTrue(request.getGeographicArea() != null);
+        assertNotNull(request.getRasterArea());
+        assertNotNull(request.getGeographicArea());
         // Check that there is no Filter already set
-        assertTrue(request.getFilter() == null);
+        assertNull(request.getFilter());
         // Setting the filter
         request.setFilter(filter);
-        assertTrue(request.getFilter() != null);
+        assertNotNull(request.getFilter());
         // Check that there is no temporal subset already set
         assertTrue(request.getTemporalSubset().isEmpty());
         // Setting temporal subset
         request.setTemporalSubset(set);
-        assertTrue(!request.getTemporalSubset().isEmpty());
+        assertFalse(request.getTemporalSubset().isEmpty());
         // Check that there is no vertical subset already set
         assertTrue(request.getVerticalSubset().isEmpty());
         // Setting vertical subset
         request.setVerticalSubset(verticalSubset);
-        assertTrue(!request.getVerticalSubset().isEmpty());
+        assertFalse(request.getVerticalSubset().isEmpty());
         // Get the response
         CoverageResponse response = source.read(request, null);
         // Ensure the response status is success
-        assertTrue(response.getStatus() == Status.SUCCESS);
+        assertSame(response.getStatus(), Status.SUCCESS);
         // Ensure the request is the same
-        assertTrue(response.getRequest().equals(request));
+        assertEquals(response.getRequest(), request);
         // Ensure the Handle is the same
         assertTrue(response.getHandle().equalsIgnoreCase(handle));
         // Ensure the result is not null
         Collection<? extends Coverage> results = response.getResults(null);
-        assertTrue(results != null);
-        assertTrue(results.size() > 0);
+        assertNotNull(results);
+        assertFalse(results.isEmpty());
         assertTrue(results.iterator().next() instanceof GridCoverage2D);
     }
 
@@ -240,8 +242,8 @@ public class CoverageTest {
 
         Collection<? extends Coverage> results = response.getResults(null);
         // Ensure the results are not null and it is not empty
-        assertTrue(results != null);
-        assertTrue(!results.isEmpty());
+        assertNotNull(results);
+        assertFalse(results.isEmpty());
         // Get the first result from the collection and ensure it is the same coverage of the input
         GridCoverage2D covOutput = (GridCoverage2D) results.iterator().next();
         assertSame(cov, covOutput);

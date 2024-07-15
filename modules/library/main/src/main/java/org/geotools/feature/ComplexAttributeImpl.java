@@ -18,15 +18,17 @@ package org.geotools.feature;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.identity.Identifier;
 import org.geotools.feature.type.AttributeDescriptorImpl;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.identity.Identifier;
 
 public class ComplexAttributeImpl extends AttributeImpl implements ComplexAttribute {
 
@@ -39,16 +41,19 @@ public class ComplexAttributeImpl extends AttributeImpl implements ComplexAttrib
         this(properties, new AttributeDescriptorImpl(type, type.getName(), 1, 1, true, null), id);
     }
 
+    @Override
     public ComplexType getType() {
         return (ComplexType) super.getType();
     }
 
+    @Override
     public Collection<? extends Property> getValue() {
         @SuppressWarnings("unchecked")
-        Collection<? extends Property> cast = (Collection<? extends Property>) super.getValue();
+        List<? extends Property> cast = (List<? extends Property>) super.getValue();
         return FeatureImplUtils.unmodifiable(cast);
     }
 
+    @Override
     public Collection<Property> getProperties() {
         @SuppressWarnings("unchecked")
         Collection<Property> cast = (Collection<Property>) super.getValue();
@@ -59,14 +64,15 @@ public class ComplexAttributeImpl extends AttributeImpl implements ComplexAttrib
      * Internal helper method for getting at the properties without wrapping in unmodifiable
      * collection.
      */
-    protected Collection properties() {
-        return (Collection) super.getValue();
+    @SuppressWarnings("unchecked")
+    protected List<Property> properties() {
+        return (List<Property>) super.getValue();
     }
 
+    @Override
     public Collection<Property> getProperties(Name name) {
         List<Property> matches = new ArrayList<>();
-        for (Iterator p = getValue().iterator(); p.hasNext(); ) {
-            Property property = (Property) p.next();
+        for (Property property : properties()) {
             if (property.getName().equals(name)) {
                 matches.add(property);
             }
@@ -75,10 +81,39 @@ public class ComplexAttributeImpl extends AttributeImpl implements ComplexAttrib
         return matches;
     }
 
+    /**
+     * @return the first property in {@link #getProperties()} reverse order whose {@link
+     *     Property#getName() name} equals the given {@code name}
+     */
+    public Optional<Property> findLast(Name name) {
+        List<Property> properties = properties();
+        for (int i = properties.size() - 1; i > -1; i--) {
+            Property p = properties.get(i);
+            if (name.equals(p.getName())) {
+                return Optional.of(p);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * @return all properties that match the provided predicate, may be empty, never {@code null}
+     */
+    public Stream<Property> findAll(Predicate<? super Property> predicate) {
+        return properties().stream().filter(predicate);
+    }
+
+    /**
+     * @return the first property that matches the provided predicate, or {@code Optional.empty()}
+     */
+    public Optional<Property> find(Predicate<? super Property> predicate) {
+        return properties().stream().filter(predicate).findFirst();
+    }
+
+    @Override
     public Collection<Property> getProperties(String name) {
         List<Property> matches = new ArrayList<>();
-        for (Iterator p = properties().iterator(); p.hasNext(); ) {
-            Property property = (Property) p.next();
+        for (Property property : properties()) {
             if (property.getName().getLocalPart().equals(name)) {
                 matches.add(property);
             }
@@ -87,9 +122,9 @@ public class ComplexAttributeImpl extends AttributeImpl implements ComplexAttrib
         return matches;
     }
 
+    @Override
     public Property getProperty(Name name) {
-        for (Iterator p = properties().iterator(); p.hasNext(); ) {
-            Property property = (Property) p.next();
+        for (Property property : properties()) {
             if (property.getName().equals(name)) {
                 return property;
             }
@@ -98,9 +133,9 @@ public class ComplexAttributeImpl extends AttributeImpl implements ComplexAttrib
         return null;
     }
 
+    @Override
     public Property getProperty(String name) {
-        for (Iterator p = getValue().iterator(); p.hasNext(); ) {
-            Property property = (Property) p.next();
+        for (Property property : getValue()) {
             if (property.getName().getLocalPart().equals(name)) {
                 return property;
             }
@@ -109,37 +144,34 @@ public class ComplexAttributeImpl extends AttributeImpl implements ComplexAttrib
         return null;
     }
 
+    @Override
     public void setValue(Object newValue) throws IllegalArgumentException, IllegalStateException {
         @SuppressWarnings("unchecked")
         Collection<Property> cast = (Collection<Property>) newValue;
         setValue(cast);
     }
 
+    @Override
     public void setValue(Collection<Property> newValue) {
-        super.setValue(cloneProperties(newValue));
+        List<Property> props = cloneProperties(newValue);
+        super.setValue(props);
+    }
+
+    /**
+     * Appends a property to this attribute's property list without incurring in unnecessary object
+     * allocation such as safe-copying the values list as in {@link #setValue(Collection)}
+     */
+    public void addValue(Property value) {
+        properties().add(value);
     }
 
     /** helper method to clone the property collection. */
-    private static <T> Collection<T> cloneProperties(Collection<T> original) {
+    private static <T> List<T> cloneProperties(Collection<T> original) {
         if (original == null) {
             return null;
         }
 
-        Collection<T> clone = newCollection(original.getClass());
-
-        clone.addAll(original);
-        return clone;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> Collection<T> newCollection(Class<? extends Collection> collectionClass) {
-        Collection<T> clone = null;
-        try {
-            clone = collectionClass.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            clone = new ArrayList<>();
-        }
-        return clone;
+        return new ArrayList<>(original);
     }
 
     //    public List<Property>get(Name name) {

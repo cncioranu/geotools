@@ -25,6 +25,9 @@ import java.util.List;
 import javax.media.jai.JAI;
 import javax.media.jai.ParameterBlockJAI;
 import javax.media.jai.RenderedOp;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.metadata.spatial.PixelOrientation;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -40,9 +43,6 @@ import org.jaitools.numeric.Range;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.util.ProgressListener;
 
 /**
  * A process for raster to vector conversion. Regions of uniform value in an input {@linkplain
@@ -61,10 +61,9 @@ import org.opengis.util.ProgressListener;
  * @version $Id$
  */
 @DescribeProcess(
-    title = "Polygon Extraction",
-    description =
-            "Extracts vector polygons from a raster, based on regions which are equal or in given ranges"
-)
+        title = "Polygon Extraction",
+        description =
+                "Extracts vector polygons from a raster, based on regions which are equal or in given ranges")
 public class PolygonExtractionProcess implements RasterProcess {
 
     static {
@@ -101,40 +100,35 @@ public class PolygonExtractionProcess implements RasterProcess {
             @DescribeParameter(name = "data", description = "Source raster")
                     GridCoverage2D coverage,
             @DescribeParameter(
-                        name = "band",
-                        description = "Source band to use (default = 0)",
-                        min = 0,
-                        defaultValue = "0"
-                    )
+                            name = "band",
+                            description = "Source band to use (default = 0)",
+                            min = 0,
+                            defaultValue = "0")
                     Integer band,
             @DescribeParameter(
-                        name = "insideEdges",
-                        description =
-                                "Indicates whether to vectorize boundaries between adjacent regions with non-outside values",
-                        min = 0
-                    )
+                            name = "insideEdges",
+                            description =
+                                    "Indicates whether to vectorize boundaries between adjacent regions with non-outside values",
+                            min = 0)
                     Boolean insideEdges,
             @DescribeParameter(
-                        name = "roi",
-                        description =
-                                "Geometry delineating the region of interest (in raster coordinate system)",
-                        min = 0
-                    )
+                            name = "roi",
+                            description =
+                                    "Geometry delineating the region of interest (in raster coordinate system)",
+                            min = 0)
                     Geometry roi,
             @DescribeParameter(
-                        name = "nodata",
-                        description = "Value to treat as NODATA (default is 0)",
-                        collectionType = Number.class,
-                        min = 0
-                    )
+                            name = "nodata",
+                            description = "Value to treat as NODATA (default is 0)",
+                            collectionType = Number.class,
+                            min = 0)
                     Collection<Number> noDataValues,
             @DescribeParameter(
-                        name = "ranges",
-                        description =
-                                "Specifier for a value range in the format ( START ; END ).  START and END values are optional. [ and ] can also be used as brackets, to indicate inclusion of the relevant range endpoint.",
-                        collectionType = Range.class,
-                        min = 0
-                    )
+                            name = "ranges",
+                            description =
+                                    "Specifier for a value range in the format ( START ; END ).  START and END values are optional. [ and ] can also be used as brackets, to indicate inclusion of the relevant range endpoint.",
+                            collectionType = Range.class,
+                            min = 0)
                     List<Range> classificationRanges,
             ProgressListener progressListener)
             throws ProcessException {
@@ -154,7 +148,7 @@ public class PolygonExtractionProcess implements RasterProcess {
 
         // do we have classification ranges?
         boolean hasClassificationRanges =
-                classificationRanges != null && classificationRanges.size() > 0;
+                classificationRanges != null && !classificationRanges.isEmpty();
 
         // apply the classification by setting 0 as the default value and using 1, ..., numClasses
         // for the other classes.

@@ -51,6 +51,7 @@ public class ColorConverterFactory implements ConverterFactory {
     /** Uses {@link Color#decode(String)} to convert String to Color. */
     public static Converter CONVERT_STRING =
             new Converter() {
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     String rgba = (String) source;
                     try {
@@ -77,6 +78,7 @@ public class ColorConverterFactory implements ConverterFactory {
     /** Converts provided integer to color, taking care to allow rgb and rgba support. */
     public static Converter CONVERT_NUMBER_TO_COLOR =
             new Converter() {
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     Number number = (Number) source;
                     // is it an integral number, and small enough to be an integer?
@@ -109,6 +111,7 @@ public class ColorConverterFactory implements ConverterFactory {
     private static Converter CONVERT_COLOR_TO_CSS =
             new Converter() {
 
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     Color color = (Color) source;
 
@@ -375,7 +378,7 @@ public class ColorConverterFactory implements ConverterFactory {
                             return target.cast(CSS_COLORS.get(key));
                         } else if (text.startsWith("rgb(")) {
                             String colorString = text.substring(4, text.length() - 1);
-                            String rgb[] = colorString.split("\\s*,\\s*");
+                            String[] rgb = colorString.split("\\s*,\\s*");
                             Color c =
                                     new Color(
                                             Integer.parseInt(rgb[0]),
@@ -385,30 +388,27 @@ public class ColorConverterFactory implements ConverterFactory {
                             return target.cast(c);
                         } else if (text.startsWith("rgba(")) {
                             String colorString = text.substring(5, text.length() - 1);
-                            String rgba[] = colorString.split("\\s*,\\s*");
+                            String[] rgba = colorString.split("\\s*,\\s*");
                             float opacity = Float.parseFloat(rgba[3]);
 
+                            int alpha = (int) (Math.floor(opacity == 1.0f ? 255 : opacity * 256f));
                             Color c =
                                     new Color(
                                             Integer.parseInt(rgba[0]),
                                             Integer.parseInt(rgba[1]),
                                             Integer.parseInt(rgba[2]),
-                                            (int)
-                                                    (Math.floor(
-                                                            opacity == 1.0f
-                                                                    ? 255
-                                                                    : opacity * 256f)));
+                                            alpha);
                             return target.cast(c);
                         } else if (text.startsWith("hsl(")) {
                             String colorString = text.substring(4, text.length() - 1);
-                            String hsl[] = colorString.split("\\s*,\\s*");
+                            String[] hsl = colorString.split("\\s*,\\s*");
                             double hue = Double.parseDouble(hsl[0]);
                             double saturation = parsePercentage(hsl[1]);
                             double lightness = parsePercentage(hsl[2]);
                             return target.cast(new HSLColor(hue, saturation, lightness).toRGB());
                         } else if (text.startsWith("hsla(")) {
                             String colorString = text.substring(5, text.length() - 1);
-                            String hsla[] = colorString.split("\\s*,\\s*");
+                            String[] hsla = colorString.split("\\s*,\\s*");
                             double hue = Double.parseDouble(hsla[0]);
                             double saturation = parsePercentage(hsla[1]);
                             double lightness = parsePercentage(hsla[2]);
@@ -461,6 +461,7 @@ public class ColorConverterFactory implements ConverterFactory {
     public static Converter CONVERT_COLOR_TO_STRING =
             new Converter() {
 
+                @Override
                 public <T> T convert(Object source, Class<T> target) throws Exception {
                     Color color = (Color) source;
 
@@ -495,6 +496,7 @@ public class ColorConverterFactory implements ConverterFactory {
                 }
             };
 
+    @Override
     public Converter createConverter(Class source, Class target, Hints hints) {
         if (target.equals(Color.class)) {
             // string to color

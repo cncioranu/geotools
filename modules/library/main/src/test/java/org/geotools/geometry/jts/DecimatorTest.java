@@ -22,17 +22,16 @@ import static org.junit.Assert.assertTrue;
 
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.referencing.operation.transform.AbstractMathTransform;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.junit.Test;
-import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Point;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 public class DecimatorTest {
 
@@ -118,7 +117,7 @@ public class DecimatorTest {
                 gf.createLineString(csf.create(new double[] {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5}));
 
         Decimator d = new Decimator(identity, new Rectangle(0, 0, 5, 5), 0.8);
-        d.decimateTransformGeneralize((Geometry) ls.copy(), identity);
+        d.decimateTransformGeneralize(ls.copy(), identity);
         assertEquals(6, ls.getNumPoints());
 
         d = new Decimator(identity, new Rectangle(0, 0, 5, 5), 1);

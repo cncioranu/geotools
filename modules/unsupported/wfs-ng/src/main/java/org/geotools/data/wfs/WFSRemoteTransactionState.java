@@ -30,9 +30,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.xml.namespace.QName;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.data.Transaction.State;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.identity.FeatureId;
+import org.geotools.api.filter.identity.Identifier;
 import org.geotools.data.Diff;
-import org.geotools.data.Transaction;
-import org.geotools.data.Transaction.State;
 import org.geotools.data.wfs.WFSDiff.BatchUpdate;
 import org.geotools.data.wfs.internal.TransactionRequest;
 import org.geotools.data.wfs.internal.TransactionRequest.Delete;
@@ -41,14 +49,6 @@ import org.geotools.data.wfs.internal.TransactionRequest.Update;
 import org.geotools.data.wfs.internal.TransactionResponse;
 import org.geotools.data.wfs.internal.WFSClient;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.identity.FeatureId;
-import org.opengis.filter.identity.Identifier;
 
 class WFSRemoteTransactionState implements State {
 
@@ -117,32 +117,36 @@ class WFSRemoteTransactionState implements State {
         }
 
         TransactionResponse transactionResponse = wfs.issueTransaction(transactionRequest);
-        List<FeatureId> insertedFids = transactionResponse.getInsertedFids();
-        int deleteCount = transactionResponse.getDeleteCount();
-        int updatedCount = transactionResponse.getUpdatedCount();
-        trace(
-                getClass().getSimpleName(),
-                "::commit(): Updated: ",
-                updatedCount,
-                ", Deleted: ",
-                deleteCount,
-                ", Inserted: ",
-                insertedFids);
+        try {
+            List<FeatureId> insertedFids = transactionResponse.getInsertedFids();
+            int deleteCount = transactionResponse.getDeleteCount();
+            int updatedCount = transactionResponse.getUpdatedCount();
+            trace(
+                    getClass().getSimpleName(),
+                    "::commit(): Updated: ",
+                    updatedCount,
+                    ", Deleted: ",
+                    deleteCount,
+                    ", Inserted: ",
+                    insertedFids);
 
-        if (requestedInsertFids.size() != insertedFids.size()) {
-            throw new IllegalStateException(
-                    "Asked to add "
-                            + requestedInsertFids.size()
-                            + " Features but got "
-                            + insertedFids.size()
-                            + " insert results");
-        }
+            if (requestedInsertFids.size() != insertedFids.size()) {
+                throw new IllegalStateException(
+                        "Asked to add "
+                                + requestedInsertFids.size()
+                                + " Features but got "
+                                + insertedFids.size()
+                                + " insert results");
+            }
 
-        for (int i = 0; i < requestedInsertFids.size(); i++) {
-            MutableFeatureId local = requestedInsertFids.get(i);
-            FeatureId inserted = insertedFids.get(i);
-            local.setID(inserted.getID());
-            local.setFeatureVersion(inserted.getFeatureVersion());
+            for (int i = 0; i < requestedInsertFids.size(); i++) {
+                MutableFeatureId local = requestedInsertFids.get(i);
+                FeatureId inserted = insertedFids.get(i);
+                local.setID(inserted.getID());
+                local.setFeatureVersion(inserted.getFeatureVersion());
+            }
+        } finally {
+            transactionResponse.dispose();
         }
     }
 
@@ -166,7 +170,7 @@ class WFSRemoteTransactionState implements State {
 
         // Create a single insert element with all the inserts for this type
         final Map<String, SimpleFeature> added = diff.getAdded();
-        if (added.size() > 0) {
+        if (!added.isEmpty()) {
             Insert insert = transactionRequest.createInsert(remoteTypeName);
 
             SimpleFeatureBuilder builder = new SimpleFeatureBuilder(remoteType);

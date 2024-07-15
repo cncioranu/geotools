@@ -169,25 +169,18 @@ public class InterpolationProperties {
         String propertiesFileName = System.getProperty(propertiesName);
         if (propertiesFileName == null) {
             String propertiesResourceName = "/" + propertiesName;
-            InputStream stream =
-                    InterpolationProperties.class.getResourceAsStream(propertiesResourceName);
-            if (stream != null) {
-                try {
+            try (InputStream stream =
+                    InterpolationProperties.class.getResourceAsStream(propertiesResourceName)) {
+                if (stream != null) {
                     LOGGER.info(
                             "Loading properties from classpath resource " + propertiesResourceName);
                     properties.load(new BufferedInputStream(stream));
-                } catch (Exception e) {
-                    throw new RuntimeException(
-                            "Error loading properties from classpath resource "
-                                    + propertiesResourceName,
-                            e);
-                } finally {
-                    try {
-                        stream.close();
-                    } catch (Exception e) {
-                        // ignore, we tried
-                    }
                 }
+            } catch (Exception e) {
+                throw new RuntimeException(
+                        "Error loading properties from classpath resource "
+                                + propertiesResourceName,
+                        e);
             }
         } else {
             File propertiesFile = new File(propertiesFileName).getAbsoluteFile();
@@ -201,22 +194,13 @@ public class InterpolationProperties {
                                 + propertiesFile.toString(),
                         e);
             }
-            InputStream stream = null;
-            try {
-                stream = new BufferedInputStream(new FileInputStream(propertiesFile));
+            try (InputStream stream =
+                    new BufferedInputStream(new FileInputStream(propertiesFile))) {
                 LOGGER.info("Loading properties file " + propertiesFile.toString());
                 properties.load(stream);
             } catch (Exception e) {
                 throw new RuntimeException(
                         "Error loading properties file " + propertiesFile.toString(), e);
-            } finally {
-                if (stream != null) {
-                    try {
-                        stream.close();
-                    } catch (Exception e) {
-                        // ignore, we tried
-                    }
-                }
             }
         }
         properties.putAll(System.getProperties());

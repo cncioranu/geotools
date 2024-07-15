@@ -8,22 +8,22 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
 import org.geotools.data.CollectionFeatureReader;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Query;
 import org.geotools.data.property.PropertyDataStore;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.filter.text.cql2.CQL;
 import org.geotools.filter.text.ecql.ECQL;
 import org.junit.Before;
 import org.junit.Test;
 import org.locationtech.jts.io.WKTReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
 
 public class TransformFeatureStoreTest extends AbstractTransformTest {
 
@@ -276,13 +276,10 @@ public class TransformFeatureStoreTest extends AbstractTransformTest {
         assertEquals(1, rfc.size());
 
         // double check the features themselves
-        SimpleFeatureIterator fi = rfc.features();
-        try {
+        try (SimpleFeatureIterator fi = rfc.features()) {
             assertTrue(fi.hasNext());
             SimpleFeature sf = fi.next();
             assertEquals("Illinois", sf.getAttribute("state_name"));
-        } finally {
-            fi.close();
         }
     }
 
@@ -300,13 +297,10 @@ public class TransformFeatureStoreTest extends AbstractTransformTest {
         assertEquals(1, rfc.size());
 
         // double check the features themselves
-        SimpleFeatureIterator fi = rfc.features();
-        try {
+        try (SimpleFeatureIterator fi = rfc.features()) {
             assertTrue(fi.hasNext());
             SimpleFeature sf = fi.next();
             assertEquals("Illinois", sf.getAttribute("name"));
-        } finally {
-            fi.close();
         }
     }
 
@@ -324,13 +318,10 @@ public class TransformFeatureStoreTest extends AbstractTransformTest {
         assertEquals(1, rfc.size());
 
         // double check the features themselves
-        SimpleFeatureIterator fi = rfc.features();
-        try {
+        try (SimpleFeatureIterator fi = rfc.features()) {
             assertTrue(fi.hasNext());
             SimpleFeature sf = fi.next();
             assertEquals("illinois", sf.getAttribute("name"));
-        } finally {
-            fi.close();
         }
     }
 }

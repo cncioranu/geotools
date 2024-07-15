@@ -18,16 +18,16 @@ package org.geotools.data.crs;
 
 import java.io.IOException;
 import java.util.Iterator;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.store.ReprojectingFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureTypes;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.collection.AbstractFeatureCollection;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * ForceCoordinateSystemFeatureResults provides a CoordinateReferenceSystem for FeatureTypes.
@@ -88,6 +88,7 @@ public class ForceCoordinateSystemFeatureResults extends AbstractFeatureCollecti
         return results.getSchema();
     }
 
+    @Override
     public Iterator<SimpleFeature> openIterator() {
         return new ForceCoordinateSystemIterator(results.features(), getSchema());
     }
@@ -101,6 +102,7 @@ public class ForceCoordinateSystemFeatureResults extends AbstractFeatureCollecti
         }
     }
 
+    @Override
     public int size() {
         return results.size();
     }
@@ -126,6 +128,7 @@ public class ForceCoordinateSystemFeatureResults extends AbstractFeatureCollecti
     }
 
     /** @see org.geotools.data.FeatureResults#getBounds() */
+    @Override
     public ReferencedEnvelope getBounds() {
         ReferencedEnvelope env = results.getBounds();
         if (env == null) {
@@ -159,8 +162,10 @@ public class ForceCoordinateSystemFeatureResults extends AbstractFeatureCollecti
         return results;
     }
 
+    @Override
     public void accepts(
-            org.opengis.feature.FeatureVisitor visitor, org.opengis.util.ProgressListener progress)
+            org.geotools.api.feature.FeatureVisitor visitor,
+            org.geotools.api.util.ProgressListener progress)
             throws IOException {
         if (canDelegate(visitor)) {
             results.accepts(visitor, progress);

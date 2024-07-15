@@ -22,9 +22,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Map;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
-import org.geotools.data.Repository;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.Repository;
 import org.geotools.data.gen.info.GeneralizationInfos;
 import org.geotools.data.gen.info.GeneralizationInfosProvider;
 import org.geotools.data.gen.info.GeneralizationInfosProviderImpl;
@@ -67,6 +67,7 @@ public class PreGeneralizedDataStoreFactory implements DataStoreFactorySpi {
     public static final Param NAMESPACEP =
             new Param("namespace", URI.class, "uri to a the namespace", false); // not required
 
+    @Override
     public DataStore createDataStore(Map<String, ?> params) throws IOException {
 
         String providerClassName = (String) GENERALIZATION_INFOS_PROVIDER_CLASS.lookUp(params);
@@ -92,10 +93,12 @@ public class PreGeneralizedDataStoreFactory implements DataStoreFactorySpi {
         }
     }
 
+    @Override
     public DataStore createNewDataStore(Map<String, ?> params) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public boolean canProcess(Map<String, ?> params) {
         String repositoryClass = null, providerClass = null;
         try {
@@ -112,14 +115,17 @@ public class PreGeneralizedDataStoreFactory implements DataStoreFactorySpi {
         return true;
     }
 
+    @Override
     public String getDescription() {
         return "Data store supporting generalized geometries";
     }
 
+    @Override
     public String getDisplayName() {
         return "Generalizing data store";
     }
 
+    @Override
     public Param[] getParametersInfo() {
         return new Param[] {
             REPOSITORY_CLASS,
@@ -129,10 +135,12 @@ public class PreGeneralizedDataStoreFactory implements DataStoreFactorySpi {
         };
     }
 
+    @Override
     public boolean isAvailable() {
         return true;
     }
 
+    @Override
     public Map<Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }

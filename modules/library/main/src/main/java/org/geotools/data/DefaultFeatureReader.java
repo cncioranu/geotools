@@ -18,12 +18,14 @@ package org.geotools.data;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import org.geotools.api.data.AttributeReader;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * Basic support for reading Features from an AttributeReader.
@@ -59,6 +61,7 @@ public class DefaultFeatureReader implements FeatureReader<SimpleFeatureType, Si
         this(attributeReader, null);
     }
 
+    @Override
     public SimpleFeature next()
             throws IOException, IllegalAttributeException, NoSuchElementException {
         SimpleFeature f = null;
@@ -90,14 +93,17 @@ public class DefaultFeatureReader implements FeatureReader<SimpleFeatureType, Si
         return SimpleFeatureBuilder.build(schema, attributes, null);
     }
 
+    @Override
     public void close() throws IOException {
         attributeReader.close();
     }
 
+    @Override
     public SimpleFeatureType getFeatureType() {
         return schema;
     }
 
+    @Override
     public boolean hasNext() throws IOException {
         return attributeReader.hasNext();
     }

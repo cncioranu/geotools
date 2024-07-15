@@ -18,10 +18,10 @@ package org.geotools.gce.imagemosaic;
 
 import java.util.Date;
 import java.util.Iterator;
+import org.geotools.api.feature.Feature;
 import org.geotools.util.DateRange;
 import org.geotools.util.Range;
 import org.geotools.util.Utilities;
-import org.opengis.feature.Feature;
 
 /**
  * Generates a list of compact DateRanges from a collection
@@ -34,6 +34,7 @@ class DateRangeVisitor extends RangeVisitor {
         super(attributeTypeName1, attributeTypeName2, RangeType.DATE);
     }
 
+    @Override
     public void visit(Feature feature) {
         final Object firstValue = expr1.evaluate(feature);
         final Object secondValue = expr2.evaluate(feature);

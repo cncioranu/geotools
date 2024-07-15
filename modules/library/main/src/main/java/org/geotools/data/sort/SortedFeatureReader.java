@@ -22,13 +22,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.geotools.data.Query;
-import org.geotools.data.simple.SimpleFeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureReader;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
 
 /**
  * FeatureReader used to sort contents.
@@ -45,7 +45,7 @@ public class SortedFeatureReader implements SimpleFeatureReader {
      * Checks if the schema and the sortBy are suitable for merge/sort. All attributes need to be
      * {@link Serializable}, all sorting attributes need to be {@link Comparable}
      */
-    public static final boolean canSort(SimpleFeatureType schema, SortBy[] sortBy) {
+    public static final boolean canSort(SimpleFeatureType schema, SortBy... sortBy) {
         return MergeSortDumper.canSort(schema, sortBy);
     }
 
@@ -77,25 +77,29 @@ public class SortedFeatureReader implements SimpleFeatureReader {
         this.delegate = MergeSortDumper.getDelegateReader(reader, sortBy, maxFeatures);
     }
 
+    @Override
     public SimpleFeatureType getFeatureType() {
         return delegate.getFeatureType();
     }
 
+    @Override
     public SimpleFeature next()
             throws IOException, IllegalArgumentException, NoSuchElementException {
         return delegate.next();
     }
 
+    @Override
     public boolean hasNext() throws IOException {
         return delegate.hasNext();
     }
 
+    @Override
     public void close() throws IOException {
         delegate.close();
     }
 
     /** Builds a comparator that can be used to sort SimpleFeature instances in memory */
-    public static Comparator<SimpleFeature> getComparator(SortBy[] sortBy) {
+    public static Comparator<SimpleFeature> getComparator(SortBy... sortBy) {
         return getComparator(sortBy, null);
     }
 

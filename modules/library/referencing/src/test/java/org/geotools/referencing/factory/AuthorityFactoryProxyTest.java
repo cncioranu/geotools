@@ -26,6 +26,15 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.DerivedCRS;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.referencing.crs.TemporalCRS;
+import org.geotools.api.referencing.datum.GeodeticDatum;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.crs.AbstractDerivedCRS;
 import org.geotools.referencing.crs.DefaultDerivedCRS;
@@ -33,15 +42,6 @@ import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.referencing.crs.DefaultProjectedCRS;
 import org.geotools.referencing.datum.DefaultGeodeticDatum;
 import org.junit.Test;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.DerivedCRS;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.referencing.crs.TemporalCRS;
-import org.opengis.referencing.datum.GeodeticDatum;
 
 /**
  * Tests the {@link AuthorityFactoryProxy} implementation.
@@ -72,13 +72,13 @@ public final class AuthorityFactoryProxyTest {
         final CRSAuthorityFactory factory =
                 ReferencingFactoryFinder.getCRSAuthorityFactory("CRS", null);
         final CoordinateReferenceSystem expected = factory.createCoordinateReferenceSystem("83");
-        AuthorityFactoryProxy proxy;
         /*
          * Try the proxy using the 'createGeographicCRS', 'createCoordinateReferenceSystem'
          * and 'createObject' methods. The later uses a generic implementation, while the
          * first two should use specialized implementations.
          */
-        proxy = AuthorityFactoryProxy.getInstance(factory, GeographicCRS.class);
+        AuthorityFactoryProxy proxy =
+                AuthorityFactoryProxy.getInstance(factory, GeographicCRS.class);
         assertTrue(proxy.getClass().getName().endsWith("Geographic"));
         assertSame(expected, proxy.create("83"));
         assertSame(expected, proxy.create("CRS:83"));

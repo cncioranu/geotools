@@ -16,26 +16,28 @@
  */
 package org.geotools.filter.visitor;
 
+import static java.util.Map.entry;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.BinaryExpression;
-import org.opengis.filter.expression.Divide;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.Multiply;
-import org.opengis.filter.expression.NilExpression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Subtract;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.BinaryExpression;
+import org.geotools.api.filter.expression.Divide;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.Multiply;
+import org.geotools.api.filter.expression.NilExpression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.Subtract;
+import org.geotools.filter.function.FilterFunction_if_then_else;
 
 /**
  * Returns the output type of the visited expression, taking into account functions output types,
@@ -46,54 +48,43 @@ import org.opengis.filter.expression.Subtract;
 public class ExpressionTypeVisitor implements ExpressionVisitor {
 
     static final Map<Class<?>, List<Class<?>>> PROMOTIONS =
-            new HashMap<Class<?>, List<Class<?>>>() {
-                {
-                    put(
+            Map.ofEntries(
+                    entry(
                             Byte.class,
-                            Arrays.asList(
-                                    (Class<?>) Byte.class,
+                            List.of(
+                                    Byte.class,
                                     Short.class,
                                     Integer.class,
                                     Long.class,
                                     Float.class,
                                     Double.class,
                                     BigInteger.class,
-                                    BigDecimal.class));
-                    put(
+                                    BigDecimal.class)),
+                    entry(
                             Short.class,
-                            Arrays.asList(
-                                    (Class<?>) Short.class,
+                            List.of(
+                                    Short.class,
                                     Integer.class,
                                     Long.class,
                                     Float.class,
                                     Double.class,
                                     BigInteger.class,
-                                    BigDecimal.class));
-                    put(
+                                    BigDecimal.class)),
+                    entry(
                             Integer.class,
-                            Arrays.asList(
-                                    (Class<?>) Integer.class,
+                            List.of(
+                                    Integer.class,
                                     Long.class,
                                     Float.class,
                                     Double.class,
                                     BigInteger.class,
-                                    BigDecimal.class));
-                    put(
+                                    BigDecimal.class)),
+                    entry(
                             Long.class,
-                            Arrays.asList(
-                                    (Class<?>) Long.class,
-                                    Double.class,
-                                    BigInteger.class,
-                                    BigDecimal.class));
-                    put(
-                            Float.class,
-                            Arrays.asList((Class<?>) Float.class, Double.class, BigDecimal.class));
-                    put(Double.class, Arrays.asList((Class<?>) Double.class, BigDecimal.class));
-                    put(
-                            BigInteger.class,
-                            Arrays.asList((Class<?>) BigInteger.class, BigDecimal.class));
-                }
-            };
+                            List.of(Long.class, Double.class, BigInteger.class, BigDecimal.class)),
+                    entry(Float.class, List.of(Float.class, Double.class, BigDecimal.class)),
+                    entry(Double.class, List.of(Double.class, BigDecimal.class)),
+                    entry(BigInteger.class, List.of(BigInteger.class, BigDecimal.class)));
 
     FeatureType featureType;
 
@@ -177,7 +168,28 @@ public class ExpressionTypeVisitor implements ExpressionVisitor {
     public Object visit(Function expression, Object extraData) {
         FunctionName name = expression.getFunctionName();
         if (name != null && name.getReturn() != null) {
+            if (FilterFunction_if_then_else.NAME.equals(name)) {
+                return visitIfThenElse((FilterFunction_if_then_else) expression);
+            }
             return name.getReturn().getType();
+        } else {
+            return Object.class;
+        }
+    }
+
+    /**
+     * Special case for the if then else function, which stores parameters in the second and third
+     * list items
+     *
+     * @param expression IfThenElse function
+     * @return The common ancestor type of the two parameters possibly returned by if then else
+     */
+    protected Object visitIfThenElse(FilterFunction_if_then_else expression) {
+        List<Expression> parameters = expression.getParameters();
+        if (parameters.size() > 2) {
+            Class<?> type1 = (Class<?>) parameters.get(1).accept(this, null);
+            Class<?> type2 = (Class<?>) parameters.get(2).accept(this, null);
+            return largestType(type1, type2);
         } else {
             return Object.class;
         }

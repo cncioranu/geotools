@@ -29,27 +29,31 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
-import org.geotools.data.ResourceInfo;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.filter.text.cql2.CQL;
+import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
+import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.factory.Hints;
 import org.junit.Test;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
-import org.opengis.referencing.FactoryException;
 
 public class TransformFeatureSourceTest extends AbstractTransformTest {
 
@@ -63,6 +67,33 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
         assertEquals(schema.getTypeName(), info.getName());
         assertEquals(schema.getTypeName(), info.getTitle());
         assertEquals(new URI(schema.getName().getNamespaceURI()), info.getSchema());
+    }
+
+    @Test
+    public void testGetDescription() throws Exception {
+        SimpleFeatureSource transformed = transformWithSelectionAndDescription();
+        SimpleFeatureType schema = transformed.getSchema();
+        assertEquals("the state name", getDescription(schema, "state_name"));
+        assertEquals("the geometry", getDescription(schema, null));
+        assertEquals("the number of persons", getDescription(schema, "persons"));
+    }
+
+    private String getDescription(SimpleFeatureType schema, String attributeName) {
+        AttributeDescriptor descriptor = null;
+        if (attributeName != null) {
+            descriptor = schema.getDescriptor(attributeName);
+        } else {
+            descriptor = schema.getGeometryDescriptor();
+        }
+
+        if (descriptor == null) {
+            return null;
+        }
+        AttributeType type = descriptor.getType();
+        if (type == null) {
+            return null;
+        }
+        return type.getDescription().toString();
     }
 
     @Test
@@ -87,14 +118,15 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
     @Test
     public void testFidTransformation() throws Exception {
         SimpleFeatureSource transformedSource = transformWithSelection();
-        SimpleFeatureIterator transformedIt = transformedSource.getFeatures().features();
-        SimpleFeatureIterator originalIt = STATES.getFeatures().features();
-        while (transformedIt.hasNext()) {
-            SimpleFeature original = originalIt.next();
-            String originalName = original.getName().getLocalPart();
-            String originalId = original.getID().substring(originalName.length() + 1);
-            SimpleFeature transformed = transformedIt.next();
-            assertEquals("states_mini." + originalId, transformed.getID());
+        try (SimpleFeatureIterator transformedIt = transformedSource.getFeatures().features();
+                SimpleFeatureIterator originalIt = STATES.getFeatures().features()) {
+            while (transformedIt.hasNext()) {
+                SimpleFeature original = originalIt.next();
+                String originalName = original.getName().getLocalPart();
+                String originalId = original.getID().substring(originalName.length() + 1);
+                SimpleFeature transformed = transformedIt.next();
+                assertEquals("states_mini." + originalId, transformed.getID());
+            }
         }
     }
 
@@ -118,6 +150,33 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
         ReferencedEnvelope re = transformed.getBounds();
         ReferencedEnvelope ae = STATES.getBounds();
         assertEquals(re, ae);
+    }
+
+    /** Check transform reprojection works (for GEOS-11435) */
+    @Test
+    public void testReprojectWithSelect() throws Exception {
+        SimpleFeatureSource transformed = transformWithSelection();
+        Query query =
+                new Query("states_mini", Filter.INCLUDE, new String[] {"the_geom", "persons"});
+        query.setHandle("web mercator");
+        query.setCoordinateSystem(DefaultGeographicCRS.WGS84);
+        CoordinateReferenceSystem sphericalMercator = CRS.decode("EPSG:3857");
+        query.setCoordinateSystemReproject(sphericalMercator);
+
+        SimpleFeatureCollection collection = transformed.getFeatures(query);
+        assertEquals(
+                "Reproject to EPSG:3857",
+                sphericalMercator,
+                collection.getSchema().getCoordinateReferenceSystem());
+
+        try (SimpleFeatureIterator iterator = collection.features()) {
+            while (iterator.hasNext()) {
+                SimpleFeature feature = iterator.next();
+                Geometry geom = (Geometry) feature.getDefaultGeometry();
+                assertEquals(JTS.getCRS(geom), sphericalMercator);
+            }
+        }
+        assertEquals("everything", transformed.getCount(Query.ALL), collection.size());
     }
 
     @Test
@@ -162,9 +221,7 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
         assertEquals(DELAWARE_BOUNDS, fc.getBounds());
 
         // and now read for good
-        SimpleFeatureIterator fi = null;
-        try {
-            fi = fc.features();
+        try (SimpleFeatureIterator fi = fc.features()) {
             assertTrue(fi.hasNext());
             SimpleFeature f = fi.next();
             assertEquals(f.getFeatureType(), transformed.getSchema());
@@ -172,10 +229,6 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
             assertEquals(DELAWARE_BOUNDS, f.getBounds());
             assertEquals("Delaware", f.getAttribute("state_name"));
             assertEquals(666168d, f.getAttribute("persons"));
-        } finally {
-            if (fi != null) {
-                fi.close();
-            }
         }
     }
 
@@ -183,7 +236,7 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
     public void testSortFeaturesWithSelect() throws Exception {
         SimpleFeatureSource transformed = transformWithSelection();
 
-        SortBy[] sortBy = new SortBy[] {FF.sort("state_name", SortOrder.DESCENDING)};
+        SortBy[] sortBy = {FF.sort("state_name", SortOrder.DESCENDING)};
 
         // check we can sort
         assertTrue(transformed.getQueryCapabilities().supportsSorting(sortBy));
@@ -197,17 +250,11 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
         assertEquals(2, fc.size());
 
         // and now read for good
-        SimpleFeatureIterator fi = null;
         List<String> names = new ArrayList<>();
-        try {
-            fi = fc.features();
+        try (SimpleFeatureIterator fi = fc.features()) {
             while (fi.hasNext()) {
                 SimpleFeature f = fi.next();
                 names.add((String) f.getAttribute("state_name"));
-            }
-        } finally {
-            if (fi != null) {
-                fi.close();
             }
         }
 
@@ -251,6 +298,14 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
     }
 
     @Test
+    public void testFidFilterRename() throws Exception {
+        SimpleFeatureSource transformed = transformWithRename();
+        SimpleFeatureCollection fc = transformed.getFeatures(FF.id(FF.featureId("usa.1")));
+        assertEquals(1, fc.size());
+        assertEquals("Illinois", DataUtilities.first(fc).getAttribute("name"));
+    }
+
+    @Test
     public void testFeaturesWithRename() throws Exception {
         SimpleFeatureSource transformed = transformWithRename();
 
@@ -268,9 +323,7 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
         assertEquals(DELAWARE_BOUNDS, fc.getBounds());
 
         // and now read for good
-        SimpleFeatureIterator fi = null;
-        try {
-            fi = fc.features();
+        try (SimpleFeatureIterator fi = fc.features()) {
             assertTrue(fi.hasNext());
             SimpleFeature f = fi.next();
             assertEquals(f.getFeatureType(), transformed.getSchema());
@@ -278,10 +331,6 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
             assertEquals(DELAWARE_BOUNDS, f.getBounds());
             assertEquals("Delaware", f.getAttribute("name"));
             assertEquals(666168d, f.getAttribute("people"));
-        } finally {
-            if (fi != null) {
-                fi.close();
-            }
         }
     }
 
@@ -289,7 +338,7 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
     public void testSortFeaturesWithRename() throws Exception {
         SimpleFeatureSource transformed = transformWithRename();
 
-        SortBy[] sortBy = new SortBy[] {FF.sort("name", SortOrder.DESCENDING)};
+        SortBy[] sortBy = {FF.sort("name", SortOrder.DESCENDING)};
 
         // check we can sort
         assertTrue(transformed.getQueryCapabilities().supportsSorting(sortBy));
@@ -303,17 +352,11 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
         assertEquals(2, fc.size());
 
         // and now read for good
-        SimpleFeatureIterator fi = null;
         List<String> names = new ArrayList<>();
-        try {
-            fi = fc.features();
+        try (SimpleFeatureIterator fi = fc.features()) {
             while (fi.hasNext()) {
                 SimpleFeature f = fi.next();
                 names.add((String) f.getAttribute("name"));
-            }
-        } finally {
-            if (fi != null) {
-                fi.close();
             }
         }
 
@@ -404,9 +447,7 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
         assertEquals(bufferedDelawareBounds, fc.getBounds());
 
         // and now read for good
-        SimpleFeatureIterator fi = null;
-        try {
-            fi = fc.features();
+        try (SimpleFeatureIterator fi = fc.features()) {
             assertTrue(fi.hasNext());
             SimpleFeature f = fi.next();
             assertEquals(f.getFeatureType(), transformed.getSchema());
@@ -415,10 +456,6 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
             assertEquals("delaware", f.getAttribute("name"));
             assertEquals(666168d, f.getAttribute("total"));
             assertEquals(Math.log(666168), f.getAttribute("logp"));
-        } finally {
-            if (fi != null) {
-                fi.close();
-            }
         }
     }
 
@@ -426,7 +463,7 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
     public void testSortFeaturesWithTransform() throws Exception {
         SimpleFeatureSource transformed = transformWithExpressions();
 
-        SortBy[] sortBy = new SortBy[] {FF.sort("total", SortOrder.DESCENDING)};
+        SortBy[] sortBy = {FF.sort("total", SortOrder.DESCENDING)};
 
         // check we can sort
         assertTrue(transformed.getQueryCapabilities().supportsSorting(sortBy));
@@ -440,34 +477,22 @@ public class TransformFeatureSourceTest extends AbstractTransformTest {
         assertEquals(2, fc.size());
 
         // and now read for good
-        SimpleFeatureIterator fi = null;
         List<Number> totals = new ArrayList<>();
-        try {
-            fi = fc.features();
+        try (SimpleFeatureIterator fi = fc.features()) {
             while (fi.hasNext()) {
                 SimpleFeature f = fi.next();
                 totals.add((Number) f.getAttribute("total"));
-            }
-        } finally {
-            if (fi != null) {
-                fi.close();
             }
         }
 
         // grab the two biggest from the original data set
         List<Double> sums = new ArrayList<>();
-        try {
-            fi = STATES.getFeatures().features();
+        try (SimpleFeatureIterator fi = STATES.getFeatures().features()) {
             while (fi.hasNext()) {
                 SimpleFeature f = fi.next();
                 double male = (Double) f.getAttribute("male");
                 double female = (Double) f.getAttribute("female");
                 sums.add(male + female);
-            }
-
-        } finally {
-            if (fi != null) {
-                fi.close();
             }
         }
         Collections.sort(sums);

@@ -23,8 +23,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import junit.framework.TestCase;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import junit.framework.TestCase; // NOPMD
 import junit.framework.TestResult;
+import org.junit.Assume;
 
 /**
  * Test support for test cases that require an "online" resource, such as an
@@ -72,6 +75,11 @@ import junit.framework.TestResult;
  * @author Justin Deoliveira, The Open Planning Project
  * @author Ben Caradoc-Davies, CSIRO Earth Science and Resource Engineering
  */
+@SuppressWarnings({
+    "PMD.JUnit4TestShouldUseBeforeAnnotation",
+    "PMD.JUnit4TestShouldUseAfterAnnotation",
+    "PMD.DisallowJUnit3"
+})
 public abstract class OnlineTestCase extends TestCase {
     /** System property set to totally disable any online tests */
     public static final String ONLINE_TEST_PROFILE = "onlineTestProfile";
@@ -138,7 +146,7 @@ public abstract class OnlineTestCase extends TestCase {
                                     + fixtureId
                                     + " tests, resources not available: "
                                     + t.getMessage());
-                    java.util.logging.Logger.getGlobal().log(java.util.logging.Level.INFO, "", t);
+                    Logger.getGlobal().log(Level.INFO, "", t);
                     available = Boolean.FALSE;
                 }
                 online.put(fixtureId, available);
@@ -193,7 +201,7 @@ public abstract class OnlineTestCase extends TestCase {
                     FixtureUtilities.printSkipNotice(fixtureId, fixtureFile);
                 }
             } catch (Exception e) {
-                java.util.logging.Logger.getGlobal().log(java.util.logging.Level.INFO, "", e);
+                Logger.getGlobal().log(Level.INFO, "", e);
             }
         }
     }
@@ -214,7 +222,7 @@ public abstract class OnlineTestCase extends TestCase {
             // System.out.println("Wrote example fixture file to " + exFixtureFile);
         } catch (IOException ioe) {
             // System.out.println("Unable to write out example fixture " + exFixtureFile);
-            java.util.logging.Logger.getGlobal().log(java.util.logging.Level.INFO, "", ioe);
+            Logger.getGlobal().log(Level.INFO, "", ioe);
         }
     }
     /**
@@ -238,7 +246,9 @@ public abstract class OnlineTestCase extends TestCase {
                 // disable the test
                 fixture = null;
                 // leave some trace of the swallowed exception
-                java.util.logging.Logger.getGlobal().log(java.util.logging.Level.INFO, "", e);
+                Logger.getGlobal().log(Level.INFO, "SetUp of test failed. Test ignored.", e);
+
+                Assume.assumeTrue("Ignored because of exception: " + e.getMessage(), false);
             } else {
                 // do not swallow the exception
                 throw e;
@@ -316,7 +326,7 @@ public abstract class OnlineTestCase extends TestCase {
      * Allows test to create a sample fixture for users.
      *
      * <p>If this method returns a value the first time a fixture is looked up and not found this
-     * method will be called to create a fixture file with teh same id, but suffixed with .template.
+     * method will be called to create a fixture file with the same id, but suffixed with .template.
      */
     protected Properties createExampleFixture() {
         return null;

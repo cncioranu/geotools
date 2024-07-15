@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
-import org.apache.commons.io.DirectoryWalker;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOCase;
 import org.apache.commons.io.filefilter.FalseFileFilter;
@@ -44,7 +43,7 @@ import org.geotools.gce.imagemosaic.Utils.Prop;
  * @author Simone Giannecchini, GeoSolutions
  * @author Carlo Cancellieri - GeoSolutions SAS
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings("unchecked")
 public class ImageMosaicDirectoryWalker extends ImageMosaicWalker {
 
     /**
@@ -59,9 +58,13 @@ public class ImageMosaicDirectoryWalker extends ImageMosaicWalker {
      * @author Simone Giannecchini, GeoSolutions SAS
      * @author Daniele Romagnoli, GeoSolutions SAS
      */
-    final class MosaicDirectoryWalker extends DirectoryWalker {
+    @SuppressWarnings("deprecation")
+    final class MosaicDirectoryWalker extends org.apache.commons.io.DirectoryWalker
+            implements ImageMosaicElementConsumer<File> {
 
         private ImageMosaicWalker walker;
+
+        private ImageMosaicElementConsumer consumer;
 
         @Override
         protected void handleCancelled(
@@ -93,21 +96,21 @@ public class ImageMosaicDirectoryWalker extends ImageMosaicWalker {
                 final File fileBeingProcessed, final int depth, final Collection results)
                 throws IOException {
 
-            walker.handleFile(fileBeingProcessed);
-
+            handleElement(fileBeingProcessed, walker);
             super.handleFile(fileBeingProcessed, depth, results);
         }
 
         public MosaicDirectoryWalker(
                 final List<String> indexingDirectories,
                 final FileFilter filter,
-                ImageMosaicWalker walker)
+                ImageMosaicWalker walker,
+                ImageMosaicElementConsumer consumer,
+                boolean recursive)
                 throws IOException {
-            super(
-                    filter,
-                    Integer.MAX_VALUE); // runConfiguration.isRecursive()?Integer.MAX_VALUE:0);
+            super(filter, recursive ? Integer.MAX_VALUE : 1);
 
             this.walker = walker;
+            this.consumer = consumer;
             startTransaction();
             configHandler.indexingPreamble();
 
@@ -154,11 +157,22 @@ public class ImageMosaicDirectoryWalker extends ImageMosaicWalker {
                 }
             }
         }
+
+        @Override
+        public boolean checkElement(File element, ImageMosaicWalker provider) {
+            return consumer.checkElement(element, provider);
+        }
+
+        @Override
+        public void handleElement(File element, ImageMosaicWalker provider) throws IOException {
+            consumer.handleElement(element, provider);
+        }
     }
 
     private IOFileFilter fileFilter;
 
     /** run the directory walker */
+    @Override
     public void run() {
 
         try {
@@ -178,6 +192,9 @@ public class ImageMosaicDirectoryWalker extends ImageMosaicWalker {
                 indexDirs = harvestDirectory;
             }
             String[] indexDirectories = indexDirs.split("\\s*,\\s*");
+            boolean recursive =
+                    Boolean.parseBoolean(
+                            configHandler.getRunConfiguration().getParameter(Prop.RECURSIVE));
             for (String indexingDirectory : indexDirectories) {
                 indexingDirectory = Utils.checkDirectory(indexingDirectory, false);
                 final File directoryToScan = new File(indexingDirectory);
@@ -185,22 +202,22 @@ public class ImageMosaicDirectoryWalker extends ImageMosaicWalker {
                         FileUtils.listFiles(
                                 directoryToScan,
                                 finalFilter,
-                                Boolean.parseBoolean(
-                                                configHandler
-                                                        .getRunConfiguration()
-                                                        .getParameter(Prop.RECURSIVE))
-                                        ? TrueFileFilter.INSTANCE
-                                        : FalseFileFilter.INSTANCE);
+                                recursive ? TrueFileFilter.INSTANCE : FalseFileFilter.INSTANCE);
                 numFiles += files.size();
             }
             //
             // walk over the files that have filtered out
             //
             if (numFiles > 0) {
-                setNumFiles(numFiles);
+                setNumElements(numFiles);
                 final List<String> indexingDirectories =
                         new ArrayList<>(Arrays.asList(indexDirectories));
-                new MosaicDirectoryWalker(indexingDirectories, finalFilter, this);
+                new MosaicDirectoryWalker(
+                        indexingDirectories,
+                        finalFilter,
+                        this,
+                        new ImageMosaicFileFeatureConsumer.ImageMosaicFileConsumer(),
+                        recursive);
 
             } else {
                 LOGGER.log(Level.INFO, "No files to process!");
@@ -214,9 +231,11 @@ public class ImageMosaicDirectoryWalker extends ImageMosaicWalker {
     /** @return */
     private IOFileFilter createDefaultGranuleExclusionFilter() {
         final IOFileFilter specialWildCardFileFilter =
-                new WildcardFileFilter(
-                        configHandler.getRunConfiguration().getParameter(Prop.WILDCARD),
-                        IOCase.INSENSITIVE);
+                WildcardFileFilter.builder()
+                        .setWildcards(
+                                configHandler.getRunConfiguration().getParameter(Prop.WILDCARD))
+                        .setIoCase(IOCase.INSENSITIVE)
+                        .get();
         IOFileFilter dirFilter =
                 FileFilterUtils.and(
                         FileFilterUtils.directoryFileFilter(), HiddenFileFilter.VISIBLE);

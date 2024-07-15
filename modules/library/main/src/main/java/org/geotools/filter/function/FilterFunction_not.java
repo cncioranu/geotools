@@ -20,9 +20,9 @@ package org.geotools.filter.function;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
 
 public class FilterFunction_not extends FunctionExpressionImpl {
 
@@ -33,11 +33,12 @@ public class FilterFunction_not extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         boolean arg0;
 
         try { // attempt to get value and perform conversion
-            arg0 = ((Boolean) getExpression(0).evaluate(feature, Boolean.class)).booleanValue();
+            arg0 = getExpression(0).evaluate(feature, Boolean.class).booleanValue();
         } catch (Exception e) // probably a type error
         {
             throw new IllegalArgumentException(

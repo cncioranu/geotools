@@ -21,8 +21,6 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.Frame;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.HashMap;
 import java.util.Map;
 import javax.swing.DefaultComboBoxModel;
@@ -36,28 +34,26 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.MutableComboBoxModel;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import net.miginfocom.swing.MigLayout;
-import org.geotools.data.DataStore;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Font;
+import org.geotools.api.style.LineSymbolizer;
+import org.geotools.api.style.PointSymbolizer;
+import org.geotools.api.style.PolygonSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.Symbolizer;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.Geometries;
 import org.geotools.map.RasterLayer;
 import org.geotools.map.StyleLayer;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Font;
-import org.geotools.styling.LineSymbolizer;
-import org.geotools.styling.PointSymbolizer;
-import org.geotools.styling.PolygonSymbolizer;
-import org.geotools.styling.Rule;
 import org.geotools.styling.SLD;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.Symbolizer;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
 
 /**
  * A dialog to prompt the user for feature style choices. It has a number of static {@code
@@ -98,7 +94,7 @@ public class JSimpleStyleDialog extends JDialog {
      *
      * @todo these must be defined somewhere else ?
      */
-    private static final String WELL_KNOWN_SYMBOL_NAMES[] = {
+    private static final String[] WELL_KNOWN_SYMBOL_NAMES = {
         "Circle", "Square", "Cross", "X", "Triangle", "Star"
     };
 
@@ -187,7 +183,7 @@ public class JSimpleStyleDialog extends JDialog {
      * @return a new Style instance or null if the user cancels the dialog
      */
     public static Style showDialog(Component parent, DataStore dataStore) {
-        return showDialog(parent, dataStore, (Style) null);
+        return showDialog(parent, dataStore, null);
     }
 
     /**
@@ -221,7 +217,7 @@ public class JSimpleStyleDialog extends JDialog {
      * @return a new Style instance or null if the user cancels the dialog
      */
     public static Style showDialog(Component parent, SimpleFeatureType featureType) {
-        return showDialog(parent, featureType, (Style) null);
+        return showDialog(parent, featureType, null);
     }
 
     /**
@@ -397,6 +393,7 @@ public class JSimpleStyleDialog extends JDialog {
      *
      * @return fill opacity between 0 and 1
      */
+    @Override
     public float getOpacity() {
         return opacity;
     }
@@ -456,10 +453,7 @@ public class JSimpleStyleDialog extends JDialog {
         JPanel panel = new JPanel(layout);
         controls = new HashMap<>();
 
-        JLabel label = null;
-        JButton btn = null;
-
-        label = new JLabel("Feature type");
+        JLabel label = new JLabel("Feature type");
         label.setForeground(Color.BLUE);
         panel.add(label, "wrap");
 
@@ -473,13 +467,8 @@ public class JSimpleStyleDialog extends JDialog {
         label.setForeground(Color.BLUE);
         panel.add(label, "wrap");
 
-        btn = new JButton("Color...");
-        btn.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        chooseLineColor();
-                    }
-                });
+        JButton btn = new JButton("Color...");
+        btn.addActionListener(e -> chooseLineColor());
         panel.add(btn, "gapbefore indent");
         controls.put(btn, ControlCategory.LINE);
 
@@ -496,12 +485,7 @@ public class JSimpleStyleDialog extends JDialog {
         }
         final JComboBox<Integer> lineWidthCBox = new JComboBox<>(widths);
         lineWidthCBox.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        lineWidth =
-                                ((Number) lineWidthCBox.getModel().getSelectedItem()).intValue();
-                    }
-                });
+                e -> lineWidth = ((Number) lineWidthCBox.getModel().getSelectedItem()).intValue());
         panel.add(lineWidthCBox, "wrap");
         controls.put(lineWidthCBox, ControlCategory.LINE);
 
@@ -513,12 +497,7 @@ public class JSimpleStyleDialog extends JDialog {
         panel.add(label, "wrap");
 
         btn = new JButton("Color...");
-        btn.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        chooseFillColor();
-                    }
-                });
+        btn.addActionListener(e -> chooseFillColor());
         panel.add(btn, "gapbefore indent");
         controls.put(btn, ControlCategory.FILL);
 
@@ -533,12 +512,7 @@ public class JSimpleStyleDialog extends JDialog {
         fillOpacitySlider.setPaintLabels(true);
         fillOpacitySlider.setMajorTickSpacing(20);
         fillOpacitySlider.addChangeListener(
-                new ChangeListener() {
-
-                    public void stateChanged(ChangeEvent e) {
-                        opacity = (float) fillOpacitySlider.getValue() / 100;
-                    }
-                });
+                e -> opacity = (float) fillOpacitySlider.getValue() / 100);
         panel.add(fillOpacitySlider, "span, wrap");
         controls.put(fillOpacitySlider, ControlCategory.FILL);
 
@@ -558,12 +532,7 @@ public class JSimpleStyleDialog extends JDialog {
         }
         pointSizeCBox = new JComboBox<>(sizes);
         pointSizeCBox.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        pointSize =
-                                ((Number) pointSizeCBox.getModel().getSelectedItem()).intValue();
-                    }
-                });
+                e -> pointSize = ((Number) pointSizeCBox.getModel().getSelectedItem()).intValue());
         panel.add(pointSizeCBox);
         controls.put(pointSizeCBox, ControlCategory.POINT);
 
@@ -572,13 +541,10 @@ public class JSimpleStyleDialog extends JDialog {
 
         pointSymbolCBox = new JComboBox<>(WELL_KNOWN_SYMBOL_NAMES);
         pointSymbolCBox.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
+                e ->
                         pointSymbolName =
                                 WELL_KNOWN_SYMBOL_NAMES[pointSymbolCBox.getSelectedIndex()]
-                                        .toString();
-                    }
-                });
+                                        .toString());
         panel.add(pointSymbolCBox, "wrap");
         controls.put(pointSymbolCBox, ControlCategory.POINT);
 
@@ -590,29 +556,18 @@ public class JSimpleStyleDialog extends JDialog {
         panel.add(label, "wrap");
 
         final JButton fontBtn = new JButton("Font...");
-        fontBtn.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        chooseLabelFont();
-                    }
-                });
+        fontBtn.addActionListener(e -> chooseLabelFont());
 
         labelCBox = new JComboBox<>();
         labelCBox.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        labelField = labelCBox.getModel().getSelectedItem().toString();
-                    }
-                });
+                e -> labelField = labelCBox.getModel().getSelectedItem().toString());
 
         final JCheckBox checkBox = new JCheckBox();
         checkBox.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        labelFeatures = checkBox.isSelected();
-                        labelCBox.setEnabled(labelFeatures);
-                        fontBtn.setEnabled(labelFeatures);
-                    }
+                e -> {
+                    labelFeatures = checkBox.isSelected();
+                    labelCBox.setEnabled(labelFeatures);
+                    fontBtn.setEnabled(labelFeatures);
                 });
         panel.add(checkBox, "gapbefore indent, span, split 3");
 
@@ -628,21 +583,17 @@ public class JSimpleStyleDialog extends JDialog {
          */
         btn = new JButton("Apply");
         btn.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        completed = true;
-                        setVisible(false);
-                    }
+                e -> {
+                    completed = true;
+                    setVisible(false);
                 });
         panel.add(btn, "span, split 2, align right");
 
         btn = new JButton("Cancel");
         btn.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        geomType = null;
-                        setVisible(false);
-                    }
+                e -> {
+                    geomType = null;
+                    setVisible(false);
                 });
         panel.add(btn);
 

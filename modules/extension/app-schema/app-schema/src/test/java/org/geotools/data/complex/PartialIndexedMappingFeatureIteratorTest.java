@@ -23,15 +23,15 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.util.FeatureStreams;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.junit.Test;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
 
 /**
  * Tests PartialIndexedMappingFeatureIterator
@@ -51,8 +51,9 @@ public class PartialIndexedMappingFeatureIteratorTest extends IndexesTest {
             FeatureCollection<FeatureType, Feature> fcoll =
                     fsource.getMappedSource()
                             .getFeatures(this.partialIndexedFilter_2idxfilterResults());
-            FeatureIterator<Feature> iterator = fcoll.features();
-            assertTrue(iterator instanceof PartialIndexedMappingFeatureIterator);
+            try (FeatureIterator<Feature> iterator = fcoll.features()) {
+                assertTrue(iterator instanceof PartialIndexedMappingFeatureIterator);
+            }
             List<Feature> features =
                     FeatureStreams.toFeatureStream(fcoll).collect(Collectors.toList());
             assertEquals(features.size(), 6);
@@ -68,7 +69,7 @@ public class PartialIndexedMappingFeatureIteratorTest extends IndexesTest {
     /** Should returns 1, 2, 5, 6, 10, 12(11 on index) */
     @Override
     protected Filter partialIndexedFilter_2idxfilterResults() {
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory();
         List<Filter> filters =
                 Arrays.asList(
                         ff.or(

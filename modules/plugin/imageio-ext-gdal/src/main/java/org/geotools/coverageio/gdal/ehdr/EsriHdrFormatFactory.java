@@ -21,8 +21,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.coverage.grid.Format;
 import org.geotools.coverage.grid.io.GridFormatFactorySpi;
-import org.opengis.coverage.grid.Format;
 
 /**
  * Implementation of the {@link Format} service provider interface for EHdr files.
@@ -42,6 +42,7 @@ public final class EsriHdrFormatFactory implements GridFormatFactorySpi {
      *
      * @return {@code true} if the plugin is available, {@code false} otherwise.
      */
+    @Override
     public boolean isAvailable() {
         boolean available = true;
 
@@ -70,11 +71,13 @@ public final class EsriHdrFormatFactory implements GridFormatFactorySpi {
      *
      * @return A {@link EsriHdrFormat}
      */
+    @Override
     public EsriHdrFormat createFormat() {
         return new EsriHdrFormat();
     }
 
     /** Returns the implementation hints. The default implementation returns en empty map. */
+    @Override
     public Map<java.awt.RenderingHints.Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }

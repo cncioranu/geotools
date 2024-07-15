@@ -26,8 +26,8 @@ import java.util.TreeMap;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileFilter;
-import org.geotools.data.FileDataStoreFactorySpi;
-import org.geotools.data.FileDataStoreFinder;
+import org.geotools.api.data.FileDataStoreFactorySpi;
+import org.geotools.api.data.FileDataStoreFinder;
 
 /**
  * A file chooser dialog to get user choices for data stores.
@@ -114,7 +114,7 @@ public class JFileDataStoreChooser extends JFileChooser {
      * Creates a dialog based on the given file associations.
      *
      * <pre><code>
-     * Map<String, String> assoc = new HashMap<String, String>();
+     * Map&lt;String, String&gt; assoc = new HashMap&lt;&gt;();
      * assoc.put(".foo", "Foo data files (*.foo)");
      * assoc.put(".bar", "Bar data files (*.bar)");
      * JFileDataStoreChooser chooser = new JFileDataStoreChooser(assoc);
@@ -139,6 +139,7 @@ public class JFileDataStoreChooser extends JFileChooser {
             addChoosableFileFilter(
                     new FileFilter() {
 
+                        @Override
                         public boolean accept(File f) {
                             if (f.isDirectory()) {
                                 return true;
@@ -172,6 +173,7 @@ public class JFileDataStoreChooser extends JFileChooser {
         setFileFilter(
                 new FileFilter() {
 
+                    @Override
                     public boolean accept(File f) {
                         if (f.isDirectory()) {
                             return true;
@@ -188,6 +190,7 @@ public class JFileDataStoreChooser extends JFileChooser {
                         return false;
                     }
 
+                    @Override
                     public String getDescription() {
                         return format.getDescription();
                     }
@@ -323,7 +326,7 @@ public class JFileDataStoreChooser extends JFileChooser {
      *
      * @param arg ignored
      */
-    public static void main(String arg[]) {
+    public static void main(String[] arg) {
         File file = JFileDataStoreChooser.showOpenFile("shp", null);
         if (file != null) {
             JOptionPane.showMessageDialog(null, "Selected " + file.getPath());

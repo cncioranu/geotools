@@ -16,21 +16,24 @@
  */
 package org.geotools.wfs;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilderFactory;
 import net.opengis.wfs.WfsFactory;
 import org.eclipse.emf.ecore.EObject;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.xsd.Binding;
 import org.geotools.xsd.Configuration;
 import org.geotools.xsd.test.XMLTestSupport;
-import org.opengis.filter.FilterFactory2;
+import org.junit.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -40,7 +43,7 @@ import org.xml.sax.InputSource;
 public abstract class WFSTestSupport extends XMLTestSupport {
     protected WfsFactory factory = WfsFactory.eINSTANCE;
 
-    protected FilterFactory2 filterFac;
+    protected FilterFactory filterFac;
 
     private Class bindingTargetClass;
 
@@ -59,27 +62,33 @@ public abstract class WFSTestSupport extends XMLTestSupport {
         this.bindingTargetClass = bindingClass;
         this.executionMode = executionMode;
         binding = binding(qname);
-        filterFac = CommonFactoryFinder.getFilterFactory2(null);
+        filterFac = CommonFactoryFinder.getFilterFactory(null);
     }
 
+    @Override
     protected Configuration createConfiguration() {
         return new org.geotools.wfs.v1_1.WFSConfiguration();
     }
 
+    @Test
     public void testTarget() {
         assertEquals(qname, binding.getTarget());
     }
 
+    @Test
     public void testType() throws Exception {
         assertEquals(bindingTargetClass, binding.getType());
     }
 
+    @Test
     public void testExecutionMode() throws Exception {
         assertEquals(toExModeString(executionMode), executionMode, binding.getExecutionMode());
     }
 
+    @Test
     public abstract void testParse() throws Exception;
 
+    @Test
     public abstract void testEncode() throws Exception;
 
     private String toExModeString(final int executionMode) {
@@ -159,9 +168,10 @@ public abstract class WFSTestSupport extends XMLTestSupport {
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         docFactory.setNamespaceAware(true);
 
-        InputStream in = resource.openStream();
-        InputStreamReader reader = new InputStreamReader(in, Charset.forName("UTF-8"));
-        InputSource source = new InputSource(new BufferedReader(reader));
-        document = docFactory.newDocumentBuilder().parse(source);
+        try (InputStream in = resource.openStream();
+                InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+            InputSource source = new InputSource(new BufferedReader(reader));
+            document = docFactory.newDocumentBuilder().parse(source);
+        }
     }
 }

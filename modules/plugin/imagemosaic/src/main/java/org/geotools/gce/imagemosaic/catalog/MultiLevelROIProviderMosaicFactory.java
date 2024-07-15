@@ -22,6 +22,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import org.geotools.api.filter.Filter;
 import org.geotools.coverage.grid.io.footprint.FootprintGeometryProvider;
 import org.geotools.coverage.grid.io.footprint.FootprintLoader;
 import org.geotools.coverage.grid.io.footprint.FootprintLoaderSpi;
@@ -31,7 +32,6 @@ import org.geotools.coverage.grid.io.footprint.SidecarFootprintProvider;
 import org.geotools.filter.text.ecql.ECQL;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
-import org.opengis.filter.Filter;
 
 /**
  * Factory class used for returning a {@link MultiLevelROIProvider} based on the input footprint
@@ -111,18 +111,14 @@ public class MultiLevelROIProviderMosaicFactory extends MultiLevelROIProviderFac
 
         // Get the overviews suffix String format
         String overviewsSuffixFormat =
-                (String)
-                        properties.getProperty(
-                                MultiLevelROIGeometryOverviewsProvider.OVERVIEWS_SUFFIX_FORMAT_KEY,
-                                MultiLevelROIGeometryOverviewsProvider
-                                        .DEFAULT_OVERVIEWS_SUFFIX_FORMAT);
+                properties.getProperty(
+                        MultiLevelROIGeometryOverviewsProvider.OVERVIEWS_SUFFIX_FORMAT_KEY,
+                        MultiLevelROIGeometryOverviewsProvider.DEFAULT_OVERVIEWS_SUFFIX_FORMAT);
 
         // Whether overviewsROI are provided in raster space (or model space)
         String overviewsRoiInRasterSpaceString =
-                (String)
-                        properties.getProperty(
-                                MultiLevelROIGeometryOverviewsProvider
-                                        .OVERVIEWS_ROI_IN_RASTER_SPACE_KEY);
+                properties.getProperty(
+                        MultiLevelROIGeometryOverviewsProvider.OVERVIEWS_ROI_IN_RASTER_SPACE_KEY);
         boolean overviewsRoiInRasterSpace =
                 overviewsRoiInRasterSpaceString != null
                         ? Boolean.parseBoolean(overviewsRoiInRasterSpaceString)

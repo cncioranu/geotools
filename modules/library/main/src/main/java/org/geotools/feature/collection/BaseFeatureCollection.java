@@ -18,19 +18,19 @@ package org.geotools.feature.collection;
 
 import java.io.IOException;
 import java.util.Collection;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.geometry.BoundingBox;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.store.FilteringFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.geometry.BoundingBox;
 
 /**
  * Implement a feature collection just based on provision of a {@link FeatureIterator}.
@@ -72,10 +72,12 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
         this.schema = schema;
     }
 
+    @Override
     public String getID() {
         return id;
     }
 
+    @Override
     public T getSchema() {
         return schema;
     }
@@ -89,6 +91,7 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
      * <p>Note that {@link FeatureIterator<F>#close()} is available to clean up after any resource
      * use required during traversal.
      */
+    @Override
     public abstract FeatureIterator<F> features();
 
     /**
@@ -100,9 +103,9 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
      * @param o object to be checked for containment in this collection.
      * @return <tt>true</tt> if this collection contains the specified element.
      */
+    @Override
     public boolean contains(Object o) {
-        FeatureIterator<F> e = features();
-        try {
+        try (FeatureIterator<F> e = features()) {
             if (o == null) {
                 while (e.hasNext()) {
                     if (e.next() == null) {
@@ -117,8 +120,6 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
                 }
             }
             return false;
-        } finally {
-            e.close();
         }
     }
 
@@ -134,9 +135,9 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
      * @throws NullPointerException if the specified collection is null.
      * @see #contains(Object)
      */
+    @Override
     public boolean containsAll(Collection<?> c) {
-        FeatureIterator<F> e = features();
-        try {
+        try (FeatureIterator<F> e = features()) {
             while (e.hasNext()) {
                 Feature feature = e.next();
                 if (!c.contains(feature)) {
@@ -144,18 +145,14 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
                 }
             }
             return true;
-        } finally {
-            e.close();
         }
     }
 
     /** @return <tt>true</tt> if this collection contains no elements. */
+    @Override
     public boolean isEmpty() {
-        FeatureIterator<F> iterator = features();
-        try {
+        try (FeatureIterator<F> iterator = features()) {
             return !iterator.hasNext();
-        } finally {
-            iterator.close();
         }
     }
 
@@ -164,39 +161,34 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
      *
      * @return an array containing all of the elements in this collection.
      */
+    @Override
     public Object[] toArray() {
         Object[] result = new Object[size()];
-        FeatureIterator<F> e = null;
-        try {
-            e = features();
+        try (FeatureIterator<F> e = features()) {
             for (int i = 0; e.hasNext(); i++) result[i] = e.next();
             return result;
-        } finally {
-            if (e != null) {
-                e.close();
-            }
         }
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     public <O> O[] toArray(O[] a) {
         int size = size();
         if (a.length < size) {
             a = (O[]) java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), size);
         }
-        FeatureIterator<F> it = features();
-        try {
+        try (FeatureIterator<F> it = features()) {
             Object[] result = a;
             for (int i = 0; i < size; i++) result[i] = it.next();
             if (a.length > size) a[size] = null;
             return a;
-        } finally {
-            it.close();
         }
     }
 
+    @Override
     public void accepts(
-            org.opengis.feature.FeatureVisitor visitor, org.opengis.util.ProgressListener progress)
+            org.geotools.api.feature.FeatureVisitor visitor,
+            org.geotools.api.util.ProgressListener progress)
             throws IOException {
         DataUtilities.visit(this, visitor, progress);
     }
@@ -209,6 +201,7 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
      * FilteringFeatureCollection}. Subclasses might want to override this in case the filter can be
      * cascaded to their data sources.
      */
+    @Override
     public FeatureCollection<T, F> subCollection(Filter filter) {
         if (filter == Filter.INCLUDE) {
             return this;
@@ -224,6 +217,7 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
      * @param order Sort order
      * @return FeatureCollection sorted in the indicated order
      */
+    @Override
     @SuppressWarnings("unchecked")
     public FeatureCollection<T, F> sort(SortBy order) {
         if (getSchema() instanceof SimpleFeatureType) {
@@ -247,17 +241,15 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
      *
      * @return Number of items, or Interger.MAX_VALUE
      */
+    @Override
     public int size() {
         int count = 0;
-        FeatureIterator<F> it = features();
-        try {
+        try (FeatureIterator<F> it = features()) {
             while (it.hasNext()) {
                 @SuppressWarnings("unused")
                 Feature feature = it.next();
                 count++;
             }
-        } finally {
-            it.close();
         }
         return count;
     }
@@ -266,10 +258,10 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
      * Full collection traversal to obtain bounds of FeatureCollection. Subclasees are strong
      * encouraged to override this expensive method (even if just to implement caching).
      */
+    @Override
     public ReferencedEnvelope getBounds() {
         ReferencedEnvelope bounds = null;
-        FeatureIterator<F> it = features();
-        try {
+        try (FeatureIterator<F> it = features()) {
             while (it.hasNext()) {
                 Feature feature = it.next();
                 BoundingBox bbox = feature.getBounds();
@@ -281,8 +273,6 @@ public abstract class BaseFeatureCollection<T extends FeatureType, F extends Fea
                     }
                 }
             }
-        } finally {
-            it.close();
         }
         return bounds;
     }

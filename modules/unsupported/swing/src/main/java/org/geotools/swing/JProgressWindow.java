@@ -26,8 +26,6 @@ import java.awt.Font;
 import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import javax.swing.BorderFactory;
 import javax.swing.BoundedRangeModel;
 import javax.swing.Box;
@@ -43,13 +41,13 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import org.geotools.api.util.InternationalString;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.swing.dialog.JExceptionReporter;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.SwingUtilities;
-import org.opengis.util.InternationalString;
-import org.opengis.util.ProgressListener;
 
 /**
  * Reports progress of a lengthly operation in a window. This implementation can also format
@@ -136,8 +134,7 @@ public class JProgressWindow implements ProgressListener {
         final String title = resources.getString(VocabularyKeys.PROGRESSION);
         final JDesktopPane desktop = JOptionPane.getDesktopPaneForComponent(parent);
         if (desktop != null) {
-            final JInternalFrame frame;
-            frame = new JInternalFrame(title);
+            final JInternalFrame frame = new JInternalFrame(title);
             window = frame;
             content = new JPanel(); // Pour avoir un fond opaque
             parentSize = desktop.getSize();
@@ -145,8 +142,7 @@ public class JProgressWindow implements ProgressListener {
             frame.setDefaultCloseOperation(JInternalFrame.HIDE_ON_CLOSE);
             desktop.add(frame, JLayeredPane.PALETTE_LAYER);
         } else {
-            final JDialog dialog;
-            dialog = new JDialog((Frame) null, title);
+            final JDialog dialog = new JDialog((Frame) null, title);
             window = dialog;
             content = (JComponent) dialog.getContentPane();
             parentSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -173,12 +169,7 @@ public class JProgressWindow implements ProgressListener {
          * Creates the cancel button.
          */
         cancel = new JButton(resources.getString(VocabularyKeys.CANCEL));
-        cancel.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        setCanceled(true);
-                    }
-                });
+        cancel.addActionListener(e -> setCanceled(true));
         final Box cancelBox = Box.createHorizontalBox();
         cancelBox.add(Box.createGlue());
         cancelBox.add(cancel);
@@ -231,6 +222,7 @@ public class JProgressWindow implements ProgressListener {
         set(Caller.TITLE, title);
     }
 
+    @Override
     public void setTask(InternationalString task) {
         set(Caller.LABEL, task.toString());
     }
@@ -239,11 +231,13 @@ public class JProgressWindow implements ProgressListener {
      * Notifies that the operation begins. This method display the windows if it was not already
      * visible.
      */
+    @Override
     public void started() {
         call(Caller.STARTED);
     }
 
     /** {@inheritDoc} */
+    @Override
     public void progress(final float percent) {
         int p = (int) percent; // round toward 0
         if (p < 0) p = 0;
@@ -251,6 +245,7 @@ public class JProgressWindow implements ProgressListener {
         set(Caller.PROGRESS, Integer.valueOf(p));
     }
 
+    @Override
     public float getProgress() {
         BoundedRangeModel model = progressBar.getModel();
         float progress = (float) (model.getValue() - model.getMinimum());
@@ -263,16 +258,19 @@ public class JProgressWindow implements ProgressListener {
      * Notifies that the operation has finished. The window will disaspears, except if it contains
      * warning or exception stack traces.
      */
+    @Override
     public void complete() {
         call(Caller.COMPLETE);
     }
 
     /** Releases any resource holds by this window. Invoking this method destroy the window. */
+    @Override
     public void dispose() {
         call(Caller.DISPOSE);
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean isCanceled() {
         return canceled;
     }
@@ -282,6 +280,7 @@ public class JProgressWindow implements ProgressListener {
      *
      * @param stop true to stop; false otherwise
      */
+    @Override
     public void setCanceled(final boolean stop) {
         canceled = stop;
     }
@@ -294,6 +293,7 @@ public class JProgressWindow implements ProgressListener {
      * @param margin DOCUMENT ME
      * @param warning DOCUMENT ME
      */
+    @Override
     public synchronized void warningOccurred(
             final String source, String margin, final String warning) {
         final StringBuffer buffer = new StringBuffer(warning.length() + 16);
@@ -334,6 +334,7 @@ public class JProgressWindow implements ProgressListener {
      *
      * @param exception the exception to display
      */
+    @Override
     public void exceptionOccurred(final Throwable exception) {
         JExceptionReporter.showDialog(exception);
     }
@@ -442,6 +443,7 @@ public class JProgressWindow implements ProgressListener {
         }
 
         /** Run the task. */
+        @Override
         public void run() {
             final BoundedRangeModel model = progressBar.getModel();
             switch (task) {
@@ -578,6 +580,7 @@ public class JProgressWindow implements ProgressListener {
         }
     }
 
+    @Override
     public InternationalString getTask() {
         return new SimpleInternationalString((String) get(Caller.LABEL));
     }

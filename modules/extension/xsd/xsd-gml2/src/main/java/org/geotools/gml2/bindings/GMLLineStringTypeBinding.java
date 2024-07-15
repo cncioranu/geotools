@@ -68,10 +68,12 @@ public class GMLLineStringTypeBinding extends AbstractComplexBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return GML.LineStringType;
     }
 
+    @Override
     public int getExecutionMode() {
         return BEFORE;
     }
@@ -83,6 +85,7 @@ public class GMLLineStringTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return LineString.class;
     }
@@ -94,6 +97,7 @@ public class GMLLineStringTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         List coordinates = node.getChildren("coord");
 
@@ -122,7 +126,7 @@ public class GMLLineStringTypeBinding extends AbstractComplexBinding {
         }
 
         if (node.getChild("coordinates") != null) {
-            Node cnode = (Node) node.getChild("coordinates");
+            Node cnode = node.getChild("coordinates");
             CoordinateSequence lineSeq = (CoordinateSequence) cnode.getValue();
 
             return gFactory.createLineString(lineSeq);
@@ -131,6 +135,7 @@ public class GMLLineStringTypeBinding extends AbstractComplexBinding {
         throw new RuntimeException("Could not find coordinates to build linestring");
     }
 
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         LineString lineString = (LineString) object;
 

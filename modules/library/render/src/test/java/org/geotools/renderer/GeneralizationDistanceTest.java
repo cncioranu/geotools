@@ -18,13 +18,19 @@ package org.geotools.renderer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.awt.RenderingHints;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.style.Style;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Query;
 import org.geotools.data.collection.CollectionFeatureSource;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.SchemaException;
@@ -36,17 +42,12 @@ import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.renderer.lite.RendererBaseTest;
 import org.geotools.renderer.lite.StreamingRenderer;
-import org.geotools.styling.Style;
 import org.geotools.styling.StyleBuilder;
 import org.geotools.util.factory.Hints;
 import org.junit.Before;
 import org.junit.Test;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class GeneralizationDistanceTest {
 
@@ -136,18 +137,18 @@ public class GeneralizationDistanceTest {
     @Test
     public void testDistanceReprojectionWholeWorld() throws Exception {
         // when APH is disabled the calculation will fail, disabling generalization
-        assertDistanceWholeWorldRendering(Collections.emptyMap(), 0);
+        assertDistanceWholeWorldRendering(Collections.emptyMap(), null);
 
         // before the fix we would have gotten zero with APH enabled too (failure to compute the
         // distance), but no more, it's using a valid distance for a envelope spanning the planet
         assertDistanceWholeWorldRendering(
                 Collections.singletonMap(
                         StreamingRenderer.ADVANCED_PROJECTION_HANDLING_KEY, Boolean.TRUE),
-                160300);
+                160300d);
     }
 
     public void assertDistanceWholeWorldRendering(
-            Map<Object, Object> hints, double expectedDistance) {
+            Map<Object, Object> hints, Double expectedDistance) {
         MapContent mc = new MapContent();
         mc.addLayer(new FeatureLayer(source, style));
         StreamingRenderer sr = new StreamingRenderer();
@@ -160,7 +161,11 @@ public class GeneralizationDistanceTest {
                 null,
                 200,
                 100);
-        assertNotNull(lastDistance);
-        assertEquals(expectedDistance, lastDistance, 1);
+        if (expectedDistance == null) {
+            assertNull(lastDistance);
+        } else {
+            assertNotNull(lastDistance);
+            assertEquals(expectedDistance, lastDistance, 1);
+        }
     }
 }

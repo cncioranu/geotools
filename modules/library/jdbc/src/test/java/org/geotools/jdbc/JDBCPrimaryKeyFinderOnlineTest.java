@@ -16,15 +16,19 @@
  */
 package org.geotools.jdbc;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.store.ContentFeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
+import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 public abstract class JDBCPrimaryKeyFinderOnlineTest extends JDBCTestSupport {
 
@@ -39,6 +43,7 @@ public abstract class JDBCPrimaryKeyFinderOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testSequencedPrimaryKey() throws Exception {
         JDBCFeatureStore fs = (JDBCFeatureStore) dataStore.getFeatureSource(tname("seqtable"));
 
@@ -51,6 +56,7 @@ public abstract class JDBCPrimaryKeyFinderOnlineTest extends JDBCTestSupport {
         assertPrimaryKeyValues(features, 4);
     }
 
+    @Test
     public void testAssignedSinglePKeyView() throws Exception {
         JDBCFeatureStore fs =
                 (JDBCFeatureStore) dataStore.getFeatureSource(tname("assignedsinglepk"));
@@ -63,6 +69,7 @@ public abstract class JDBCPrimaryKeyFinderOnlineTest extends JDBCTestSupport {
         assertPrimaryKeyValues(features, 3);
     }
 
+    @Test
     public void testAssignedMultiPKeyView() throws Exception {
         JDBCFeatureStore fs =
                 (JDBCFeatureStore) dataStore.getFeatureSource(tname("assignedmultipk"));
@@ -104,10 +111,12 @@ public abstract class JDBCPrimaryKeyFinderOnlineTest extends JDBCTestSupport {
                 count,
                 features.features(),
                 new SimpleFeatureAssertion() {
+                    @Override
                     public int toIndex(SimpleFeature feature) {
                         return Integer.parseInt(feature.getIdentifier().getID().split("\\.", 2)[1]);
                     }
 
+                    @Override
                     public void check(int index, SimpleFeature feature) {
                         assertEquals(
                                 tname(features.getSchema().getName().getLocalPart()) + "." + index,

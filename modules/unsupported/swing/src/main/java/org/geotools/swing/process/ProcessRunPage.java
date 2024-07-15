@@ -22,7 +22,9 @@ import java.util.Map.Entry;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.process.Process;
 import org.geotools.process.ProcessFactory;
 import org.geotools.swing.JProgressWindow;
@@ -33,8 +35,6 @@ import org.geotools.swing.wizard.JPage;
 import org.geotools.swing.wizard.ParamField;
 import org.geotools.text.Text;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.type.Name;
-import org.opengis.util.ProgressListener;
 
 /**
  * This page is responsible for actually executing the process with the given parameters and then
@@ -60,6 +60,7 @@ public class ProcessRunPage extends JPage {
         this.paramMap = params;
     }
 
+    @Override
     public String getBackPageIdentifier() {
         if (this.factory == null) {
             ProcessSelectionPage selectionPage = new ProcessSelectionPage();
@@ -71,6 +72,7 @@ public class ProcessRunPage extends JPage {
         return inputPage.getPageIdentifier();
     }
 
+    @Override
     public String getNextPageIdentifier() {
         return FINISH;
     }

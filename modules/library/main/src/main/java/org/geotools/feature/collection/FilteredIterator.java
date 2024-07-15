@@ -19,9 +19,9 @@ package org.geotools.feature.collection;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.filter.Filter;
 import org.geotools.feature.FeatureIterator;
-import org.opengis.feature.Feature;
-import org.opengis.filter.Filter;
 
 /**
  * Provides an implementation of Iterator that will filter contents using the provided filter.
@@ -52,6 +52,7 @@ public class FilteredIterator<F extends Feature> implements Iterator<F>, Feature
     }
 
     /** Package protected, please use SubFeatureCollection.close( iterator ) */
+    @Override
     public void close() {
         if (delegate instanceof FeatureIterator) {
             ((FeatureIterator<?>) delegate).close();
@@ -72,10 +73,12 @@ public class FilteredIterator<F extends Feature> implements Iterator<F>, Feature
         return null;
     }
 
+    @Override
     public boolean hasNext() {
         return next != null;
     }
 
+    @Override
     public F next() {
         if (next == null) {
             throw new NoSuchElementException();
@@ -85,6 +88,7 @@ public class FilteredIterator<F extends Feature> implements Iterator<F>, Feature
         return current;
     }
 
+    @Override
     public void remove() {
         if (delegate == null) throw new IllegalStateException();
 

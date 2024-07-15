@@ -16,16 +16,9 @@
  */
 package org.geotools.gce.imagemosaic;
 
-import static org.apache.commons.io.filefilter.FileFilterUtils.and;
-import static org.apache.commons.io.filefilter.FileFilterUtils.makeFileOnly;
-import static org.apache.commons.io.filefilter.FileFilterUtils.nameFileFilter;
-import static org.apache.commons.io.filefilter.FileFilterUtils.notFileFilter;
-import static org.apache.commons.io.filefilter.FileFilterUtils.suffixFileFilter;
-
 import java.awt.Color;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.MalformedURLException;
@@ -37,13 +30,20 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.media.jai.Interpolation;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.data.DataAccessFactory.Param;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.imageio.GeoToolsWriteParams;
-import org.geotools.data.DataAccessFactory.Param;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.shapefile.ShapefileDataStore;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.gce.imagemosaic.catalog.CatalogConfigurationBean;
 import org.geotools.gce.imagemosaic.catalog.GranuleCatalog;
 import org.geotools.parameter.DefaultParameterDescriptor;
@@ -54,13 +54,6 @@ import org.geotools.util.URLs;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * {@link AbstractGridFormat} subclass for controlling {@link ImageMosaicReader} creation. As the
@@ -108,7 +101,6 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  *     jar:file:foo.jar/bar.properties URLs
  * @since 2.3
  */
-@SuppressWarnings("rawtypes")
 public final class ImageMosaicFormat extends AbstractGridFormat implements Format {
 
     static final double DEFAULT_ARTIFACTS_FILTER_PTILE_THRESHOLD = 0.1;
@@ -481,20 +473,7 @@ public final class ImageMosaicFormat extends AbstractGridFormat implements Forma
                     final File parent = URLs.urlToFile(sourceURL).getParentFile();
 
                     // this can be used to look for properties files that do NOT define a datastore
-                    final File[] properties =
-                            parent.listFiles(
-                                    (FilenameFilter)
-                                            and(
-                                                    notFileFilter(
-                                                            nameFileFilter("indexer.properties")),
-                                                    and(
-                                                            notFileFilter(
-                                                                    nameFileFilter(
-                                                                            Utils
-                                                                                    .DATASTORE_PROPERTIES)),
-                                                            makeFileOnly(
-                                                                    suffixFileFilter(
-                                                                            ".properties")))));
+                    final File[] properties = parent.listFiles(Utils.MOSAIC_PROPERTY_FILTER);
 
                     // do we have a valid datastore + mosaic properties pair?
                     if (properties != null) {

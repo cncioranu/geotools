@@ -1,25 +1,25 @@
 package org.geotools.brewer.styling.builder;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.awt.Color;
-import java.util.Arrays;
 import java.util.List;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.GraphicalSymbol;
+import org.geotools.api.style.LinePlacement;
+import org.geotools.api.style.LineSymbolizer;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.PointPlacement;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.TextSymbolizer;
 import org.geotools.filter.function.RecodeFunction;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.LineSymbolizer;
-import org.geotools.styling.PointPlacement;
-import org.geotools.styling.Rule;
-import org.geotools.styling.Style;
-import org.geotools.styling.TextSymbolizer;
 import org.junit.Test;
-import org.opengis.filter.expression.Function;
-import org.opengis.style.Graphic;
-import org.opengis.style.GraphicalSymbol;
-import org.opengis.style.LinePlacement;
-import org.opengis.style.Mark;
 import si.uom.SI;
 
 public class CookbookLineTest extends AbstractStyleTest {
@@ -92,7 +92,7 @@ public class CookbookLineTest extends AbstractStyleTest {
         LineSymbolizer ls = (LineSymbolizer) collector.symbolizers.get(0);
         assertEquals(3, (int) ls.getStroke().getWidth().evaluate(null, Integer.class));
         assertEquals(Color.BLUE, ls.getStroke().getColor().evaluate(null, Color.class));
-        assertTrue(Arrays.equals(new float[] {5, 2}, ls.getStroke().getDashArray()));
+        assertArrayEquals(new float[] {5, 2}, ls.getStroke().getDashArray(), 0f);
     }
 
     @Test
@@ -172,7 +172,7 @@ public class CookbookLineTest extends AbstractStyleTest {
 
         // check the dots
         LineSymbolizer ls = (LineSymbolizer) collector.symbolizers.get(0);
-        assertTrue(Arrays.equals(new float[] {4, 6}, ls.getStroke().getDashArray()));
+        assertArrayEquals(new float[] {4, 6}, ls.getStroke().getDashArray(), 0f);
         Graphic graphic = ls.getStroke().getGraphicStroke();
         List<GraphicalSymbol> symbols = graphic.graphicalSymbols();
         assertEquals(1, symbols.size());
@@ -210,11 +210,11 @@ public class CookbookLineTest extends AbstractStyleTest {
         LineSymbolizer ls = (LineSymbolizer) collector.symbolizers.get(0);
         assertEquals(1, (int) ls.getStroke().getWidth().evaluate(null, Integer.class));
         assertEquals(Color.BLUE, ls.getStroke().getColor().evaluate(null, Color.class));
-        assertTrue(Arrays.equals(new float[] {10, 10}, ls.getStroke().getDashArray()));
+        assertArrayEquals(new float[] {10, 10}, ls.getStroke().getDashArray(), 0f);
 
         // check the dots
         ls = (LineSymbolizer) collector.symbolizers.get(1);
-        assertTrue(Arrays.equals(new float[] {5, 15}, ls.getStroke().getDashArray()));
+        assertArrayEquals(new float[] {5, 15}, ls.getStroke().getDashArray(), 0f);
         assertEquals(7.5, ls.getStroke().getDashOffset().evaluate(null, Double.class), 0.0);
         Graphic graphic = ls.getStroke().getGraphicStroke();
         List<GraphicalSymbol> symbols = graphic.graphicalSymbols();
@@ -247,7 +247,7 @@ public class CookbookLineTest extends AbstractStyleTest {
 
         // placement
         PointPlacement pp = (PointPlacement) ps.getLabelPlacement();
-        assertEquals(null, pp);
+        assertNull(pp);
     }
 
     @Test

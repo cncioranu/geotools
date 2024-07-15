@@ -20,12 +20,22 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.measure.Unit;
 import javax.measure.quantity.Length;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.Description;
+import org.geotools.api.style.Fill;
+import org.geotools.api.style.Font;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.Halo;
+import org.geotools.api.style.LabelPlacement;
+import org.geotools.api.style.LinePlacement;
+import org.geotools.api.style.OtherText;
+import org.geotools.api.style.StyleVisitor;
+import org.geotools.api.style.TextSymbolizer;
+import org.geotools.api.style.TraversingStyleVisitor;
+import org.geotools.api.util.Cloneable;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.util.factory.GeoTools;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.style.StyleVisitor;
-import org.opengis.util.Cloneable;
 
 /**
  * Provides a Java representation of an SLD TextSymbolizer that defines how text symbols should be
@@ -35,7 +45,7 @@ import org.opengis.util.Cloneable;
  * @author Johann Sorel (Geomatys)
  * @version $Id$
  */
-public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbolizer2, Cloneable {
+public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbolizer, Cloneable {
     private List<Font> fonts = new ArrayList<>(1);
     private final FilterFactory filterFactory;
     private FillImpl fill;
@@ -72,7 +82,8 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @return The fill to be used.
      */
-    public FillImpl getFill() {
+    @Override
+    public Fill getFill() {
         return fill;
     }
 
@@ -81,30 +92,34 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @param fill New value of property fill.
      */
-    public void setFill(org.opengis.style.Fill fill) {
+    @Override
+    public void setFill(org.geotools.api.style.Fill fill) {
         if (this.fill == fill) {
             return;
         }
         this.fill = FillImpl.cast(fill);
     }
 
+    @Override
     public List<Font> fonts() {
         return fonts;
     }
 
+    @Override
     public Font getFont() {
         return fonts.isEmpty() ? null : fonts.get(0);
     }
 
-    public void setFont(org.opengis.style.Font font) {
+    @Override
+    public void setFont(org.geotools.api.style.Font font) {
         if (this.fonts.size() == 1 && this.fonts.get(0) == font) {
             return; // no change
         }
         if (font != null) {
             if (this.fonts.isEmpty()) {
-                this.fonts.add(FontImpl.cast(font));
+                this.fonts.add(font);
             } else {
-                this.fonts.set(0, FontImpl.cast(font));
+                this.fonts.set(0, font);
             }
         }
     }
@@ -114,7 +129,7 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @param font New value of property font.
      */
-    public void addFont(org.geotools.styling.Font font) {
+    public void addFont(Font font) {
         fonts.add(font);
     }
 
@@ -122,7 +137,8 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      * A halo fills an extended area outside the glyphs of a rendered text label to make the label
      * easier to read over a background.
      */
-    public HaloImpl getHalo() {
+    @Override
+    public Halo getHalo() {
         return halo;
     }
 
@@ -131,7 +147,8 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @param halo New value of property halo.
      */
-    public void setHalo(org.opengis.style.Halo halo) {
+    @Override
+    public void setHalo(org.geotools.api.style.Halo halo) {
         if (this.halo == halo) {
             return;
         }
@@ -143,6 +160,7 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @return Label expression.
      */
+    @Override
     public Expression getLabel() {
         return label;
     }
@@ -152,6 +170,7 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @param label New value of property label.
      */
+    @Override
     public void setLabel(Expression label) {
         this.label = label;
     }
@@ -162,6 +181,7 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @return Value of property labelPlacement.
      */
+    @Override
     public LabelPlacement getLabelPlacement() {
         return placement;
     }
@@ -171,7 +191,8 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @param labelPlacement New value of property labelPlacement.
      */
-    public void setLabelPlacement(org.opengis.style.LabelPlacement labelPlacement) {
+    @Override
+    public void setLabelPlacement(org.geotools.api.style.LabelPlacement labelPlacement) {
         if (this.placement == labelPlacement) {
             return;
         }
@@ -187,11 +208,13 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @param visitor The StyleVisitor to accept.
      */
-    public Object accept(StyleVisitor visitor, Object data) {
+    @Override
+    public Object accept(TraversingStyleVisitor visitor, Object data) {
         return visitor.visit(this, data);
     }
 
-    public void accept(org.geotools.styling.StyleVisitor visitor) {
+    @Override
+    public void accept(StyleVisitor visitor) {
         visitor.visit(this);
     }
 
@@ -200,6 +223,7 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
      *
      * @return The deep copy clone.
      */
+    @Override
     public Object clone() {
         try {
             return super.clone();
@@ -208,6 +232,7 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
         }
     }
 
+    @Override
     public void setPriority(Expression priority) {
         if (this.priority == priority) {
             return;
@@ -215,14 +240,17 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
         this.priority = priority;
     }
 
+    @Override
     public Expression getPriority() {
         return priority;
     }
 
+    @Override
     public Graphic getGraphic() {
         return graphic;
     }
 
+    @Override
     public void setGraphic(Graphic graphic) {
         if (this.graphic == graphic) {
             return;
@@ -230,6 +258,7 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
         this.graphic = graphic;
     }
 
+    @Override
     public String toString() {
         StringBuffer buf = new StringBuffer();
         buf.append("<TextSymbolizerImp property=");
@@ -241,38 +270,44 @@ public class TextSymbolizerImpl extends AbstractSymbolizer implements TextSymbol
         return buf.toString();
     }
 
+    @Override
     public Expression getSnippet() {
         return abxtract;
     }
 
+    @Override
     public void setSnippet(Expression abxtract) {
         this.abxtract = abxtract;
     }
 
+    @Override
     public Expression getFeatureDescription() {
         return description;
     }
 
+    @Override
     public void setFeatureDescription(Expression description) {
         this.description = description;
     }
 
+    @Override
     public OtherText getOtherText() {
         return otherText;
     }
 
+    @Override
     public void setOtherText(OtherText otherText) {
         this.otherText = otherText;
     }
 
-    static TextSymbolizerImpl cast(org.opengis.style.Symbolizer symbolizer) {
+    static TextSymbolizerImpl cast(org.geotools.api.style.Symbolizer symbolizer) {
         if (symbolizer == null) {
             return null;
         } else if (symbolizer instanceof TextSymbolizerImpl) {
             return (TextSymbolizerImpl) symbolizer;
         } else {
-            org.opengis.style.TextSymbolizer textSymbolizer =
-                    (org.opengis.style.TextSymbolizer) symbolizer;
+            org.geotools.api.style.TextSymbolizer textSymbolizer =
+                    (org.geotools.api.style.TextSymbolizer) symbolizer;
             TextSymbolizerImpl copy = new TextSymbolizerImpl();
             copy.setDescription(textSymbolizer.getDescription());
             copy.setFill(textSymbolizer.getFill());

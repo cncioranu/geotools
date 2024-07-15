@@ -17,6 +17,8 @@
 package org.geotools.geopkg;
 
 import static java.lang.String.format;
+import static org.geotools.jdbc.JDBCDataStore.JDBC_NATIVE_TYPE;
+import static org.geotools.jdbc.JDBCDataStore.JDBC_NATIVE_TYPENAME;
 import static org.geotools.jdbc.util.SqlUtil.prepare;
 
 import java.io.Closeable;
@@ -37,6 +39,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.logging.Level;
@@ -44,20 +47,34 @@ import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.dbcp.DelegatingConnection;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureReader;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureWriter;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.identity.Identifier;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.data.DataStore;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
 import org.geotools.data.jdbc.datasource.ManageableDataSource;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureReader;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureWriter;
+import org.geotools.data.store.ReprojectingFeatureCollection;
+import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.feature.type.AttributeDescriptorImpl;
 import org.geotools.filter.identity.FeatureIdImpl;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.Geometries;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.geopkg.geom.GeoPkgGeomReader;
@@ -74,15 +91,6 @@ import org.geotools.referencing.crs.DefaultEngineeringCRS;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.identity.Identifier;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.sqlite.Function;
 import org.sqlite.SQLiteConfig;
 
@@ -138,6 +146,17 @@ public class GeoPackage implements Closeable {
     // requirement 11, two generic SRID are to be considered
     protected static final int GENERIC_GEOGRAPHIC_SRID = 0;
     protected static final int GENERIC_PROJECTED_SRID = -1;
+    /** The application id for GeoPackage 1.2 onwards (GPKG) */
+    static final int GPKG_120_APPID = 0x47504B47;
+    /** The application id for GeoPackage 1.0 (GP10) */
+    static final int GPKG_100_APPID = 0x47503130;
+
+    /**
+     * Some tools like QGIS find the SRID and blindly assume it's an EPSG code if it's in the
+     * reserved range, without checking the authority or authority code. This is a problem for
+     * custom SRIDs.
+     */
+    private static final int MIN_CUSTOM_SRID = 900000;
 
     public static enum DataType {
         Feature("features"),
@@ -185,7 +204,7 @@ public class GeoPackage implements Closeable {
      * <p>This constructor assumes no credentials are required to connect to the database.
      */
     public GeoPackage(File file) throws IOException {
-        this(file, (String) null, (String) null);
+        this(file, null, (String) null);
     }
 
     /** Creates a GeoPackage from an existing file specifying database credentials. */
@@ -301,7 +320,8 @@ public class GeoPackage implements Closeable {
                 ResultSet rs = st.executeQuery("PRAGMA application_id")) {
             if (rs.next()) {
                 int applicationId = rs.getInt(1);
-                initialized = (0x47503130 == applicationId);
+                // support legacy application id (before 1.2) as well as newer one (from 1.2)
+                initialized = (GPKG_100_APPID == applicationId || GPKG_120_APPID == applicationId);
             }
         }
         if (!initialized) {
@@ -316,7 +336,7 @@ public class GeoPackage implements Closeable {
             runScript(METADATA_REFERENCE + ".sql", cx);
             runScript(DATA_COLUMN_CONSTRAINTS + ".sql", cx);
             addDefaultSpatialReferences(cx);
-            runSQL("PRAGMA application_id = 0x47503130;", cx);
+            runSQL("PRAGMA application_id = " + GPKG_120_APPID + ";", cx);
         }
     }
 
@@ -331,6 +351,7 @@ public class GeoPackage implements Closeable {
                 "ST_MinX",
                 new GeometryDoubleFunction() {
 
+                    @Override
                     public double execute(GeoPkgGeomReader reader) throws IOException {
                         return reader.getEnvelope().getMinX();
                     }
@@ -357,6 +378,7 @@ public class GeoPackage implements Closeable {
                 "ST_MinY",
                 new GeometryDoubleFunction() {
 
+                    @Override
                     public double execute(GeoPkgGeomReader reader)
                             throws IOException, SQLException {
                         return reader.getEnvelope().getMinY();
@@ -370,6 +392,7 @@ public class GeoPackage implements Closeable {
                 "ST_MaxY",
                 new GeometryDoubleFunction() {
 
+                    @Override
                     public double execute(GeoPkgGeomReader reader)
                             throws IOException, SQLException {
                         return reader.getEnvelope().getMaxY();
@@ -398,6 +421,7 @@ public class GeoPackage implements Closeable {
      * <p>The application should always call this method when done with a geopackage to prevent
      * connection leakage.
      */
+    @Override
     public void close() {
         if (dataStore != null) {
             dataStore.dispose();
@@ -473,30 +497,24 @@ public class GeoPackage implements Closeable {
             String description)
             throws IOException {
         try {
-            PreparedStatement ps =
-                    cx.prepareStatement(
-                            String.format(
-                                    "SELECT srs_id FROM %s WHERE srs_id = ?", SPATIAL_REF_SYS));
-            try {
-                ResultSet rs = prepare(ps).set(srid).log(Level.FINE).statement().executeQuery();
-                try {
-                    if (rs.next()) {
-                        return;
-                    }
-                } finally {
-                    close(rs);
+            try (PreparedStatement ps =
+                            cx.prepareStatement(
+                                    format(
+                                            "SELECT srs_id FROM %s WHERE srs_id = ?",
+                                            SPATIAL_REF_SYS));
+                    ResultSet rs =
+                            prepare(ps).set(srid).log(Level.FINE).statement().executeQuery()) {
+                if (rs.next()) {
+                    return;
                 }
-            } finally {
-                close(ps);
             }
 
-            ps =
+            try (PreparedStatement ps =
                     cx.prepareStatement(
-                            String.format(
+                            format(
                                     "INSERT INTO %s (srs_id, srs_name, organization, organization_coordsys_id, definition, description) "
                                             + "VALUES (?,?,?,?,?,?)",
-                                    SPATIAL_REF_SYS));
-            try {
+                                    SPATIAL_REF_SYS))) {
                 prepare(ps)
                         .set(srid)
                         .set(srsName)
@@ -507,8 +525,6 @@ public class GeoPackage implements Closeable {
                         .log(Level.FINE)
                         .statement()
                         .execute();
-            } finally {
-                close(ps);
             }
         } catch (SQLException e) {
             throw new IOException(e);
@@ -539,6 +555,21 @@ public class GeoPackage implements Closeable {
         GeoPackage.addCRS(cx, srid, auth + ":" + srid, auth, srid, crs.toWKT(), auth + ":" + srid);
     }
 
+    private boolean hasCRS(Connection cx, int srid) {
+        try (PreparedStatement ps =
+                cx.prepareStatement(
+                        format("SELECT count(*) FROM %s WHERE srs_id = ?", SPATIAL_REF_SYS))) {
+            try (ResultSet rs = prepare(ps).set(srid).log(Level.FINE).statement().executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return false;
+    }
+
     private CoordinateReferenceSystem getCRS(int srid) {
         try {
 
@@ -546,7 +577,7 @@ public class GeoPackage implements Closeable {
 
                 try (PreparedStatement ps =
                         cx.prepareStatement(
-                                String.format(
+                                format(
                                         "SELECT definition FROM %s WHERE srs_id = ?",
                                         SPATIAL_REF_SYS))) {
 
@@ -722,6 +753,41 @@ public class GeoPackage implements Closeable {
     }
 
     /**
+     * In some cases (ie. from JDBC) the schema will have JDBC_NATIVE_TYPENAME and JDBC_NATIVE_TYPE
+     * metadata attached to them (i.e. 'varchar'). However, these cause problems because GT will
+     * create non-GeoPackage allowed column types (according to the GeoPackage Specification).
+     *
+     * <p>This clones the input schema and removes the JDBC_NATIVE_TYPENAME and JDBC_NATIVE_TYPE
+     * metadata.
+     *
+     * @param schema input schema
+     * @return clone of the input schema without JDBC_NATIVE_TYPENAME and JDBC_NATIVE_TYPE metadata
+     */
+    SimpleFeatureType correctSchema(SimpleFeatureType schema) {
+        SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
+
+        builder.init(schema);
+        // remove the attributes, we are going to put in new ones
+        builder.setAttributes(new ArrayList<>());
+
+        for (var attribute : schema.getAttributeDescriptors()) {
+            var modifiedAttribute =
+                    new AttributeDescriptorImpl(
+                            attribute.getType(),
+                            attribute.getName(),
+                            attribute.getMinOccurs(),
+                            attribute.getMaxOccurs(),
+                            attribute.isNillable(),
+                            attribute.getDefaultValue());
+            modifiedAttribute.getUserData().putAll(attribute.getUserData());
+            modifiedAttribute.getUserData().remove(JDBC_NATIVE_TYPENAME);
+            modifiedAttribute.getUserData().remove(JDBC_NATIVE_TYPE);
+            builder.add(modifiedAttribute);
+        }
+        return builder.buildFeatureType();
+    }
+
+    /**
      * Creates a new feature entry in the geopackage.
      *
      * <p>The resulting feature dataset will be empty. The {@link #writer(FeatureEntry, boolean,
@@ -732,6 +798,7 @@ public class GeoPackage implements Closeable {
      * @throws IOException Any errors occurring while creating the new feature entry.
      */
     public void create(FeatureEntry entry, SimpleFeatureType schema) throws IOException {
+        schema = correctSchema(schema);
         // clone entry so we can work on it
         FeatureEntry e = new FeatureEntry();
         e.init(entry);
@@ -763,8 +830,8 @@ public class GeoPackage implements Closeable {
 
         // check for srid
         if (e.getSrid() == null) {
-            try {
-                e.setSrid(findSRID(schema));
+            try (Connection cx = connPool.getConnection()) {
+                e.setSrid(findSRID(cx, schema));
             } catch (Exception ex) {
                 throw new IllegalArgumentException(ex);
             }
@@ -795,15 +862,50 @@ public class GeoPackage implements Closeable {
     }
 
     /**
+     * According to GeoPKG spec, the coordinates MUST be in XY order. If this FC is in YX format, we
+     * reproject to the equivalent XY project.
+     *
+     * <p>If already XY, return the input FC.
+     *
+     * @param fc underlying feature collection
+     * @return feature collection which is has axis order in XY (NORTH_EAST)
+     */
+    static SimpleFeatureCollection forceXY(SimpleFeatureCollection fc) {
+        CoordinateReferenceSystem sourceCRS = fc.getSchema().getCoordinateReferenceSystem();
+        if ((CRS.getAxisOrder(sourceCRS) == CRS.AxisOrder.EAST_NORTH)
+                || (CRS.getAxisOrder(sourceCRS) == CRS.AxisOrder.INAPPLICABLE)) {
+            return fc;
+        }
+
+        for (ReferenceIdentifier identifier : sourceCRS.getIdentifiers()) {
+            try {
+                String _identifier = identifier.toString();
+                CoordinateReferenceSystem flippedCRS = CRS.decode(_identifier, true);
+                if (CRS.getAxisOrder(flippedCRS) == CRS.AxisOrder.EAST_NORTH) {
+                    ReprojectingFeatureCollection result =
+                            new ReprojectingFeatureCollection(fc, flippedCRS);
+                    return result;
+                }
+            } catch (Exception e) {
+                // couldn't flip - try again
+            }
+        }
+        return fc;
+    }
+
+    /**
      * Adds a new feature dataset to the geopackage.
      *
      * @param entry Contains metadata about the feature entry.
      * @param collection The simple feature collection to add to the geopackage.
      * @throws IOException Any errors occurring while adding the new feature dataset.
      */
+    @SuppressWarnings("PMD.UseTryWithResources") // Transaction needs to be rolled back ìn catch
     public void add(FeatureEntry entry, SimpleFeatureCollection collection) throws IOException {
         FeatureEntry e = new FeatureEntry();
         e.init(entry);
+
+        collection = forceXY(collection);
 
         if (e.getBounds() == null) {
             e.setBounds(collection.getBounds());
@@ -813,9 +915,8 @@ public class GeoPackage implements Closeable {
 
         Transaction tx = new DefaultTransaction();
         try {
-            SimpleFeatureWriter w = writer(e, true, null, tx);
-            SimpleFeatureIterator it = collection.features();
-            try {
+            try (SimpleFeatureWriter w = writer(e, true, null, tx);
+                    SimpleFeatureIterator it = collection.features()) {
                 while (it.hasNext()) {
                     SimpleFeature f = it.next();
                     SimpleFeature g = w.next();
@@ -835,9 +936,6 @@ public class GeoPackage implements Closeable {
 
                     w.write();
                 }
-            } finally {
-                w.close();
-                it.close();
             }
             tx.commit();
         } catch (Exception ex) {
@@ -909,14 +1007,14 @@ public class GeoPackage implements Closeable {
         return Features.simple(dataStore().getFeatureReader(q, tx));
     }
 
-    static Integer findSRID(SimpleFeatureType schema) throws Exception {
+    static Integer findSRID(Connection cx, SimpleFeatureType schema) throws Exception {
         CoordinateReferenceSystem crs = schema.getCoordinateReferenceSystem();
         if (crs == null) {
             GeometryDescriptor gd = findGeometryDescriptor(schema);
             crs = gd.getCoordinateReferenceSystem();
         }
 
-        return crs != null ? CRS.lookupEpsgCode(crs, true) : null;
+        return findSRID(cx, crs);
     }
 
     static String findGeometryColumn(SimpleFeatureType schema) {
@@ -966,8 +1064,22 @@ public class GeoPackage implements Closeable {
                 init(cx);
             }
             Integer srid = e.getSrid();
-            if (srid != null && srid != GENERIC_PROJECTED_SRID && srid != GENERIC_GEOGRAPHIC_SRID) {
-                addCRS(CRS.decode("EPSG:" + srid, true), "epsg", srid, cx);
+            // register the CRS if missing
+            if (srid != null
+                    && srid != GENERIC_GEOGRAPHIC_SRID
+                    && srid != GENERIC_PROJECTED_SRID
+                    && !hasCRS(cx, srid)) {
+                CoordinateReferenceSystem crs = GeoPackage.decodeCRS(cx, srid);
+                String identifier = CRS.lookupIdentifier(crs, false);
+                String name = Optional.ofNullable(identifier).orElse(crs.getName().toString());
+                String auth = "NONE";
+                int code = -1;
+                int idx = identifier.indexOf(":");
+                if (idx > 0) {
+                    auth = identifier.substring(0, idx);
+                    code = Integer.parseInt(identifier.substring(idx + 1));
+                }
+                addCRS(cx, srid, name, auth, code, crs.toWKT(), null);
             }
 
             StringBuilder sb = new StringBuilder();
@@ -1024,7 +1136,7 @@ public class GeoPackage implements Closeable {
                 if (srid != null) {
                     CoordinateReferenceSystem crs = getCRS(srid);
                     if (crs != null) {
-                        org.opengis.geometry.Envelope env = CRS.getEnvelope(crs);
+                        Bounds env = CRS.getEnvelope(crs);
                         if (env != null) {
                             minx = env.getMinimum(0);
                             miny = env.getMinimum(1);
@@ -1039,11 +1151,8 @@ public class GeoPackage implements Closeable {
                 psb.set(srid);
             }
 
-            PreparedStatement ps = psb.log(Level.FINE).statement();
-            try {
+            try (PreparedStatement ps = psb.log(Level.FINE).statement()) {
                 ps.execute();
-            } finally {
-                close(ps);
             }
 
         } catch (Exception ex) {
@@ -1060,19 +1169,10 @@ public class GeoPackage implements Closeable {
 
     void deleteGeoPackageContentsEntry(Entry e) throws IOException {
         String sql = format("DELETE FROM %s WHERE table_name = ?", GEOPACKAGE_CONTENTS);
-        try {
-            Connection cx = connPool.getConnection();
-            try {
+        try (Connection cx = connPool.getConnection();
                 PreparedStatement ps =
-                        prepare(cx, sql).set(e.getTableName()).log(Level.FINE).statement();
-                try {
-                    ps.execute();
-                } finally {
-                    close(ps);
-                }
-            } finally {
-                close(cx);
-            }
+                        prepare(cx, sql).set(e.getTableName()).log(Level.FINE).statement()) {
+            ps.execute();
         } catch (SQLException ex) {
             throw new IOException(ex);
         }
@@ -1085,22 +1185,17 @@ public class GeoPackage implements Closeable {
         }
         String sql = format("INSERT INTO %s VALUES (?, ?, ?, ?, ?, ?);", GEOMETRY_COLUMNS);
 
-        try {
-            PreparedStatement ps =
-                    prepare(cx, sql)
-                            .set(e.getTableName())
-                            .set(e.getGeometryColumn())
-                            .set(e.getGeometryType() != null ? e.getGeometryType().getName() : null)
-                            .set(e.getSrid())
-                            .set(e.isZ())
-                            .set(e.isM())
-                            .log(Level.FINE)
-                            .statement();
-            try {
-                ps.execute();
-            } finally {
-                close(ps);
-            }
+        try (PreparedStatement ps =
+                prepare(cx, sql)
+                        .set(e.getTableName())
+                        .set(e.getGeometryColumn())
+                        .set(e.getGeometryType() != null ? e.getGeometryType().getName() : null)
+                        .set(e.getSrid())
+                        .set(e.isZ())
+                        .set(e.isM())
+                        .log(Level.FINE)
+                        .statement()) {
+            ps.execute();
         } catch (SQLException ex) {
             throw new IOException(ex);
         }
@@ -1108,19 +1203,10 @@ public class GeoPackage implements Closeable {
 
     void deleteGeometryColumnsEntry(FeatureEntry e) throws IOException {
         String sql = format("DELETE FROM %s WHERE table_name = ?", GEOMETRY_COLUMNS);
-        try {
-            Connection cx = connPool.getConnection();
-            try {
+        try (Connection cx = connPool.getConnection();
                 PreparedStatement ps =
-                        prepare(cx, sql).set(e.getTableName()).log(Level.FINE).statement();
-                try {
-                    ps.execute();
-                } finally {
-                    close(ps);
-                }
-            } finally {
-                close(cx);
-            }
+                        prepare(cx, sql).set(e.getTableName()).log(Level.FINE).statement()) {
+            ps.execute();
         } catch (SQLException ex) {
             throw new IOException(ex);
         }
@@ -1145,23 +1231,71 @@ public class GeoPackage implements Closeable {
         properties.put("i", pk.getColumns().get(0).getName());
 
         try (Connection cx = connPool.getConnection()) {
-            try {
-                runScript(SPATIAL_INDEX + ".sql", cx, properties);
-            } finally {
-                cx.close();
-            }
-
+            runScript(SPATIAL_INDEX + ".sql", cx, properties);
         } catch (SQLException ex) {
             throw new IOException(ex);
         }
     }
 
-    static Integer findSRID(GridCoverage2D raster) throws Exception {
-        return CRS.lookupEpsgCode(raster.getCoordinateReferenceSystem(), true);
+    public static int findSRID(Connection cx, CoordinateReferenceSystem crs) {
+        if (crs == null) return -1;
+
+        try {
+            Integer result = CRS.lookupEpsgCode(crs, true);
+            if (result != null) return result;
+
+            // if we got here we have a CRS but not an EPSG one, see if it's already there
+            String wkt = crs.toWKT();
+            String sqlWkt =
+                    "SELECT srs_id FROM gpkg_spatial_ref_sys WHERE definition = '" + wkt + "'";
+            try (Statement st = cx.createStatement();
+                    ResultSet rs = st.executeQuery(sqlWkt)) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+
+            // then we should try to create one
+            String sqlMax = "select max(srs_id) from gpkg_spatial_ref_sys";
+            int srid = -1;
+            try (Statement st = cx.createStatement();
+                    ResultSet rs = st.executeQuery(sqlMax); ) {
+                if (rs.next()) {
+                    srid = rs.getInt(1) + 1;
+                }
+            }
+            if (srid == -1) return srid;
+            if (srid < MIN_CUSTOM_SRID) srid = MIN_CUSTOM_SRID;
+
+            // insert new entry if none is found
+            String identifier = CRS.lookupIdentifier(crs, true);
+            int splitIdx = identifier.indexOf(':');
+            String organization = "UNKNOWN";
+            int organizationCoordSysId = -1;
+
+            if (splitIdx != -1) {
+                organization = identifier.substring(0, splitIdx);
+                organizationCoordSysId = Integer.parseInt(identifier.substring(splitIdx + 1));
+            }
+            GeoPackage.addCRS(
+                    cx,
+                    srid,
+                    crs.getName().toString(),
+                    organization,
+                    organizationCoordSysId,
+                    wkt,
+                    null);
+            return srid;
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Error looking up the epsg code for metadata insertion", e);
+        }
+
+        // if the above lookups all failed, return -1
+        return -1;
     }
 
     static ReferencedEnvelope findBounds(GridCoverage2D raster) {
-        org.opengis.geometry.Envelope e = raster.getEnvelope();
+        Bounds e = raster.getEnvelope();
         return new ReferencedEnvelope(
                 e.getMinimum(0),
                 e.getMaximum(0),
@@ -1170,9 +1304,9 @@ public class GeoPackage implements Closeable {
                 raster.getCoordinateReferenceSystem());
     }
 
-    static GeneralEnvelope toGeneralEnvelope(ReferencedEnvelope e) {
-        GeneralEnvelope ge =
-                new GeneralEnvelope(
+    static GeneralBounds toGeneralEnvelope(ReferencedEnvelope e) {
+        GeneralBounds ge =
+                new GeneralBounds(
                         new double[] {e.getMinX(), e.getMinY()},
                         new double[] {e.getMaxX(), e.getMaxY()});
         ge.setCoordinateReferenceSystem(e.getCoordinateReferenceSystem());
@@ -1185,38 +1319,27 @@ public class GeoPackage implements Closeable {
 
     /** Lists all the tile entries in the geopackage. */
     public List<TileEntry> tiles() throws IOException {
-        try {
-            Connection cx = connPool.getConnection();
-            try {
-                List<TileEntry> entries = new ArrayList<>();
-                String sql =
-                        format(
-                                "SELECT a.*, c.organization_coordsys_id, c.definition"
-                                        + " FROM %s a, %s c"
-                                        + " WHERE a.srs_id = c.srs_id"
-                                        + " AND a.data_type = ?",
-                                GEOPACKAGE_CONTENTS, SPATIAL_REF_SYS);
-                LOGGER.fine(sql);
+        List<TileEntry> entries = new ArrayList<>();
+        String sql =
+                format(
+                        "SELECT a.*, c.organization_coordsys_id, c.definition"
+                                + " FROM %s a, %s c"
+                                + " WHERE a.srs_id = c.srs_id"
+                                + " AND a.data_type = ?",
+                        GEOPACKAGE_CONTENTS, SPATIAL_REF_SYS);
+        LOGGER.fine(sql);
+        try (Connection cx = connPool.getConnection();
+                PreparedStatement ps = cx.prepareStatement(sql)) {
+            ps.setString(1, DataType.Tile.value());
 
-                PreparedStatement ps = cx.prepareStatement(sql);
-                try {
-                    ps.setString(1, DataType.Tile.value());
-
-                    ResultSet rs = ps.executeQuery();
-                    try {
-                        while (rs.next()) {
-                            entries.add(createTileEntry(rs, cx));
-                        }
-                    } finally {
-                        close(rs);
-                    }
-                } finally {
-                    close(ps);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    entries.add(createTileEntry(rs, cx));
                 }
-                return entries;
-            } finally {
-                close(cx);
             }
+
+            return entries;
+
         } catch (SQLException e) {
             throw new IOException(e);
         }
@@ -1229,37 +1352,24 @@ public class GeoPackage implements Closeable {
      * @return The entry, or <code>null</code> if no such entry exists.
      */
     public TileEntry tile(String name) throws IOException {
-        try {
-            Connection cx = connPool.getConnection();
-            try {
-                String sql =
-                        format(
-                                "SELECT a.*, c.organization_coordsys_id, c.definition"
-                                        + " FROM %s a, %s c"
-                                        + " WHERE a.srs_id = c.srs_id"
-                                        + " AND a.table_name = ?"
-                                        + " AND a.data_type = ?",
-                                GEOPACKAGE_CONTENTS, SPATIAL_REF_SYS);
-                LOGGER.fine(sql);
+        String sql =
+                format(
+                        "SELECT a.*, c.organization_coordsys_id, c.definition"
+                                + " FROM %s a, %s c"
+                                + " WHERE a.srs_id = c.srs_id"
+                                + " AND a.table_name = ?"
+                                + " AND a.data_type = ?",
+                        GEOPACKAGE_CONTENTS, SPATIAL_REF_SYS);
+        LOGGER.fine(sql);
+        try (Connection cx = connPool.getConnection();
+                PreparedStatement ps = cx.prepareStatement(sql)) {
+            ps.setString(1, name);
+            ps.setString(2, DataType.Tile.value());
 
-                PreparedStatement ps = cx.prepareStatement(sql);
-                try {
-                    ps.setString(1, name);
-                    ps.setString(2, DataType.Tile.value());
-
-                    ResultSet rs = ps.executeQuery();
-                    try {
-                        if (rs.next()) {
-                            return createTileEntry(rs, cx);
-                        }
-                    } finally {
-                        close(rs);
-                    }
-                } finally {
-                    close(ps);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return createTileEntry(rs, cx);
                 }
-            } finally {
-                close(cx);
             }
         } catch (SQLException e) {
             throw new IOException(e);
@@ -1290,101 +1400,82 @@ public class GeoPackage implements Closeable {
             e.setDescription(e.getIdentifier());
         }
 
-        if (e.getSrid() == null) {
-            try {
-                e.setSrid(findSRID(entry.getBounds()));
-            } catch (Exception ex) {
-                throw new IOException(ex);
+        try (Connection cx = connPool.getConnection()) {
+            if (e.getSrid() == null) {
+                try {
+                    e.setSrid(findSRID(cx, entry.getBounds().getCoordinateReferenceSystem()));
+                } catch (Exception ex) {
+                    throw new IOException(ex);
+                }
             }
-        }
+            e.setLastChange(new Date());
 
-        e.setLastChange(new Date());
-
-        try {
-            Connection cx = connPool.getConnection();
             // TODO: do all of this in a transaction
-            try {
-                PreparedStatement st;
-
-                // add entry to tile matrix set table
-                Envelope bounds = e.getTileMatrixSetBounds();
-                if (bounds == null) {
-                    bounds = e.getBounds();
-                }
-                st =
-                        prepare(cx, format("INSERT INTO %s VALUES (?,?,?,?,?,?)", TILE_MATRIX_SET))
-                                .set(e.getTableName())
-                                .set(e.getSrid())
-                                .set(bounds.getMinX())
-                                .set(bounds.getMinY())
-                                .set(bounds.getMaxX())
-                                .set(bounds.getMaxY())
-                                .statement();
-                try {
-                    st.execute();
-                } finally {
-                    close(st);
-                }
-
-                // create the tile_matrix_metadata entries
-                st =
-                        prepare(
-                                        cx,
-                                        format(
-                                                "INSERT INTO %s VALUES (?,?,?,?,?,?,?,?)",
-                                                TILE_MATRIX_METADATA))
-                                .statement();
-                try {
-                    for (TileMatrix m : e.getTileMatricies()) {
-                        prepare(st)
-                                .set(e.getTableName())
-                                .set(m.getZoomLevel())
-                                .set(m.getMatrixWidth())
-                                .set(m.getMatrixHeight())
-                                .set(m.getTileWidth())
-                                .set(m.getTileHeight())
-                                .set(m.getXPixelSize())
-                                .set(m.getYPixelSize())
-                                .statement()
-                                .execute();
-                    }
-                } finally {
-                    close(st);
-                }
-                // create the tile table itself
-                st =
-                        cx.prepareStatement(
-                                format(
-                                        "CREATE TABLE %s ("
-                                                + "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,"
-                                                + "zoom_level INTEGER NOT NULL,"
-                                                + "tile_column INTEGER NOT NULL,"
-                                                + "tile_row INTEGER NOT NULL,"
-                                                + "tile_data BLOB NOT NULL)",
-                                        e.getTableName()));
-                try {
-                    st.execute();
-                } finally {
-                    close(st);
-                }
-
-                // create an index on the tile
-                st =
-                        cx.prepareStatement(
-                                format(
-                                        "create index %s_zyx_idx on %s(zoom_level, tile_column, tile_row);",
-                                        e.getTableName(), e.getTableName()));
-                try {
-                    st.execute();
-                } finally {
-                    close(st);
-                }
-
-                // update the metadata tables
-                addGeoPackageContentsEntry(e, cx);
-            } finally {
-                close(cx);
+            // add entry to tile matrix set table
+            Envelope bounds = e.getTileMatrixSetBounds();
+            if (bounds == null) {
+                bounds = e.getBounds();
             }
+            try (PreparedStatement st =
+                    prepare(cx, format("INSERT INTO %s VALUES (?,?,?,?,?,?)", TILE_MATRIX_SET))
+                            .set(e.getTableName())
+                            .set(e.getSrid())
+                            .set(bounds.getMinX())
+                            .set(bounds.getMinY())
+                            .set(bounds.getMaxX())
+                            .set(bounds.getMaxY())
+                            .statement(); ) {
+                st.execute();
+            }
+
+            // create the tile_matrix_metadata entries
+            try (PreparedStatement st =
+                    prepare(
+                                    cx,
+                                    format(
+                                            "INSERT INTO %s VALUES (?,?,?,?,?,?,?,?)",
+                                            TILE_MATRIX_METADATA))
+                            .statement()) {
+                for (TileMatrix m : e.getTileMatricies()) {
+                    prepare(st)
+                            .set(e.getTableName())
+                            .set(m.getZoomLevel())
+                            .set(m.getMatrixWidth())
+                            .set(m.getMatrixHeight())
+                            .set(m.getTileWidth())
+                            .set(m.getTileHeight())
+                            .set(m.getXPixelSize())
+                            .set(m.getYPixelSize())
+                            .statement()
+                            .execute();
+                }
+            }
+
+            // create the tile table itself
+            try (PreparedStatement st =
+                    cx.prepareStatement(
+                            format(
+                                    "CREATE TABLE \"%s\" ("
+                                            + "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,"
+                                            + "zoom_level INTEGER NOT NULL,"
+                                            + "tile_column INTEGER NOT NULL,"
+                                            + "tile_row INTEGER NOT NULL,"
+                                            + "tile_data BLOB NOT NULL)",
+                                    e.getTableName()))) {
+                st.execute();
+            }
+
+            // create an index on the tile
+            try (PreparedStatement st =
+                    cx.prepareStatement(
+                            format(
+                                    "CREATE INDEX \"%s_zyx_idx\" ON \"%s\"(zoom_level, tile_column, tile_row);",
+                                    e.getTableName(), e.getTableName()))) {
+                st.execute();
+            }
+
+            // update the metadata tables
+            addGeoPackageContentsEntry(e, cx);
         } catch (SQLException ex) {
             throw new IOException(ex);
         }
@@ -1399,14 +1490,12 @@ public class GeoPackage implements Closeable {
      * @param tile The tile.
      */
     public void add(TileEntry entry, Tile tile) throws IOException {
-        try {
-            Connection cx = connPool.getConnection();
-            try {
+        try (Connection cx = connPool.getConnection();
                 PreparedStatement ps =
                         prepare(
                                         cx,
                                         format(
-                                                "INSERT INTO %s (zoom_level, tile_column,"
+                                                "INSERT INTO \"%s\" (zoom_level, tile_column,"
                                                         + " tile_row, tile_data) VALUES (?,?,?,?)",
                                                 entry.getTableName()))
                                 .set(tile.getZoom())
@@ -1414,15 +1503,8 @@ public class GeoPackage implements Closeable {
                                 .set(tile.getRow())
                                 .set(tile.getData())
                                 .log(Level.FINE)
-                                .statement();
-                try {
-                    ps.execute();
-                } finally {
-                    close(ps);
-                }
-            } finally {
-                close(cx);
-            }
+                                .statement()) {
+            ps.execute();
         } catch (SQLException e) {
             throw new IOException(e);
         }
@@ -1464,17 +1546,12 @@ public class GeoPackage implements Closeable {
             }
             sql.setLength(sql.length() - 5);
         }
-        Connection cx = null;
-        Statement st = null;
         try {
-            cx = connPool.getConnection();
-            st = cx.createStatement();
+            Connection cx = connPool.getConnection();
+            Statement st = cx.createStatement();
             ResultSet rs = st.executeQuery(sql.toString());
-
             return new TileReader(rs, st, cx);
         } catch (SQLException e) {
-            close(st);
-            close(cx);
             throw new IOException(e);
         }
     }
@@ -1504,31 +1581,16 @@ public class GeoPackage implements Closeable {
      * @return whether this feature entry has a spatial index available.
      */
     public boolean hasSpatialIndex(FeatureEntry entry) throws IOException {
-        try {
-            Connection cx = connPool.getConnection();
-
-            try {
-                String tableName = getSpatialIndexName(entry);
+        String tableName = getSpatialIndexName(entry);
+        try (Connection cx = connPool.getConnection();
                 PreparedStatement ps =
                         prepare(cx, "SELECT name FROM sqlite_master WHERE type='table' AND name=? ")
                                 .set(tableName)
                                 .log(Level.FINE)
                                 .statement();
+                ResultSet rs = ps.executeQuery()) {
 
-                try {
-                    ResultSet rs = ps.executeQuery();
-
-                    try {
-                        return rs.next();
-                    } finally {
-                        close(rs);
-                    }
-                } finally {
-                    close(ps);
-                }
-            } finally {
-                close(cx);
-            }
+            return rs.next();
         } catch (SQLException e) {
             throw new IOException(e);
         }
@@ -1572,32 +1634,14 @@ public class GeoPackage implements Closeable {
             sql.setLength(sql.length() - 5);
         }
 
-        try {
-
-            Connection cx = connPool.getConnection();
-
-            try {
+        try (Connection cx = connPool.getConnection();
                 Statement st = cx.createStatement();
-                try {
-                    ResultSet rs = st.executeQuery(sql.toString());
-
-                    try {
-                        HashSet<Identifier> ids = new HashSet<>();
-
-                        while (rs.next()) {
-                            ids.add(new FeatureIdImpl(rs.getString(1)));
-                        }
-
-                        return ids;
-                    } finally {
-                        close(rs);
-                    }
-                } finally {
-                    close(st);
-                }
-            } finally {
-                close(cx);
+                ResultSet rs = st.executeQuery(sql.toString())) {
+            HashSet<Identifier> ids = new HashSet<>();
+            while (rs.next()) {
+                ids.add(new FeatureIdImpl(rs.getString(1)));
             }
+            return ids;
         } catch (SQLException e) {
             throw new IOException(e);
         }
@@ -1611,48 +1655,30 @@ public class GeoPackage implements Closeable {
      * @param zoom the zoom level
      * @param isMax true for max boundary, false for min boundary
      * @param isRow true for rows, false for columns
-     * @return the min/max column/row of the zoom level available in the data
+     * @return the min/max column/row of the zoom level available in the data, or 0 if no matching
+     *     zoom_level is present
      */
     public int getTileBound(TileEntry entry, int zoom, boolean isMax, boolean isRow)
             throws IOException {
         try {
+            String sql =
+                    format(
+                            "SELECT %s(%s) FROM \"%s\" WHERE zoom_level == ?",
+                            isMax ? "MAX" : "MIN",
+                            isRow ? "tile_row" : "tile_column",
+                            entry.getTableName());
 
-            int tileBounds = -1;
-
-            StringBuffer sql =
-                    new StringBuffer(
-                            "SELECT "
-                                    + (isMax ? "MAX" : "MIN")
-                                    + "( "
-                                    + (isRow ? "tile_row" : "tile_column")
-                                    + ") FROM ");
-            sql.append(entry.getTableName());
-            sql.append(" WHERE zoom_level == ");
-            sql.append(zoom);
-
-            Connection cx = connPool.getConnection();
-            try {
-                Statement st = cx.createStatement();
-                try {
-                    ResultSet rs = st.executeQuery(sql.toString());
-                    try {
-                        if (!rs.next()) {
-                            throw new SQLException(
-                                    "Could not compute tile bounds, query did not return any record");
-                        }
-                        tileBounds = rs.getInt(1);
-                    } finally {
-                        close(rs);
-                    }
-                } finally {
-                    close(st);
+            try (Connection cx = connPool.getConnection();
+                    PreparedStatement st = prepare(cx, sql).set(zoom).statement();
+                    ResultSet rs = st.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException(
+                            "Could not compute tile bounds, query did not return any record");
                 }
-            } finally {
-                close(cx);
+                // NB: this returns 0 if zoom_level does not exist, rather than, say -1.
+                // We could change this behaviour by checking if the result is null
+                return rs.getInt(1);
             }
-
-            return tileBounds;
-
         } catch (SQLException e) {
             throw new IOException(e);
         }
@@ -1664,19 +1690,17 @@ public class GeoPackage implements Closeable {
 
         // load all the tile matrix entries (and join with the data table to see if a certain level
         // has tiles available, given the indexes in the data table, it should be real quick)
-        PreparedStatement psm =
+        try (PreparedStatement psm =
                 cx.prepareStatement(
                         format(
                                 "SELECT *, exists(SELECT 1 FROM \"%s\" data where data.zoom_level = tileMatrix.zoom_level) as has_tiles"
                                         + " FROM %s as tileMatrix"
                                         + " WHERE table_name = ?"
                                         + " ORDER BY zoom_level ASC",
-                                e.getTableName(), TILE_MATRIX_METADATA));
-        try {
+                                e.getTableName(), TILE_MATRIX_METADATA))) {
             psm.setString(1, e.getTableName());
 
-            ResultSet rsm = psm.executeQuery();
-            try {
+            try (ResultSet rsm = psm.executeQuery()) {
                 while (rsm.next()) {
                     TileMatrix m = new TileMatrix();
                     m.setZoomLevel(rsm.getInt("zoom_level"));
@@ -1690,29 +1714,23 @@ public class GeoPackage implements Closeable {
 
                     e.getTileMatricies().add(m);
                 }
-            } finally {
-                close(rsm);
             }
-        } finally {
-            close(psm);
         }
         // use the tile matrix set bounds rather that gpkg_contents bounds
         // per spec, the tile matrix set bounds should be exact and used to calculate tile
         // coordinates
         // and in contrast the gpkg_contents is "informational" only
-        psm =
+        try (PreparedStatement psm =
                 cx.prepareStatement(
                         format(
                                 "SELECT * FROM %s a, %s b "
                                         + "WHERE a.table_name = ? "
                                         + "AND a.srs_id = b.srs_id "
                                         + "LIMIT 1",
-                                TILE_MATRIX_SET, SPATIAL_REF_SYS));
-        try {
+                                TILE_MATRIX_SET, SPATIAL_REF_SYS))) {
             psm.setString(1, e.getTableName());
 
-            ResultSet rsm = psm.executeQuery();
-            try {
+            try (ResultSet rsm = psm.executeQuery()) {
                 if (rsm.next()) {
 
                     int srid = rsm.getInt("organization_coordsys_id");
@@ -1736,22 +1754,10 @@ public class GeoPackage implements Closeable {
                                     rsm.getDouble("max_y"),
                                     crs));
                 }
-            } finally {
-                close(rsm);
             }
-        } finally {
-            close(psm);
         }
         return e;
     }
-
-    static Integer findSRID(ReferencedEnvelope e) throws Exception {
-        return CRS.lookupEpsgCode(e.getCoordinateReferenceSystem(), true);
-    }
-
-    //
-    // sql utility methods
-    //
 
     static void initEntry(Entry e, ResultSet rs) throws SQLException, IOException {
         e.setIdentifier(rs.getString("identifier"));
@@ -1764,10 +1770,10 @@ public class GeoPackage implements Closeable {
             throw new IOException(ex);
         }
 
-        int srid = rs.getInt("organization_coordsys_id");
+        int srid = rs.getInt("srs_id");
         e.setSrid(srid);
 
-        CoordinateReferenceSystem crs = decodeCRSFromResultset(rs, srid);
+        CoordinateReferenceSystem crs = decodeCRS(rs.getStatement().getConnection(), srid);
 
         e.setBounds(
                 new ReferencedEnvelope(
@@ -1778,33 +1784,39 @@ public class GeoPackage implements Closeable {
                         crs));
     }
 
-    static CoordinateReferenceSystem decodeSRID(int srid) throws FactoryException {
+    static CoordinateReferenceSystem decodeCRS(Connection cx, int srid) throws IOException {
         if (srid == GENERIC_GEOGRAPHIC_SRID || srid == GENERIC_PROJECTED_SRID) {
             return DefaultEngineeringCRS.GENERIC_2D;
         }
-        return CRS.decode("EPSG:" + srid, true);
-    }
+        try (Statement st = cx.createStatement();
+                ResultSet rs =
+                        st.executeQuery(
+                                "select * from " + SPATIAL_REF_SYS + " where srs_id = " + srid)) {
+            if (rs.next()) {
+                String organization = rs.getString("organization");
+                String id = rs.getString("organization_coordsys_id");
+                if (organization != null && id != null) {
+                    try {
+                        return CRS.decode(organization + ":" + id, true);
+                    } catch (FactoryException e) {
+                        // try parsing definition directly
+                        LOGGER.log(Level.FINE, "Failed to decode EPSG code from srid", e);
+                    }
 
-    private static CoordinateReferenceSystem decodeCRSFromResultset(ResultSet rs, int srid)
-            throws IOException {
-        try {
-            return decodeSRID(srid);
-        } catch (Exception ex) {
-            // try parsing srtext directly
-            try {
-                return CRS.parseWKT(rs.getString("srtext"));
-            } catch (Exception e2) {
-                throw new IOException(ex);
+                    return CRS.parseWKT(rs.getString("definition"));
+                }
             }
+
+            // go silly and try to get from the srid as if it was a EPSG code
+            return CRS.decode("EPSG:" + srid, true);
+        } catch (Exception e) {
+            throw new IOException(e);
         }
     }
 
     static void runSQL(String sql, Connection cx) throws SQLException {
-        Statement st = cx.createStatement();
-        try {
+        try (Statement st = cx.createStatement()) {
             st.execute(sql);
-        } finally {
-            close(st);
         }
     }
 
@@ -1815,36 +1827,6 @@ public class GeoPackage implements Closeable {
     void runScript(String filename, Connection cx, Map<String, String> properties)
             throws SQLException {
         SqlUtil.runScript(getClass().getResourceAsStream(filename), cx, properties);
-    }
-
-    private static void close(Connection cx) {
-        if (cx != null) {
-            try {
-                cx.close();
-            } catch (SQLException e) {
-                LOGGER.log(Level.WARNING, "Error closing connection", e);
-            }
-        }
-    }
-
-    private static void close(Statement st) {
-        if (st != null) {
-            try {
-                st.close();
-            } catch (SQLException e) {
-                LOGGER.log(Level.WARNING, "Error closing statement", e);
-            }
-        }
-    }
-
-    private static void close(ResultSet rs) {
-        if (rs != null) {
-            try {
-                rs.close();
-            } catch (SQLException e) {
-                LOGGER.log(Level.WARNING, "Error closing resultset", e);
-            }
-        }
     }
 
     JDBCDataStore dataStore() throws IOException {

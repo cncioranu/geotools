@@ -19,12 +19,12 @@ package org.geotools.filter.function;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.factory.CommonFactoryFinder;
 import org.junit.Test;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 public class StringFunctionTest {
 
@@ -37,11 +37,11 @@ public class StringFunctionTest {
         Literal bar = ff.literal("bar");
 
         Function f = ff.function("strReplace", new Expression[] {foo, o, bar, ff.literal(true)});
-        String s = (String) f.evaluate(null, String.class);
+        String s = f.evaluate(null, String.class);
         assertEquals("fbarbar", s);
 
         f = ff.function("strReplace", new Expression[] {foo, o, bar, ff.literal(false)});
-        s = (String) f.evaluate(null, String.class);
+        s = f.evaluate(null, String.class);
         assertEquals("fbaro", s);
     }
 
@@ -120,8 +120,8 @@ public class StringFunctionTest {
 
     @Test
     public void testNull() {
-        assertEquals(null, ff.function("strCapitalize", ff.literal(null)).evaluate(null));
-        assertEquals(null, ff.function("strToUpperCase", ff.literal(null)).evaluate(null));
+        assertNull(ff.function("strCapitalize", ff.literal(null)).evaluate(null));
+        assertNull(ff.function("strToUpperCase", ff.literal(null)).evaluate(null));
         assertEquals(0, ff.function("strLength", ff.literal(null)).evaluate(null));
         assertEquals(
                 false,

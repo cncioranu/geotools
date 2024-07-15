@@ -107,6 +107,7 @@ public class CapabilitiesBinding extends AbstractComplexEMFBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WMTS.Capabilities;
     }
@@ -118,6 +119,7 @@ public class CapabilitiesBinding extends AbstractComplexEMFBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return net.opengis.wmts.v_1.CapabilitiesType.class;
     }
@@ -129,17 +131,15 @@ public class CapabilitiesBinding extends AbstractComplexEMFBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
 
         CapabilitiesType capabilities = factory.createCapabilitiesType();
 
-        capabilities.setContents((ContentsType) node.getChildValue(ContentsType.class));
-        capabilities.setOperationsMetadata(
-                (OperationsMetadataType) node.getChildValue(OperationsMetadataType.class));
-        capabilities.setServiceIdentification(
-                (ServiceIdentificationType) node.getChildValue(ServiceIdentificationType.class));
-        capabilities.setServiceProvider(
-                (ServiceProviderType) node.getChildValue(ServiceProviderType.class));
+        capabilities.setContents(node.getChildValue(ContentsType.class));
+        capabilities.setOperationsMetadata(node.getChildValue(OperationsMetadataType.class));
+        capabilities.setServiceIdentification(node.getChildValue(ServiceIdentificationType.class));
+        capabilities.setServiceProvider(node.getChildValue(ServiceProviderType.class));
         capabilities.setUpdateSequence((String) node.getChildValue("UpdateSequence"));
 
         List<Node> themesChildren = node.getChildren(ThemesType.class);
@@ -154,8 +154,7 @@ public class CapabilitiesBinding extends AbstractComplexEMFBinding {
         capabilities
                 .getWSDL()
                 .addAll(
-                        node.getChildren("WSDL")
-                                .stream()
+                        node.getChildren("WSDL").stream()
                                 .map(n -> (OnlineResourceType) n.getValue())
                                 .collect(Collectors.toList()));
         return capabilities;

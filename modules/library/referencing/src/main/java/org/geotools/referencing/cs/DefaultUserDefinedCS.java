@@ -20,8 +20,8 @@
 package org.geotools.referencing.cs;
 
 import java.util.Map;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.UserDefinedCS;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.UserDefinedCS;
 
 /**
  * A two- or three-dimensional coordinate system that consists of any combination of coordinate axes
@@ -60,7 +60,7 @@ public class DefaultUserDefinedCS extends AbstractCS implements UserDefinedCS {
      */
     public DefaultUserDefinedCS(
             final String name, final CoordinateSystemAxis axis0, final CoordinateSystemAxis axis1) {
-        super(name, new CoordinateSystemAxis[] {axis0, axis1});
+        super(name, axis0, axis1);
     }
 
     /**
@@ -76,7 +76,7 @@ public class DefaultUserDefinedCS extends AbstractCS implements UserDefinedCS {
             final CoordinateSystemAxis axis0,
             final CoordinateSystemAxis axis1,
             final CoordinateSystemAxis axis2) {
-        super(name, new CoordinateSystemAxis[] {axis0, axis1, axis2});
+        super(name, axis0, axis1, axis2);
     }
 
     /**
@@ -92,7 +92,7 @@ public class DefaultUserDefinedCS extends AbstractCS implements UserDefinedCS {
             final Map<String, ?> properties,
             final CoordinateSystemAxis axis0,
             final CoordinateSystemAxis axis1) {
-        super(properties, new CoordinateSystemAxis[] {axis0, axis1});
+        super(properties, axis0, axis1);
     }
 
     /**
@@ -110,6 +110,6 @@ public class DefaultUserDefinedCS extends AbstractCS implements UserDefinedCS {
             final CoordinateSystemAxis axis0,
             final CoordinateSystemAxis axis1,
             final CoordinateSystemAxis axis2) {
-        super(properties, new CoordinateSystemAxis[] {axis0, axis1, axis2});
+        super(properties, axis0, axis1, axis2);
     }
 }

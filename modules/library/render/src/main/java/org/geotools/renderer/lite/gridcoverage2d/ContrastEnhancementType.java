@@ -32,25 +32,24 @@ import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.media.jai.Histogram;
 import javax.media.jai.JAI;
 import javax.media.jai.RasterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.api.style.ContrastMethod;
 import org.geotools.image.ImageWorker;
 import org.geotools.renderer.i18n.ErrorKeys;
-import org.geotools.renderer.i18n.Errors;
 import org.geotools.styling.AbstractContrastMethodStrategy;
-import org.geotools.styling.ContrastEnhancement;
 import org.geotools.styling.ExponentialContrastMethodStrategy;
 import org.geotools.styling.LogarithmicContrastMethodStrategy;
 import org.geotools.styling.NormalizeContrastMethodStrategy;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.Hints;
-import org.opengis.filter.expression.Expression;
-import org.opengis.referencing.operation.TransformException;
-import org.opengis.style.ContrastMethod;
 
 /**
  * Starting with version 14.x, {@link ContrastEnhancement} can be customized to support different
@@ -100,7 +99,7 @@ public enum ContrastEnhancementType {
 
         @Override
         LookupTable createByteLookupTable(Map<String, Object> params) {
-            final byte lut[] = new byte[256];
+            final byte[] lut = new byte[256];
             final double normalizationFactor = 255.0;
             final double correctionFactor = 255.0 / (Math.E - 1);
             for (int i = 1; i < lut.length; i++) {
@@ -129,15 +128,18 @@ public enum ContrastEnhancementType {
                             RangeFactory.create(minimum, maximum),
                             new MathTransformationAdapter() {
 
+                                @Override
                                 public double derivative(double value) throws TransformException {
                                     throw new UnsupportedOperationException(
-                                            Errors.format(ErrorKeys.UNSUPPORTED_OPERATION_$1));
+                                            ErrorKeys.UNSUPPORTED_OPERATION_$1);
                                 }
 
+                                @Override
                                 public boolean isIdentity() {
                                     return false;
                                 }
 
+                                @Override
                                 public double transform(double value) {
                                     value =
                                             correctionFactor
@@ -189,7 +191,7 @@ public enum ContrastEnhancementType {
 
         @Override
         LookupTable createByteLookupTable(Map<String, Object> params) {
-            final byte lut[] = new byte[256];
+            final byte[] lut = new byte[256];
             final double normalizationFactor = 255.0;
             final double correctionFactor = 100.0;
             for (int i = 1; i < lut.length; i++) {
@@ -211,35 +213,36 @@ public enum ContrastEnhancementType {
             double minimum = (double) params.get(KEY_MIN);
             double maximum = (double) params.get(KEY_MAX);
 
-            final double normalizationFactor = maximum;
+            final double normFactor = maximum;
             final double correctionFactor = 100.0;
 
+            MathTransformationAdapter mt =
+                    new MathTransformationAdapter() {
+
+                        @Override
+                        public double derivative(double value) {
+                            throw new UnsupportedOperationException(
+                                    ErrorKeys.UNSUPPORTED_OPERATION_$1);
+                        }
+
+                        @Override
+                        public boolean isIdentity() {
+                            return false;
+                        }
+
+                        @Override
+                        public double transform(double value) {
+                            value =
+                                    normFactor
+                                            * Math.log(1 + (value * correctionFactor / normFactor));
+                            return value;
+                        }
+                    };
             final DefaultPiecewiseTransform1DElement mainElement =
                     DefaultPiecewiseTransform1DElement.create(
                             "logarithmic-contrast-enhancement-transform",
                             RangeFactory.create(minimum, maximum),
-                            new MathTransformationAdapter() {
-
-                                public double derivative(double value) throws TransformException {
-                                    throw new UnsupportedOperationException(
-                                            Errors.format(ErrorKeys.UNSUPPORTED_OPERATION_$1));
-                                }
-
-                                public boolean isIdentity() {
-                                    return false;
-                                }
-
-                                public double transform(double value) {
-                                    value =
-                                            normalizationFactor
-                                                    * Math.log(
-                                                            1
-                                                                    + (value
-                                                                            * correctionFactor
-                                                                            / normalizationFactor));
-                                    return value;
-                                }
-                            });
+                            mt);
 
             return new DefaultPiecewiseTransform1D<>(
                     new DefaultPiecewiseTransform1DElement[] {mainElement}, 0);
@@ -587,7 +590,7 @@ public enum ContrastEnhancementType {
     private static NoDataContainer getDestinationNoData(ImageWorker inputWorker) {
         Range nodata = inputWorker.extractNoDataProperty(inputWorker.getRenderedImage());
         NoDataContainer imposedNoData = null;
-        if (nodata != null && !nodata.contains(0)) {
+        if (nodata != null) {
             imposedNoData = new NoDataContainer(0);
         }
         return imposedNoData;
@@ -626,14 +629,16 @@ public enum ContrastEnhancementType {
         Expression max = parameters.get(KEY_MAX);
         if (min == null || max == null) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_PARAMETERS_$2, KEY_MIN, KEY_MAX));
+                    MessageFormat.format(
+                            ErrorKeys.ILLEGAL_ARGUMENT_PARAMETERS_$2, KEY_MIN, KEY_MAX));
         }
         Map<String, Object> params = new HashMap<>();
         Number minVal = min.evaluate(null, Double.class);
         Number maxVal = max.evaluate(null, Double.class);
         if (minVal == null || maxVal == null) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_PARAMETERS_$2, KEY_MIN, KEY_MAX));
+                    MessageFormat.format(
+                            ErrorKeys.ILLEGAL_ARGUMENT_PARAMETERS_$2, KEY_MIN, KEY_MAX));
         }
         params.put(KEY_MIN, minVal.doubleValue());
         params.put(KEY_MAX, maxVal.doubleValue());
@@ -648,7 +653,7 @@ public enum ContrastEnhancementType {
             double min, double max, byte newMin, byte newMax) {
         final byte[] lut = new byte[256];
         for (int i = 1; i < lut.length; i++) {
-            lut[i] = i < min ? (byte) newMin : (i > max ? (byte) newMax : (byte) i);
+            lut[i] = i < min ? newMin : (i > max ? newMax : (byte) i);
         }
         return lut;
     }
@@ -657,17 +662,17 @@ public enum ContrastEnhancementType {
     private static double getMaxValue(int dataType) {
         switch (dataType) {
             case DataBuffer.TYPE_BYTE:
-                return (double) MAX_BYTE;
+                return MAX_BYTE;
             case DataBuffer.TYPE_SHORT:
-                return (double) Short.MAX_VALUE;
+                return Short.MAX_VALUE;
             case DataBuffer.TYPE_USHORT:
                 return 65535.0;
             case DataBuffer.TYPE_INT:
-                return (double) Integer.MAX_VALUE;
+                return Integer.MAX_VALUE;
             case DataBuffer.TYPE_FLOAT:
-                return (double) Float.MAX_VALUE;
+                return Float.MAX_VALUE;
             case DataBuffer.TYPE_DOUBLE:
-                return (double) Double.MAX_VALUE;
+                return Double.MAX_VALUE;
         }
         return Double.NaN;
     }
@@ -784,16 +789,19 @@ public enum ContrastEnhancementType {
                         RangeFactory.create(minimum, maximum),
                         new MathTransformationAdapter() {
 
+                            @Override
                             public double derivative(double value) throws TransformException {
 
                                 throw new UnsupportedOperationException(
-                                        Errors.format(ErrorKeys.UNSUPPORTED_OPERATION_$1));
+                                        ErrorKeys.UNSUPPORTED_OPERATION_$1);
                             }
 
+                            @Override
                             public boolean isIdentity() {
                                 return false;
                             }
 
+                            @Override
                             public double transform(double value) {
                                 value = (value - offset) / scale;
                                 return offset + Math.pow(value, gammaValue) * scale;
@@ -817,11 +825,11 @@ public enum ContrastEnhancementType {
             Map<String, Expression> parameters, String parameter1, String parameter2) {
         if (parameters == null) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.NULL_ARGUMENT_$1, parameters));
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, parameters));
         }
         if (parameters.isEmpty()) {
             throw new IllegalArgumentException(
-                    Errors.format(
+                    MessageFormat.format(
                             ErrorKeys.ILLEGAL_ARGUMENT_PARAMETERS_$2, parameter1, parameter2));
         }
     }
@@ -843,7 +851,7 @@ public enum ContrastEnhancementType {
                 return NORMALIZE_CLIP_TO_ZERO;
             }
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.UNSUPPORTED_ALGORITHM_$1, algorithmType));
+                    MessageFormat.format(ErrorKeys.UNSUPPORTED_ALGORITHM_$1, algorithmType));
         } else if (method instanceof LogarithmicContrastMethodStrategy) {
             return LOGARITHMIC;
         } else if (method instanceof ExponentialContrastMethodStrategy) {
@@ -852,7 +860,7 @@ public enum ContrastEnhancementType {
             return HISTOGRAM;
         } else {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.UNSUPPORTED_METHOD_$1, method));
+                    MessageFormat.format(ErrorKeys.UNSUPPORTED_METHOD_$1, method));
         }
     }
 

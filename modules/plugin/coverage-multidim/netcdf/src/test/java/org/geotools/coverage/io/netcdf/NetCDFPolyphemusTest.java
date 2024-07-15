@@ -17,7 +17,6 @@
 package org.geotools.coverage.io.netcdf;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
@@ -30,6 +29,12 @@ import java.util.logging.Logger;
 import javax.media.jai.PlanarImage;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.coverage.Coverage;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform2D;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.io.CoverageAccess;
 import org.geotools.coverage.io.CoverageAccess.AccessType;
@@ -49,17 +54,10 @@ import org.geotools.util.DateRange;
 import org.geotools.util.NumberRange;
 import org.geotools.util.logging.Logging;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.coverage.Coverage;
-import org.opengis.feature.type.Name;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform2D;
 
-public final class NetCDFPolyphemusTest extends Assert {
+public final class NetCDFPolyphemusTest extends NetCDFBaseTest {
 
     private static final Logger LOGGER = Logging.getLogger(NetCDFPolyphemusTest.class);
     private File testDirectory;
@@ -74,14 +72,9 @@ public final class NetCDFPolyphemusTest extends Assert {
         final File[] files =
                 TestData.file(this, ".")
                         .listFiles(
-                                new FileFilter() {
-
-                                    @Override
-                                    public boolean accept(File pathname) {
-                                        return FilenameUtils.getName(pathname.getAbsolutePath())
-                                                .equalsIgnoreCase("O3-NO2.nc");
-                                    }
-                                });
+                                pathname ->
+                                        FilenameUtils.getName(pathname.getAbsolutePath())
+                                                .equalsIgnoreCase("O3-NO2.nc"));
 
         for (File f : files) {
 

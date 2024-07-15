@@ -26,6 +26,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.cs.AxisDirection;
 import org.geotools.data.csv.CSVFileState;
 import org.geotools.feature.AttributeTypeBuilder;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
@@ -35,13 +42,6 @@ import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.AxisDirection;
 
 public class CSVLatLonStrategy extends CSVStrategy {
 
@@ -74,22 +74,12 @@ public class CSVLatLonStrategy extends CSVStrategy {
     protected SimpleFeatureType buildFeatureType() {
         String[] headers;
         Map<String, Class<?>> typesFromData;
-        CSVReader csvReader = null;
-        try {
-            csvReader = csvFileState.openCSVReader();
+        try (CSVReader csvReader = csvFileState.openCSVReader()) {
             headers = csvFileState.getCSVHeaders();
 
             typesFromData = findMostSpecificTypesFromData(csvReader, headers);
         } catch (IOException | CsvValidationException e) {
             throw new RuntimeException(e);
-        } finally {
-            if (csvReader != null) {
-                try {
-                    csvReader.close();
-                } catch (IOException e) {
-                    // who cares!
-                }
-            }
         }
         SimpleFeatureTypeBuilder builder = createBuilder(csvFileState, headers, typesFromData);
 
@@ -167,17 +157,14 @@ public class CSVLatLonStrategy extends CSVStrategy {
         }
 
         // Write out header, producing an empty file of the correct type
-        CSVWriter writer =
+        try (CSVWriter writer =
                 new CSVWriter(
                         new FileWriter(this.csvFileState.getFile()),
                         getSeparator(),
                         getQuotechar(),
                         getEscapechar(),
-                        getLineSeparator());
-        try {
+                        getLineSeparator())) {
             writer.writeNext(header.toArray(new String[header.size()]), isQuoteAllFields());
-        } finally {
-            writer.close();
         }
     }
 

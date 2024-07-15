@@ -18,6 +18,7 @@ package org.geotools.coverage.io;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.awt.Rectangle;
@@ -25,14 +26,19 @@ import java.awt.geom.AffineTransform;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.operator.ConstantDescriptor;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.metadata.spatial.PixelOrientation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.io.SpatialRequestHelper.CoverageProperties;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.data.DataSourceException;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -42,11 +48,6 @@ import org.geotools.util.factory.GeoTools;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opengis.geometry.Envelope;
-import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.operation.TransformException;
 
 /** @author Nicola Lagomarsini Geosolutions */
 public class SpatialRequestHelperTest {
@@ -62,7 +63,7 @@ public class SpatialRequestHelperTest {
     @BeforeClass
     public static void setup() {
         image = ConstantDescriptor.create(512f, 512f, new Byte[] {1}, GeoTools.getDefaultHints());
-        Envelope envelope = new ReferencedEnvelope(-180, 180, -85, 85, DefaultGeographicCRS.WGS84);
+        Bounds envelope = new ReferencedEnvelope(-180, 180, -85, 85, DefaultGeographicCRS.WGS84);
         // Creation of a dummy GridCoverage 2D
         coverage =
                 new GridCoverageFactory(GeoTools.getDefaultHints())
@@ -99,17 +100,16 @@ public class SpatialRequestHelperTest {
 
         // Calculate the expected results
         AffineTransform requestedGridToWorld = helper.getRequestedGridToWorld();
-        double[] calculatedResolution =
-                new double[] {
-                    XAffineTransform.getScaleX0(requestedGridToWorld),
-                    XAffineTransform.getScaleY0(requestedGridToWorld)
-                };
+        double[] calculatedResolution = {
+            XAffineTransform.getScaleX0(requestedGridToWorld),
+            XAffineTransform.getScaleY0(requestedGridToWorld)
+        };
         Rectangle calculatedRasterArea = new Rectangle(1024, 1024);
 
         // Ensure the same Coverage properties
         assertEquals(coverageProperties, helper.getCoverageProperties());
         // Ensure is not empty
-        assertTrue(!helper.isEmpty());
+        assertFalse(helper.isEmpty());
         // Check resolution
         assertArrayEquals(helper.getRequestedResolution(), calculatedResolution, TOLERANCE);
         // Check the same boundingBox
@@ -170,7 +170,7 @@ public class SpatialRequestHelperTest {
         SpatialRequestHelper helper = new SpatialRequestHelper();
         // Final GridGeometry
         GridEnvelope2D gridRange = new GridEnvelope2D(0, 0, 1024, 1024);
-        GeneralEnvelope envelope = CRS.transform(coverage.getEnvelope(), CRS.decode("EPSG:3857"));
+        GeneralBounds envelope = CRS.transform(coverage.getEnvelope(), CRS.decode("EPSG:3857"));
         GridGeometry2D gridGeometry = new GridGeometry2D(gridRange, envelope);
         // Setting the requested gridGeometry to have
         helper.setRequestedGridGeometry(gridGeometry);
@@ -180,22 +180,20 @@ public class SpatialRequestHelperTest {
         helper.prepare();
 
         // Calculate the expected results
-        final GeneralEnvelope temp =
-                new GeneralEnvelope(
+        final GeneralBounds temp =
+                new GeneralBounds(
                         CRS.transform(gridGeometry.getEnvelope(), coverageProperties.crs2D));
         temp.setCoordinateReferenceSystem(coverageProperties.crs2D);
         temp.intersect(coverageProperties.getBbox());
         final GridToEnvelopeMapper geMapper =
                 new GridToEnvelopeMapper(new GridEnvelope2D(gridRange), temp);
         final AffineTransform tempTransform = geMapper.createAffineTransform();
-        double[] calculatedResolution =
-                new double[] {
-                    XAffineTransform.getScaleX0(tempTransform),
-                    XAffineTransform.getScaleY0(tempTransform)
-                };
+        double[] calculatedResolution = {
+            XAffineTransform.getScaleX0(tempTransform), XAffineTransform.getScaleY0(tempTransform)
+        };
 
         // Ensure is not empty
-        assertTrue(!helper.isEmpty());
+        assertFalse(helper.isEmpty());
         // Check resolution
         assertArrayEquals(helper.getRequestedResolution(), calculatedResolution, TOLERANCE);
         // Check the same boundingBox
@@ -217,7 +215,7 @@ public class SpatialRequestHelperTest {
         helper.prepare();
 
         // Ensure is not empty
-        assertTrue(!helper.isEmpty());
+        assertFalse(helper.isEmpty());
         // Check resolution
         assertArrayEquals(
                 helper.getRequestedResolution(), coverageProperties.getFullResolution(), TOLERANCE);

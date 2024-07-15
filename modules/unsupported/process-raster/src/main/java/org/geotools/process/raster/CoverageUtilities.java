@@ -24,6 +24,12 @@ import java.awt.image.DataBuffer;
 import java.util.HashMap;
 import java.util.List;
 import javax.media.jai.ROI;
+import org.geotools.api.coverage.SampleDimensionType;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.TypeMap;
 import org.geotools.coverage.grid.GridCoverage2D;
@@ -41,12 +47,6 @@ import org.jaitools.numeric.Range;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
-import org.opengis.coverage.SampleDimensionType;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.geometry.Envelope;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A set of utilities methods for the Grid Coverage package. Those methods are not really rigorous;
@@ -95,11 +95,9 @@ public class CoverageUtilities {
         Geometry rasterSpaceGeometry;
         try {
             rasterSpaceGeometry = JTS.transform(roi, new AffineTransform2D(mt2d.createInverse()));
-        } catch (MismatchedDimensionException e) {
-            throw new ProcessException(e);
-        } catch (TransformException e) {
-            throw new ProcessException(e);
-        } catch (NoninvertibleTransformException e) {
+        } catch (MismatchedDimensionException
+                | NoninvertibleTransformException
+                | TransformException e) {
             throw new ProcessException(e);
         }
         // System.out.println(rasterSpaceGeometry);
@@ -153,7 +151,6 @@ public class CoverageUtilities {
                 final int dataBuffType = TypeMap.getDataBufferType(sdType);
 
                 // TODO I think this should be a public utility inside the FeatureUtilities class
-                @SuppressWarnings("rawtypes")
                 final Class bandClass;
                 switch (dataBuffType) {
                     case DataBuffer.TYPE_BYTE:
@@ -373,11 +370,11 @@ public class CoverageUtilities {
             GridCoverage2D gridCoverage) {
         HashMap<String, Double> envelopeParams = new HashMap<>();
 
-        Envelope envelope = gridCoverage.getEnvelope();
+        Bounds envelope = gridCoverage.getEnvelope();
 
-        DirectPosition lowerCorner = envelope.getLowerCorner();
+        Position lowerCorner = envelope.getLowerCorner();
         double[] westSouth = lowerCorner.getCoordinate();
-        DirectPosition upperCorner = envelope.getUpperCorner();
+        Position upperCorner = envelope.getUpperCorner();
         double[] eastNorth = upperCorner.getCoordinate();
 
         GridGeometry2D gridGeometry = gridCoverage.getGridGeometry();

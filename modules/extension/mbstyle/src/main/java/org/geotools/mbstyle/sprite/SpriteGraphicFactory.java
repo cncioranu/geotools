@@ -34,22 +34,22 @@ import java.util.Optional;
 import java.util.logging.Logger;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
-import org.geotools.data.ows.HTTPClient;
-import org.geotools.data.ows.HTTPResponse;
-import org.geotools.data.ows.SimpleHttpClient;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.data.ows.URLCheckers;
+import org.geotools.http.HTTPClient;
+import org.geotools.http.HTTPClientFinder;
+import org.geotools.http.HTTPResponse;
 import org.geotools.image.io.ImageIOExt;
 import org.geotools.mbstyle.parse.MBFormatException;
 import org.geotools.mbstyle.transform.MBStyleTransformer;
 import org.geotools.renderer.style.ExternalGraphicFactory;
 import org.geotools.renderer.style.GraphicCache;
-import org.geotools.styling.ExternalGraphic;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.logging.Logging;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.opengis.feature.Feature;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Implementation of an {@link ExternalGraphicFactory} that takes the address of a Mapbox-style
@@ -112,6 +112,10 @@ public class SpriteGraphicFactory implements ExternalGraphicFactory, GraphicCach
 
         URL loc = url.evaluate(feature, URL.class);
         URL baseUrl = parseBaseUrl(loc);
+
+        // validate the icon can actually be fetched, it may go to a random
+        // local filesystem location, or a remote server
+        URLCheckers.confirm(loc);
 
         Map<String, String> paramsMap = parseFragmentParams(loc);
         String iconName = paramsMap.get("icon");
@@ -310,7 +314,7 @@ public class SpriteGraphicFactory implements ExternalGraphicFactory, GraphicCach
     }
 
     protected HTTPClient getHttpClient() {
-        return new SimpleHttpClient();
+        return HTTPClientFinder.createClient();
     }
 
     /**

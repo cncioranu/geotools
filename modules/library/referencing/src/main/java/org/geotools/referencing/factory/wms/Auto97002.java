@@ -16,8 +16,8 @@
  */
 package org.geotools.referencing.factory.wms;
 
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.referencing.datum.DefaultEllipsoid;
-import org.opengis.parameter.ParameterValueGroup;
 
 /**
  * Auto Stereographic ({@code AUTO:97002}). In the notation below, "<code>${var}</code>" denotes a
@@ -60,21 +60,25 @@ final class Auto97002 extends Factlet {
     private Auto97002() {}
 
     /** {@inheritDoc} */
+    @Override
     public int code() {
         return 97002;
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getName() {
         return "WGS 84 / Auto Stereographic";
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getClassification() {
         return "Stereographic";
     }
 
     /** {@inheritDoc} */
+    @Override
     protected void setProjectionParameters(final ParameterValueGroup parameters, final Code code) {
         final double latitudeOfOrigin = code.latitude;
         final double centralMeridian = code.longitude;

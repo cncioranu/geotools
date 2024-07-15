@@ -60,6 +60,7 @@ import org.geotools.xsd.Node;
 public class GridTypeBinding extends AbstractComplexBinding {
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return GML.RectifiedGridType;
     }
@@ -71,6 +72,7 @@ public class GridTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return null;
     }
@@ -82,6 +84,7 @@ public class GridTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         RectifiedGridType grid = Gml4wcsFactory.eINSTANCE.createRectifiedGridType();
 
@@ -105,8 +108,8 @@ public class GridTypeBinding extends AbstractComplexBinding {
         grid.setDimension(BigInteger.valueOf(2));
         grid.setLimits(
                 new GridEnvelope2D(
-                        (int) limitsEnvelope.getLow(0), (int) limitsEnvelope.getLow(1),
-                        (int) limitsEnvelope.getHigh(0), (int) limitsEnvelope.getHigh(1)));
+                        limitsEnvelope.getLow(0), limitsEnvelope.getLow(1),
+                        limitsEnvelope.getHigh(0), limitsEnvelope.getHigh(1)));
 
         List<Node> axisNames = node.getChildren("axisName");
         if (axisNames != null && !axisNames.isEmpty()) {

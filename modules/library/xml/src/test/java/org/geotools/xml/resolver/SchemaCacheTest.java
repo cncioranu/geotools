@@ -17,12 +17,20 @@
 
 package org.geotools.xml.resolver;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.junit.Assert.assertTrue;
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import java.io.File;
 import java.io.PrintWriter;
 import java.net.URI;
+import org.geotools.http.commons.MultithreadedHttpClientFactory;
 import org.geotools.util.URLs;
+import org.geotools.util.factory.Hints;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,6 +43,10 @@ import org.junit.rules.TemporaryFolder;
  */
 public class SchemaCacheTest {
 
+    public static final String MOCK_SCHEMA_LOCATION = "http://schemacache";
+
+    public static final String MOCK_HTTP_RESPONSE_BODY = "<schemaCacheMockHttpClientResponse>";
+
     @Rule public TemporaryFolder folder = new TemporaryFolder();
 
     /**
@@ -45,14 +57,8 @@ public class SchemaCacheTest {
         (new File("target/test/a/b/c")).mkdirs();
         (new File("target/test/a/b/d/e/f")).mkdirs();
         File f = new File("target/test/a/b/d/e/f/temp.txt");
-        PrintWriter printWriter = null;
-        try {
-            printWriter = new PrintWriter(f);
+        try (PrintWriter printWriter = new PrintWriter(f)) {
             printWriter.println("Some text");
-        } finally {
-            if (printWriter != null) {
-                printWriter.close();
-            }
         }
         Assert.assertTrue((new File("target/test/a/b/d/e/f/temp.txt")).exists());
         SchemaCache.delete(new File("target/test/a"));
@@ -74,8 +80,8 @@ public class SchemaCacheTest {
         Assert.assertTrue(resolvedLocation.endsWith("cache-test.xsd"));
         Assert.assertTrue(URLs.urlToFile((new URI(resolvedLocation)).toURL()).exists());
         // test that cache path is not canonical
-        Assert.assertFalse(
-                cacheDirectory.toString().equals(cacheDirectory.getCanonicalFile().toString()));
+        Assert.assertNotEquals(
+                cacheDirectory.toString(), cacheDirectory.getCanonicalFile().toString());
         // test that resolved location is canonical, despite cache directory not being canonical
         Assert.assertEquals(
                 resolvedLocation,
@@ -98,4 +104,38 @@ public class SchemaCacheTest {
         defaultXmlFile.createNewFile();
         assertTrue(SchemaCache.isSuitableDirectoryToContainCache(dataFolder));
     }
+
+    /** Test download with the HTTP client specified in the GeoTools hints */
+    @Test
+    public void downloadWithHttpClient() {
+        Hints.putSystemDefault(Hints.HTTP_CLIENT_FACTORY, SchemaCacheMockHttpClientFactory.class);
+        byte[] responseBody = SchemaCache.download(MOCK_SCHEMA_LOCATION);
+        Assert.assertArrayEquals(MOCK_HTTP_RESPONSE_BODY.getBytes(), responseBody);
+        Hints.removeSystemDefault(Hints.HTTP_CLIENT_FACTORY);
+    }
+
+    /**
+     * Test that a circular redirect is not followed indefinitely when using the multithreaded HTTP
+     * client
+     */
+    @Test
+    public void circularRedirectMultithreadedHttpClient() {
+        Hints.putSystemDefault(Hints.HTTP_CLIENT_FACTORY, MultithreadedHttpClientFactory.class);
+        String redirectUrl = "http://localhost:" + wireMockRule.port() + "/test";
+        wireMockRule.addStubMapping(
+                stubFor(
+                        get(urlEqualTo("/test"))
+                                .willReturn(
+                                        aResponse()
+                                                .withStatus(301)
+                                                .withHeader("Location", redirectUrl))));
+        byte[] responseBody = SchemaCache.download(redirectUrl);
+        Assert.assertNull(responseBody);
+        Hints.removeSystemDefault(Hints.HTTP_CLIENT_FACTORY);
+    }
+
+    // use a dynamic http port to avoid conflicts
+    @Rule
+    public WireMockRule wireMockRule =
+            new WireMockRule(WireMockConfiguration.options().dynamicPort());
 }

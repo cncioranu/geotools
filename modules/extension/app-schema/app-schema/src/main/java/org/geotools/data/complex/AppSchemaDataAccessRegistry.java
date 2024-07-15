@@ -18,11 +18,11 @@
 package org.geotools.data.complex;
 
 import java.io.IOException;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
 import org.geotools.appschema.util.InterpolationProperties;
-import org.geotools.data.FeatureSource;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
 
 /**
  * A registry that stores all app schema data access instances per application. This allows mappings
@@ -71,7 +71,6 @@ public class AppSchemaDataAccessRegistry extends DataAccessRegistry {
      *
      * @return feature source
      */
-    @SuppressWarnings("unchecked")
     public static FeatureSource<? extends FeatureType, ? extends Feature> getSimpleFeatureSource(
             Name featureTypeName) throws IOException {
         return getMappingByElement(featureTypeName).getSource();

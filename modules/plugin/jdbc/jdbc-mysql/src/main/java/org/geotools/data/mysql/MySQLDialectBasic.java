@@ -21,6 +21,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.data.jdbc.FilterToSQL;
 import org.geotools.jdbc.BasicSQLDialect;
 import org.geotools.jdbc.JDBCDataStore;
@@ -31,9 +34,6 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKTWriter;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
 
 /**
  * MySQL database dialect based on basic (non-prepared) statements.
@@ -246,7 +246,12 @@ public class MySQLDialectBasic extends BasicSQLDialect {
 
     @Override
     public FilterToSQL createFilterToSQL() {
-        return new MySQLFilterToSQL(delegate.getUsePreciseSpatialOps());
+        MySQLFilterToSQL fts = new MySQLFilterToSQL(delegate.getUsePreciseSpatialOps());
+        // see https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_no_backslash_escapes
+        // NOTE: for future enhancement, do not escape backslashes when the NO_BACKSLASH_ESCAPES
+        // mode is enabled since that would create an incorrect string in the SQL
+        fts.setEscapeBackslash(true);
+        return fts;
     }
 
     @Override
@@ -254,5 +259,10 @@ public class MySQLDialectBasic extends BasicSQLDialect {
             Connection cx, SimpleFeatureType schema, String databaseSchema, String indexName)
             throws SQLException {
         delegate.dropIndex(cx, schema, databaseSchema, indexName);
+    }
+
+    @Override
+    public boolean canGroupOnGeometry() {
+        return delegate.canGroupOnGeometry();
     }
 }

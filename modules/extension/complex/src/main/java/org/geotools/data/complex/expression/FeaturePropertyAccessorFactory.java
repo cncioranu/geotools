@@ -17,32 +17,35 @@
 
 package org.geotools.data.complex.expression;
 
+import static org.geotools.filter.expression.SimpleFeaturePropertyAccessorFactory.DEFAULT_GEOMETRY_NAME;
+
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.commons.jxpath.JXPathContext;
 import org.apache.commons.jxpath.Pointer;
 import org.apache.commons.jxpath.ri.JXPathContextReferenceImpl;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.GeometryAttribute;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.PropertyDescriptor;
 import org.geotools.data.complex.feature.xpath.AttributeNodePointer;
 import org.geotools.data.complex.feature.xpath.AttributeNodePointerFactory;
 import org.geotools.filter.expression.PropertyAccessor;
 import org.geotools.filter.expression.PropertyAccessorFactory;
 import org.geotools.util.factory.Hints;
+import org.geotools.xsd.impl.jxpath.JXPathUtils;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Feature;
-import org.opengis.feature.GeometryAttribute;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.PropertyDescriptor;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -77,10 +80,12 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
 
     static final Pattern FID_PATTERN = Pattern.compile("@(\\w+:)?id");
 
+    @Override
     public PropertyAccessor createPropertyAccessor(
             Class type, String xpath, Class target, Hints hints) {
 
-        if (SimpleFeature.class.isAssignableFrom(type)) {
+        if (SimpleFeature.class.isAssignableFrom(type)
+                || SimpleFeatureType.class.isAssignableFrom(type)) {
             /*
              * This class is not intended for use with SimpleFeature and causes problems when
              * discovered via SPI and used by code expecting SimpleFeature behaviour. In particular
@@ -94,9 +99,7 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
         if (!ComplexAttribute.class.isAssignableFrom(type)
                 && !ComplexType.class.isAssignableFrom(type)
                 && !AttributeDescriptor.class.isAssignableFrom(type)) return null;
-        if ("".equals(xpath))
-            // if ("".equals(xpath) && target == Geometry.class)
-            return DEFAULT_GEOMETRY_ACCESS;
+        if (DEFAULT_GEOMETRY_NAME.equals(xpath)) return DEFAULT_GEOMETRY_ACCESS;
 
         // check for fid access
         if (FID_PATTERN.matcher(xpath).matches()) return FID_ACCESS;
@@ -125,11 +128,13 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
      */
     static class FidFeaturePropertyAccessor implements PropertyAccessor {
 
+        @Override
         public boolean canHandle(Object object, String xpath, Class target) {
             // we only work against feature, not feature type
             return object instanceof Attribute && FID_PATTERN.matcher(xpath).matches();
         }
 
+        @Override
         @SuppressWarnings("unchecked")
         public <T> T get(Object object, String xpath, Class<T> target)
                 throws IllegalArgumentException {
@@ -137,16 +142,18 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
             return (T) feature.getIdentifier().toString();
         }
 
+        @Override
         public void set(Object object, String xpath, Object value, Class target) {
-            throw new org.opengis.feature.IllegalAttributeException(
+            throw new org.geotools.api.feature.IllegalAttributeException(
                     null, value, "feature id is immutable");
         }
     }
 
     static class DefaultGeometryFeaturePropertyAccessor implements PropertyAccessor {
 
+        @Override
         public boolean canHandle(Object object, String xpath, Class target) {
-            if (!"".equals(xpath)) return false;
+            if (!DEFAULT_GEOMETRY_NAME.equals(xpath)) return false;
 
             // if (target != Geometry.class || target != GeometryAttribute.class)
             //    return false;
@@ -154,6 +161,7 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
             return (object instanceof Feature || object instanceof FeatureType);
         }
 
+        @Override
         @SuppressWarnings("unchecked")
         public <T> T get(Object object, String xpath, Class<T> target)
                 throws IllegalArgumentException {
@@ -175,6 +183,7 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
             return null;
         }
 
+        @Override
         public void set(Object object, String xpath, Object value, Class target)
                 throws IllegalAttributeException {
 
@@ -240,6 +249,7 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
             this.namespaces = namespaces;
         }
 
+        @Override
         public boolean canHandle(Object object, String xpath, Class target) {
 
             return object instanceof Attribute
@@ -247,18 +257,13 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
                     || object instanceof AttributeDescriptor;
         }
 
+        @Override
         @SuppressWarnings("unchecked")
         public <T> T get(Object object, String xpath, Class<T> target)
                 throws IllegalArgumentException {
 
-            JXPathContext context = JXPathContext.newContext(object);
-            Enumeration declaredPrefixes = namespaces.getDeclaredPrefixes();
-            while (declaredPrefixes.hasMoreElements()) {
-                String prefix = (String) declaredPrefixes.nextElement();
-                String uri = namespaces.getURI(prefix);
-                context.registerNamespace(prefix, uri);
-            }
-
+            JXPathContext context =
+                    JXPathUtils.newSafeContext(object, false, this.namespaces, true);
             Iterator it = context.iteratePointers(xpath);
             List results = new ArrayList<>();
             while (it.hasNext()) {
@@ -270,7 +275,7 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
                 }
             }
 
-            if (results.size() == 0) {
+            if (results.isEmpty()) {
                 throw new IllegalArgumentException("x-path gives no results.");
             } else if (results.size() == 1) {
                 return (T) results.get(0);
@@ -279,6 +284,7 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
             }
         }
 
+        @Override
         public void set(Object object, String xpath, Object value, Class target)
                 throws IllegalAttributeException {
 
@@ -286,13 +292,8 @@ public class FeaturePropertyAccessorFactory implements PropertyAccessorFactory {
                 throw new IllegalAttributeException(null, "feature type is immutable");
             }
 
-            JXPathContext context = JXPathContext.newContext(object);
-            Enumeration declaredPrefixes = namespaces.getDeclaredPrefixes();
-            while (declaredPrefixes.hasMoreElements()) {
-                String prefix = (String) declaredPrefixes.nextElement();
-                String uri = namespaces.getURI(prefix);
-                context.registerNamespace(prefix, uri);
-            }
+            JXPathContext context =
+                    JXPathUtils.newSafeContext(object, false, this.namespaces, true);
             context.setValue(xpath, value);
 
             assert value == context.getValue(xpath);

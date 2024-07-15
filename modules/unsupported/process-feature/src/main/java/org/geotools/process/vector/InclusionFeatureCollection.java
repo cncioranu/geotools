@@ -18,6 +18,10 @@
 package org.geotools.process.vector;
 
 import java.util.NoSuchElementException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.factory.CommonFactoryFinder;
@@ -27,10 +31,6 @@ import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
 
 /**
  * A process providing a feature collection containing the features of the first input collection
@@ -41,10 +41,9 @@ import org.opengis.filter.FilterFactory2;
  * @author Pietro Arena - Sinergis
  */
 @DescribeProcess(
-    title = "Inclusion of Feature Collections",
-    description =
-            "Returns a feature collection consisting of the features from the first collection which are spatially contained in at least one feature of the second collection."
-)
+        title = "Inclusion of Feature Collections",
+        description =
+                "Returns a feature collection consisting of the features from the first collection which are spatially contained in at least one feature of the second collection.")
 public class InclusionFeatureCollection implements VectorProcess {
     @DescribeResult(description = "Output feature collection")
     public SimpleFeatureCollection execute(
@@ -87,7 +86,7 @@ public class InclusionFeatureCollection implements VectorProcess {
 
         String dataGeomName;
 
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
         public IncludedFeatureIterator(
                 SimpleFeatureIterator delegate,
@@ -102,10 +101,12 @@ public class InclusionFeatureCollection implements VectorProcess {
                     this.firstFeatures.getSchema().getGeometryDescriptor().getLocalName();
         }
 
+        @Override
         public void close() {
             delegate.close();
         }
 
+        @Override
         public boolean hasNext() {
             while (next == null && delegate.hasNext()) {
                 SimpleFeature f = delegate.next();
@@ -125,6 +126,7 @@ public class InclusionFeatureCollection implements VectorProcess {
             return next != null;
         }
 
+        @Override
         public SimpleFeature next() throws NoSuchElementException {
             if (!hasNext()) {
                 throw new NoSuchElementException("hasNext() returned false!");

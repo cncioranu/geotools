@@ -109,6 +109,7 @@ public class WKTWriter2 extends WKTWriter {
         // specify decimal separator explicitly to avoid problems in other locales
         DecimalFormatSymbols symbols = new DecimalFormatSymbols();
         symbols.setDecimalSeparator('.');
+        symbols.setMinusSign('-');
         String fmtString = "0" + (decimalPlaces > 0 ? "." : "") + stringOfChar('#', decimalPlaces);
         return new DecimalFormat(fmtString, symbols);
     }
@@ -162,6 +163,7 @@ public class WKTWriter2 extends WKTWriter {
      *
      * @param isFormatted true if the output is to be formatted
      */
+    @Override
     public void setFormatted(boolean isFormatted) {
         this.isFormatted = isFormatted;
     }
@@ -172,6 +174,7 @@ public class WKTWriter2 extends WKTWriter {
      *
      * @param coordsPerLine the number of coordinates per line to output.
      */
+    @Override
     public void setMaxCoordinatesPerLine(int coordsPerLine) {
         this.coordsPerLine = coordsPerLine;
     }
@@ -182,6 +185,7 @@ public class WKTWriter2 extends WKTWriter {
      * @param size the number of spaces to use as the tab string
      * @throws IllegalArgumentException if the size is non-positive
      */
+    @Override
     public void setTab(int size) {
         if (size <= 0) throw new IllegalArgumentException("Tab count must be positive");
         this.indentTabStr = stringOfChar(' ', size);
@@ -193,6 +197,7 @@ public class WKTWriter2 extends WKTWriter {
      * @param geometry a <code>Geometry</code> to process
      * @return a <Geometry Tagged Text> string (see the OpenGIS Simple Features Specification)
      */
+    @Override
     public String write(Geometry geometry) {
         Writer sw = new StringWriter();
         try {
@@ -208,6 +213,7 @@ public class WKTWriter2 extends WKTWriter {
      *
      * @param geometry a <code>Geometry</code> to process
      */
+    @Override
     public void write(Geometry geometry, Writer writer) throws IOException {
         writeFormatted(geometry, false, writer);
     }
@@ -220,6 +226,7 @@ public class WKTWriter2 extends WKTWriter {
      * @return a <Geometry Tagged Text> string (see the OpenGIS Simple Features Specification), with
      *     newlines and spaces
      */
+    @Override
     public String writeFormatted(Geometry geometry) {
         Writer sw = new StringWriter();
         try {
@@ -236,6 +243,7 @@ public class WKTWriter2 extends WKTWriter {
      *
      * @param geometry a <code>Geometry</code> to process
      */
+    @Override
     public void writeFormatted(Geometry geometry, Writer writer) throws IOException {
         writeFormatted(geometry, true, writer);
     }
@@ -630,7 +638,7 @@ public class WKTWriter2 extends WKTWriter {
                     indentCoords(i, level + 1, writer);
                 }
                 writer.write("(");
-                appendCoordinate(((Point) multiPoint.getGeometryN(i)).getCoordinate(), writer);
+                appendCoordinate(multiPoint.getGeometryN(i).getCoordinate(), writer);
                 writer.write(")");
             }
             writer.write(")");

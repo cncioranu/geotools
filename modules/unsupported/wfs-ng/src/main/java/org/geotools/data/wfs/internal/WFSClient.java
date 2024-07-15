@@ -25,12 +25,14 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.ows.AbstractOpenWebService;
 import org.geotools.data.ows.GetCapabilitiesRequest;
-import org.geotools.data.ows.HTTPClient;
 import org.geotools.data.ows.Request;
 import org.geotools.data.ows.Response;
 import org.geotools.data.ows.Specification;
+import org.geotools.data.wfs.WFSDataStoreFactory;
 import org.geotools.data.wfs.WFSServiceInfo;
 import org.geotools.data.wfs.internal.GetFeatureRequest.ResultType;
 import org.geotools.data.wfs.internal.v1_x.ArcGisStrategy_1_X;
@@ -42,13 +44,12 @@ import org.geotools.data.wfs.internal.v1_x.StrictWFS_1_x_Strategy;
 import org.geotools.data.wfs.internal.v2_0.ArcGisStrategy_2_0;
 import org.geotools.data.wfs.internal.v2_0.StrictWFS_2_0_Strategy;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.http.HTTPClient;
 import org.geotools.ows.ServiceException;
 import org.geotools.util.SuppressFBWarnings;
 import org.geotools.util.Version;
 import org.geotools.util.logging.Logging;
 import org.geotools.xml.XMLHandlerHints;
-import org.opengis.filter.Filter;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -62,7 +63,7 @@ public class WFSClient extends AbstractOpenWebService<WFSGetCapabilities, QName>
 
     public WFSClient(URL capabilitiesURL, HTTPClient httpClient, WFSConfig config)
             throws IOException, ServiceException {
-        this(capabilitiesURL, httpClient, config, (WFSGetCapabilities) null);
+        this(capabilitiesURL, httpClient, config, null);
     }
 
     public WFSClient(
@@ -77,7 +78,8 @@ public class WFSClient extends AbstractOpenWebService<WFSGetCapabilities, QName>
                 httpClient,
                 capabilities,
                 Collections.singletonMap(
-                        XMLHandlerHints.ENTITY_RESOLVER, config.getEntityResolver()));
+                        XMLHandlerHints.ENTITY_RESOLVER, config.getEntityResolver()),
+                config.additionalHeaders);
         this.config = config;
         super.specification = determineCorrectStrategy();
         ((WFSStrategy) specification).setCapabilities(super.capabilities);
@@ -153,8 +155,7 @@ public class WFSClient extends AbstractOpenWebService<WFSGetCapabilities, QName>
             } else if (override.equalsIgnoreCase("arcgis")
                     && !Versions.v2_0_0.equals(capsVersion)) {
                 strategy = new ArcGisStrategy_1_X();
-            }
-            if (override.equalsIgnoreCase("arcgis") && Versions.v2_0_0.equals(capsVersion)) {
+            } else if (override.equalsIgnoreCase("arcgis") && Versions.v2_0_0.equals(capsVersion)) {
                 strategy = new ArcGisStrategy_2_0();
             } else {
                 LOGGER.warning(
@@ -222,7 +223,9 @@ public class WFSClient extends AbstractOpenWebService<WFSGetCapabilities, QName>
             } else if (uri.toLowerCase().contains("/arcgis/services/")
                     && Versions.v2_0_0.equals(capsVersion)) {
                 strategy = new ArcGisStrategy_2_0();
-            } else if (uri.contains("mapserver") || uri.contains("map=")) {
+            } else if ((uri.contains("mapserver") || uri.contains("map="))
+                    && !Versions.v2_0_0.equals(capsVersion)) {
+                // v 1.x strategy, won't work with WFS 2.0
                 strategy = new MapServerWFSStrategy(capabilitiesDoc);
             }
         }
@@ -256,6 +259,10 @@ public class WFSClient extends AbstractOpenWebService<WFSGetCapabilities, QName>
 
     public boolean canLimit() {
         return getStrategy().canLimit();
+    }
+
+    public boolean canOffset() {
+        return getStrategy().canOffset();
     }
 
     public boolean canFilter() {
@@ -313,8 +320,7 @@ public class WFSClient extends AbstractOpenWebService<WFSGetCapabilities, QName>
     }
 
     public GetFeatureRequest createGetFeatureRequest() {
-        WFSStrategy strategy = getStrategy();
-        return new GetFeatureRequest(config, strategy);
+        return new GetFeatureRequest(config, getStrategy(), getHTTPClient());
     }
 
     @Override
@@ -362,16 +368,51 @@ public class WFSClient extends AbstractOpenWebService<WFSGetCapabilities, QName>
         return (TransactionResponse) response;
     }
 
+    /** Issue a GetFeature request that have a SimpleFeatureType in request.getFullType() */
     public GetFeatureResponse issueRequest(GetFeatureRequest request) throws IOException {
 
         requestDebug("Sending GetFeature request to ", request.getFinalURL());
 
         Response response = internalIssueRequest(request);
+        if (!(response instanceof GetFeatureResponse)) {
+            throw new RuntimeException(
+                    "Should have been a GetFeatureResponse, but instead is:"
+                            + response.getClass().getSimpleName());
+        }
         return (GetFeatureResponse) response;
+    }
+
+    /** Issue a GetFeature request that will not be treated as SimpleFeatureType */
+    public ComplexGetFeatureResponse issueComplexRequest(GetFeatureRequest request)
+            throws IOException {
+        requestDebug("Sending GetFeature request to ", request.getFinalURL());
+        Response response = internalIssueRequest(request);
+        if (!(response instanceof ComplexGetFeatureResponse)) {
+            throw new RuntimeException(
+                    "Should have been a ComplexGetFeatureResponse, but instead is:"
+                            + response.getClass().getSimpleName());
+        }
+        return (ComplexGetFeatureResponse) response;
     }
 
     public DescribeFeatureTypeRequest createDescribeFeatureTypeRequest() {
         return new DescribeFeatureTypeRequest(config, getStrategy());
+    }
+
+    /** Utillizing DescribeFeatureTypeRequest to create a URL, but make sure to use a GET method */
+    public URL getDescribeFeatureTypeGetURL(QName name) {
+        try {
+            WFSConfig config =
+                    WFSConfig.fromParams(
+                            Collections.singletonMap(
+                                    WFSDataStoreFactory.PROTOCOL.key, Boolean.FALSE));
+            DescribeFeatureTypeRequest request =
+                    new DescribeFeatureTypeRequest(config, getStrategy());
+            request.setTypeName(name);
+            return request.getFinalURL();
+        } catch (IOException e) {
+            throw new RuntimeException("Couldn't create a WFS config object.", e);
+        }
     }
 
     public ListStoredQueriesRequest createListStoredQueriesRequest() {
@@ -397,7 +438,7 @@ public class WFSClient extends AbstractOpenWebService<WFSGetCapabilities, QName>
      *
      * @return a two-element array where the first element is the supported filter and the second
      *     the one to post-process
-     * @see org.geotools.data.wfs.internal.WFSStrategy#splitFilters(org.opengis.filter.Filter)
+     * @see WFSStrategy#splitFilters(QName, Filter)
      */
     public Filter[] splitFilters(QName typeName, Filter filter) {
         return getStrategy().splitFilters(typeName, filter);

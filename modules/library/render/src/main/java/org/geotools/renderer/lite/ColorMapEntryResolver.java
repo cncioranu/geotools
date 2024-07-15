@@ -16,12 +16,12 @@
  */
 package org.geotools.renderer.lite;
 
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.style.ColorMapEntry;
 import org.geotools.filter.visitor.SimplifyingFilterVisitor;
 import org.geotools.renderer.style.ExpressionExtractor;
-import org.geotools.styling.ColorMapEntry;
 import org.geotools.styling.visitor.DuplicatingStyleVisitor;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Simple support class created with the intention of expanding env function in raster symbolizer
@@ -35,17 +35,17 @@ class ColorMapEntryResolver extends DuplicatingStyleVisitor {
 
     protected Expression copyCqlExpression(Expression expression) {
         if (expression == null) return null;
-        Expression simplified = null;
         if (expression instanceof Literal) {
             String value = expression.evaluate(null, String.class);
             if (value != null && value.startsWith("${")) {
                 expression = ExpressionExtractor.extractCqlExpressions(value);
             }
         }
-        simplified = (Expression) expression.accept(simplifier, ff);
+        Expression simplified = (Expression) expression.accept(simplifier, ff);
         return simplified;
     }
 
+    @Override
     public void visit(ColorMapEntry colorMapEntry) {
         ColorMapEntry copy = sf.createColorMapEntry();
         copy.setColor(copyCqlExpression(colorMapEntry.getColor()));

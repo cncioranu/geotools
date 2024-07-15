@@ -53,6 +53,8 @@ public class GeoHashGridTest {
             TestUtil.createMetricBucket(DOC_COUNT, METRIC_KEY, VALUE_KEY, VALUE);
     private static final Map<String, Object> AGG_BUCKET =
             TestUtil.createAggBucket(AGG_KEY, AGG_RESULTS);
+    private static final String aggregationDefinition = "";
+    private static final String queryDefinition = "";
 
     private SimpleFeatureCollection features;
 
@@ -82,7 +84,7 @@ public class GeoHashGridTest {
                                                         10)))));
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(-360, 180, -90, 90, DefaultGeographicCRS.WGS84);
-        geohashGrid.initalize(envelope, features);
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
         assertEquals(GeoHash.widthDegrees(1), geohashGrid.getCellWidth(), 1e-10);
         assertEquals(GeoHash.heightDegrees(1), geohashGrid.getCellHeight(), 1e-10);
         assertEquals(
@@ -100,21 +102,19 @@ public class GeoHashGridTest {
 
     @Test
     public void testGeoHashGridHighLonRange() throws Exception {
+        byte[] aggregation =
+                mapper.writeValueAsBytes(
+                        ImmutableMap.of(
+                                "key",
+                                GeoHash.encodeHash(new LatLong(-89.9, -179.9), 1),
+                                "doc_count",
+                                10));
         features =
                 TestUtil.createAggregationFeatures(
-                        ImmutableList.of(
-                                ImmutableMap.of(
-                                        "_aggregation",
-                                        mapper.writeValueAsBytes(
-                                                ImmutableMap.of(
-                                                        "key",
-                                                        GeoHash.encodeHash(
-                                                                new LatLong(-89.9, -179.9), 1),
-                                                        "doc_count",
-                                                        10)))));
+                        ImmutableList.of(ImmutableMap.of("_aggregation", aggregation)));
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(360, 540, -90, 90, DefaultGeographicCRS.WGS84);
-        geohashGrid.initalize(envelope, features);
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
         assertEquals(GeoHash.widthDegrees(1), geohashGrid.getCellWidth(), 1e-10);
         assertEquals(GeoHash.heightDegrees(1), geohashGrid.getCellHeight(), 1e-10);
         assertEquals(
@@ -132,21 +132,19 @@ public class GeoHashGridTest {
 
     @Test
     public void testGeoHashGrid() throws Exception {
+        byte[] aggregation =
+                mapper.writeValueAsBytes(
+                        ImmutableMap.of(
+                                "key",
+                                GeoHash.encodeHash(new LatLong(-89.9, -179.9), 1),
+                                "doc_count",
+                                10));
         features =
                 TestUtil.createAggregationFeatures(
-                        ImmutableList.of(
-                                ImmutableMap.of(
-                                        "_aggregation",
-                                        mapper.writeValueAsBytes(
-                                                ImmutableMap.of(
-                                                        "key",
-                                                        GeoHash.encodeHash(
-                                                                new LatLong(-89.9, -179.9), 1),
-                                                        "doc_count",
-                                                        10)))));
+                        ImmutableList.of(ImmutableMap.of("_aggregation", aggregation)));
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(-180, 180, -90, 90, DefaultGeographicCRS.WGS84);
-        geohashGrid.initalize(envelope, features);
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
         assertEquals(GeoHash.widthDegrees(1), geohashGrid.getCellWidth(), 1e-10);
         assertEquals(GeoHash.heightDegrees(1), geohashGrid.getCellHeight(), 1e-10);
         assertEquals(
@@ -168,31 +166,29 @@ public class GeoHashGridTest {
 
     @Test
     public void testGeoHashGrid_scaled() throws Exception {
+        byte[] aggregation1 =
+                mapper.writeValueAsBytes(
+                        ImmutableMap.of(
+                                "key",
+                                GeoHash.encodeHash(new LatLong(-89.9, -179.9), 1),
+                                "doc_count",
+                                20));
+        byte[] aggregation2 =
+                mapper.writeValueAsBytes(
+                        ImmutableMap.of(
+                                "key",
+                                GeoHash.encodeHash(new LatLong(89.9, 179.9), 1),
+                                "doc_count",
+                                30));
         features =
                 TestUtil.createAggregationFeatures(
                         ImmutableList.of(
-                                ImmutableMap.of(
-                                        "_aggregation",
-                                        mapper.writeValueAsBytes(
-                                                ImmutableMap.of(
-                                                        "key",
-                                                        GeoHash.encodeHash(
-                                                                new LatLong(-89.9, -179.9), 1),
-                                                        "doc_count",
-                                                        20))),
-                                ImmutableMap.of(
-                                        "_aggregation",
-                                        mapper.writeValueAsBytes(
-                                                ImmutableMap.of(
-                                                        "key",
-                                                        GeoHash.encodeHash(
-                                                                new LatLong(89.9, 179.9), 1),
-                                                        "doc_count",
-                                                        30)))));
+                                ImmutableMap.of("_aggregation", aggregation1),
+                                ImmutableMap.of("_aggregation", aggregation2)));
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(-180, 180, -90, 90, DefaultGeographicCRS.WGS84);
         geohashGrid.setScale(new RasterScale(5f, 10f));
-        geohashGrid.initalize(envelope, features);
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
         assertEquals(GeoHash.widthDegrees(1), geohashGrid.getCellWidth(), 1e-10);
         assertEquals(GeoHash.heightDegrees(1), geohashGrid.getCellHeight(), 1e-10);
         assertEquals(
@@ -215,18 +211,16 @@ public class GeoHashGridTest {
 
     @Test
     public void testGeoHashGridWithProjectedEnvelope() throws Exception {
+        byte[] aggregation =
+                mapper.writeValueAsBytes(
+                        ImmutableMap.of(
+                                "key",
+                                GeoHash.encodeHash(new LatLong(-89.9, -179.9), 1),
+                                "doc_count",
+                                10));
         features =
                 TestUtil.createAggregationFeatures(
-                        ImmutableList.of(
-                                ImmutableMap.of(
-                                        "_aggregation",
-                                        mapper.writeValueAsBytes(
-                                                ImmutableMap.of(
-                                                        "key",
-                                                        GeoHash.encodeHash(
-                                                                new LatLong(-89.9, -179.9), 1),
-                                                        "doc_count",
-                                                        10)))));
+                        ImmutableList.of(ImmutableMap.of("_aggregation", aggregation)));
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(
                         -19926188.85,
@@ -234,7 +228,7 @@ public class GeoHashGridTest {
                         -30240971.96,
                         30240971.96,
                         CRS.decode("EPSG:3857"));
-        geohashGrid.initalize(envelope, features);
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
 
         assertEquals(
                 new ReferencedEnvelope(-180, 180, -90, 90, DefaultGeographicCRS.WGS84),
@@ -246,7 +240,7 @@ public class GeoHashGridTest {
         features = new DefaultFeatureCollection();
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(-180, 180, -90, 90, CRS.decode("EPSG:4326"));
-        geohashGrid.initalize(envelope, features);
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
         IntStream.range(0, geohashGrid.getGrid().length)
                 .forEach(
                         i ->
@@ -263,17 +257,14 @@ public class GeoHashGridTest {
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(-180, 180, -90, 90, CRS.decode("EPSG:4326"));
         geohashGrid.setEmptyCellValue(emptyCellValue);
-        geohashGrid.initalize(envelope, features);
-        IntStream.range(0, geohashGrid.getGrid().length)
-                .forEach(
-                        row ->
-                                IntStream.range(0, geohashGrid.getGrid()[row].length)
-                                        .forEach(
-                                                column ->
-                                                        assertEquals(
-                                                                emptyCellValue,
-                                                                geohashGrid.getGrid()[row][column],
-                                                                0.0)));
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
+        int bound = geohashGrid.getGrid().length;
+        for (int i = 0; i < bound; i++) {
+            int bound1 = geohashGrid.getGrid()[i].length;
+            for (int column = 0; column < bound1; column++) {
+                assertEquals(emptyCellValue, geohashGrid.getGrid()[i][column], 0.0);
+            }
+        }
     }
 
     @Test
@@ -282,17 +273,14 @@ public class GeoHashGridTest {
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(-180, 180, -90, 90, CRS.decode("EPSG:4326"));
         geohashGrid.setEmptyCellValue(null);
-        geohashGrid.initalize(envelope, features);
-        IntStream.range(0, geohashGrid.getGrid().length)
-                .forEach(
-                        row ->
-                                IntStream.range(0, geohashGrid.getGrid()[row].length)
-                                        .forEach(
-                                                column ->
-                                                        assertEquals(
-                                                                0.0,
-                                                                geohashGrid.getGrid()[row][column],
-                                                                0.0)));
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
+        int bound = geohashGrid.getGrid().length;
+        for (int row = 0; row < bound; row++) {
+            int bound1 = geohashGrid.getGrid()[row].length;
+            for (int column = 0; column < bound1; column++) {
+                assertEquals(0.0, geohashGrid.getGrid()[row][column], 0.0);
+            }
+        }
     }
 
     @Test
@@ -302,7 +290,7 @@ public class GeoHashGridTest {
                         ImmutableList.of(ImmutableMap.of("aString", UUID.randomUUID().toString())));
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(-180, 180, -90, 90, CRS.decode("EPSG:4326"));
-        geohashGrid.initalize(envelope, features);
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
         IntStream.range(0, geohashGrid.getGrid().length)
                 .forEach(
                         i ->
@@ -314,19 +302,15 @@ public class GeoHashGridTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testGeoHashGridWithNoDocCount() throws Exception {
+        byte[] aggregation =
+                mapper.writeValueAsBytes(
+                        ImmutableMap.of("key", GeoHash.encodeHash(new LatLong(-89.9, -179.9), 1)));
         features =
                 TestUtil.createAggregationFeatures(
-                        ImmutableList.of(
-                                ImmutableMap.of(
-                                        "_aggregation",
-                                        mapper.writeValueAsBytes(
-                                                ImmutableMap.of(
-                                                        "key",
-                                                        GeoHash.encodeHash(
-                                                                new LatLong(-89.9, -179.9), 1))))));
+                        ImmutableList.of(ImmutableMap.of("_aggregation", aggregation)));
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(-180, 180, -90, 90, CRS.decode("EPSG:4326"));
-        geohashGrid.initalize(envelope, features);
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
         IntStream.range(0, geohashGrid.getGrid().length)
                 .forEach(
                         i ->
@@ -348,7 +332,7 @@ public class GeoHashGridTest {
                                                         "key", "invalid", "doc_count", 10)))));
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(-180, 180, -90, 90, CRS.decode("EPSG:4326"));
-        geohashGrid.initalize(envelope, features);
+        geohashGrid.initalize(envelope, features, aggregationDefinition, queryDefinition);
         IntStream.range(0, geohashGrid.getGrid().length)
                 .forEach(
                         i ->

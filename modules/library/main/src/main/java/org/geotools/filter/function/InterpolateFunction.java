@@ -25,18 +25,18 @@ import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.text.Text;
 import org.geotools.util.Converters;
 import org.geotools.util.KVP;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /**
  * This is an implemenation of the Interpolate function as defined by OGC Symbology Encoding (SE)
@@ -81,7 +81,7 @@ public class InterpolateFunction implements Function {
 
     private static final Logger LOGGER = Logger.getLogger(InterpolateFunction.class.getName());
 
-    private static final FilterFactory2 ff2 = CommonFactoryFinder.getFilterFactory2(null);
+    private static final FilterFactory ff2 = CommonFactoryFinder.getFilterFactory(null);
     private static final double EPS = 1.0e-8;
 
     /** Use as a literal value to indicate interpolation mode */
@@ -276,47 +276,46 @@ public class InterpolateFunction implements Function {
         this.fallback = fallback;
     }
 
+    @Override
     public String getName() {
         return "Interpolate";
     }
 
+    @Override
     public FunctionName getFunctionName() {
         return NAME;
     }
 
+    @Override
     public List<Expression> getParameters() {
         return Collections.unmodifiableList(parameters);
     }
 
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public Object evaluate(Object object) {
         return evaluate(object, Object.class);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>When {@code context} is unspecified (i.e. {@code null} or {@code Object.class}), it'll be
+     * derived from the {@code method} parameter, as {@code java.awt.Color.class} when {@code method
+     * == COLOR}, and as {@code java.lang.Double} when {@code method == NUMERIC}.
+     *
+     * @throws IllegalArgumentException if {@code context == java.awt.Color.class} and {@code method
+     *     != COLOR}
+     */
+    @Override
     public <T> T evaluate(Object object, Class<T> context) {
-        // initialize the lookup data structures only once and in a thread safe way please
-        if (interpPoints == null) {
-            synchronized (this) {
-                if (interpPoints == null) {
-                    initialize();
-                }
-            }
-        }
-
-        if (method == Method.NUMERIC && Color.class.isAssignableFrom(context)) {
-            throw new IllegalArgumentException(
-                    "Trying to evaluate the function as Color but the method parameter is set as NUMERIC");
-        }
-
-        if (method == Method.COLOR && !Color.class.isAssignableFrom(context)) {
-            throw new IllegalArgumentException(
-                    "Trying to evaluate the function as "
-                            + context.getSimpleName()
-                            + " but the method parameter is set as COLOR");
-        }
+        threadSafeInitialize();
+        context = sanitizeContext(context);
+        validateArguments(context);
 
         /**
          * Lookup value should be either the name of a feature property which can be evaluated to a
@@ -329,15 +328,17 @@ public class InterpolateFunction implements Function {
         /*
          * TODO: is this the correct way to handle the rasterdata option ?
          */
-        String lookupString = lookup.evaluate(object, String.class);
-        if (lookupString == null) {
-            return null;
-        }
-        if (lookupString.equalsIgnoreCase(RASTER_DATA)) {
+        // This should be safe. Rationale: raster mode assumes the lookup expression evaluates to
+        // Rasterdata, and then the input object is considered to be a number. While the lookup
+        // could dynamically evaluate to "Rasterdata" in a non-raster context (feature input),
+        // the input object would not be a number and the following cast would fail.
+        if (lookup instanceof Literal
+                && RASTER_DATA.equalsIgnoreCase(lookup.evaluate(object, String.class))) {
             lookupValue = ((Number) object).doubleValue();
         } else {
-            lookupValue = Double.valueOf(lookupString);
+            lookupValue = lookup.evaluate(object, Double.class);
         }
+        if (lookupValue == null) return null;
 
         /** Degenerate case: a single interpolation point. Evaluate it directly. */
         if (interpPoints.size() == 1) {
@@ -367,6 +368,34 @@ public class InterpolateFunction implements Function {
             case LINEAR:
             default:
                 return linearInterpolate(lookupValue, object, segment, context);
+        }
+    }
+
+    /**
+     * Returns the default context based on method when it's not specified (e.g. null or
+     * Object.class), for the Converters to return the default object type: Color if method ==
+     * COLOR, Double of method == NUMERIC. If a specific "context" is asked, returns it as-is.
+     */
+    @SuppressWarnings("unchecked")
+    private <T> Class<T> sanitizeContext(Class<T> context) {
+        final boolean specified = context != null && !Object.class.equals(context);
+        if (!specified) {
+            if (method == Method.NUMERIC) {
+                context = (Class<T>) Double.class;
+            } else if (method == Method.COLOR) {
+                context = (Class<T>) Color.class;
+            } else {
+                // should never reach here for as long as initialize() is called first
+                throw new IllegalStateException("Unknown method, expected NUMERIC or COLOR");
+            }
+        }
+        return context;
+    }
+
+    private void validateArguments(Class<?> context) {
+        if (Color.class.isAssignableFrom(context) && method != Method.COLOR) {
+            throw new IllegalArgumentException(
+                    "Unable to evaluate Color as the interpolation method is set as " + method);
         }
     }
 
@@ -417,8 +446,7 @@ public class InterpolateFunction implements Function {
                                                     color1.getBlue())),
                                     0,
                                     255);
-            return context.cast(new Color(r, g, b));
-
+            return Converters.convert(new Color(r, g, b), context);
         } else { // assume numeric
             Double value1 = interpPoints.get(segment).getValue(object);
             Double value0 = interpPoints.get(segment - 1).getValue(object);
@@ -475,7 +503,7 @@ public class InterpolateFunction implements Function {
                                                     color1.getBlue())),
                                     0,
                                     255);
-            return context.cast(new Color(r, g, b));
+            return Converters.convert(new Color(r, g, b), context);
 
         } else { // assume numeric
             Double value1 = interpPoints.get(segment).getValue(object);
@@ -542,7 +570,7 @@ public class InterpolateFunction implements Function {
             }
             int b = (int) clamp(Math.round(doCubic(lookupValue, xi, yi)), 0, 255);
 
-            return context.cast(new Color(r, g, b));
+            return Converters.convert(new Color(r, g, b), context);
 
         } else { // numeric
             for (int i = segment - 2, k = 0; k < 4; i++, k++) {
@@ -553,8 +581,20 @@ public class InterpolateFunction implements Function {
         }
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallback;
+    }
+
+    private void threadSafeInitialize() {
+        // initialize the lookup data structures only once and in a thread safe way please
+        if (interpPoints == null) {
+            synchronized (this) {
+                if (interpPoints == null) {
+                    initialize();
+                }
+            }
+        }
     }
 
     /**
@@ -825,10 +865,10 @@ public class InterpolateFunction implements Function {
         StringBuilder sb = new StringBuilder();
         sb.append(getName());
         sb.append("(");
-        List<org.opengis.filter.expression.Expression> params = getParameters();
+        List<org.geotools.api.filter.expression.Expression> params = getParameters();
         if (params != null) {
-            org.opengis.filter.expression.Expression exp;
-            for (Iterator<org.opengis.filter.expression.Expression> it = params.iterator();
+            org.geotools.api.filter.expression.Expression exp;
+            for (Iterator<org.geotools.api.filter.expression.Expression> it = params.iterator();
                     it.hasNext(); ) {
                 exp = it.next();
                 sb.append("[");

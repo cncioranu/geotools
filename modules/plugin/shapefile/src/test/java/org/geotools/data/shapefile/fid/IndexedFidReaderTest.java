@@ -17,7 +17,7 @@
 package org.geotools.data.shapefile.fid;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -26,15 +26,15 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.files.ShpFiles;
 import org.geotools.data.shapefile.shp.IndexFile;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
 
 public class IndexedFidReaderTest extends FIDTestCase {
 
@@ -96,13 +96,13 @@ public class IndexedFidReaderTest extends FIDTestCase {
         {
             ShapefileDataStore ds = new ShapefileDataStore(backshp.toURI().toURL());
             SimpleFeatureSource featureSource = ds.getFeatureSource();
-            SimpleFeatureIterator features = featureSource.getFeatures().features();
-            while (features.hasNext()) {
-                SimpleFeature next = features.next();
-                expectedCount++;
-                expectedFids.add(next.getID());
+            try (SimpleFeatureIterator features = featureSource.getFeatures().features()) {
+                while (features.hasNext()) {
+                    SimpleFeature next = features.next();
+                    expectedCount++;
+                    expectedFids.add(next.getID());
+                }
             }
-            features.close();
             ds.dispose();
         }
 
@@ -111,7 +111,7 @@ public class IndexedFidReaderTest extends FIDTestCase {
 
         for (String fid : expectedFids) {
             long offset = reader.findFid(fid);
-            assertFalse(-1 == offset);
+            assertNotEquals(-1, offset);
         }
     }
 
@@ -122,38 +122,38 @@ public class IndexedFidReaderTest extends FIDTestCase {
         {
             ShapefileDataStore ds = new ShapefileDataStore(backshp.toURI().toURL());
             SimpleFeatureSource featureSource = ds.getFeatureSource();
-            SimpleFeatureIterator features = featureSource.getFeatures().features();
-            while (features.hasNext()) {
-                SimpleFeature next = features.next();
-                expectedCount++;
-                expectedFids.add(next.getID());
+            try (SimpleFeatureIterator features = featureSource.getFeatures().features()) {
+                while (features.hasNext()) {
+                    SimpleFeature next = features.next();
+                    expectedCount++;
+                    expectedFids.add(next.getID());
+                }
             }
-            features.close();
             ds.dispose();
         }
 
         assertTrue(expectedCount > 0);
         assertEquals(expectedCount, reader.getCount());
 
-        assertFalse("findFid for archsites.5 returned -1", -1 == reader.findFid("archsites.5"));
-        assertFalse("findFid for archsites.25 returned -1", -1 == reader.findFid("archsites.25"));
+        assertNotEquals("findFid for archsites.5 returned -1", -1, reader.findFid("archsites.5"));
+        assertNotEquals("findFid for archsites.25 returned -1", -1, reader.findFid("archsites.25"));
 
         for (String fid : expectedFids) {
             long offset = reader.findFid(fid);
             assertNotNull(offset);
             // System.out.print(fid + "=" + offset + ", ");
-            assertFalse("findFid for " + fid + " returned -1", -1 == offset);
+            assertNotEquals("findFid for " + fid + " returned -1", -1, offset);
         }
     }
 
     // test if FID no longer exists.
     @Test
+    @SuppressWarnings("PMD.UseTryWithResources")
     public void testFindDeletedFID() throws Exception {
         reader.close();
 
         ShpFiles shpFiles = new ShpFiles(fixFile);
-        IndexedFidWriter writer = new IndexedFidWriter(shpFiles);
-        try {
+        try (IndexedFidWriter writer = new IndexedFidWriter(shpFiles)) {
             writer.next();
             writer.next();
             writer.next();
@@ -162,7 +162,6 @@ public class IndexedFidReaderTest extends FIDTestCase {
                 writer.next();
             }
         } finally {
-            writer.close();
             reader.close();
         }
 

@@ -20,11 +20,11 @@ package org.geotools.filter.function;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
-import org.opengis.filter.capability.FunctionName;
 
 public class FilterFunction_exteriorRing extends FunctionExpressionImpl {
 
@@ -36,6 +36,7 @@ public class FilterFunction_exteriorRing extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         Geometry arg0;
 

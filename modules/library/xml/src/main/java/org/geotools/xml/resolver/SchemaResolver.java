@@ -21,6 +21,7 @@ import java.math.BigInteger;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -139,6 +140,11 @@ public class SchemaResolver {
             locationUri = contextUri.resolve(locationUri);
         }
         return resolve(locationUri.toString());
+    }
+
+    /** Cache used by this Schema Resolver. Could be null if not set. */
+    public SchemaCache getCache() {
+        return cache;
     }
 
     /**
@@ -331,7 +337,7 @@ public class SchemaResolver {
         byte[] bytesOfMessage = null;
         MessageDigest md = null;
         try {
-            bytesOfMessage = message.getBytes("UTF-8");
+            bytesOfMessage = message.getBytes(StandardCharsets.UTF_8);
             md = MessageDigest.getInstance("MD5");
         } catch (Exception e) {
             throw new RuntimeException(e);

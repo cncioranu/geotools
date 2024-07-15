@@ -18,6 +18,7 @@
 package org.geotools.process.vector;
 
 import java.io.IOException;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.GeometryCollector;
@@ -26,7 +27,6 @@ import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
-import org.opengis.util.ProgressListener;
 
 /**
  * Collects all geometries from the specified vector layer into a single GeometryCollection (or
@@ -35,10 +35,9 @@ import org.opengis.util.ProgressListener;
  * @author Andrea Aime - GeoSolutions
  */
 @DescribeProcess(
-    title = "Collect Geometries",
-    description =
-            "Collects the default geometries of the input features and combines them into a single geometry collection"
-)
+        title = "Collect Geometries",
+        description =
+                "Collects the default geometries of the input features and combines them into a single geometry collection")
 public class CollectGeometries implements VectorProcess {
 
     @DescribeResult(name = "result", description = "Geometry collection of all input geometries")
@@ -50,10 +49,8 @@ public class CollectGeometries implements VectorProcess {
         int count = features.size();
         float done = 0;
 
-        FeatureIterator fi = null;
         GeometryCollector collector = new GeometryCollector();
-        try {
-            fi = features.features();
+        try (FeatureIterator fi = features.features()) {
             while (fi.hasNext()) {
                 Geometry g = (Geometry) fi.next().getDefaultGeometryProperty().getValue();
                 collector.add(g);
@@ -64,12 +61,7 @@ public class CollectGeometries implements VectorProcess {
                     progressListener.progress(done / count);
                 }
             }
-        } finally {
-            if (fi != null) {
-                fi.close();
-            }
         }
-
         return collector.collect();
     }
 }

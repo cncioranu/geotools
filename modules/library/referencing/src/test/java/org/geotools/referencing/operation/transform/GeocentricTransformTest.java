@@ -17,19 +17,20 @@
 package org.geotools.referencing.operation.transform;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.referencing.crs.DefaultGeocentricCRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.referencing.datum.DefaultEllipsoid;
 import org.geotools.referencing.operation.TransformTestBase;
 import org.junit.Test;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Test the following transformation classes with the geocentric transform:
@@ -104,7 +105,7 @@ public final class GeocentricTransformTest extends TransformTestBase {
         final double circumference = (radius * 1.00000001) * (2 * Math.PI);
         final DefaultEllipsoid s =
                 DefaultEllipsoid.createEllipsoid("Sphere", radius, radius, e.getAxisUnit());
-        assertTrue("Spheroid class", !DefaultEllipsoid.class.equals(s.getClass()));
+        assertNotEquals("Spheroid class", DefaultEllipsoid.class, s.getClass());
         for (double i = 0; i <= 180; i += 1) {
             final double base = 360 * random.nextDouble() - 180;
             assertEquals(
@@ -151,8 +152,8 @@ public final class GeocentricTransformTest extends TransformTestBase {
          * Construct an array of 850 random points. The first 8 points
          * are initialized to know values. Other points are left random.
          */
-        final double cartesianDistance[] = new double[4];
-        final double orthodromicDistance[] = new double[4];
+        final double[] cartesianDistance = new double[4];
+        final double[] orthodromicDistance = new double[4];
         final double[] array0 = new double[900]; // Must be divisible by 3.
         for (int i = 0; i < array0.length; i++) {
             final int range;
@@ -229,10 +230,8 @@ public final class GeocentricTransformTest extends TransformTestBase {
          */
         for (int i = 0; i < array0.length / 6; i++) {
             final int base = i * 6;
-            final double[] pt1 =
-                    new double[] {array1[base + 0], array1[base + 1], array1[base + 2]};
-            final double[] pt2 =
-                    new double[] {array1[base + 3], array1[base + 4], array1[base + 5]};
+            final double[] pt1 = {array1[base + 0], array1[base + 1], array1[base + 2]};
+            final double[] pt2 = {array1[base + 3], array1[base + 4], array1[base + 5]};
 
             double dX = Math.abs(pt1[0] - pt2[0]);
             double dY = Math.abs(pt1[1] - pt2[1]);

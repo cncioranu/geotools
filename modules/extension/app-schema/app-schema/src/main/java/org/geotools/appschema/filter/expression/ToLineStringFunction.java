@@ -19,7 +19,15 @@ package org.geotools.appschema.filter.expression;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.filter.capability.FunctionNameImpl;
+import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultVerticalCRS;
 import org.geotools.referencing.cs.DefaultVerticalCS;
@@ -27,14 +35,6 @@ import org.geotools.referencing.datum.DefaultVerticalDatum;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * This function converts double values to 1D LineString geometry object. This is needed when the
@@ -73,30 +73,37 @@ public class ToLineStringFunction implements Function {
         this.fallback = fallback;
     }
 
+    @Override
     public String getName() {
         return NAME.getName();
     }
 
+    @Override
     public FunctionName getFunctionName() {
         return NAME;
     }
 
+    @Override
     public List<Expression> getParameters() {
         return Collections.unmodifiableList(parameters);
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallback;
     }
 
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public Object evaluate(Object object) {
         return evaluate(object, LineString.class);
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     public <T> T evaluate(Object object, Class<T> context) {
         if (parameters.size() != 3
@@ -114,11 +121,6 @@ public class ToLineStringFunction implements Function {
         CoordinateReferenceSystem crs = null;
         try {
             crs = CRS.decode(srsName);
-        } catch (NoSuchAuthorityCodeException e) {
-            // custom CRS
-            crs =
-                    new DefaultVerticalCRS(
-                            srsName, DefaultVerticalDatum.GEOIDAL, DefaultVerticalCS.DEPTH);
         } catch (FactoryException e) {
             // custom CRS
             crs =
@@ -150,7 +152,7 @@ public class ToLineStringFunction implements Function {
             points[1] = new Coordinate(dblTwo, Coordinate.NULL_ORDINATE, Coordinate.NULL_ORDINATE);
 
             linestring = geomFactory.createLineString(points);
-            linestring.setUserData(crs);
+            JTS.setCRS(linestring, crs);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(
                     "Error converting the parameters for toLineString function: "

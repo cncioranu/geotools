@@ -18,16 +18,16 @@ package org.geotools.referencing.operation.transform;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.Transformation;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.parameter.DefaultParameterDescriptor;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.operation.MathTransformProvider;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.Transformation;
 
 /**
  * The provider for the {@link WarpTransform2D}. This provider constructs a JAI {@linkplain
@@ -46,12 +46,12 @@ public class WarpTransform2DProvider extends MathTransformProvider {
             DefaultParameterDescriptor.create("degree", 2, 1, WarpTransform2D.MAX_DEGREE);
 
     /** Descriptor for the "{@link WarpPolynomial#getXCoeffs xCoeffs}" parameter value. */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public static final ParameterDescriptor<?> X_COEFFS =
             new DefaultParameterDescriptor("xCoeffs", float[].class, null, null);
 
     /** Descriptor for the "{@link WarpPolynomial#getYCoeffs yCoeffs}" parameter value. */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public static final ParameterDescriptor<?> Y_COEFFS =
             new DefaultParameterDescriptor("yCoeffs", float[].class, null, null);
 
@@ -111,6 +111,7 @@ public class WarpTransform2DProvider extends MathTransformProvider {
      * @return The created math transform.
      * @throws ParameterNotFoundException if a required parameter was not found.
      */
+    @Override
     @SuppressWarnings("unchecked")
     protected MathTransform createMathTransform(final ParameterValueGroup values)
             throws ParameterNotFoundException {
@@ -169,8 +170,7 @@ public class WarpTransform2DProvider extends MathTransformProvider {
                                     postScaleY);
                     break;
             }
-            Class<? extends MathTransform> transformClass;
-            transformClass =
+            Class<? extends MathTransform> transformClass =
                     (Class<? extends MathTransform>)
                             Class.forName(
                                     "org.geotools.referencing.operation.transform.WarpTransform2D");
@@ -197,16 +197,15 @@ public class WarpTransform2DProvider extends MathTransformProvider {
                     InstantiationException, IllegalAccessException, IllegalArgumentException,
                     InvocationTargetException {
         Class<?> warpClass = Class.forName(warpName);
-        Class[] params =
-                new Class[] {
-                    float[].class,
-                    float[].class,
-                    float.class,
-                    float.class,
-                    float.class,
-                    float.class,
-                    float.class
-                };
+        Class[] params = {
+            float[].class,
+            float[].class,
+            float.class,
+            float.class,
+            float.class,
+            float.class,
+            float.class
+        };
         Constructor<?> constrctor = warpClass.getConstructor(params);
         return constrctor.newInstance(
                 xCoeffs, yCoeffs, preScaleX, preScaleY, postScaleX, postScaleY);

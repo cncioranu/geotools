@@ -23,27 +23,27 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import org.geotools.data.FeatureEvent;
-import org.geotools.data.FeatureEvent.Type;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
+import org.geotools.api.data.FeatureEvent;
+import org.geotools.api.data.FeatureEvent.Type;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
 import org.geotools.data.FilteringFeatureWriter;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
-import org.geotools.data.ResourceInfo;
-import org.geotools.data.Transaction;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureStore;
 import org.geotools.data.store.ContentState;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
 
 /**
  * FeatureStore implementation for jdbc based relational database tables.
@@ -89,6 +89,7 @@ public final class JDBCFeatureStore extends ContentFeatureStore {
     }
 
     /** We handle events internally */
+    @Override
     protected boolean canEvent() {
         return true;
     }
@@ -182,28 +183,28 @@ public final class JDBCFeatureStore extends ContentFeatureStore {
     }
 
     @Override
-    protected boolean canFilter() {
-        return delegate.canFilter();
+    protected boolean canFilter(Query query) {
+        return delegate.canFilter(query);
     }
 
     @Override
-    protected boolean canSort() {
-        return delegate.canSort();
+    protected boolean canSort(Query query) {
+        return delegate.canSort(query);
     }
 
     @Override
-    protected boolean canRetype() {
-        return delegate.canRetype();
+    protected boolean canRetype(Query query) {
+        return delegate.canRetype(query);
     }
 
     @Override
-    protected boolean canLimit() {
-        return delegate.canLimit();
+    protected boolean canLimit(Query query) {
+        return delegate.canLimit(query);
     }
 
     @Override
-    protected boolean canOffset() {
-        return delegate.canOffset();
+    protected boolean canOffset(Query query) {
+        return delegate.canOffset(query);
     }
 
     @Override
@@ -241,6 +242,7 @@ public final class JDBCFeatureStore extends ContentFeatureStore {
     //     features.update(type, value);
     // }
 
+    @Override
     @SuppressWarnings("PMD.CloseResource") // the cx is passed to the reader which will close it
     protected FeatureWriter<SimpleFeatureType, SimpleFeature> getWriterInternal(
             Query query, int flags) throws IOException {

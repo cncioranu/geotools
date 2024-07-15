@@ -18,6 +18,7 @@ package org.geotools.data.elasticsearch;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -29,17 +30,14 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.Node;
-import org.geotools.data.DataStore;
+import org.elasticsearch.client.RestClient;
+import org.geotools.api.data.DataStore;
 import org.junit.Test;
 
 public class ElasticDataStoreFinderIT extends ElasticTestSupport {
-
-    private static final Logger LOGGER =
-            org.geotools.util.logging.Logging.getLogger(ElasticDataStoreFinderIT.class);
 
     @Test
     public void testFactoryDefaults() throws IOException {
@@ -76,34 +74,34 @@ public class ElasticDataStoreFinderIT extends ElasticTestSupport {
         ElasticDataStoreFactory factory = new ElasticDataStoreFactory();
         assertTrue(factory.isAvailable());
 
-        assertTrue(
-                !factory.canProcess(
+        assertFalse(
+                factory.canProcess(
                         ImmutableMap.of(
                                 ElasticDataStoreFactory.HOSTNAME.key,
                                 "localhost",
                                 ElasticDataStoreFactory.HOSTPORT.key,
                                 port)));
-        assertTrue(
-                !factory.canProcess(
+        assertFalse(
+                factory.canProcess(
                         ImmutableMap.of(
                                 ElasticDataStoreFactory.HOSTNAME.key,
                                 "localhost",
                                 ElasticDataStoreFactory.INDEX_NAME.key,
                                 "test")));
-        assertTrue(
-                !factory.canProcess(
+        assertFalse(
+                factory.canProcess(
                         ImmutableMap.of(ElasticDataStoreFactory.HOSTNAME.key, "localhost")));
-        assertTrue(
-                !factory.canProcess(
+        assertFalse(
+                factory.canProcess(
                         ImmutableMap.of(
                                 ElasticDataStoreFactory.HOSTPORT.key,
                                 port,
                                 ElasticDataStoreFactory.INDEX_NAME.key,
                                 "test")));
-        assertTrue(
-                !factory.canProcess(ImmutableMap.of(ElasticDataStoreFactory.HOSTPORT.key, port)));
-        assertTrue(
-                !factory.canProcess(
+        assertFalse(
+                factory.canProcess(ImmutableMap.of(ElasticDataStoreFactory.HOSTPORT.key, port)));
+        assertFalse(
+                factory.canProcess(
                         ImmutableMap.of(ElasticDataStoreFactory.INDEX_NAME.key, "test")));
     }
 
@@ -174,13 +172,15 @@ public class ElasticDataStoreFinderIT extends ElasticTestSupport {
     }
 
     private List<HttpHost> getHosts(String hosts) throws IOException {
+        return getRestClient(hosts).getNodes().stream()
+                .map(Node::getHost)
+                .collect(Collectors.toList());
+    }
+
+    private RestClient getRestClient(String hosts) throws IOException {
         Map<String, Serializable> params = createConnectionParams();
         params.put(ElasticDataStoreFactory.HOSTNAME.key, hosts);
         ElasticDataStoreFactory factory = new ElasticDataStoreFactory();
-        return factory.createRestClient(params)
-                .getNodes()
-                .stream()
-                .map(Node::getHost)
-                .collect(Collectors.toList());
+        return factory.createRestClient(params);
     }
 }

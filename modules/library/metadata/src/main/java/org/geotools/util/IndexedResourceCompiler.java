@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,13 +63,12 @@ public final class IndexedResourceCompiler implements Comparator<Object> {
     private static final File SOURCE_DIRECTORY = new File("./src/main");
 
     /** The resources to process. */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "PMD.UseShortArrayInitializer"})
     private static final Class<? extends IndexedResourceBundle>[] RESOURCES_TO_PROCESS =
             new Class[] {
                 org.geotools.metadata.i18n.Descriptions.class,
                 org.geotools.metadata.i18n.Vocabulary.class,
-                org.geotools.metadata.i18n.Loggings.class,
-                org.geotools.metadata.i18n.Errors.class
+                org.geotools.metadata.i18n.Loggings.class
             };
 
     /**
@@ -253,8 +253,7 @@ public final class IndexedResourceCompiler implements Comparator<Object> {
         final String[] keys = resources.keySet().toArray(new String[resources.size()]);
         Arrays.sort(keys, this);
         int freeID = 0;
-        for (int i = 0; i < keys.length; i++) {
-            final String key = keys[i];
+        for (final String key : keys) {
             if (!allocatedIDs.containsValue(key)) {
                 Integer ID;
                 do {
@@ -409,7 +408,9 @@ public final class IndexedResourceCompiler implements Comparator<Object> {
             return;
         }
         try (BufferedWriter out =
-                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"))) {
+                new BufferedWriter(
+                        new OutputStreamWriter(
+                                new FileOutputStream(file), StandardCharsets.UTF_8))) {
             out.write(
                     "/*\n"
                             + " *    GeoTools - The Open Source Java GIS Toolkit\n"
@@ -455,10 +456,10 @@ public final class IndexedResourceCompiler implements Comparator<Object> {
             final Map.Entry[] entries =
                     allocatedIDs.entrySet().toArray(new Map.Entry[allocatedIDs.size()]);
             Arrays.sort(entries, this);
-            for (int i = 0; i < entries.length; i++) {
+            for (Map.Entry entry : entries) {
                 out.write('\n');
-                final String key = (String) entries[i].getValue();
-                final String ID = entries[i].getKey().toString();
+                final String key = (String) entry.getValue();
+                final String ID = entry.getKey().toString();
                 String message = (String) resources.get(key);
                 if (message != null) {
                     out.write("    /**\n");
@@ -492,6 +493,7 @@ public final class IndexedResourceCompiler implements Comparator<Object> {
      * objects representing resource keys (for example, "{@code MISMATCHED_DIMENSION}"), but may
      * also be {@link java.util.Map.Entry}.
      */
+    @Override
     public int compare(Object o1, Object o2) {
         if (o1 instanceof Map.Entry) o1 = ((Map.Entry) o1).getValue();
         if (o2 instanceof Map.Entry) o2 = ((Map.Entry) o2).getValue();
@@ -540,8 +542,7 @@ public final class IndexedResourceCompiler implements Comparator<Object> {
         final File[] content = srcDir.listFiles();
         File defaultLanguage = null;
         if (content != null) {
-            for (int i = 0; i < content.length; i++) {
-                final File file = content[i];
+            for (final File file : content) {
                 final String filename = file.getName();
                 if (filename.startsWith(classname) && filename.endsWith(PROPERTIES_EXT)) {
                     if (compiler == null) {
@@ -592,9 +593,9 @@ public final class IndexedResourceCompiler implements Comparator<Object> {
             out.println(" not found or is not a directory.");
             return;
         }
-        for (int i = 0; i < resourcesToProcess.length; i++) {
+        for (Class<? extends IndexedResourceBundle> toProcess : resourcesToProcess) {
             try {
-                scanForResources(sourceDirectory, resourcesToProcess[i], renumber, out);
+                scanForResources(sourceDirectory, toProcess, renumber, out);
             } catch (IOException exception) {
                 out.println(exception.getLocalizedMessage());
             }
@@ -603,7 +604,7 @@ public final class IndexedResourceCompiler implements Comparator<Object> {
     }
 
     /** Run the compiler for GeoTools resources. */
-    public static void main(final String[] args) {
+    public static void main(final String... args) {
         main(args, SOURCE_DIRECTORY, RESOURCES_TO_PROCESS);
     }
 }

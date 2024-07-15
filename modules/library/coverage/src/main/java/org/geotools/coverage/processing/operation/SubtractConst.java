@@ -24,13 +24,13 @@ import java.awt.image.RenderedImage;
 import java.util.Map;
 import javax.media.jai.ParameterBlockJAI;
 import javax.media.jai.operator.SubtractConstDescriptor;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.processing.OperationJAI;
 import org.geotools.util.NumberRange;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.InternationalString;
 
 // Geotools dependencies
 
@@ -86,11 +86,13 @@ public class SubtractConst extends OperationJAI {
         super("SubtractConst", getOperationDescriptor(JAIExt.getOperationName("SubtractConst")));
     }
 
+    @Override
     public String getName() {
         return "SubtractConst";
     }
 
     /** Returns the expected range of values for the resulting image. */
+    @Override
     protected NumberRange<? extends Number> deriveRange(
             final NumberRange<? extends Number>[] ranges, final Parameters parameters) {
         final double[] constants = (double[]) parameters.parameters.getObjectParameter("constants");
@@ -104,6 +106,7 @@ public class SubtractConst extends OperationJAI {
         return super.deriveRange(ranges, parameters);
     }
 
+    @Override
     protected void handleJAIEXTParams(
             ParameterBlockJAI parameters, ParameterValueGroup parameters2) {
         GridCoverage2D source = (GridCoverage2D) parameters2.parameter("source0").getValue();
@@ -113,6 +116,7 @@ public class SubtractConst extends OperationJAI {
         handleROINoDataInternal(parameters, source, "operationConst", 2, 3);
     }
 
+    @Override
     protected Map<String, ?> getProperties(
             RenderedImage data,
             CoordinateReferenceSystem crs,

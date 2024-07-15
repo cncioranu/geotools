@@ -2,13 +2,13 @@ package org.geotools.renderer.lite;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.store.ReprojectingFeatureCollection;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.referencing.CRS;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * A rendering transformation that reprojects a feature collection
@@ -24,6 +24,7 @@ public class ReprojectCollectionFunction extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object object) {
         String targetCRS = getAttribute(object, 0, String.class, true);
         try {

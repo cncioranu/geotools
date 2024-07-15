@@ -25,8 +25,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import org.apache.commons.io.FilenameUtils;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.gce.imagemosaic.catalog.oracle.OracleDatastoreWrapper;
 import org.geotools.gce.imagemosaic.catalog.postgis.PostgisDatastoreWrapper;
@@ -41,10 +41,15 @@ public class GTDataStoreGranuleCatalog extends AbstractGTDataStoreGranuleCatalog
     private Set<String> validTypeNames;
 
     public GTDataStoreGranuleCatalog(
-            Properties params, boolean create, DataStoreFactorySpi spi, Hints hints) {
-        super(params, create, spi, hints);
+            Properties params,
+            CatalogConfigurationBeans configurations,
+            boolean create,
+            DataStoreFactorySpi spi,
+            Hints hints) {
+        super(params, configurations, create, spi, hints);
     }
 
+    @Override
     protected void initTileIndexStore(
             final Properties params, final boolean create, final DataStoreFactorySpi spi)
             throws IOException, MalformedURLException {
@@ -101,6 +106,7 @@ public class GTDataStoreGranuleCatalog extends AbstractGTDataStoreGranuleCatalog
         initializeTypeNames(params);
     }
 
+    @Override
     protected void handleInitializationException(Throwable t) {
         try {
             if (tileIndexStore != null) tileIndexStore.dispose();
@@ -116,6 +122,7 @@ public class GTDataStoreGranuleCatalog extends AbstractGTDataStoreGranuleCatalog
         return tileIndexStore;
     }
 
+    @Override
     protected void disposeTileIndexStore() {
         try {
             if (tileIndexStore != null) {

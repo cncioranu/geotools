@@ -43,6 +43,14 @@ import java.util.logging.Logger;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import javax.media.jai.operator.ConstantDescriptor;
+import org.geotools.api.coverage.ColorInterpretation;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.TypeMap;
 import org.geotools.coverage.grid.GeneralGridEnvelope;
@@ -51,21 +59,13 @@ import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.io.OverviewPolicy;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.coverageio.jp2k.RasterManager.OverviewLevel;
-import org.geotools.data.DataSourceException;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.ImageWorker;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.ColorInterpretation;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A RasterLayerResponse. An instance of this class is produced everytime a requestCoverage is
@@ -129,6 +129,7 @@ class RasterLayerResponse {
             return imageIndex;
         }
 
+        @Override
         public RenderedImage call() throws Exception {
 
             return granule.loadRaster(
@@ -224,29 +225,14 @@ class RasterLayerResponse {
                         firstGranule = false;
                     }
 
-                } catch (InterruptedException e) {
+                } catch (InterruptedException | ExecutionException e) {
                     if (LOGGER.isLoggable(Level.SEVERE))
                         LOGGER.log(
                                 Level.SEVERE,
                                 "Unable to load the raster for granule " + granuleIndex,
                                 e);
                     continue;
-                } catch (ExecutionException e) {
-                    if (LOGGER.isLoggable(Level.SEVERE))
-                        LOGGER.log(
-                                Level.SEVERE,
-                                "Unable to load the raster for granule " + granuleIndex,
-                                e);
-                    continue;
-                } catch (ImagingException e) {
-                    if (LOGGER.isLoggable(Level.FINE))
-                        LOGGER.fine(
-                                "Loading image number "
-                                        + granuleIndex
-                                        + " failed, original request was "
-                                        + request);
-                    continue;
-                } catch (javax.media.jai.util.ImagingException e) {
+                } catch (ImagingException | javax.media.jai.util.ImagingException e) {
                     if (LOGGER.isLoggable(Level.FINE))
                         LOGGER.fine(
                                 "Loading image number "
@@ -296,7 +282,7 @@ class RasterLayerResponse {
     private GridCoverageFactory coverageFactory;
 
     /** The base envelope related to the input coverage */
-    private GeneralEnvelope coverageEnvelope;
+    private GeneralBounds coverageEnvelope;
 
     private URL inputURL;
 
@@ -400,7 +386,7 @@ class RasterLayerResponse {
     }
 
     /**
-     * This method loads the granules which overlap the requested {@link GeneralEnvelope} using the
+     * This method loads the granules which overlap the requested {@link GeneralBounds} using the
      * provided values for alpha and input ROI.
      */
     private RenderedImage assembleGranules() throws DataSourceException {
@@ -497,9 +483,7 @@ class RasterLayerResponse {
                         this.rasterManager.getHints());
             }
 
-        } catch (IOException e) {
-            throw new DataSourceException("Unable to create this image", e);
-        } catch (TransformException e) {
+        } catch (IOException | TransformException e) {
             throw new DataSourceException("Unable to create this image", e);
         }
     }
@@ -564,7 +548,7 @@ class RasterLayerResponse {
         return coverageFactory.create(
                 rasterManager.getCoverageIdentifier(),
                 image,
-                new GeneralEnvelope(bbox),
+                new GeneralBounds(bbox),
                 bands,
                 null,
                 null);

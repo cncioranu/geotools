@@ -22,10 +22,19 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.EmptyFeatureReader;
-import org.geotools.data.FeatureReader;
 import org.geotools.data.FilteringFeatureReader;
-import org.geotools.data.Query;
 import org.geotools.data.ReTypeFeatureReader;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
@@ -37,22 +46,12 @@ import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * FeatureSource for the OGR store, based on the {@link ContentFeatureStore} framework
  *
  * @author Andrea Aime - GeoSolutions
  */
-@SuppressWarnings("rawtypes")
 class OGRFeatureSource extends ContentFeatureSource {
 
     OGR ogr;
@@ -171,6 +170,7 @@ class OGRFeatureSource extends ContentFeatureSource {
         return getReaderInternal(null, null, query);
     }
 
+    @SuppressWarnings("PMD.CloseResource") // due to re-assignment of reader
     protected FeatureReader<SimpleFeatureType, SimpleFeature> getReaderInternal(
             OGRDataSource dataSource, Object layer, Query query) throws IOException {
         // check how much we can encode
@@ -207,7 +207,7 @@ class OGRFeatureSource extends ContentFeatureSource {
                     Set<String> extraAttributeSet =
                             new HashSet<>(extraAttributeExtractor.getAttributeNameSet());
                     extraAttributeSet.removeAll(queriedAttributes);
-                    if (extraAttributeSet.size() > 0) {
+                    if (!extraAttributeSet.isEmpty()) {
                         String[] queryProperties =
                                 new String[properties.length + extraAttributeSet.size()];
                         System.arraycopy(properties, 0, queryProperties, 0, properties.length);
@@ -363,9 +363,9 @@ class OGRFeatureSource extends ContentFeatureSource {
                         }
                     }
                 }
-                if (ignoredFields.size() > 0) {
+                if (!ignoredFields.isEmpty()) {
                     String[] ignoredFieldsArr =
-                            (String[]) ignoredFields.toArray(new String[ignoredFields.size()]);
+                            ignoredFields.toArray(new String[ignoredFields.size()]);
                     ogr.CheckError(ogr.LayerSetIgnoredFields(layer, ignoredFieldsArr));
                 }
             }
@@ -476,17 +476,17 @@ class OGRFeatureSource extends ContentFeatureSource {
     }
 
     @Override
-    protected boolean canFilter() {
+    protected boolean canFilter(Query query) {
         return true;
     }
 
     @Override
-    protected boolean canRetype() {
+    protected boolean canRetype(Query query) {
         return true;
     }
 
     @Override
-    protected boolean canSort() {
+    protected boolean canSort(Query query) {
         return true;
     }
 

@@ -45,13 +45,28 @@ import javax.media.jai.ROIShape;
 import javax.media.jai.RasterFactory;
 import javax.media.jai.RenderedOp;
 import javax.xml.transform.TransformerException;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.style.ChannelSelection;
+import org.geotools.api.style.ColorMap;
+import org.geotools.api.style.ContrastEnhancement;
+import org.geotools.api.style.ContrastMethod;
+import org.geotools.api.style.ContrastMethodStrategy;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.SelectedChannelType;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.StyledLayerDescriptor;
+import org.geotools.api.style.UserLayer;
 import org.geotools.coverage.Category;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.ImageWorker;
 import org.geotools.image.test.ImageAssert;
@@ -59,32 +74,17 @@ import org.geotools.image.util.ComponentColorModelJAI;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
 import org.geotools.styling.AbstractContrastMethodStrategy;
-import org.geotools.styling.ChannelSelection;
 import org.geotools.styling.ChannelSelectionImpl;
-import org.geotools.styling.ColorMap;
-import org.geotools.styling.ContrastEnhancement;
 import org.geotools.styling.ContrastEnhancementImpl;
-import org.geotools.styling.ContrastMethodStrategy;
-import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.styling.NormalizeContrastMethodStrategy;
-import org.geotools.styling.RasterSymbolizer;
-import org.geotools.styling.Rule;
-import org.geotools.styling.SelectedChannelType;
 import org.geotools.styling.SelectedChannelTypeImpl;
-import org.geotools.styling.Style;
 import org.geotools.styling.StyleBuilder;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.StyledLayerDescriptor;
-import org.geotools.styling.UserLayer;
 import org.geotools.test.TestData;
 import org.geotools.util.factory.FactoryRegistryException;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.xml.styling.SLDParser;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opengis.filter.expression.Expression;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.style.ContrastMethod;
 
 /** @author Simone Giannecchini, GeoSolutions. */
 public class RasterSymbolizerTest extends org.junit.Assert {
@@ -123,10 +123,10 @@ public class RasterSymbolizerTest extends org.junit.Assert {
     }
 
     @Test
-    public void contrastEnhancementMethods() throws Exception {
+    public void contrastEnhancement_Histogram_SLD() throws Exception {
         // the GridCoverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -145,8 +145,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #1: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Histogram}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Histogram}
         //
         // ////////////////////////////////////////////////////////////////////
         java.net.URL surl = TestData.url(this, "histogram.sld");
@@ -163,23 +163,29 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         rsh_SLD.visit(rs_1);
 
         testRasterSymbolizerHelper(rsh_SLD);
+    }
 
+    @Test
+    public void contrastEnhancement_Histogram_StyleBuilder() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #2: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Histogram}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Histogram}
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        // the GridCoverage
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
+        envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "hs.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
@@ -200,7 +206,6 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final ContrastEnhancement cntEnh = new ContrastEnhancementImpl();
 
         cntEnh.setMethod(ContrastMethod.HISTOGRAM);
-        ;
         // cntEnh.setType(type);
         // cntEnh.setGammaValue(sldBuilder.literalExpression(0.50));
 
@@ -214,34 +219,36 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_1);
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Logarithmic_SLD() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #3: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Logarithmic}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Logarithmic}
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "hs.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
                                 null,
                                 null);
 
-        surl = TestData.url(this, "logarithmic.sld");
-        stylereader = new SLDParser(sf, surl);
-        sld = stylereader.parseSLD();
+        URL surl = TestData.url(this, "logarithmic.sld");
+        SLDParser stylereader = new SLDParser(sf, surl);
+        StyledLayerDescriptor sld = stylereader.parseSLD();
         // the RasterSymbolizer Helper
-        rsh_SLD = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_SLD = new RasterSymbolizerHelper(gc, null);
 
         // build the RasterSymbolizer
         final RasterSymbolizer rs_2 = extractRasterSymbolizer(sld);
@@ -250,28 +257,31 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         rsh_SLD.visit(rs_2);
 
         testRasterSymbolizerHelper(rsh_SLD);
+    }
 
+    @Test
+    public void contrastEnhancement_Lograrithmic_StyleBuilder() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #4: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Logarithmic}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Logarithmic}
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "hs.tif").toURI())),
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {-90, -180}, new double[] {90, 180}));
 
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
         rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
@@ -293,34 +303,36 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_2);
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Hyperbolic_SLD() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #5: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Hyperbolic}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Hyperbolic}
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "hs.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
                                 null,
                                 null);
 
-        surl = TestData.url(this, "exponential.sld");
-        stylereader = new SLDParser(sf, surl);
-        sld = stylereader.parseSLD();
+        URL surl = TestData.url(this, "exponential.sld");
+        SLDParser stylereader = new SLDParser(sf, surl);
+        StyledLayerDescriptor sld = stylereader.parseSLD();
         // the RasterSymbolizer Helper
-        rsh_SLD = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_SLD = new RasterSymbolizerHelper(gc, null);
 
         // build the RasterSymbolizer
         final RasterSymbolizer rs_3 = extractRasterSymbolizer(sld);
@@ -329,23 +341,25 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         rsh_SLD.visit(rs_3);
 
         testRasterSymbolizerHelper(rsh_SLD);
+    }
 
+    @Test
+    public void contrastEnhancement_Hyperbolic_StyleBuilder() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #6: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Hyperbolic}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Hyperbolic}
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "hs.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
@@ -353,9 +367,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                 null);
 
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
         rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
@@ -379,34 +393,36 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_3);
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_StretchMinMax_SLD_Byte() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #7: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-StretchMinMax} with BYTE
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-StretchMinMax} with BYTE
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "hs.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
                                 null,
                                 null);
 
-        surl = TestData.url(this, "normalize-stretch.sld");
-        stylereader = new SLDParser(sf, surl);
-        sld = stylereader.parseSLD();
+        URL surl = TestData.url(this, "normalize-stretch.sld");
+        SLDParser stylereader = new SLDParser(sf, surl);
+        StyledLayerDescriptor sld = stylereader.parseSLD();
         // the RasterSymbolizer Helper
-        rsh_SLD = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_SLD = new RasterSymbolizerHelper(gc, null);
 
         // build the RasterSymbolizer
         final RasterSymbolizer rs_4 = extractRasterSymbolizer(sld);
@@ -416,31 +432,33 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         GridCoverage2D output = (GridCoverage2D) rsh_SLD.getOutput();
         ImageWorker worker = new ImageWorker(output.getRenderedImage());
-        double min[] = worker.getMinimums();
-        double max[] = worker.getMaximums();
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
 
         // Stretch to Minimum Maximum does a linear stretch to
         // Byte data range [0 - 255]
         assertEquals(0d, min[0], DELTA);
         assertEquals(255d, max[0], DELTA);
         testRasterSymbolizerHelper(rsh_SLD);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_StretchMinMax_Ushort() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #8: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-StretchMinMax} with USHORT
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-StretchMinMax} with USHORT
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "test_ushort.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
@@ -448,9 +466,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                 null);
 
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_4 = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_4 = new ChannelSelectionImpl();
@@ -472,13 +490,13 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_4);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
         assertEquals(
                 DataBuffer.TYPE_BYTE,
                 output.getRenderedImage().getSampleModel().getDataType()); // ok we went to byte
-        worker = new ImageWorker(output.getRenderedImage());
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        ImageWorker worker = new ImageWorker(output.getRenderedImage());
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
 
         // Clip to Minimum Maximum does a Clamp by forcing
         // values outside the specified range to be clamped
@@ -486,36 +504,47 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         assertEquals(0d, min[0], DELTA);
         assertEquals(255d, max[0], DELTA);
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_StretchMinMax_Float() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #8a: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-StretchMinMax} with Float
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-StretchMinMax} with Float
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "Float",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "smalldem.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {new GridSampleDimension("dem")},
                                 null,
                                 null);
 
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_4f = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_4f = new ChannelSelectionImpl();
         final SelectedChannelType chTypeGray_4f = new SelectedChannelTypeImpl();
         final ContrastEnhancement cntEnh_4f = new ContrastEnhancementImpl();
+
+        final ContrastMethodStrategy method_4 = new NormalizeContrastMethodStrategy();
+        method_4.addOption(
+                "algorithm",
+                sldBuilder.literalExpression(
+                        ContrastEnhancementType.NORMALIZE_STRETCH_TO_MINMAX_NAME));
+        method_4.addOption("minValue", sldBuilder.literalExpression(10));
+        method_4.addOption("maxValue", sldBuilder.literalExpression(50));
+
         final ContrastMethodStrategy method_4f = new NormalizeContrastMethodStrategy();
         method_4f.addOption(
                 "algorithm",
@@ -532,47 +561,49 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_4f);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
         assertEquals(
                 DataBuffer.TYPE_BYTE,
                 output.getRenderedImage().getSampleModel().getDataType()); // ok we went to byte
-        worker = new ImageWorker(output.getRenderedImage());
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        ImageWorker worker = new ImageWorker(output.getRenderedImage());
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
         // Clip to Minimum Maximum does a Clamp by forcing
         // values outside the specified range to be clamped
         // to the range bounds
         assertEquals(0d, min[0], DELTA);
         assertEquals(255d, max[0], DELTA);
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_ClipMinMax_Byte_SLD() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #9: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} BYTE
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} BYTE
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "hs.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
                                 null,
                                 null);
 
-        surl = TestData.url(this, "normalize-clip.sld");
-        stylereader = new SLDParser(sf, surl);
-        sld = stylereader.parseSLD();
+        URL surl = TestData.url(this, "normalize-clip.sld");
+        SLDParser stylereader = new SLDParser(sf, surl);
+        StyledLayerDescriptor sld = stylereader.parseSLD();
         // the RasterSymbolizer Helper
-        rsh_SLD = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_SLD = new RasterSymbolizerHelper(gc, null);
 
         // build the RasterSymbolizer
         final RasterSymbolizer rs_5 = extractRasterSymbolizer(sld);
@@ -580,11 +611,11 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // visit the RasterSymbolizer
         rsh_SLD.visit(rs_5);
 
-        output = (GridCoverage2D) rsh_SLD.getOutput();
-        worker = new ImageWorker(output.getRenderedImage());
+        GridCoverage2D output = (GridCoverage2D) rsh_SLD.getOutput();
+        ImageWorker worker = new ImageWorker(output.getRenderedImage());
         worker.setNoData(RangeFactory.create(0, 0));
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
 
         // Clip to Minimum Maximum does a Clamp by forcing
         // values outside the specified range to be clamped
@@ -592,23 +623,25 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         assertEquals(10d, min[0], DELTA);
         assertEquals(100d, max[0], DELTA);
         testRasterSymbolizerHelper(rsh_SLD);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_ClipMinMax_Ushort() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #10: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} USHORT
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} USHORT
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "hs.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
@@ -616,9 +649,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                 null);
 
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_5 = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_5 = new ChannelSelectionImpl();
@@ -642,11 +675,11 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_5);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
-        worker = new ImageWorker(output.getRenderedImage());
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        ImageWorker worker = new ImageWorker(output.getRenderedImage());
         worker.setNoData(RangeFactory.create(0, 0));
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
 
         // Clip to Minimum Maximum does a Clamp by forcing
         // values outside the specified range to be clamped
@@ -654,31 +687,33 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         assertEquals(50, min[0], DELTA);
         assertEquals(200, max[0], DELTA);
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_ClipMinMax_Float_In_Byte_Range() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #10a: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} FLOAT in Byte range
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} FLOAT in Byte range
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "smalldem.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {new GridSampleDimension("dem")},
                                 null,
                                 null);
 
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_5f = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_5f = new ChannelSelectionImpl();
@@ -701,47 +736,52 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_5f);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
         assertEquals(
                 DataBuffer.TYPE_BYTE, output.getRenderedImage().getSampleModel().getDataType());
-        // at the end the rastersymb does a rescale to byte for simplicity that tries to bring back
+        // at the end the rastersymb does a rescale to byte for simplicity that tries to bring
+        // back
         // the dynamic to 8 Bits
 
-        worker = new ImageWorker(output.getRenderedImage());
+        ImageWorker worker = new ImageWorker(output.getRenderedImage());
         worker.setNoData(RangeFactory.create(0, 0));
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
         // Clip to Minimum Maximum does a Clamp by forcing
         // values outside the specified range to be clamped
         // to the range bounds
         assertEquals(50, min[0], DELTA);
         assertEquals(200, max[0], DELTA);
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_ClipMinMax_Float_Outside_Byte_Range()
+            throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #10b: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} FLOAT outside Byte range
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} FLOAT outside Byte
+        // range
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "smalldem.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {new GridSampleDimension("dem")},
                                 null,
                                 null);
 
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_5g = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_5g = new ChannelSelectionImpl();
@@ -764,28 +804,35 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_5g);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
         assertEquals(
                 DataBuffer.TYPE_BYTE, output.getRenderedImage().getSampleModel().getDataType());
-        // at the end the rastersymb does a rescale to byte for simplicity that tries to bring back
+        // at the end the rastersymb does a rescale to byte for simplicity that tries to bring
+        // back
         // the dynamic to 8 Bits
 
-        worker = new ImageWorker(output.getRenderedImage());
+        ImageWorker worker = new ImageWorker(output.getRenderedImage());
         worker.setNoData(RangeFactory.create(0, 0));
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
         // Clip to Minimum Maximum does a Clamp by forcing
         // values outside the specified range to be clamped
         // to the range bounds
-        assertEquals(10, min[0], DELTA); // the RasterSymbolizerHelper introduce a stretch to BYTE
-        assertEquals(255, max[0], DELTA); // the RasterSymbolizerHelper introduce a stretch to BYTE
+        assertEquals(10, min[0], DELTA); // the RasterSymbolizerHelper introduce a stretch to
+        // BYTE
+        assertEquals(255, max[0], DELTA); // the RasterSymbolizerHelper introduce a stretch to
+        // BYTE
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_ClipMinMax_Ushort_Outside_Byte_Range()
+            throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #10c: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} USHORT outside byte
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-ClipMinMax} USHORT outside byte
         // range
         //
         // ////////////////////////////////////////////////////////////////////
@@ -793,21 +840,20 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                 new ImageWorker(new File(TestData.url(this, "small_4bands_UInt16.tif").toURI()))
                         .retainBands(new int[] {2})
                         .getRenderedImage();
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 source,
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {new GridSampleDimension("band")},
                                 null,
                                 null);
 
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_5c = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_5c = new ChannelSelectionImpl();
@@ -831,14 +877,14 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_5c);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
         assertEquals(
                 DataBuffer.TYPE_BYTE,
                 output.getRenderedImage().getSampleModel().getDataType()); // not preserved
-        worker = new ImageWorker(output.getRenderedImage());
+        ImageWorker worker = new ImageWorker(output.getRenderedImage());
         worker.setNoData(RangeFactory.create(0, 0));
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
 
         // Clip to Minimum Maximum does a Clamp by forcing
         // values outside the specified range to be clamped
@@ -846,23 +892,25 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         assertEquals(1, min[0], DELTA);
         assertEquals(255, max[0], DELTA); // preserved
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_ClipZeroMax_Byte() throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #11: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-ClipZeroMax} byte
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-ClipZeroMax} byte
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "hs.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
@@ -870,9 +918,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                 null);
 
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_6 = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_6 = new ChannelSelectionImpl();
@@ -894,44 +942,47 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_6);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
-        worker = new ImageWorker(output.getRenderedImage());
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        ImageWorker worker = new ImageWorker(output.getRenderedImage());
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
 
         assertEquals(0, min[0], DELTA);
         assertEquals(100, max[0], DELTA);
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_ClipZeroMax_Ushort_Outside_Byte_Range()
+            throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #12: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-ClipZeroMax} USHORT outside byte
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-ClipZeroMax} USHORT outside byte
         // range
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "test_ushort.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension("test1BandByte_SLD")
                                 },
                                 null,
                                 null);
-        worker = new ImageWorker(gc.getRenderedImage());
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        ImageWorker worker = new ImageWorker(gc.getRenderedImage());
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_7 = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_7 = new ChannelSelectionImpl();
@@ -953,7 +1004,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_7);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
         assertEquals(
                 DataBuffer.TYPE_BYTE,
                 output.getRenderedImage().getSampleModel().getDataType()); // not preserved
@@ -967,34 +1018,37 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         assertEquals(255, max[0], DELTA); // final rescale to bytes
 
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_ClipZeroMax_Float_Within_Byte_Range()
+            throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #12a: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-ClipZeroMax}  Float within Byte
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-ClipZeroMax} Float within Byte
         // range
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "smalldem.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {new GridSampleDimension("dem")},
                                 null,
                                 null);
-        worker = new ImageWorker(gc.getRenderedImage());
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        ImageWorker worker = new ImageWorker(gc.getRenderedImage());
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_7f = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_7f = new ChannelSelectionImpl();
@@ -1016,10 +1070,11 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_7f);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
         assertEquals(
                 DataBuffer.TYPE_BYTE, output.getRenderedImage().getSampleModel().getDataType());
-        // at the end the rastersymb does a rescale to byte for simplicity that tries to bring back
+        // at the end the rastersymb does a rescale to byte for simplicity that tries to bring
+        // back
         // the dynamic to 8 Bits
 
         worker = new ImageWorker(output.getRenderedImage());
@@ -1032,34 +1087,37 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         assertEquals(200, max[0], DELTA);
 
         testRasterSymbolizerHelper(rsh_StyleBuilder);
+    }
 
+    @Test
+    public void contrastEnhancement_Normalize_ClipZeroMax_Float_Outside_Byte_Range()
+            throws Exception {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #12b: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Normalize-ClipZeroMax}  Float outside Byte
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Normalize-ClipZeroMax} Float outside Byte
         // range
         //
         // ////////////////////////////////////////////////////////////////////
-        gc =
+        GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
                         .create(
                                 "name",
                                 JAI.create(
                                         "ImageRead",
                                         new File(TestData.url(this, "smalldem.tif").toURI())),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {new GridSampleDimension("dem")},
                                 null,
                                 null);
-        worker = new ImageWorker(gc.getRenderedImage());
-        min = worker.getMinimums();
-        max = worker.getMaximums();
+        ImageWorker worker = new ImageWorker(gc.getRenderedImage());
+        double[] min = worker.getMinimums();
+        double[] max = worker.getMaximums();
         // build the RasterSymbolizer
-        sldBuilder = new StyleBuilder();
+        StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
-        rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
+        RasterSymbolizerHelper rsh_StyleBuilder = new RasterSymbolizerHelper(gc, null);
 
         final RasterSymbolizer rsb_7g = sldBuilder.createRasterSymbolizer();
         final ChannelSelection chSel_7g = new ChannelSelectionImpl();
@@ -1081,17 +1139,20 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh_StyleBuilder.visit(rsb_7g);
-        output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
+        GridCoverage2D output = (GridCoverage2D) rsh_StyleBuilder.getOutput();
         assertEquals(
                 DataBuffer.TYPE_BYTE, output.getRenderedImage().getSampleModel().getDataType());
-        // at the end the rastersymb does a rescale to byte for simplicity that tries to bring back
+        // at the end the rastersymb does a rescale to byte for simplicity that tries to bring
+        // back
         // the dynamic to 8 Bits
         worker = new ImageWorker(output.getRenderedImage());
         min = worker.getMinimums();
         max = worker.getMaximums();
 
-        assertEquals(0, min[0], DELTA); // the RasterSymbolizerHelper introduce a stretch to BYTE
-        assertEquals(255, max[0], DELTA); // the RasterSymbolizerHelper introduce a stretch to BYTE
+        assertEquals(0, min[0], DELTA); // the RasterSymbolizerHelper introduce a stretch to
+        // BYTE
+        assertEquals(255, max[0], DELTA); // the RasterSymbolizerHelper introduce a stretch to
+        // BYTE
 
         testRasterSymbolizerHelper(rsh_StyleBuilder);
     }
@@ -1101,8 +1162,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
             throws IOException, TransformerException, FactoryRegistryException,
                     IllegalArgumentException, URISyntaxException {
         // the GridCoverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -1122,8 +1183,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #1: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Histogram}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Histogram}
         //
         // ////////////////////////////////////////////////////////////////////
         java.net.URL surl = TestData.url(this, "1band_Float32_test1.sld");
@@ -1143,8 +1204,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #2: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Histogram}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Histogram}
         //
         // ////////////////////////////////////////////////////////////////////
         // the GridCoverage
@@ -1157,7 +1218,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                         new File(
                                                 TestData.url(this, "small_1band_Float32.tif")
                                                         .toURI())),
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {-90, -180}, new double[] {90, 180}));
         // the RasterSymbolizer Helper
         rsh = new RasterSymbolizerHelper(gc, null);
@@ -1188,8 +1249,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
             throws IOException, TransformerException, FactoryRegistryException,
                     IllegalArgumentException, URISyntaxException {
         // the GridCoverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -1210,9 +1271,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #2: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Histogram}
-        //    - ColorMap
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Histogram}
+        // - ColorMap
         //
         // ////////////////////////////////////////////////////////////////////
         java.net.URL surl = TestData.url(this, "1band_Float32_test2.sld");
@@ -1236,9 +1297,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #2: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Histogram}
-        //    - ColorMap
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Histogram}
+        // - ColorMap
         //
         // ////////////////////////////////////////////////////////////////////
         // the GridCoverage
@@ -1251,7 +1312,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                         new File(
                                                 TestData.url(this, "small_1band_Float32.tif")
                                                         .toURI())),
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {-90, -180}, new double[] {90, 180}));
         // the RasterSymbolizer Helper
         rsh = new RasterSymbolizerHelper(gc, null);
@@ -1266,7 +1327,6 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final ContrastEnhancement cntEnh = new ContrastEnhancementImpl();
 
         cntEnh.setMethod(ContrastMethod.HISTOGRAM);
-        ;
         // cntEnh.setGammaValue(sldBuilder.literalExpression(0.50));
 
         chTypeGray.setChannelName("1");
@@ -1292,7 +1352,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                             new Color(0, 255, 0, 40),
                             new Color(0, 0, 255, 125)
                         },
-                        ColorMap.TYPE_RAMP);
+                        org.geotools.api.style.ColorMap.TYPE_RAMP);
 
         rsb_1.setColorMap(cm);
 
@@ -1310,8 +1370,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final GridSampleDimension[] gsd = {
             new GridSampleDimension("test1BandByte_SLD1"),
         };
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -1328,9 +1388,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #1: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: RGB
-        //    - Contrast Enh: Histogram
+        // - Opacity: 1.0
+        // - ChannelSelection: RGB
+        // - Contrast Enh: Histogram
         //
         // ////////////////////////////////////////////////////////////////////
         java.net.URL surl = TestData.url(this, "4bands_UInt16_test1.sld");
@@ -1349,9 +1409,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #1: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: RGB
-        //	  - Contrast Enh: Histogram
+        // - Opacity: 1.0
+        // - ChannelSelection: RGB
+        // - Contrast Enh: Histogram
         //
         // ////////////////////////////////////////////////////////////////////
         gc =
@@ -1363,7 +1423,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                         new File(
                                                 TestData.url(this, "small_4bands_UInt16.tif")
                                                         .toURI())),
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {-90, -180}, new double[] {90, 180}));
         // the RasterSymbolizer Helper
         rsh = new RasterSymbolizerHelper(gc, null);
@@ -1380,7 +1440,6 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final ContrastEnhancement cntEnh = new ContrastEnhancementImpl();
 
         cntEnh.setMethod(ContrastMethod.HISTOGRAM);
-        ;
         // cntEnh.setGammaValue(sldBuilder.literalExpression(0.50));
 
         chTypeRed.setChannelName("1");
@@ -1408,8 +1467,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final GridSampleDimension[] gsd = {
             new GridSampleDimension("test1BandByte_SLD1"),
         };
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         RenderedOp image =
                 JAI.create("ImageRead", new File(TestData.url(this, "test.tif").toURI()));
@@ -1475,8 +1534,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                         .create(
                                 "name",
                                 image2,
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 null,
                                 null,
                                 properties);
@@ -1495,7 +1553,6 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final ContrastEnhancement cntEnh = new ContrastEnhancementImpl();
 
         cntEnh.setMethod(ContrastMethod.HISTOGRAM);
-        ;
 
         chTypeRed.setChannelName("1");
         chTypeBlue.setChannelName("2");
@@ -1533,9 +1590,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #1: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: RGB
-        //    - Contrast Enh: Histogram
+        // - Opacity: 1.0
+        // - ChannelSelection: RGB
+        // - Contrast Enh: Histogram
         //
         // ////////////////////////////////////////////////////////////////////
         java.net.URL surl = TestData.url(this, "3bands_Byte_test1.sld");
@@ -1555,8 +1612,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #2: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: RGB
+        // - Opacity: 1.0
+        // - ChannelSelection: RGB
         //
         // ////////////////////////////////////////////////////////////////////
         gc =
@@ -1568,7 +1625,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                         new File(
                                                 TestData.url(this, "small_3bands_Byte.tif")
                                                         .toURI())),
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {-90, -180}, new double[] {90, 180}));
         // the RasterSymbolizer Helper
         rsh = new RasterSymbolizerHelper(gc, null);
@@ -1630,8 +1687,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
     public GridCoverage2D read3BandsByteCoverage()
             throws URISyntaxException, FileNotFoundException {
         // the GridCoverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         final GridSampleDimension[] gsd = {
             new GridSampleDimension("test1BandByte_SLD1"),
@@ -1660,9 +1717,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #1: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: RGB
-        //    - Contrast Enh: Histogram
+        // - Opacity: 1.0
+        // - ChannelSelection: RGB
+        // - Contrast Enh: Histogram
         //
         // ////////////////////////////////////////////////////////////////////
         java.net.URL surl = TestData.url(this, "3bands_Byte_test2.sld");
@@ -1682,9 +1739,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #2: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: RGB
-        //	  - Contrast Enh: Histogram
+        // - Opacity: 1.0
+        // - ChannelSelection: RGB
+        // - Contrast Enh: Histogram
         //
         // ////////////////////////////////////////////////////////////////////
         // the GridCoverage
@@ -1697,7 +1754,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                         new File(
                                                 TestData.url(this, "small_3bands_Byte.tif")
                                                         .toURI())),
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {-90, -180}, new double[] {90, 180}));
 
         // the RasterSymbolizer Helper
@@ -1736,7 +1793,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                             new Color(0, 255, 0, 40),
                             new Color(0, 0, 255, 125)
                         },
-                        ColorMap.TYPE_RAMP);
+                        org.geotools.api.style.ColorMap.TYPE_RAMP);
 
         rsb_1.setColorMap(cm);
 
@@ -1751,8 +1808,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
             throws IOException, TransformerException, FactoryRegistryException,
                     IllegalArgumentException, URISyntaxException {
         // the GridCoverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -1773,8 +1830,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #1: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Histogram}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Histogram}
         //
         // ////////////////////////////////////////////////////////////////////
         java.net.URL surl = TestData.url(this, "1band_Float32_test1.sld");
@@ -1793,8 +1850,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #2: [StyleBuilder]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Histogram}
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Histogram}
         //
         // ////////////////////////////////////////////////////////////////////
         gc =
@@ -1806,7 +1863,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                         new File(
                                                 TestData.url(this, "small_1band_Byte.tif")
                                                         .toURI())),
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {-90, -180}, new double[] {90, 180}));
         // the RasterSymbolizer Helper
         rsh = new RasterSymbolizerHelper(gc, null);
@@ -1829,17 +1886,17 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh.visit(rsb_1);
-        final RenderedImage im = ((GridCoverage2D) rsh.getOutput()).getRenderedImage();
-        Assert.assertTrue(im.getSampleModel().getDataType() == 0);
+        final RenderedImage im = rsh.getOutput().getRenderedImage();
+        Assert.assertEquals(0, im.getSampleModel().getDataType());
 
         testRasterSymbolizerHelper(rsh);
 
         // ////////////////////////////////////////////////////////////////////
         //
         // Test #3: [SLD]
-        //    - Opacity: 1.0
-        //    - ChannelSelection: Gray {Contrast Enh: Histogram}
-        //    - ColorMap
+        // - Opacity: 1.0
+        // - ChannelSelection: Gray {Contrast Enh: Histogram}
+        // - ColorMap
         //
         // ////////////////////////////////////////////////////////////////////
         // the GridCoverage
@@ -1852,7 +1909,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                                         new File(
                                                 TestData.url(this, "small_1band_Byte.tif")
                                                         .toURI())),
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {-90, -180}, new double[] {90, 180}));
 
         surl = TestData.url(this, "1band_Float32_test2.sld");
@@ -1882,8 +1939,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final StyledLayerDescriptor sld = stylereader.parseSLD();
 
         // get a coverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -1936,8 +1993,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                         .create(
                                 "name",
                                 PlanarImage.wrapRenderedImage(getSynthetic(Double.NaN)),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension(
                                             "sd",
@@ -1981,8 +2037,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                         .create(
                                 "name",
                                 PlanarImage.wrapRenderedImage(image),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension(
                                             "sd",
@@ -2014,9 +2069,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         // visit the RasterSymbolizer
         rsh.visit(rs);
-        IndexColorModel icm1 =
-                (IndexColorModel)
-                        ((GridCoverage2D) rsh.getOutput()).getRenderedImage().getColorModel();
+        IndexColorModel icm1 = (IndexColorModel) rsh.getOutput().getRenderedImage().getColorModel();
         testRasterSymbolizerHelper(rsh);
 
         ////
@@ -2030,8 +2083,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                         .create(
                                 "name",
                                 PlanarImage.wrapRenderedImage(getSynthetic(Double.NaN)),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension(
                                             "sd",
@@ -2058,18 +2110,16 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                             new Color(0, 255, 0, (int) (255 * 0.8)),
                             new Color(0, 0, 255, (int) (255 * 0.2))
                         },
-                        ColorMap.TYPE_RAMP);
+                        org.geotools.api.style.ColorMap.TYPE_RAMP);
         cm.setExtendedColors(true);
         rs.setColorMap(cm);
 
         // visit the RasterSymbolizer
         rsh.visit(rs);
-        IndexColorModel icm2 =
-                (IndexColorModel)
-                        ((GridCoverage2D) rsh.getOutput()).getRenderedImage().getColorModel();
+        IndexColorModel icm2 = (IndexColorModel) rsh.getOutput().getRenderedImage().getColorModel();
         testRasterSymbolizerHelper(rsh);
         // check that the two color models are equals!
-        Assert.assertTrue(icm1.equals(icm2));
+        Assert.assertEquals(icm1, icm2);
     }
 
     @org.junit.Test
@@ -2084,8 +2134,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
             new GridSampleDimension("test1BandByte_SLD3"),
         };
         // get a coverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         final GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -2121,8 +2171,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
 
         final GridSampleDimension[] gsd = {new GridSampleDimension("test1BandByte_SLD1")};
         // get a coverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         final GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -2153,8 +2203,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // Test using an SLD file
         //
         ////
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         java.net.URL surl = TestData.url(this, "raster_dem.sld");
         SLDParser stylereader = new SLDParser(sf, surl);
@@ -2185,7 +2235,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                         .create(
                                 "name",
                                 JAI.create("ImageRead", TestData.file(this, "smalldem.tif")),
-                                new GeneralEnvelope(
+                                new GeneralBounds(
                                         new double[] {-90, -180}, new double[] {90, 180}));
         StyleBuilder sldBuilder = new StyleBuilder();
         // the RasterSymbolizer Helper
@@ -2211,7 +2261,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
                             new Color(0, 255, 0, 40),
                             new Color(0, 0, 255, 125)
                         },
-                        ColorMap.TYPE_RAMP);
+                        org.geotools.api.style.ColorMap.TYPE_RAMP);
 
         rsb_1.setColorMap(cm);
 
@@ -2231,8 +2281,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         StyledLayerDescriptor sld = stylereader.parseSLD();
 
         // get a coverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -2261,8 +2311,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         StyledLayerDescriptor sld = stylereader.parseSLD();
 
         // get a coverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -2297,8 +2347,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
             new GridSampleDimension("test1BandByte_SLD")
         };
         // get a coverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         final GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -2314,9 +2364,9 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final RasterSymbolizer rs = extractRasterSymbolizer(sld);
         rsh.visit(rs);
 
-        final RenderedImage ri = ((GridCoverage2D) rsh.getOutput()).getRenderedImage();
+        final RenderedImage ri = rsh.getOutput().getRenderedImage();
         Assert.assertTrue(ri.getColorModel() instanceof ComponentColorModel);
-        Assert.assertTrue(ri.getColorModel().getNumComponents() == 3);
+        Assert.assertEquals(3, ri.getColorModel().getNumComponents());
         testRasterSymbolizerHelper(rsh);
     }
 
@@ -2324,12 +2374,10 @@ public class RasterSymbolizerTest extends org.junit.Assert {
             final SubchainStyleVisitorCoverageProcessingAdapter rsh) {
         if (TestData.isInteractiveTest()) {
             ImageIOUtilities.visualize(
-                    ((GridCoverage2D) rsh.getOutput()).getRenderedImage(),
-                    rsh.getName().toString());
+                    rsh.getOutput().getRenderedImage(), rsh.getName().toString());
 
         } else {
-            PlanarImage.wrapRenderedImage(((GridCoverage2D) rsh.getOutput()).getRenderedImage())
-                    .getTiles();
+            PlanarImage.wrapRenderedImage(rsh.getOutput().getRenderedImage()).getTiles();
             rsh.dispose(new Random().nextBoolean() ? true : false);
         }
     }
@@ -2341,8 +2389,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         StyledLayerDescriptor sld = stylereader.parseSLD();
 
         // get a coverage
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         GridCoverage2D gc =
                 CoverageFactoryFinder.getGridCoverageFactory(null)
@@ -2358,25 +2406,23 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         rsh.visit(rs);
 
         // test
-        final RenderedImage ri = ((GridCoverage2D) rsh.getOutput()).getRenderedImage();
+        final RenderedImage ri = rsh.getOutput().getRenderedImage();
         Assert.assertTrue(ri.getColorModel() instanceof IndexColorModel);
         final IndexColorModel icm = (IndexColorModel) ri.getColorModel();
         final int mapSize = icm.getMapSize();
         Assert.assertEquals(3, mapSize);
 
         // get colors
-        final int rgb[] = new int[mapSize];
+        final int[] rgb = new int[mapSize];
         rgb[0] = 0xFFFFFF & icm.getRGB(0);
         rgb[1] = 0xFFFFFF & icm.getRGB(1);
         rgb[2] = 0xFFFFFF & icm.getRGB(2);
 
-        int found = 0;
         for (int i = 0; i < mapSize; i++) {
             switch (rgb[i]) {
                 case 0x008000:
                 case 0x663333:
                 case 0:
-                    found++;
                     break;
                 default:
                     throw new IllegalStateException("Found unexpected colors:" + rgb[i]);
@@ -2393,8 +2439,8 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         // Test using an SLD file
         //
         ////
-        GeneralEnvelope envelope =
-                new GeneralEnvelope(new double[] {-180, -90}, new double[] {180, 90});
+        GeneralBounds envelope =
+                new GeneralBounds(new double[] {-180, -90}, new double[] {180, 90});
         envelope.setCoordinateReferenceSystem(DefaultGeographicCRS.WGS84);
         java.net.URL surl = TestData.url(this, "raster.sld");
         SLDParser stylereader = new SLDParser(sf, surl);
@@ -2416,7 +2462,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final RasterSymbolizer rs = extractRasterSymbolizer(sld);
         rsh.visit(rs);
         // Check if the final image has been rescaled to bytes
-        RenderedImage outputImage = ((GridCoverage2D) rsh.getOutput()).getRenderedImage();
+        RenderedImage outputImage = rsh.getOutput().getRenderedImage();
         int dataType = outputImage.getSampleModel().getDataType();
         assertEquals(DataBuffer.TYPE_BYTE, dataType);
     }
@@ -2431,8 +2477,7 @@ public class RasterSymbolizerTest extends org.junit.Assert {
         final SelectedChannelType chTypeBlue = new SelectedChannelTypeImpl();
         final SelectedChannelType chTypeGreen = new SelectedChannelTypeImpl();
 
-        SelectedChannelType[] channels =
-                new SelectedChannelType[] {chTypeRed, chTypeGreen, chTypeBlue};
+        SelectedChannelType[] channels = {chTypeRed, chTypeGreen, chTypeBlue};
 
         // Assign a different contrast method for each channel
         // by offsetting min and max of 20 on each channel
@@ -2480,16 +2525,12 @@ public class RasterSymbolizerTest extends org.junit.Assert {
             assertTrue(options.containsKey("algorithm"));
             assertTrue(options.containsKey("minValue"));
             assertTrue(options.containsKey("maxValue"));
-            assertTrue(
-                    options.get("algorithm")
-                            .equals(
-                                    sldBuilder.literalExpression(
-                                            ContrastEnhancementType
-                                                    .NORMALIZE_STRETCH_TO_MINMAX_NAME)));
-            assertTrue(
-                    options.get("minValue").equals(sldBuilder.literalExpression(min + (20 * i))));
-            assertTrue(
-                    options.get("maxValue").equals(sldBuilder.literalExpression(max + (20 * i))));
+            assertEquals(
+                    options.get("algorithm"),
+                    sldBuilder.literalExpression(
+                            ContrastEnhancementType.NORMALIZE_STRETCH_TO_MINMAX_NAME));
+            assertEquals(options.get("minValue"), sldBuilder.literalExpression(min + (20 * i)));
+            assertEquals(options.get("maxValue"), sldBuilder.literalExpression(max + (20 * i)));
         }
     }
 }

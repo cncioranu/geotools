@@ -18,11 +18,11 @@ package org.geotools.renderer.style;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.filter.text.ecql.ECQL;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Helper class that allows the extraction of CQL expressions out of a plain text string using
@@ -127,7 +127,7 @@ public class ExpressionExtractor {
 
     /** Given an expression list will create an expression concatenating them. */
     static Expression catenateExpressions(List<Expression> expressions) {
-        if (expressions == null || expressions.size() == 0)
+        if (expressions == null || expressions.isEmpty())
             throw new IllegalArgumentException(
                     "You should provide at least one expression in the list");
 

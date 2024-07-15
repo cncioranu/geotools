@@ -21,13 +21,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Date;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.temporal.Period;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.temporal.Period;
 
 public class ElasticTemporalFilterIT extends ElasticTestSupport {
 
@@ -40,13 +40,13 @@ public class ElasticTemporalFilterIT extends ElasticTestSupport {
         Filter f = ff.lessOrEqual(ff.property("installed_td"), ff.literal(testDate.getTime()));
         SimpleFeatureCollection features = featureSource.getFeatures(f);
         assertEquals(4, features.size());
-        SimpleFeatureIterator it = features.features();
-        while (it.hasNext()) {
-            SimpleFeature next = it.next();
-            Date date = (Date) next.getAttribute("installed_td");
-            assertTrue(date.before(testDate) || date.equals(testDate));
+        try (SimpleFeatureIterator it = features.features()) {
+            while (it.hasNext()) {
+                SimpleFeature next = it.next();
+                Date date = (Date) next.getAttribute("installed_td");
+                assertTrue(date.before(testDate) || date.equals(testDate));
+            }
         }
-        it.close();
     }
 
     @Test
@@ -58,13 +58,13 @@ public class ElasticTemporalFilterIT extends ElasticTestSupport {
         Filter f = ff.greaterOrEqual(ff.property("installed_td"), ff.literal(testDate.getTime()));
         SimpleFeatureCollection features = featureSource.getFeatures(f);
         assertEquals(7, features.size());
-        SimpleFeatureIterator it = features.features();
-        while (it.hasNext()) {
-            SimpleFeature next = it.next();
-            Date date = (Date) next.getAttribute("installed_td");
-            assertTrue(date.after(testDate) || date.equals(testDate));
+        try (SimpleFeatureIterator it = features.features()) {
+            while (it.hasNext()) {
+                SimpleFeature next = it.next();
+                Date date = (Date) next.getAttribute("installed_td");
+                assertTrue(date.after(testDate) || date.equals(testDate));
+            }
         }
-        it.close();
     }
 
     @Test
@@ -76,22 +76,22 @@ public class ElasticTemporalFilterIT extends ElasticTestSupport {
         Filter f = ff.lessOrEqual(ff.property("installed_tdt"), ff.literal(testDate));
         SimpleFeatureCollection features = featureSource.getFeatures(f);
         assertEquals(4, features.size());
-        SimpleFeatureIterator it = features.features();
-        while (it.hasNext()) {
-            Date date = (Date) it.next().getAttribute("installed_tdt");
-            assertTrue(date.before(testDate) || date.equals(testDate));
+        try (SimpleFeatureIterator it = features.features()) {
+            while (it.hasNext()) {
+                Date date = (Date) it.next().getAttribute("installed_tdt");
+                assertTrue(date.before(testDate) || date.equals(testDate));
+            }
         }
-        it.close();
 
         f = ff.greaterOrEqual(ff.property("installed_tdt"), ff.literal(testDate));
         features = featureSource.getFeatures(f);
         assertEquals(5, features.size());
-        it = features.features();
-        while (it.hasNext()) {
-            Date date = (Date) it.next().getAttribute("installed_tdt");
-            assertTrue(date.after(testDate) || date.equals(testDate));
+        try (SimpleFeatureIterator it = features.features()) {
+            while (it.hasNext()) {
+                Date date = (Date) it.next().getAttribute("installed_tdt");
+                assertTrue(date.after(testDate) || date.equals(testDate));
+            }
         }
-        it.close();
     }
 
     @Test

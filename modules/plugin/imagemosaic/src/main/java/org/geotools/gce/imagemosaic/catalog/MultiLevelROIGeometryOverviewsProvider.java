@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridFormatFinder;
@@ -32,7 +33,6 @@ import org.geotools.coverage.grid.io.footprint.SidecarFootprintProvider;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * A {@link MultiLevelROIProvider} implementation used for returning {@link
@@ -121,8 +121,7 @@ public class MultiLevelROIGeometryOverviewsProvider implements MultiLevelROIProv
                 // Getting a reader to retrieve that number.
                 File file = new File(path);
                 AbstractGridFormat format =
-                        (AbstractGridFormat)
-                                GridFormatFinder.findFormat(file, Utils.EXCLUDE_MOSAIC_HINTS);
+                        GridFormatFinder.findFormat(file, Utils.EXCLUDE_MOSAIC_HINTS);
                 reader = format.getReader(file);
                 DatasetLayout layout = reader.getDatasetLayout();
                 int extOv = layout.getNumExternalOverviews();
@@ -195,6 +194,7 @@ public class MultiLevelROIGeometryOverviewsProvider implements MultiLevelROIProv
     @Override
     public void dispose() {}
 
+    @Override
     public List<File> getFootprintFiles(SimpleFeature feature) throws IOException {
         // force init of data structures
         getMultiScaleROI(feature);

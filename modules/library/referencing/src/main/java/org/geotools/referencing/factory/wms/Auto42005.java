@@ -18,7 +18,7 @@ package org.geotools.referencing.factory.wms;
 
 // OpenGIS dependencies
 
-import org.opengis.parameter.ParameterValueGroup;
+import org.geotools.api.parameter.ParameterValueGroup;
 
 /**
  * Auto Mollweide ({@code AUTO:42005}). In the notation below, "<code>${var}</code>" denotes a
@@ -56,21 +56,25 @@ final class Auto42005 extends Factlet {
     private Auto42005() {}
 
     /** {@inheritDoc} */
+    @Override
     public int code() {
         return 42005;
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getName() {
         return "WGS 84 / Auto Mollweider";
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getClassification() {
         return "Mollweide";
     }
 
     /** {@inheritDoc} */
+    @Override
     protected void setProjectionParameters(final ParameterValueGroup parameters, final Code code) {
         final double centralMeridian = code.longitude;
 

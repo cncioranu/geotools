@@ -27,9 +27,9 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.FilenameUtils;
-import org.geotools.data.DataStore;
-import org.geotools.data.FileDataStore;
-import org.geotools.data.FileDataStoreFactorySpi;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FileDataStore;
+import org.geotools.api.data.FileDataStoreFactorySpi;
 import org.geotools.data.csv.parse.CSVAttributesOnlyStrategy;
 import org.geotools.data.csv.parse.CSVLatLonStrategy;
 import org.geotools.data.csv.parse.CSVSpecifiedWKTStrategy;
@@ -57,7 +57,7 @@ public class CSVDataStoreFactory implements FileDataStoreFactorySpi {
 
     private static final String FILE_TYPE = "csv";
 
-    public static final String[] EXTENSIONS = new String[] {"." + FILE_TYPE};
+    public static final String[] EXTENSIONS = {"." + FILE_TYPE};
 
     public static final Param FILE_PARAM =
             new Param("file", File.class, FILE_TYPE + " file", false);
@@ -145,20 +145,19 @@ public class CSVDataStoreFactory implements FileDataStoreFactorySpi {
                     false,
                     false,
                     new KVP(Param.LEVEL, "advanced"));
-    public static final Param[] parametersInfo =
-            new Param[] {
-                FILE_PARAM,
-                NAMESPACEP,
-                STRATEGYP,
-                LATFIELDP,
-                LnGFIELDP,
-                WKTP,
-                WRITEPRJ,
-                QUOTEALL,
-                QUOTECHAR,
-                SEPERATORCHAR,
-                LINESEPSTRING
-            };
+    public static final Param[] parametersInfo = {
+        FILE_PARAM,
+        NAMESPACEP,
+        STRATEGYP,
+        LATFIELDP,
+        LnGFIELDP,
+        WKTP,
+        WRITEPRJ,
+        QUOTEALL,
+        QUOTECHAR,
+        SEPERATORCHAR,
+        LINESEPSTRING
+    };
 
     @Override
     public String getDisplayName() {
@@ -205,6 +204,7 @@ public class CSVDataStoreFactory implements FileDataStoreFactorySpi {
     }
 
     @Override
+    @SuppressWarnings("ReturnValueIgnored")
     public boolean isAvailable() {
         try {
             CSVDataStore.class.getName();
@@ -247,6 +247,11 @@ public class CSVDataStoreFactory implements FileDataStoreFactorySpi {
             throw new IllegalArgumentException(
                     "Could not find file from params to create csv data store");
         }
+        String path = file.getPath();
+        if (path.startsWith("file:")) {
+            file = new File(path.replace("file:", ""));
+        }
+
         URI namespace = (URI) NAMESPACEP.lookUp(params);
         return createDataStoreFromFile(file, namespace, params);
     }
@@ -294,7 +299,9 @@ public class CSVDataStoreFactory implements FileDataStoreFactorySpi {
         if (quotes != null && quotes.booleanValue()) {
             csvStrategy.setQuoteAllFields(quotes.booleanValue());
         }
+
         Character quoteChar = (Character) QUOTECHAR.lookUp(params);
+
         if (quoteChar != null) {
             csvStrategy.setQuotechar(quoteChar.charValue());
         }

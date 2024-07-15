@@ -60,6 +60,12 @@ import javax.imageio.ImageTypeSpecifier;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.imageio.stream.ImageInputStream;
+import org.geotools.api.coverage.SampleDimension;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.grid.io.FileSetManager;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
 import org.geotools.coverage.io.catalog.DataStoreConfiguration;
@@ -82,12 +88,6 @@ import org.geotools.imageio.netcdf.utilities.NetCDFUtilities.CheckType;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.SampleDimension;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import ucar.ma2.Array;
 import ucar.ma2.IndexIterator;
 import ucar.ma2.InvalidRangeException;
@@ -196,14 +196,13 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
      * @param input the input object.
      * @return the dataset or <code>null</code>.
      */
+    @SuppressWarnings("PMD.CloseResource")
     private NetcdfDataset extractDataset(Object input) throws IOException {
         NetcdfDataset dataset = null;
         if (input instanceof URIImageInputStream) {
-            @SuppressWarnings("PMD.CloseResource") // not managed here
             URIImageInputStream uriInStream = (URIImageInputStream) input;
             dataset = NetCDFUtilities.acquireDataset(uriInStream.getUri());
-        }
-        if (input instanceof URL) {
+        } else if (input instanceof URL) {
             final URL tempURL = (URL) input;
             String protocol = tempURL.getProtocol();
             if (protocol.equalsIgnoreCase("http") || protocol.equalsIgnoreCase("dods")) {
@@ -254,6 +253,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         return l.iterator();
     }
 
+    @Override
     public int getWidth(int imageIndex) throws IOException {
         final VariableAdapter wrapper = getCoverageDescriptor(imageIndex);
         if (wrapper != null) {
@@ -277,6 +277,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     }
 
     /** Reset the status of this reader */
+    @Override
     public void reset() {
         super.setInput(null, false, false);
         dispose();
@@ -308,6 +309,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     }
 
     /** Index Initialization. store indexing information. */
+    @SuppressWarnings("PMD.UseTryWithResources") // transaction needed in catch
     protected int initIndex() throws InvalidRangeException, IOException {
         DefaultTransaction transaction =
                 new DefaultTransaction("indexTransaction" + System.nanoTime());
@@ -488,7 +490,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
             LOGGER.warning(
                     "There is code leaving netcdf image readers open, this might cause "
                             + "issues with file deletion on Windows!");
-            if (NetCDFUtilities.TRACE_ENABLED) {
+            if (Boolean.TRUE.equals(NetCDFUtilities.TRACE_ENABLED)) {
                 LOGGER.log(
                         Level.WARNING,
                         "The unclosed image reader originated on this stack trace",
@@ -615,10 +617,6 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                 if (origName == null) {
                     origName = name.getLocalPart();
                 }
-                //                else {
-                //                    throw new IllegalArgumentException("Unable to locate
-                // descriptor for Coverage: "+name);
-                //                }
                 cd = new VariableAdapter(this, name, (VariableDS) getVariableByName(origName));
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -630,6 +628,10 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
     /** @see javax.imageio.ImageReader#read(int, javax.imageio.ImageReadParam) */
     @Override
+    @SuppressWarnings({
+        "deprecation",
+        "PMD.ReplaceHashtableWithMap"
+    }) // needed for BufferedImageConstructor
     public BufferedImage read(int imageIndex, ImageReadParam param) throws IOException {
         clearAbortRequest();
 
@@ -767,10 +769,12 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         final ColorModel colorModel = ImageIOUtilities.createColorModel(sampleModel);
 
         final WritableRaster raster = Raster.createWritableRaster(sampleModel, new Point(0, 0));
-        Hashtable<String, Object> properties = getNoDataProperties(wrapper);
         final BufferedImage image =
                 new BufferedImage(
-                        colorModel, raster, colorModel.isAlphaPremultiplied(), properties);
+                        colorModel,
+                        raster,
+                        colorModel.isAlphaPremultiplied(),
+                        getNoDataProperties(wrapper));
 
         CoordinateSystem cs = wrapper.variableDS.getCoordinateSystems().get(0);
         CoordinateAxis axis = georeferencing.isLonLat() ? cs.getLatAxis() : cs.getYaxis();
@@ -934,7 +938,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     private synchronized boolean needFlipYAxis(CoordinateAxis axis) throws IOException {
         boolean flipYAxis = false;
         try {
-            Array yAxisStart = axis.read(new Section().appendRange(2));
+            Array yAxisStart = axis.read(new Section(new Range(2)));
             float y1 = yAxisStart.getFloat(0);
             float y2 = yAxisStart.getFloat(1);
             if (y2 > y1) {
@@ -946,6 +950,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         return flipYAxis;
     }
 
+    @SuppressWarnings("PMD.ReplaceHashtableWithMap")
     private Hashtable<String, Object> getNoDataProperties(VariableAdapter wrapper) {
         RangeType range = wrapper.getRangeType();
         if (range != null) {
@@ -1177,7 +1182,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
         double[] noData = getNoData(wrapper);
         if (noData != null) {
-            metadata.setNoData(noData);
+            Double[] noDataValues = Arrays.stream(noData).boxed().toArray(n -> new Double[n]);
+            metadata.setNoDataValues(noDataValues);
         }
 
         return metadata;

@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import org.opengis.filter.capability.SpatialOperator;
-import org.opengis.filter.capability.SpatialOperators;
+import org.geotools.api.filter.capability.SpatialOperator;
+import org.geotools.api.filter.capability.SpatialOperators;
 
 /**
  * Implementation of the SpatialOperators interface.
@@ -46,7 +46,7 @@ public class SpatialOperatorsImpl implements SpatialOperators {
         }
     }
 
-    public SpatialOperatorsImpl(SpatialOperator[] operators) {
+    public SpatialOperatorsImpl(SpatialOperator... operators) {
         this.operators = new HashSet<>();
         if (operators != null) {
             for (SpatialOperator operator : operators) {
@@ -73,10 +73,12 @@ public class SpatialOperatorsImpl implements SpatialOperators {
         }
     }
 
+    @Override
     public Collection<SpatialOperator> getOperators() {
         return operators;
     }
 
+    @Override
     public SpatialOperator getOperator(String name) {
         if (name == null || operators == null) {
             return null;

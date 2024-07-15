@@ -17,6 +17,11 @@
  */
 package org.geotools.gce.arcgrid;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
@@ -24,15 +29,16 @@ import java.net.URL;
 import java.util.Random;
 import javax.media.jai.ImageLayout;
 import org.geotools.TestData;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
+import org.junit.Test;
 
 /**
  * Test reading and writing arcgrid grid coverages.
@@ -43,12 +49,8 @@ import org.opengis.parameter.ParameterValueGroup;
 public class ArcGridReadWriteTest extends ArcGridBaseTestCase {
     private final Random generator = new Random();
 
-    /** Creates a new instance of ArcGridReadWriteTest */
-    public ArcGridReadWriteTest(String name) {
-        super(name);
-    }
-
     /** */
+    @Override
     public void runMe(final File testFile) throws Exception {
 
         // create a temporary output file
@@ -83,8 +85,8 @@ public class ArcGridReadWriteTest extends ArcGridBaseTestCase {
      * @throws Exception If Coverages are not equal
      */
     static void compare(GridCoverage2D gc1, GridCoverage2D gc2) throws Exception {
-        final GeneralEnvelope e1 = (GeneralEnvelope) gc1.getEnvelope();
-        final GeneralEnvelope e2 = (GeneralEnvelope) gc2.getEnvelope();
+        final GeneralBounds e1 = (GeneralBounds) gc1.getEnvelope();
+        final GeneralBounds e2 = (GeneralBounds) gc2.getEnvelope();
 
         /** Checking Envelopes */
         if ((e1.getLowerCorner().getOrdinate(0) != e2.getLowerCorner().getOrdinate(0))
@@ -151,8 +153,7 @@ public class ArcGridReadWriteTest extends ArcGridBaseTestCase {
         final GridCoverageWriter writer = new ArcGridWriter(wf);
 
         // setting write parameters
-        ParameterValueGroup params;
-        params = writer.getFormat().getWriteParameters();
+        ParameterValueGroup params = writer.getFormat().getWriteParameters();
         params.parameter("GRASS").setValue(true);
         final ArcGridWriteParams wp = new ArcGridWriteParams();
         wp.setSourceBands(new int[] {0});
@@ -196,8 +197,7 @@ public class ArcGridReadWriteTest extends ArcGridBaseTestCase {
         final GridCoverageWriter writer = new ArcGridWriter(wf);
 
         // setting write parameters
-        ParameterValueGroup params;
-        params = writer.getFormat().getWriteParameters();
+        ParameterValueGroup params = writer.getFormat().getWriteParameters();
         params.parameter("GRASS").setValue(false);
         final ArcGridWriteParams wp = new ArcGridWriteParams();
         wp.setSourceBands(new int[] {0});
@@ -228,6 +228,7 @@ public class ArcGridReadWriteTest extends ArcGridBaseTestCase {
         }
     }
 
+    @Test
     public void testErrorConditions() throws IOException {
 
         // testing format and reader
@@ -253,7 +254,7 @@ public class ArcGridReadWriteTest extends ArcGridBaseTestCase {
         } catch (IllegalArgumentException e) {
             caught = true;
         }
-        assertTrue("Streams are  supported now", !caught);
+        assertFalse("Streams are  supported now", caught);
 
         // testing writer
         assertNotNull(
@@ -266,10 +267,7 @@ public class ArcGridReadWriteTest extends ArcGridBaseTestCase {
                 af.getWriter(new URL("http://www.geo-solutions.it")));
     }
 
-    public static final void main(String[] args) throws Exception {
-        junit.textui.TestRunner.run(ArcGridReadWriteTest.class);
-    }
-
+    @Test
     public void testImageLayout() throws Exception {
         // test ImageLayout
         LOGGER.info("testImageLayout");

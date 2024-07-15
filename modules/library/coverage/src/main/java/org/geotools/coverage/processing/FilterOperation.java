@@ -16,8 +16,8 @@
  */
 package org.geotools.coverage.processing;
 
+import org.geotools.api.coverage.processing.OperationNotFoundException;
 import org.geotools.coverage.GridSampleDimension;
-import org.opengis.coverage.processing.OperationNotFoundException;
 
 /**
  * Common super-class for filter operation. The following is adapted from OpenGIS specification:
@@ -68,6 +68,7 @@ public class FilterOperation extends OperationJAI {
      * Returns the target sample dimensions. Since filter operation do not change the range of
      * values, this method returns the same sample dimension than the first source.
      */
+    @Override
     protected GridSampleDimension[] deriveSampleDimension(
             final GridSampleDimension[][] bandLists, final Parameters parameters) {
         return bandLists[0];

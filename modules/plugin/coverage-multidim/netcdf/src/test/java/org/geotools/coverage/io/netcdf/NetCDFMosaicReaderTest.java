@@ -16,7 +16,11 @@
  */
 package org.geotools.coverage.io.netcdf;
 
+import static org.geotools.coverage.util.CoverageUtilities.loadPropertiesFromURL;
 import static org.geotools.gce.imagemosaic.Utils.FF;
+import static org.geotools.gce.imagemosaic.Utils.Prop.AUXILIARY_DATASTORE_FILE;
+import static org.geotools.gce.imagemosaic.Utils.Prop.AUXILIARY_FILE;
+import static org.geotools.util.URLs.fileToUrl;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
@@ -48,7 +52,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -61,8 +64,21 @@ import javax.media.jai.ImageLayout;
 import javax.media.jai.PlanarImage;
 import javax.swing.JFrame;
 import junit.framework.JUnit4TestAdapter;
-import junit.textui.TestRunner;
 import org.apache.commons.io.FileUtils;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.sort.SortOrder;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.InvalidParameterValueException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
@@ -73,7 +89,6 @@ import org.geotools.coverage.grid.io.GranuleStore;
 import org.geotools.coverage.grid.io.HarvestedSource;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.DefaultRepository;
-import org.geotools.data.Query;
 import org.geotools.data.directory.DirectoryDataStore;
 import org.geotools.data.h2.H2DataStoreFactory;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
@@ -86,7 +101,7 @@ import org.geotools.gce.imagemosaic.ImageMosaicFormat;
 import org.geotools.gce.imagemosaic.ImageMosaicReader;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.gce.imagemosaic.Utils.Prop;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.imageio.netcdf.NetCDFImageReader;
 import org.geotools.imageio.netcdf.NetCDFImageReaderSpi;
@@ -95,7 +110,6 @@ import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.test.TestData;
-import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
 import org.hamcrest.Matchers;
 import org.junit.AfterClass;
@@ -105,19 +119,6 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.InvalidParameterValueException;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 import ucar.nc2.Variable;
 
 /**
@@ -130,6 +131,19 @@ import ucar.nc2.Variable;
 public class NetCDFMosaicReaderTest {
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
+    private static TimeZone DEFAULT;
+
+    @BeforeClass
+    public static void setupTimeZone() {
+        DEFAULT = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+    }
+
+    @AfterClass
+    public static void resetTimeZone() {
+        TimeZone.setDefault(DEFAULT);
+    }
 
     public static ParameterValue<Boolean> NO_DEFERRED_LOADING_PARAM;
 
@@ -168,7 +182,6 @@ public class NetCDFMosaicReaderTest {
         // have the reader harvest it
         ImageMosaicFormat format = new ImageMosaicFormat();
         ImageMosaicReader reader = format.getReader(mosaic);
-        SimpleFeatureIterator it = null;
         assertNotNull(reader);
         try {
             String[] names = reader.getGridCoverageNames();
@@ -177,56 +190,52 @@ public class NetCDFMosaicReaderTest {
 
             // check we have the two granules we expect
             GranuleSource source = reader.getGranules("O3", true);
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory();
             Query q = new Query(Query.ALL);
-            q.setSortBy(new SortBy[] {ff.sort("time", SortOrder.ASCENDING)});
+            q.setSortBy(ff.sort("time", SortOrder.ASCENDING));
             SimpleFeatureCollection granules = source.getGranules(q);
             assertEquals(2, granules.size());
-            it = granules.features();
-            assertTrue(it.hasNext());
-            SimpleFeature f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            assertTrue(it.hasNext());
-            f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(1, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T01:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            it.close();
+            try (SimpleFeatureIterator it = granules.features()) {
+                assertTrue(it.hasNext());
+                SimpleFeature f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                assertTrue(it.hasNext());
+                f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(1, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T01:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+            }
             testHarvest(reader, mosaic, source, q);
         } finally {
-            if (it != null) {
-                it.close();
-            }
             reader.dispose();
         }
     }
 
     private void testHarvest(ImageMosaicReader reader, File mosaic, GranuleSource source, Query q)
             throws IOException {
-        SimpleFeatureIterator it = null;
         assertNotNull(reader);
-        try {
-            // now add another netcdf and harvest it
-            File nc2 = TestData.file(this, "polyphemus_20130302_test.nc");
-            FileUtils.copyFileToDirectory(nc2, mosaic);
-            File fileToHarvest = new File(mosaic, "polyphemus_20130302_test.nc");
-            List<HarvestedSource> harvestSummary = reader.harvest(null, fileToHarvest, null);
-            assertEquals(1, harvestSummary.size());
-            HarvestedSource hf = harvestSummary.get(0);
-            assertEquals("polyphemus_20130302_test.nc", ((File) hf.getSource()).getName());
-            assertTrue(hf.success());
-            assertEquals(1, reader.getGridCoverageNames().length);
 
-            // check that we have four times now
-            SimpleFeatureCollection granules = source.getGranules(q);
-            assertEquals(4, granules.size());
-            it = granules.features();
+        // now add another netcdf and harvest it
+        File nc2 = TestData.file(this, "polyphemus_20130302_test.nc");
+        FileUtils.copyFileToDirectory(nc2, mosaic);
+        File fileToHarvest = new File(mosaic, "polyphemus_20130302_test.nc");
+        List<HarvestedSource> harvestSummary = reader.harvest(null, fileToHarvest, null);
+        assertEquals(1, harvestSummary.size());
+        HarvestedSource hf = harvestSummary.get(0);
+        assertEquals("polyphemus_20130302_test.nc", ((File) hf.getSource()).getName());
+        assertTrue(hf.success());
+        assertEquals(1, reader.getGridCoverageNames().length);
+
+        // check that we have four times now
+        SimpleFeatureCollection granules = source.getGranules(q);
+        assertEquals(4, granules.size());
+        try (SimpleFeatureIterator it = granules.features()) {
             SimpleFeature f = it.next();
             assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
             assertEquals(0, f.getAttribute("imageindex"));
@@ -253,11 +262,6 @@ public class NetCDFMosaicReaderTest {
             assertEquals(
                     "2013-03-02T01:00:00.000Z",
                     ConvertersHack.convert(f.getAttribute("time"), String.class));
-
-        } finally {
-            if (it != null) {
-                it.close();
-            }
         }
         ImageLayout layout = reader.getImageLayout();
         SampleModel sampleModel = layout.getSampleModel(null);
@@ -307,14 +311,13 @@ public class NetCDFMosaicReaderTest {
             // prepare params
             ParameterValue<List> time = ImageMosaicFormat.TIME.createValue();
             time.setValue(Arrays.asList(parseTimeStamp(t1)));
-            GeneralParameterValue[] params =
-                    new GeneralParameterValue[] {NO_DEFERRED_LOADING_PARAM, time};
+            GeneralParameterValue[] params = {NO_DEFERRED_LOADING_PARAM, time};
             // read first
             GridCoverage2D coverage1 = reader.read(params);
             time.setValue(Arrays.asList(parseTimeStamp(t2)));
             GridCoverage2D coverage2 = reader.read(params);
 
-            DirectPosition center = reader.getOriginalEnvelope().getMedian();
+            Position center = reader.getOriginalEnvelope().getMedian();
             float[] v1 = (float[]) coverage1.evaluate(center);
             float[] v2 = (float[]) coverage2.evaluate(center);
             assertNotEquals(v1[0], v2[0], 0f);
@@ -353,10 +356,11 @@ public class NetCDFMosaicReaderTest {
 
     @Test
     public void testCustomTimeAttributeRepository() throws IOException {
+        File indexDirectory = new File("./target/custom_time_attribute_idx");
+
         // setup repository
         ShpFileStoreFactory dialect =
                 new ShpFileStoreFactory(new ShapefileDataStoreFactory(), new HashMap<>());
-        File indexDirectory = new File("./target/custom_time_attribute_idx");
         FileUtils.deleteQuietly(indexDirectory);
         indexDirectory.mkdir();
         File auxiliaryDataStoreFile = new File(indexDirectory, "test.properties");
@@ -467,7 +471,7 @@ public class NetCDFMosaicReaderTest {
 
         final String name = "O3";
         NetCDFImageReader imageReader = null;
-        SimpleFeatureIterator it = null;
+
         assertNotNull(reader);
         GridCoverage2D coverage = null;
         try {
@@ -480,38 +484,21 @@ public class NetCDFMosaicReaderTest {
 
             // check we have the 4 granules we expect
             GranuleSource source = reader.getGranules(name, true);
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory();
             Query q = new Query(Query.ALL);
-            q.setSortBy(new SortBy[] {ff.sort("time", SortOrder.ASCENDING)});
+            q.setSortBy(ff.sort("time", SortOrder.ASCENDING));
             SimpleFeatureCollection granules = source.getGranules(q);
             assertEquals(4, granules.size());
-            it = granules.features();
-            assertTrue(it.hasNext());
-            SimpleFeature f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+            try (SimpleFeatureIterator it = granules.features()) {
+                assertTrue(it.hasNext());
+                SimpleFeature f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+            }
         } finally {
-            if (coverage != null) {
-                coverage.dispose(true);
-            }
+            disposeCoverage(coverage);
 
-            if (it != null) {
-                it.close();
-            }
-
-            if (reader != null) {
-                try {
-                    reader.dispose();
-                } catch (Exception e) {
-                    // Ignore exception on dispose
-                }
-            }
-            if (imageReader != null) {
-                try {
-                    imageReader.dispose();
-                } catch (Exception e) {
-                    // Ignore exception on dispose
-                }
-            }
+            disposeReader(reader);
+            disposeImageReader(imageReader);
         }
 
         // the index files have actually been created
@@ -521,6 +508,162 @@ public class NetCDFMosaicReaderTest {
         assertTrue(typeNames.contains(name));
         dataStore.dispose();
         assertTrue(disposed.get());
+    }
+
+    @Test
+    public void testPurgeMetadata() throws IOException {
+        File indexDirectory = new File("./target/repo_idx_purge_metadata");
+
+        // setup repository
+        ShpFileStoreFactory dialect =
+                new ShpFileStoreFactory(new ShapefileDataStoreFactory(), new HashMap<>());
+        FileUtils.deleteQuietly(indexDirectory);
+        indexDirectory.mkdir();
+        File auxiliaryDataStoreFile = new File(indexDirectory, "test.properties");
+        String theStoreName = "testStore";
+        FileUtils.writeStringToFile(
+                auxiliaryDataStoreFile, NetCDFUtilities.STORE_NAME + "=" + theStoreName, "UTF-8");
+
+        DirectoryDataStore dataStore = new DirectoryDataStore(indexDirectory, dialect);
+
+        ImageMosaicReader reader =
+                setupPolyphemusTwoFiles(auxiliaryDataStoreFile, theStoreName, dataStore);
+        String coverageName = "O3";
+        GridCoverage2D coverage = null;
+        try {
+            GranuleStore o3 = (GranuleStore) reader.getGranules(coverageName, false);
+
+            // check the granules count and the metadata entries count before removal
+            assertEquals(4, dataStore.getFeatureSource(coverageName).getCount(Query.ALL));
+            assertEquals(4, o3.getCount(Query.ALL));
+
+            // remove
+            o3.removeGranules(
+                    Filter.INCLUDE,
+                    new Hints(Hints.GRANULE_REMOVAL_POLICY, GranuleRemovalPolicy.METADATA));
+
+            // all metadata was removed
+            assertTrue(o3.getGranules(Query.ALL).isEmpty());
+            assertEquals(0, dataStore.getFeatureSource(coverageName).getCount(Query.ALL));
+
+            // but the files are still there
+            File mosaicDirectory = (File) reader.getSource();
+            assertEquals(2, mosaicDirectory.listFiles((dir, name) -> name.endsWith(".nc")).length);
+        } finally {
+            disposeCoverage(coverage);
+            disposeReader(reader);
+        }
+    }
+
+    @Test
+    public void testPurgeAll() throws IOException {
+        File indexDirectory = new File("./target/repo_idx_purge_all");
+
+        // setup repository
+        ShpFileStoreFactory dialect =
+                new ShpFileStoreFactory(new ShapefileDataStoreFactory(), new HashMap<>());
+        FileUtils.deleteQuietly(indexDirectory);
+        indexDirectory.mkdir();
+        File auxiliaryDataStoreFile = new File(indexDirectory, "test.properties");
+        String theStoreName = "testStore";
+        FileUtils.writeStringToFile(
+                auxiliaryDataStoreFile, NetCDFUtilities.STORE_NAME + "=" + theStoreName, "UTF-8");
+
+        DirectoryDataStore dataStore = new DirectoryDataStore(indexDirectory, dialect);
+
+        ImageMosaicReader reader =
+                setupPolyphemusTwoFiles(auxiliaryDataStoreFile, theStoreName, dataStore);
+        String coverageName = "O3";
+        GridCoverage2D coverage = null;
+        try {
+            GranuleStore o3 = (GranuleStore) reader.getGranules(coverageName, false);
+
+            // check the granules count and the metadata entries count before removal
+            assertEquals(4, dataStore.getFeatureSource(coverageName).getCount(Query.ALL));
+            assertEquals(4, o3.getCount(Query.ALL));
+
+            // remove
+            o3.removeGranules(
+                    Filter.INCLUDE,
+                    new Hints(Hints.GRANULE_REMOVAL_POLICY, GranuleRemovalPolicy.ALL));
+
+            // everything was removed
+            assertTrue(o3.getGranules(Query.ALL).isEmpty());
+            assertEquals(0, dataStore.getFeatureSource(coverageName).getCount(Query.ALL));
+
+            // that includes the netcdf files, all means all
+            File mosaicDirectory = (File) reader.getSource();
+            assertEquals(0, mosaicDirectory.listFiles((dir, name) -> name.endsWith(".nc")).length);
+        } finally {
+            disposeCoverage(coverage);
+            disposeReader(reader);
+        }
+    }
+
+    private ImageMosaicReader setupPolyphemusTwoFiles(
+            File auxiliaryDataStoreFile, String theStoreName, DirectoryDataStore dataStore)
+            throws IOException {
+        DefaultRepository repository = new DefaultRepository();
+        repository.register(new NameImpl(theStoreName), dataStore);
+
+        File nc1 = TestData.file(this, "polyphemus_20130301_test.nc");
+        File nc2 = TestData.file(this, "polyphemus_20130302_test.nc");
+        File mosaic = tempFolder.newFolder("nc_repo");
+        FileUtils.copyFileToDirectory(nc1, mosaic);
+        FileUtils.copyFileToDirectory(nc2, mosaic);
+
+        // The indexer
+        Properties indexer = new Properties();
+        indexer.put("TimeAttribute", "time");
+        indexer.put(
+                "Schema",
+                "the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date");
+        indexer.put("AuxiliaryDatastoreFile", auxiliaryDataStoreFile.getCanonicalPath());
+        final String auxiliaryFilePath =
+                mosaic.getAbsolutePath() + File.separatorChar + ".polyphemus_20130301_test";
+        final File auxiliaryFileDir = new File(auxiliaryFilePath);
+        assertTrue(auxiliaryFileDir.mkdirs());
+
+        File nc1Aux = TestData.file(this, "polyphemus_test_aux.xml");
+        FileUtils.copyFileToDirectory(nc1Aux, auxiliaryFileDir);
+
+        try (FileOutputStream fos = new FileOutputStream(new File(mosaic, "indexer.properties"))) {
+            indexer.store(fos, null);
+        }
+        File dsp = TestData.file(this, "datastore.properties");
+        FileUtils.copyFileToDirectory(dsp, mosaic);
+
+        ImageMosaicFormat format = new ImageMosaicFormat();
+        ImageMosaicReader reader =
+                format.getReader(mosaic, new Hints(Hints.REPOSITORY, repository));
+        assertNotNull(reader);
+        return reader;
+    }
+
+    private void disposeImageReader(NetCDFImageReader imageReader) {
+        if (imageReader != null) {
+            try {
+                imageReader.dispose();
+            } catch (Exception e) {
+                // Ignore exception on dispose
+            }
+        }
+    }
+
+    private void disposeCoverage(GridCoverage2D coverage) {
+        if (coverage != null) {
+            coverage.dispose(true);
+        }
+    }
+
+    private void disposeReader(ImageMosaicReader reader) {
+        if (reader != null) {
+            try {
+                reader.dispose();
+            } catch (Exception e) {
+                // Ignore exception on dispose
+            }
+        }
     }
 
     @Test
@@ -571,43 +714,26 @@ public class NetCDFMosaicReaderTest {
 
         final String name = "O3";
         NetCDFImageReader imageReader = null;
-        SimpleFeatureIterator it = null;
         assertNotNull(reader);
         try {
 
             GranuleSource source = reader.getGranules(name, true);
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory();
             Query q = new Query(Query.ALL);
-            q.setSortBy(new SortBy[] {ff.sort("time", SortOrder.ASCENDING)});
+            q.setSortBy(ff.sort("time", SortOrder.ASCENDING));
             SimpleFeatureCollection granules = source.getGranules(q);
             assertEquals(2, granules.size());
-            it = granules.features();
-            assertTrue(it.hasNext());
-            SimpleFeature f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+            try (SimpleFeatureIterator it = granules.features()) {
+                assertTrue(it.hasNext());
+                SimpleFeature f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
 
-            // now add another netcdf and harvest it
-            testHarvest(reader, mosaic, source, q);
+                // now add another netcdf and harvest it
+                testHarvest(reader, mosaic, source, q);
+            }
         } finally {
-
-            if (it != null) {
-                it.close();
-            }
-
-            if (reader != null) {
-                try {
-                    reader.dispose();
-                } catch (Exception e) {
-                    // Ignore exception on dispose
-                }
-            }
-            if (imageReader != null) {
-                try {
-                    imageReader.dispose();
-                } catch (Exception e) {
-                    // Ignore exception on dispose
-                }
-            }
+            disposeReader(reader);
+            disposeImageReader(imageReader);
         }
 
         dataStore.dispose();
@@ -615,7 +741,6 @@ public class NetCDFMosaicReaderTest {
 
     public void checkCustomTimeAttribute(File nc1, ImageMosaicReader reader) throws IOException {
         NetCDFImageReader imageReader = null;
-        SimpleFeatureIterator it = null;
         assertNotNull(reader);
         GridCoverage2D coverage = null;
         try {
@@ -628,51 +753,32 @@ public class NetCDFMosaicReaderTest {
 
             // check we have the two granules we expect
             GranuleSource source = reader.getGranules("NO2", true);
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory();
             Query q = new Query(Query.ALL);
-            q.setSortBy(new SortBy[] {ff.sort("time", SortOrder.ASCENDING)});
+            q.setSortBy(ff.sort("time", SortOrder.ASCENDING));
             SimpleFeatureCollection granules = source.getGranules(q);
             assertEquals(2, granules.size());
-            it = granules.features();
-            assertTrue(it.hasNext());
-            SimpleFeature f = it.next();
-            assertEquals("polyphemus_20130301_NO2_time2.nc", f.getAttribute("location"));
-            SimpleFeatureType featureType = f.getType();
+            try (SimpleFeatureIterator it = granules.features()) {
+                assertTrue(it.hasNext());
+                SimpleFeature f = it.next();
+                assertEquals("polyphemus_20130301_NO2_time2.nc", f.getAttribute("location"));
+                SimpleFeatureType featureType = f.getType();
 
-            // check the underlying data has a time2 dimension
-            imageReader = (NetCDFImageReader) new NetCDFImageReaderSpi().createReaderInstance();
-            imageReader.setInput(nc1);
-            Variable var = imageReader.getVariableByName("NO2");
-            String dimensions = var.getDimensionsString();
-            assertTrue(dimensions.contains("time2"));
+                // check the underlying data has a time2 dimension
+                imageReader = (NetCDFImageReader) new NetCDFImageReaderSpi().createReaderInstance();
+                imageReader.setInput(nc1);
+                Variable var = imageReader.getVariableByName("NO2");
+                String dimensions = var.getDimensionsString();
+                assertTrue(dimensions.contains("time2"));
 
-            // check I'm getting a "time" attribute instead of "time2" due to the
-            // uniqueTimeAttribute remap
-            assertNotNull(featureType.getDescriptor("time"));
-
+                // check I'm getting a "time" attribute instead of "time2" due to the
+                // uniqueTimeAttribute remap
+                assertNotNull(featureType.getDescriptor("time"));
+            }
         } finally {
-            if (coverage != null) {
-                coverage.dispose(true);
-            }
-
-            if (it != null) {
-                it.close();
-            }
-
-            if (reader != null) {
-                try {
-                    reader.dispose();
-                } catch (Exception e) {
-                    // Ignore exception on dispose
-                }
-            }
-            if (imageReader != null) {
-                try {
-                    imageReader.dispose();
-                } catch (Exception e) {
-                    // Ignore exception on dispose
-                }
-            }
+            disposeCoverage(coverage);
+            disposeReader(reader);
+            disposeImageReader(imageReader);
         }
     }
 
@@ -696,7 +802,6 @@ public class NetCDFMosaicReaderTest {
         // have the reader harvest it
         ImageMosaicFormat format = new ImageMosaicFormat();
         ImageMosaicReader reader = format.getReader(mosaic);
-        SimpleFeatureIterator it = null;
         assertNotNull(reader);
         try {
             String[] names = reader.getGridCoverageNames();
@@ -705,27 +810,27 @@ public class NetCDFMosaicReaderTest {
 
             // check we have the two granules we expect
             GranuleSource source = reader.getGranules("O3", true);
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory();
             Query q = new Query(Query.ALL);
-            q.setSortBy(new SortBy[] {ff.sort("time", SortOrder.ASCENDING)});
+            q.setSortBy(ff.sort("time", SortOrder.ASCENDING));
             SimpleFeatureCollection granules = source.getGranules(q);
             assertEquals(2, granules.size());
-            it = granules.features();
-            assertTrue(it.hasNext());
-            SimpleFeature f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            assertTrue(it.hasNext());
-            f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(1, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T01:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            it.close();
+            try (SimpleFeatureIterator it = granules.features()) {
+                assertTrue(it.hasNext());
+                SimpleFeature f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                assertTrue(it.hasNext());
+                f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(1, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T01:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+            }
 
             // close the reader and re-open it
             reader.dispose();
@@ -738,6 +843,9 @@ public class NetCDFMosaicReaderTest {
             // now replace the netcdf file with a more up to date version of the same
             File nc2 = TestData.file(this, "polyphemus_20130301_test_more_times.nc");
             File target = new File(mosaic, "polyphemus_20130301_test.nc");
+            Date now = new Date();
+            nc2.setLastModified(now.getTime());
+            FileUtils.copyFile(nc2, target, false);
             FileUtils.copyFile(nc2, target, false);
             File fileToHarvest = new File(mosaic, "polyphemus_20130301_test.nc");
             List<HarvestedSource> harvestSummary = reader.harvest(null, fileToHarvest, null);
@@ -751,38 +859,35 @@ public class NetCDFMosaicReaderTest {
             source = reader.getGranules("O3", true);
             granules = source.getGranules(q);
             assertEquals(4, granules.size());
-            it = granules.features();
-            f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            assertTrue(it.hasNext());
-            f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(1, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T01:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(2, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T02:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            assertTrue(it.hasNext());
-            f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(3, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T03:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            it.close();
-        } finally {
-            if (it != null) {
-                it.close();
+            try (SimpleFeatureIterator it = granules.features()) {
+                SimpleFeature f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                assertTrue(it.hasNext());
+                f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(1, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T01:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(2, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T02:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                assertTrue(it.hasNext());
+                f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(3, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T03:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
             }
+        } finally {
             reader.dispose();
         }
     }
@@ -807,7 +912,7 @@ public class NetCDFMosaicReaderTest {
                 "TimeAttribute=time\n"
                         + "Schema=the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date\n";
         //  + "PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](time)\n";
-        indexer += Prop.AUXILIARY_FILE + "=" + "hdf5Coverage2D.xml";
+        indexer += AUXILIARY_FILE + "=" + "hdf5Coverage2D.xml";
         FileUtils.writeStringToFile(new File(mosaic, "indexer.properties"), indexer, "UTF-8");
 
         // simply test if the mosaic can be read without exceptions
@@ -837,7 +942,6 @@ public class NetCDFMosaicReaderTest {
         // have the reader harvest it
         ImageMosaicFormat format = new ImageMosaicFormat();
         ImageMosaicReader reader = format.getReader(mosaic);
-        SimpleFeatureIterator it = null;
         assertNotNull(reader);
         try {
             String[] names = reader.getGridCoverageNames();
@@ -846,27 +950,27 @@ public class NetCDFMosaicReaderTest {
 
             // check we have the two granules we expect
             GranuleSource source = reader.getGranules("O3", true);
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory();
             Query q = new Query(Query.ALL);
-            q.setSortBy(new SortBy[] {ff.sort("time", SortOrder.ASCENDING)});
+            q.setSortBy(ff.sort("time", SortOrder.ASCENDING));
             SimpleFeatureCollection granules = source.getGranules(q);
             assertEquals(2, granules.size());
-            it = granules.features();
-            assertTrue(it.hasNext());
-            SimpleFeature f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            assertTrue(it.hasNext());
-            f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(1, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T01:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            it.close();
+            try (SimpleFeatureIterator it = granules.features()) {
+                assertTrue(it.hasNext());
+                SimpleFeature f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                assertTrue(it.hasNext());
+                f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(1, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T01:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+            }
 
             // now add another netcdf and harvest it
             File nc2 = TestData.file(this, "polyphemus_20130301_NO2.nc");
@@ -889,25 +993,22 @@ public class NetCDFMosaicReaderTest {
             source = reader.getGranules("NO2", true);
             granules = source.getGranules(q);
             assertEquals(2, granules.size());
-            it = granules.features();
-            f = it.next();
-            assertEquals("polyphemus_20130301_NO2.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            assertTrue(it.hasNext());
-            f = it.next();
-            assertEquals("polyphemus_20130301_NO2.nc", f.getAttribute("location"));
-            assertEquals(1, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T01:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            it.close();
-        } finally {
-            if (it != null) {
-                it.close();
+            try (SimpleFeatureIterator it = granules.features()) {
+                SimpleFeature f = it.next();
+                assertEquals("polyphemus_20130301_NO2.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                assertTrue(it.hasNext());
+                f = it.next();
+                assertEquals("polyphemus_20130301_NO2.nc", f.getAttribute("location"));
+                assertEquals(1, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T01:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
             }
+        } finally {
             reader.dispose();
         }
     }
@@ -929,7 +1030,7 @@ public class NetCDFMosaicReaderTest {
                 "TimeAttribute=time\n"
                         + "Schema=the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date\n"
                         + "PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](time)\n";
-        indexer += Prop.AUXILIARY_FILE + "=" + "GOME2.NO2_new.xml";
+        indexer += AUXILIARY_FILE + "=" + "GOME2.NO2_new.xml";
         FileUtils.writeStringToFile(new File(mosaic, "indexer.properties"), indexer, "UTF-8");
 
         String timeregex = "regex=[0-9]{8}";
@@ -942,30 +1043,18 @@ public class NetCDFMosaicReaderTest {
         // have the reader harvest it
         ImageMosaicFormat format = new ImageMosaicFormat();
         ImageMosaicReader reader = format.getReader(mosaic);
-        SimpleFeatureIterator it = null;
         assertNotNull(reader);
         try {
             // specify time
             ParameterValue<List> time = ImageMosaicFormat.TIME.createValue();
             final Date timeD = parseTimeStamp("2013-01-01T00:00:00.000");
-            time.setValue(
-                    new ArrayList<Date>() {
-                        {
-                            add(timeD);
-                        }
-                    });
-            GeneralParameterValue[] params =
-                    new GeneralParameterValue[] {time, NO_DEFERRED_LOADING_PARAM};
+            time.setValue(List.of(timeD));
+            GeneralParameterValue[] params = {time, NO_DEFERRED_LOADING_PARAM};
             GridCoverage2D coverage1 = reader.read(params);
             assertNotData(coverage1, -999d);
             // Specify a new time (Check if two times returns two different coverages)
             final Date timeD2 = parseTimeStamp("2013-01-08T00:00:00.000");
-            time.setValue(
-                    new ArrayList<Date>() {
-                        {
-                            add(timeD2);
-                        }
-                    });
+            time.setValue(List.of(timeD2));
             params = new GeneralParameterValue[] {time, NO_DEFERRED_LOADING_PARAM};
             GridCoverage2D coverage2 = reader.read(params);
             assertNotData(coverage2, -999d);
@@ -979,9 +1068,7 @@ public class NetCDFMosaicReaderTest {
             assertEquals(1, names.length);
             assertEquals("NO2", names[0]);
         } finally {
-            if (it != null) {
-                it.close();
-            }
+
             reader.dispose();
         }
     }
@@ -1012,7 +1099,7 @@ public class NetCDFMosaicReaderTest {
                 "TimeAttribute=time\n"
                         + "Schema=the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date\n"
                         + "PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](time)\n";
-        indexer += Prop.AUXILIARY_FILE + "=" + "GOME2.NO2.xml";
+        indexer += AUXILIARY_FILE + "=" + "GOME2.NO2.xml";
         FileUtils.writeStringToFile(new File(mosaic, "indexer.properties"), indexer, "UTF-8");
 
         String timeregex = "regex=[0-9]{8}";
@@ -1025,7 +1112,6 @@ public class NetCDFMosaicReaderTest {
         // have the reader harvest it
         ImageMosaicFormat format = new ImageMosaicFormat();
         ImageMosaicReader reader = format.getReader(mosaic);
-        SimpleFeatureIterator it = null;
         assertNotNull(reader);
         try {
             String[] names = reader.getGridCoverageNames();
@@ -1034,20 +1120,20 @@ public class NetCDFMosaicReaderTest {
 
             // check we have the two granules we expect
             GranuleSource source = reader.getGranules("NO2", true);
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory();
             Query q = new Query(Query.ALL);
-            q.setSortBy(new SortBy[] {ff.sort("time", SortOrder.DESCENDING)});
+            q.setSortBy(ff.sort("time", SortOrder.DESCENDING));
             SimpleFeatureCollection granules = source.getGranules(q);
             assertEquals(1, granules.size());
-            it = granules.features();
-            assertTrue(it.hasNext());
-            SimpleFeature f = it.next();
-            assertEquals("20130101.METOPA.GOME2.NO2.DUMMY.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-01-01T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            it.close();
+            try (SimpleFeatureIterator it = granules.features()) {
+                assertTrue(it.hasNext());
+                SimpleFeature f = it.next();
+                assertEquals("20130101.METOPA.GOME2.NO2.DUMMY.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-01-01T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+            }
 
             // now add another netcdf and harvest it
             File nc2 = TestData.file(this, "20130116.METOPA.GOME2.NO2.DUMMY.nc");
@@ -1076,32 +1162,28 @@ public class NetCDFMosaicReaderTest {
             // check that we have 2 times now
             granules = source.getGranules(q);
             assertEquals(3, granules.size());
-            it = granules.features();
-            f = it.next();
-            assertEquals("20130116.METOPA.GOME2.NO2.DUMMY.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-01-16T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            assertTrue(it.hasNext());
-            f = it.next();
-            assertEquals("20130108.METOPA.GOME2.NO2.DUMMY.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-01-08T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            f = it.next();
-            assertEquals("20130101.METOPA.GOME2.NO2.DUMMY.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-01-01T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-
-            it.close();
-        } finally {
-            if (it != null) {
-                it.close();
+            try (SimpleFeatureIterator it = granules.features()) {
+                SimpleFeature f = it.next();
+                assertEquals("20130116.METOPA.GOME2.NO2.DUMMY.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-01-16T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                assertTrue(it.hasNext());
+                f = it.next();
+                assertEquals("20130108.METOPA.GOME2.NO2.DUMMY.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-01-08T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                f = it.next();
+                assertEquals("20130101.METOPA.GOME2.NO2.DUMMY.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-01-01T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
             }
+        } finally {
             reader.dispose();
         }
     }
@@ -1121,7 +1203,7 @@ public class NetCDFMosaicReaderTest {
                 "TimeAttribute=time\n"
                         + "Schema=the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date\n"
                         + "PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](time)\n";
-        indexer += Prop.AUXILIARY_FILE + "=" + "GOME2.NO2.xml";
+        indexer += AUXILIARY_FILE + "=" + "GOME2.NO2.xml";
         FileUtils.writeStringToFile(new File(mosaic, "indexer.properties"), indexer, "UTF-8");
 
         String timeregex = "regex=[0-9]{8}";
@@ -1148,7 +1230,7 @@ public class NetCDFMosaicReaderTest {
             assertTrue(
                     CRS.equalsIgnoreMetadata(
                             DefaultGeographicCRS.WGS84, reader.getCoordinateReferenceSystem()));
-            GeneralEnvelope envelope = reader.getOriginalEnvelope("NO2");
+            GeneralBounds envelope = reader.getOriginalEnvelope("NO2");
             assertEquals(-360, envelope.getMinimum(0), 0d);
             assertEquals(360, envelope.getMaximum(0), 0d);
             assertEquals(-180, envelope.getMinimum(1), 0d);
@@ -1217,7 +1299,7 @@ public class NetCDFMosaicReaderTest {
                 "TimeAttribute=time\n"
                         + "Schema=the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date\n"
                         + "PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](time)\n";
-        indexer += Prop.AUXILIARY_FILE + "=" + "GOME2.NO2.xml\n";
+        indexer += AUXILIARY_FILE + "=" + "GOME2.NO2.xml\n";
 
         // Setting RelativePath behavior
         indexer += Prop.ABSOLUTE_PATH + "=" + "false";
@@ -1248,7 +1330,7 @@ public class NetCDFMosaicReaderTest {
                 props.load(inStream);
             }
             // Before the fix, the AuxiliaryFile was always an absolute path
-            assertEquals(auxFileName, (String) props.getProperty(Prop.AUXILIARY_FILE));
+            assertEquals(auxFileName, props.getProperty(AUXILIARY_FILE));
         } finally {
             if (reader != null) {
                 try {
@@ -1275,7 +1357,7 @@ public class NetCDFMosaicReaderTest {
         String indexer =
                 "TimeAttribute=time\n"
                         + "Schema=the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date\n";
-        indexer += Prop.AUXILIARY_FILE + "=" + "O3-NO2.xml";
+        indexer += AUXILIARY_FILE + "=" + "O3-NO2.xml";
         FileUtils.writeStringToFile(new File(mosaic, "indexer.properties"), indexer, "UTF-8");
 
         // the datastore.properties file is also mandatory...
@@ -1327,7 +1409,7 @@ public class NetCDFMosaicReaderTest {
                 "TimeAttribute=time\n"
                         + "Schema=the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date\n"
                         + "PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](time)\n";
-        indexer += Prop.AUXILIARY_FILE + "=" + "DUMMYGOME2.xml";
+        indexer += AUXILIARY_FILE + "=" + "DUMMYGOME2.xml";
         FileUtils.writeStringToFile(new File(mosaic, "indexer.properties"), indexer, "UTF-8");
 
         String timeregex = "regex=[0-9]{8}";
@@ -1356,7 +1438,7 @@ public class NetCDFMosaicReaderTest {
                     CRS.equalsIgnoreMetadata(
                             DefaultGeographicCRS.WGS84,
                             reader.getCoordinateReferenceSystem("NO2")));
-            GeneralEnvelope envelope = reader.getOriginalEnvelope("NO2");
+            GeneralBounds envelope = reader.getOriginalEnvelope("NO2");
             assertEquals(-360, envelope.getMinimum(0), 0d);
             assertEquals(360, envelope.getMaximum(0), 0d);
             assertEquals(-180, envelope.getMinimum(1), 0d);
@@ -1399,7 +1481,7 @@ public class NetCDFMosaicReaderTest {
                 "TimeAttribute=time\n"
                         + "Schema=the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date\n"
                         + "PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](time)\n";
-        indexer += Prop.AUXILIARY_FILE + "=" + "DUMMYGOME2.xml";
+        indexer += AUXILIARY_FILE + "=" + "DUMMYGOME2.xml";
         FileUtils.writeStringToFile(new File(mosaic, "indexer.properties"), indexer, "UTF-8");
 
         String timeregex = "regex=[0-9]{8}";
@@ -1455,7 +1537,7 @@ public class NetCDFMosaicReaderTest {
         // limit yourself to reading just a bit of it
         final ParameterValue<GridGeometry2D> gg =
                 AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope(name);
+        final GeneralBounds envelope = reader.getOriginalEnvelope(name);
         final Dimension dim = new Dimension();
         dim.setSize(
                 reader.getOriginalGridRange(name).getSpan(0) / 2.0,
@@ -1476,20 +1558,10 @@ public class NetCDFMosaicReaderTest {
         for (ParameterDescriptor<List> param : params) {
             if (param.getName().getCode().equalsIgnoreCase("RUNTIME")) {
                 dateValue = param.createValue();
-                dateValue.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedRuntime);
-                            }
-                        });
+                dateValue.setValue(List.of(selectedRuntime));
             } else if (param.getName().getCode().equalsIgnoreCase("NUMSIGMA")) {
                 sigmaValue = param.createValue();
-                sigmaValue.setValue(
-                        new ArrayList<String>() {
-                            {
-                                add(selectedSigma);
-                            }
-                        });
+                sigmaValue.setValue(List.of(selectedSigma));
             }
         }
         // Test the output coverage
@@ -1510,7 +1582,7 @@ public class NetCDFMosaicReaderTest {
     @Test
     public void testMultiCoverage() throws Exception {
         File testDir = tempFolder.newFolder("multi-coverage");
-        URL testUrl = URLs.fileToUrl(testDir);
+        URL testUrl = fileToUrl(testDir);
         FileUtils.copyDirectory(TestData.file(this, "multi-coverage"), testDir);
         ImageMosaicReader reader = null;
         try {
@@ -1541,11 +1613,9 @@ public class NetCDFMosaicReaderTest {
             String timestamp,
             double expected)
             throws Exception {
-        @SuppressWarnings("rawtypes")
         ParameterValue<List> time = ImageMosaicFormat.TIME.createValue();
         time.setValue(Arrays.asList(new Date[] {parseTimeStamp(timestamp)}));
-        GeneralParameterValue[] params =
-                new GeneralParameterValue[] {NO_DEFERRED_LOADING_PARAM, time};
+        GeneralParameterValue[] params = {NO_DEFERRED_LOADING_PARAM, time};
         GridCoverage2D coverage = reader.read(coverageName, params);
         assertNotNull(coverage);
         // delta is zero because an exact match is expected
@@ -1575,11 +1645,6 @@ public class NetCDFMosaicReaderTest {
      */
     static void show(RenderedImage image, String title) {
         ImageIOUtilities.visualize(image, title);
-    }
-
-    /** @param args */
-    public static void main(String[] args) {
-        TestRunner.run(NetCDFMosaicReaderTest.suite());
     }
 
     @BeforeClass
@@ -1629,7 +1694,7 @@ public class NetCDFMosaicReaderTest {
 
     private File[] runNO2Removal(String folder, Hints hints) throws IOException {
         File testDir = tempFolder.newFolder(folder);
-        URL testUrl = URLs.fileToUrl(testDir);
+        URL testUrl = fileToUrl(testDir);
         FileUtils.copyDirectory(TestData.file(this, "gome"), testDir);
         ImageMosaicReader reader = null;
         try {
@@ -1644,7 +1709,6 @@ public class NetCDFMosaicReaderTest {
 
             // remove granule
             GranuleStore store = (GranuleStore) reader.getGranules("NO2", false);
-
             int removed =
                     store.removeGranules(FF.like(FF.property("location"), "*20130101*"), hints);
             assertEquals(1, removed);
@@ -1669,7 +1733,7 @@ public class NetCDFMosaicReaderTest {
         FileUtils.deleteQuietly(netcdfAux);
 
         File testDir = tempFolder.newFolder(folder);
-        URL testUrl = URLs.fileToUrl(testDir);
+        URL testUrl = fileToUrl(testDir);
         FileUtils.copyDirectory(TestData.file(this, "poliaux"), testDir);
         ImageMosaicReader reader = null;
         PropertyIsLike locationFilter = FF.like(FF.property("location"), "*Poli1*");
@@ -1718,6 +1782,61 @@ public class NetCDFMosaicReaderTest {
         assertEquals(0, store.getFeatureSource("O3").getFeatures(locationFilter).size());
     }
 
+    @Test
+    public void testAuxiliaryFileRelativeReference() throws Exception {
+        String folder = "poliaux-relative";
+        File testDir = tempFolder.newFolder(folder);
+        FileUtils.copyDirectory(TestData.file(this, "poliaux"), testDir);
+
+        // create and perform checks in original directory
+        ImageMosaicReader reader = null;
+        try {
+            reader = new ImageMosaicReader(fileToUrl(testDir));
+            assertNotNull(reader);
+
+            // force full init and creation of all config files
+            reader.read("NO2", NO_DEFERRED_LOADING_PARAMS).dispose(true);
+            reader.read("O3", NO_DEFERRED_LOADING_PARAMS).dispose(true);
+
+            // check that the per store property files use relative references
+            Properties no2 = loadPropertiesFromURL(fileToUrl(new File(testDir, "NO2.properties")));
+            assertEquals("_polyphemus.xml", no2.getProperty(AUXILIARY_FILE));
+            assertEquals("netcdf_datastore.properties", no2.getProperty(AUXILIARY_DATASTORE_FILE));
+
+            Properties o3 = loadPropertiesFromURL(fileToUrl(new File(testDir, "O3.properties")));
+            assertEquals("_polyphemus.xml", o3.getProperty(AUXILIARY_FILE));
+            assertEquals("netcdf_datastore.properties", o3.getProperty(AUXILIARY_DATASTORE_FILE));
+        } finally {
+            if (reader != null) {
+                reader.dispose();
+            }
+        }
+
+        // copy the folder, make sure the reader works there too
+        File testDir2 = tempFolder.newFolder(folder + "2");
+        FileUtils.copyDirectory(testDir, testDir2);
+        try {
+            reader = new ImageMosaicReader(fileToUrl(testDir2));
+            assertNotNull(reader);
+
+            // check reads are still working as expected (no exceptions, there is actual data)
+            float[] pixel = new float[1];
+            GridCoverage2D no2 = reader.read("NO2", NO_DEFERRED_LOADING_PARAMS);
+            no2.evaluate(new Point2D.Double(12, 47), pixel);
+            assertEquals(0.92, pixel[0], 0.01);
+            no2.dispose(true);
+
+            GridCoverage2D o3 = reader.read("O3", NO_DEFERRED_LOADING_PARAMS);
+            o3.evaluate(new Point2D.Double(12, 47), pixel);
+            assertEquals(56.25, pixel[0], 0.01);
+            o3.dispose(true);
+        } finally {
+            if (reader != null) {
+                reader.dispose();
+            }
+        }
+    }
+
     /** Cleanup granules metadata, fully */
     @Test
     public void testMultiCoverageCleanupMetadataInAuxDB() throws Exception {
@@ -1729,7 +1848,7 @@ public class NetCDFMosaicReaderTest {
         FileUtils.deleteQuietly(netcdfAux);
 
         File testDir = tempFolder.newFolder(folder);
-        URL testUrl = URLs.fileToUrl(testDir);
+        URL testUrl = fileToUrl(testDir);
         FileUtils.copyDirectory(TestData.file(this, "poliaux"), testDir);
         ImageMosaicReader reader = null;
         PropertyIsLike locationFilter = FF.like(FF.property("location"), "*Poli1*");
@@ -1783,7 +1902,7 @@ public class NetCDFMosaicReaderTest {
     @Test
     public void testGranuleSourceFileView() throws Exception {
         File testDir = tempFolder.newFolder("multi-coverage-fileview");
-        URL testUrl = URLs.fileToUrl(testDir);
+        URL testUrl = fileToUrl(testDir);
         FileUtils.copyDirectory(TestData.file(this, "multi-coverage"), testDir);
         ImageMosaicReader reader = new ImageMosaicReader(testUrl);
         try {
@@ -1808,7 +1927,6 @@ public class NetCDFMosaicReaderTest {
                 nc1 = it.next();
                 nc2 = it.next();
             }
-
             assertEquals("2017-02-06 00:00:00.0", nc1.getAttribute("time").toString());
             assertEquals("2017-02-06 12:00:00.0", nc2.getAttribute("time").toString());
         } finally {

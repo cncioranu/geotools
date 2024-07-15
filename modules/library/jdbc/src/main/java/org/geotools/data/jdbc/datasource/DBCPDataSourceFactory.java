@@ -23,9 +23,9 @@ import java.util.Collections;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
-import org.geotools.data.DataAccessFactory.Param;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.DataAccessFactory.Param;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.Parameter;
 
 /**
  * A datasource factory using DBCP connection pool
@@ -77,17 +77,22 @@ public class DBCPDataSourceFactory extends AbstractDataSourceFactorySpi {
                     "The maximum number of idle connections in the pool",
                     true);
 
-    private static final Param[] PARAMS =
-            new Param[] {DSTYPE, DRIVERCLASS, JDBC_URL, USERNAME, PASSWORD, MAXACTIVE, MAXIDLE};
+    private static final Param[] PARAMS = {
+        DSTYPE, DRIVERCLASS, JDBC_URL, USERNAME, PASSWORD, MAXACTIVE, MAXIDLE
+    };
 
+    @Override
     public DataSource createDataSource(Map<String, ?> params) throws IOException {
         return createNewDataSource(params);
     }
 
+    @Override
     public boolean canProcess(Map<String, ?> params) {
         return super.canProcess(params) && "DBCP".equals(params.get("dstype"));
     }
 
+    @Override
+    @SuppressWarnings("PMD.UseTryWithResources") // just a conn. test, we want to manage closing
     public DataSource createNewDataSource(Map<String, ?> params) throws IOException {
         BasicDataSource dataSource = new BasicDataSource();
         dataSource.setDriverClassName((String) DRIVERCLASS.lookUp(params));
@@ -117,14 +122,17 @@ public class DBCPDataSourceFactory extends AbstractDataSourceFactorySpi {
         return dataSource;
     }
 
+    @Override
     public String getDescription() {
         return "A BDCP connection pool.";
     }
 
+    @Override
     public Param[] getParametersInfo() {
         return PARAMS;
     }
 
+    @Override
     public boolean isAvailable() {
         try {
             new BasicDataSource();

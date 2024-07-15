@@ -16,7 +16,7 @@
  */
 package org.geotools.map;
 
-import org.geotools.styling.Style;
+import org.geotools.api.style.Style;
 
 /**
  * Layer responsible for rendering under control of a user supplied Style object.
@@ -68,6 +68,7 @@ public abstract class StyleLayer extends Layer {
      *
      * @return The style (SLD).
      */
+    @Override
     public Style getStyle() {
         return style;
     }

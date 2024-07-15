@@ -22,6 +22,9 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.data.jdbc.FilterToSQL;
 import org.geotools.jdbc.BasicSQLDialect;
 import org.geotools.jdbc.JDBCDataStore;
@@ -32,9 +35,6 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKTWriter;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
 
 /**
  * H2 database dialect based on basic (non-prepared) statements.
@@ -191,8 +191,8 @@ public class H2DialectBasic extends BasicSQLDialect {
             if (value != null) {
                 // encode as hex string
                 sql.append("'");
-                for (int i = 0; i < b.length; i++) {
-                    sql.append(Integer.toString((b[i] & 0xff) + 0x100, 16).substring(1));
+                for (byte item : b) {
+                    sql.append(Integer.toString((item & 0xff) + 0x100, 16).substring(1));
                 }
                 sql.append("'");
             } else {
@@ -262,5 +262,12 @@ public class H2DialectBasic extends BasicSQLDialect {
     @Override
     public void registerSqlTypeToSqlTypeNameOverrides(Map<Integer, String> overrides) {
         delegate.registerSqlTypeToSqlTypeNameOverrides(overrides);
+    }
+
+    @Override
+    public String[] getDesiredTablesType() {
+        return new String[] {
+            "TABLE", "VIEW", "MATERIALIZED VIEW", "SYNONYM", "TABLE LINK", "EXTERNAL"
+        };
     }
 }

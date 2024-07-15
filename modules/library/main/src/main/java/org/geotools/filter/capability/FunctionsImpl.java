@@ -21,8 +21,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.capability.Functions;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.capability.Functions;
 
 /**
  * Implementation of the Functions interface.
@@ -41,7 +41,7 @@ public class FunctionsImpl implements Functions {
         this.functionNames = new HashSet<>(functionNames);
     }
 
-    public FunctionsImpl(FunctionName[] functionNames) {
+    public FunctionsImpl(FunctionName... functionNames) {
         if (functionNames == null) {
             functionNames = new FunctionName[] {};
         }
@@ -58,6 +58,7 @@ public class FunctionsImpl implements Functions {
         }
     }
 
+    @Override
     public Collection<FunctionName> getFunctionNames() {
         return functionNames;
     }
@@ -66,6 +67,7 @@ public class FunctionsImpl implements Functions {
         this.functionNames = new HashSet<>(functionNames);
     }
 
+    @Override
     public FunctionName getFunctionName(String name) {
         if (name == null || functionNames == null) {
             return null;

@@ -18,15 +18,15 @@ package org.geotools.sld.bindings;
 
 import java.util.List;
 import javax.xml.namespace.QName;
-import org.geotools.styling.Graphic;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.Symbol;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.AnchorPoint;
+import org.geotools.api.style.Displacement;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.Symbol;
 import org.geotools.xsd.AbstractComplexBinding;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
-import org.opengis.filter.expression.Expression;
-import org.opengis.style.AnchorPoint;
-import org.opengis.style.Displacement;
 import org.picocontainer.MutablePicoContainer;
 
 /**
@@ -70,6 +70,7 @@ public class SLDGraphicBinding extends AbstractComplexBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return SLD.GRAPHIC;
     }
@@ -81,6 +82,7 @@ public class SLDGraphicBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public int getExecutionMode() {
         return AFTER;
     }
@@ -92,6 +94,7 @@ public class SLDGraphicBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return Graphic.class;
     }
@@ -103,6 +106,7 @@ public class SLDGraphicBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public void initialize(ElementInstance instance, Node node, MutablePicoContainer context) {}
 
     /**
@@ -112,6 +116,7 @@ public class SLDGraphicBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
 
         List<Symbol> symbols = node.getChildValues(Symbol.class);
@@ -124,7 +129,7 @@ public class SLDGraphicBinding extends AbstractComplexBinding {
                 styleFactory.createGraphic(
                         null,
                         null,
-                        (Symbol[]) symbols.toArray(new Symbol[symbols.size()]),
+                        symbols.toArray(new Symbol[symbols.size()]),
                         opacity,
                         size,
                         rotation);

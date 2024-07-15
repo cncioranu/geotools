@@ -25,6 +25,7 @@ import javax.xml.parsers.SAXParserFactory;
 import org.geotools.xsd.impl.ElementNameStreamingParserHandler;
 import org.geotools.xsd.impl.StreamingParserHandler;
 import org.geotools.xsd.impl.TypeStreamingParserHandler;
+import org.xml.sax.EntityResolver;
 import org.xml.sax.SAXException;
 
 /**
@@ -214,6 +215,10 @@ public class StreamingParser {
         this.input = input;
     }
 
+    public void setEntityResolver(EntityResolver entityResolver) {
+        handler.setEntityResolver(entityResolver);
+    }
+
     /**
      * Streams the parser to the next element in the instance document which matches the xpath query
      * specified in the contstructor. This method returns null when there are no more objects to
@@ -224,16 +229,14 @@ public class StreamingParser {
     public Object parse() {
         if (thread == null) {
             Runnable runnable =
-                    new Runnable() {
-                        public void run() {
-                            try {
-                                parser.parse(input, handler);
-                            } catch (Exception e) {
-                                // close the buffer
-                                handler.getBuffer().close();
-                                throw new RuntimeException(e);
-                            }
-                        };
+                    () -> {
+                        try {
+                            parser.parse(input, handler);
+                        } catch (Exception e) {
+                            // close the buffer
+                            handler.getBuffer().close();
+                            throw new RuntimeException(e);
+                        }
                     };
 
             thread = new Thread(runnable);

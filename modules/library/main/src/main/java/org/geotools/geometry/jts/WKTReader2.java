@@ -107,12 +107,10 @@ public class WKTReader2 extends WKTReader {
      * @return a <code>Geometry</code> specified by <code>wellKnownText</code>
      * @throws ParseException if a parsing problem occurs
      */
+    @Override
     public Geometry read(String wellKnownText) throws ParseException {
-        StringReader reader = new StringReader(wellKnownText);
-        try {
+        try (StringReader reader = new StringReader(wellKnownText)) {
             return read(reader);
-        } finally {
-            reader.close();
         }
     }
 
@@ -124,6 +122,7 @@ public class WKTReader2 extends WKTReader {
      * @return a <code>Geometry</code> read from <code>reader</code>
      * @throws ParseException if a parsing problem occurs
      */
+    @Override
     public Geometry read(Reader reader) throws ParseException {
         tokenizer = new StreamTokenizer(reader);
         // set tokenizer to NOT parse numbers
@@ -200,11 +199,26 @@ public class WKTReader2 extends WKTReader {
 
     private Coordinate getPreciseCoordinate(boolean measures) throws IOException, ParseException {
         Coordinate coord = measures ? new CoordinateXYZM() : new Coordinate();
+        if (isEmptyNext()) {
+            // eat the EMPTY
+            tokenizer.nextToken();
+            return null;
+        }
         for (int i = 0; isNumberNext(); i++) {
             coord.setOrdinate(i, getNextNumber());
         }
         precisionModel.makePrecise(coord);
         return coord;
+    }
+
+    private boolean isEmptyNext() throws IOException {
+        tokenizer.nextToken();
+        boolean ret = false;
+        if (tokenizer.sval.equalsIgnoreCase("EMPTY")) {
+            ret = true;
+        }
+        tokenizer.pushBack();
+        return ret;
     }
 
     private boolean isNumberNext() throws IOException {
@@ -364,9 +378,7 @@ public class WKTReader2 extends WKTReader {
 
         try {
             type = getNextWord();
-        } catch (IOException e) {
-            return null;
-        } catch (ParseException e) {
+        } catch (IOException | ParseException e) {
             return null;
         }
 
@@ -475,7 +487,7 @@ public class WKTReader2 extends WKTReader {
     /** Creates a <code>LineString</code> using the next token in the stream. */
     private LineString readCircularStringText() throws IOException, ParseException {
         List<Coordinate> coordinates = getCoordinateList(true);
-        if (coordinates.size() == 0) {
+        if (coordinates.isEmpty()) {
             return geometryFactory.createCurvedGeometry(
                     new LiteCoordinateSequence(new Coordinate[0]));
         } else if (coordinates.size() < 3) {
@@ -622,6 +634,7 @@ public class WKTReader2 extends WKTReader {
             Coordinate[] array = new Coordinate[coordinates.size()];
             return coordinates.toArray(array);
         } else {
+
             ArrayList<Coordinate> coordinates = new ArrayList<>();
             coordinates.add(getPreciseCoordinate());
             nextToken = getNextCloserOrComma();
@@ -641,10 +654,14 @@ public class WKTReader2 extends WKTReader {
      * @return <code>Point</code>s created using this <code>WKTReader</code> s <code>GeometryFactory
      *     </code>
      */
-    private Point[] toPoints(Coordinate[] coordinates) {
+    private Point[] toPoints(Coordinate... coordinates) {
         ArrayList<Point> points = new ArrayList<>();
-        for (int i = 0; i < coordinates.length; i++) {
-            points.add(geometryFactory.createPoint(coordinates[i]));
+        for (Coordinate coordinate : coordinates) {
+            if (coordinate == null) {
+                points.add((Point) geometryFactory.createEmpty(0));
+            } else {
+                points.add(geometryFactory.createPoint(coordinate));
+            }
         }
         return points.toArray(new Point[points.size()]);
     }
@@ -684,7 +701,7 @@ public class WKTReader2 extends WKTReader {
         String nextToken = getNextEmptyOrOpener();
         if (nextToken.equals(EMPTY)) {
             return geometryFactory.createCurvePolygon(
-                    geometryFactory.createLinearRing(new Coordinate[] {}), new LinearRing[] {});
+                    geometryFactory.createLinearRing(new Coordinate[] {}));
         }
         if (!nextToken.equals(L_PAREN)) {
             parseError("Ring expected");

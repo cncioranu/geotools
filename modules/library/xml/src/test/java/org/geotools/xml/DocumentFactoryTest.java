@@ -34,7 +34,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
@@ -46,9 +45,6 @@ import org.xml.sax.SAXNotSupportedException;
  * @author Aaron Waddell
  */
 public class DocumentFactoryTest {
-    private final String DISALLOW_DOCTYPE_DECLAIRATION =
-            "http://apache.org/xml/features/disallow-doctype-decl";
-
     private final String LOAD_EXTERNAL_DTD =
             "http://apache.org/xml/features/nonvalidating/load-external-dtd";
 
@@ -73,19 +69,16 @@ public class DocumentFactoryTest {
         uri = new URI("http://geotools.org");
         hints = new HashMap<>();
 
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         hints.put(XMLHandlerHints.SAX_PARSER_FACTORY, mockSaxParserFactory);
         when(mockSaxParserFactory.newSAXParser()).thenReturn(mockSaxParser);
 
         Answer<Void> startDocumentAnswer =
-                new Answer<Void>() {
-                    @Override
-                    public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-                        XMLSAXHandler xmlSaxHandler =
-                                (XMLSAXHandler) invocationOnMock.getArguments()[1];
-                        xmlSaxHandler.startDocument();
-                        return null;
-                    }
+                invocationOnMock -> {
+                    XMLSAXHandler xmlSaxHandler =
+                            (XMLSAXHandler) invocationOnMock.getArguments()[1];
+                    xmlSaxHandler.startDocument();
+                    return null;
                 };
         doAnswer(startDocumentAnswer)
                 .when(mockSaxParser)

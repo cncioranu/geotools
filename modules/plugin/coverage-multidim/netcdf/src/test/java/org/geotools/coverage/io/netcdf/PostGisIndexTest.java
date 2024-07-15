@@ -30,21 +30,26 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.data.CloseableIterator;
+import org.geotools.api.data.FileGroupProvider.FileGroup;
+import org.geotools.api.data.FileResourceInfo;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.coverage.grid.io.GranuleSource;
 import org.geotools.coverage.grid.io.HarvestedSource;
 import org.geotools.coverage.io.catalog.CoverageSlice;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
 import org.geotools.coverage.io.netcdf.crs.NetCDFCRSAuthorityFactory;
-import org.geotools.data.CloseableIterator;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FileGroupProvider.FileGroup;
-import org.geotools.data.FileResourceInfo;
-import org.geotools.data.Query;
-import org.geotools.data.ResourceInfo;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.factory.CommonFactoryFinder;
@@ -61,13 +66,6 @@ import org.geotools.util.DateRange;
 import org.geotools.util.NumberRange;
 import org.geotools.util.factory.Hints;
 import org.junit.Test;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
 
 /**
  * Testing Low level index based on PostGis
@@ -127,8 +125,8 @@ public final class PostGisIndexTest extends OnlineTestCase {
             // check coverage names
             final List<Name> names = reader.getCoveragesNames();
             assertNotNull(names);
-            assertTrue(!names.isEmpty());
-            assertTrue(2 == names.size());
+            assertFalse(names.isEmpty());
+            assertEquals(2, names.size());
             assertTrue(names.contains(new NameImpl("O3")));
 
             // checking slice catalog
@@ -147,7 +145,6 @@ public final class PostGisIndexTest extends OnlineTestCase {
             hints.add(new Hints(Utils.AUXILIARY_DATASTORE_PATH, datastoreFile.getCanonicalPath()));
             NetCDFReader gtReader = new NetCDFReader(destFile, hints);
             String coverageName = gtReader.getGridCoverageNames()[1];
-            CloseableIterator<FileGroup> files = null;
             try {
                 final String[] metadataNames = gtReader.getMetadataNames(coverageName);
                 assertNotNull(metadataNames);
@@ -156,15 +153,15 @@ public final class PostGisIndexTest extends OnlineTestCase {
                 ResourceInfo info = gtReader.getInfo(coverageName);
                 assertTrue(info instanceof FileResourceInfo);
                 FileResourceInfo fileInfo = (FileResourceInfo) info;
-                files = fileInfo.getFiles(null);
-
-                int fileGroups = 0;
                 FileGroup fg = null;
-                while (files.hasNext()) {
-                    fg = files.next();
-                    fileGroups++;
+                try (CloseableIterator<FileGroup> files = fileInfo.getFiles(null)) {
+                    int fileGroups = 0;
+                    while (files.hasNext()) {
+                        fg = files.next();
+                        fileGroups++;
+                    }
+                    assertEquals(1, fileGroups);
                 }
-                assertEquals(1, fileGroups);
                 File mainFile = fg.getMainFile();
                 assertEquals("O3-NO2", FilenameUtils.getBaseName(mainFile.getAbsolutePath()));
                 Map<String, Object> metadata = fg.getMetadata();
@@ -190,9 +187,6 @@ public final class PostGisIndexTest extends OnlineTestCase {
             } catch (Throwable t) {
                 throw new RuntimeException(t);
             } finally {
-                if (files != null) {
-                    files.close();
-                }
                 if (reader != null) {
                     try {
                         reader.dispose();
@@ -327,7 +321,6 @@ public final class PostGisIndexTest extends OnlineTestCase {
         // have the reader harvest it
         ImageMosaicFormat format = new ImageMosaicFormat();
         ImageMosaicReader reader = format.getReader(mosaic);
-        SimpleFeatureIterator it = null;
         assertNotNull(reader);
         try {
             String[] names = reader.getGridCoverageNames();
@@ -336,27 +329,27 @@ public final class PostGisIndexTest extends OnlineTestCase {
 
             // check we have the two granules we expect
             GranuleSource source = reader.getGranules("O3", true);
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory();
             Query q = new Query(Query.ALL);
-            q.setSortBy(new SortBy[] {ff.sort("time", SortOrder.ASCENDING)});
+            q.setSortBy(ff.sort("time", SortOrder.ASCENDING));
             SimpleFeatureCollection granules = source.getGranules(q);
             assertEquals(2, granules.size());
-            it = granules.features();
-            assertTrue(it.hasNext());
-            SimpleFeature f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(0, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T00:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            assertTrue(it.hasNext());
-            f = it.next();
-            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
-            assertEquals(1, f.getAttribute("imageindex"));
-            assertEquals(
-                    "2013-03-01T01:00:00.000Z",
-                    ConvertersHack.convert(f.getAttribute("time"), String.class));
-            it.close();
+            try (SimpleFeatureIterator it = granules.features()) {
+                assertTrue(it.hasNext());
+                SimpleFeature f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(0, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T00:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+                assertTrue(it.hasNext());
+                f = it.next();
+                assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+                assertEquals(1, f.getAttribute("imageindex"));
+                assertEquals(
+                        "2013-03-01T01:00:00.000Z",
+                        ConvertersHack.convert(f.getAttribute("time"), String.class));
+            }
 
             // close the reader and re-open it
             reader.dispose();
@@ -385,9 +378,6 @@ public final class PostGisIndexTest extends OnlineTestCase {
 
             assertNotNull(reader.read("O3", null));
         } finally {
-            if (it != null) {
-                it.close();
-            }
             reader.dispose();
         }
     }
@@ -410,8 +400,7 @@ public final class PostGisIndexTest extends OnlineTestCase {
 
     /** recursively delete indexes */
     private void cleanupFolders(final File file) {
-        if (file.isFile()) {
-        } else {
+        if (!file.isFile()) {
             final File[] files = file.listFiles();
 
             for (File f : files) {
@@ -437,41 +426,21 @@ public final class PostGisIndexTest extends OnlineTestCase {
     private void removeTables(String[] tables, String database) throws Exception {
         // delete tables
         Class.forName("org.postgresql.Driver");
-        Connection connection = null;
-        Statement st = null;
-        try {
-            connection =
-                    DriverManager.getConnection(
-                            "jdbc:postgresql://"
-                                    + fixture.getProperty("host")
-                                    + ":"
-                                    + fixture.getProperty("port")
-                                    + "/"
-                                    + (database != null
-                                            ? database
-                                            : fixture.getProperty("database")),
-                            fixture.getProperty("user"),
-                            fixture.getProperty("passwd"));
-            st = connection.createStatement();
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                "jdbc:postgresql://"
+                                        + fixture.getProperty("host")
+                                        + ":"
+                                        + fixture.getProperty("port")
+                                        + "/"
+                                        + (database != null
+                                                ? database
+                                                : fixture.getProperty("database")),
+                                fixture.getProperty("user"),
+                                fixture.getProperty("passwd"));
+                Statement st = connection.createStatement()) {
             for (String table : tables) {
                 st.execute("DROP TABLE IF EXISTS \"" + table + "\"");
-            }
-        } finally {
-
-            if (st != null) {
-                try {
-                    st.close();
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
-                }
-            }
-
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
-                }
             }
         }
     }

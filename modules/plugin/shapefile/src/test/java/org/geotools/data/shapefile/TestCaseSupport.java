@@ -25,19 +25,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import junit.framework.Test;
-import junit.framework.TestSuite;
 import org.geotools.TestData;
-import org.geotools.data.CloseableIterator;
-import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.api.data.CloseableIterator;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.junit.After;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.FilterFactory2;
 
 /**
  * Base class for test suite. This class is not abstract for the purpose of {@link
@@ -68,7 +63,7 @@ public class TestCaseSupport {
     static final String RUSSIAN = "shapes/rus-windows-1251.shp";
 
     /** References a known test file provided by sample data. */
-    static final FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+    static final FilterFactory ff = CommonFactoryFinder.getFilterFactory();
 
     /**
      * Set to {@code true} if {@code println} are wanted during normal execution. It doesn't apply
@@ -105,6 +100,7 @@ public class TestCaseSupport {
             dieDieDIE(sibling(targetFile, "grx"));
             dieDieDIE(sibling(targetFile, "prj"));
             dieDieDIE(sibling(targetFile, "shp.xml"));
+            dieDieDIE(sibling(targetFile, "cpg"));
 
             f.remove();
         }
@@ -112,9 +108,7 @@ public class TestCaseSupport {
 
     private void dieDieDIE(File file) {
         if (file.exists()) {
-            if (file.delete()) {
-                // dead
-            } else {
+            if (!file.delete()) {
                 // System.out.println("Couldn't delete " + file);
                 file.deleteOnExit(); // dead later
             }
@@ -143,31 +137,21 @@ public class TestCaseSupport {
      * @throws IOException if reading failed.
      */
     protected Geometry readGeometry(final String wktResource) throws IOException {
-        final BufferedReader stream = TestData.openReader("wkt/" + wktResource + ".wkt");
-        final WKTReader reader = new WKTReader();
-        final Geometry geom;
-        try {
-            geom = reader.read(stream);
-        } catch (ParseException pe) {
-            IOException e = new IOException("parsing error in resource " + wktResource);
-            e.initCause(pe);
-            throw e;
+        try (final BufferedReader stream = TestData.openReader("wkt/" + wktResource + ".wkt")) {
+            final WKTReader reader = new WKTReader();
+            try {
+                return reader.read(stream);
+            } catch (ParseException pe) {
+                IOException e = new IOException("parsing error in resource " + wktResource);
+                e.initCause(pe);
+                throw e;
+            }
         }
-        stream.close();
-        return geom;
-    }
-
-    /** Returns the first feature in the given feature collection. */
-    protected SimpleFeature firstFeature(SimpleFeatureCollection fc) {
-        SimpleFeatureIterator features = fc.features();
-        SimpleFeature next = features.next();
-        features.close();
-        return next;
     }
 
     /** Creates a temporary file, to be automatically deleted at the end of the test suite. */
     protected File getTempFile() throws IOException {
-        // force in some valid but weird chars into teh path to be on par with OSX that does it
+        // force in some valid but weird chars into the path to be on par with OSX that does it
         // on its own
         File tmpFile = File.createTempFile("test-+()shp", ".shp");
         tmpFile.deleteOnExit();
@@ -220,6 +204,11 @@ public class TestCaseSupport {
         } catch (FileNotFoundException e) {
             // Ignore: this file is optional.
         }
+        try {
+            assertTrue(TestData.copy(TestCaseSupport.class, sibling(name, "cpg")).canRead());
+        } catch (FileNotFoundException e) {
+            // Ignore: this file is optional.
+        }
         File copy = TestData.copy(TestCaseSupport.class, name);
         markTempFile(copy);
 
@@ -239,10 +228,5 @@ public class TestCaseSupport {
         }
 
         return count;
-    }
-
-    /** Returns the test suite for the given class. */
-    public static Test suite(Class<?> c) {
-        return new TestSuite(c);
     }
 }

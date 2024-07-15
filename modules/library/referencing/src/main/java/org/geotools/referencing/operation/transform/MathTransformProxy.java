@@ -20,13 +20,13 @@
 package org.geotools.referencing.operation.transform;
 
 import java.io.Serializable;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.Matrix;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.util.Utilities;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.Matrix;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A math transform which delegates part of its work to an other math transform. This is used as a
@@ -59,11 +59,13 @@ public class MathTransformProxy implements MathTransform, Serializable {
     }
 
     /** Gets the dimension of input points. */
+    @Override
     public int getSourceDimensions() {
         return transform.getTargetDimensions();
     }
 
     /** Gets the dimension of output points. */
+    @Override
     public int getTargetDimensions() {
         return transform.getSourceDimensions();
     }
@@ -75,12 +77,14 @@ public class MathTransformProxy implements MathTransform, Serializable {
      *     expected dimension.
      * @throws TransformException if the point can't be transformed.
      */
-    public DirectPosition transform(final DirectPosition ptSrc, final DirectPosition ptDst)
+    @Override
+    public Position transform(final Position ptSrc, final Position ptDst)
             throws MismatchedDimensionException, TransformException {
         return transform.transform(ptSrc, ptDst);
     }
 
     /** Transforms a list of coordinate point ordinal values. */
+    @Override
     public void transform(
             final double[] srcPts,
             final int srcOff,
@@ -92,6 +96,7 @@ public class MathTransformProxy implements MathTransform, Serializable {
     }
 
     /** Transforms a list of coordinate point ordinal values. */
+    @Override
     public void transform(
             final float[] srcPts,
             final int srcOff,
@@ -108,6 +113,7 @@ public class MathTransformProxy implements MathTransform, Serializable {
      * @todo Remove the cast to {@link AbstractMathTransform} when this method will be part of
      *     GeoAPI.
      */
+    @Override
     public void transform(
             final float[] srcPts,
             final int srcOff,
@@ -115,7 +121,7 @@ public class MathTransformProxy implements MathTransform, Serializable {
             final int dstOff,
             final int numPts)
             throws TransformException {
-        ((AbstractMathTransform) transform).transform(srcPts, srcOff, dstPts, dstOff, numPts);
+        transform.transform(srcPts, srcOff, dstPts, dstOff, numPts);
     }
 
     /**
@@ -124,6 +130,7 @@ public class MathTransformProxy implements MathTransform, Serializable {
      * @todo Remove the cast to {@link AbstractMathTransform} when this method will be part of
      *     GeoAPI.
      */
+    @Override
     public void transform(
             final double[] srcPts,
             final int srcOff,
@@ -131,20 +138,23 @@ public class MathTransformProxy implements MathTransform, Serializable {
             final int dstOff,
             final int numPts)
             throws TransformException {
-        ((AbstractMathTransform) transform).transform(srcPts, srcOff, dstPts, dstOff, numPts);
+        transform.transform(srcPts, srcOff, dstPts, dstOff, numPts);
     }
 
     /** Gets the derivative of this transform at a point. */
-    public Matrix derivative(final DirectPosition point) throws TransformException {
+    @Override
+    public Matrix derivative(final Position point) throws TransformException {
         return transform.derivative(point);
     }
 
     /** Returns the inverse of this math transform. */
+    @Override
     public MathTransform inverse() throws NoninvertibleTransformException {
         return transform.inverse();
     }
 
     /** Tests whether this transform does not move any points. */
+    @Override
     public boolean isIdentity() {
         return transform.isIdentity();
     }
@@ -154,6 +164,7 @@ public class MathTransformProxy implements MathTransform, Serializable {
      *
      * @throws UnsupportedOperationException If this object can't be formatted as WKT.
      */
+    @Override
     public String toWKT() throws UnsupportedOperationException {
         return transform.toWKT();
     }

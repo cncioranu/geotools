@@ -44,17 +44,19 @@ public class CurvePolygon extends Polygon implements CurvedGeometry<Polygon> {
         this.tolerance = tolerance;
     }
 
+    @Override
     public Polygon linearize() {
         return linearize(tolerance);
     }
 
+    @Override
     public Polygon linearize(double tolerance) {
 
         int numHoles = getNumInteriorRing();
-        LinearRing shell = linearize(tolerance, (LinearRing) getExteriorRing());
+        LinearRing shell = linearize(tolerance, getExteriorRing());
         LinearRing[] holes = new LinearRing[numHoles];
         for (int k = 0; k < numHoles; k++) {
-            LinearRing hole = (LinearRing) getInteriorRingN(k);
+            LinearRing hole = getInteriorRingN(k);
             hole = linearize(tolerance, hole);
             holes[k] = hole;
         }
@@ -70,6 +72,7 @@ public class CurvePolygon extends Polygon implements CurvedGeometry<Polygon> {
         return hole;
     }
 
+    @Override
     public String toCurvedText() {
         StringBuilder sb = new StringBuilder("CURVEPOLYGON ");
         if (isEmpty()) {
@@ -120,6 +123,7 @@ public class CurvePolygon extends Polygon implements CurvedGeometry<Polygon> {
         return new CurvePolygon(shell, holes, factory, tolerance);
     }
 
+    @Override
     public String toString() {
         return toCurvedText();
     }

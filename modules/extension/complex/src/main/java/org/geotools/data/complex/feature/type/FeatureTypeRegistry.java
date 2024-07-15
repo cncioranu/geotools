@@ -35,6 +35,17 @@ import org.eclipse.xsd.XSDComplexTypeDefinition;
 import org.eclipse.xsd.XSDElementDeclaration;
 import org.eclipse.xsd.XSDParticle;
 import org.eclipse.xsd.XSDTypeDefinition;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.FeatureTypeFactory;
+import org.geotools.api.feature.type.GeometryType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.feature.type.Schema;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.util.InternationalString;
 import org.geotools.data.complex.util.EmfComplexFeatureReader;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.type.AbstractLazyComplexTypeImpl;
@@ -48,17 +59,6 @@ import org.geotools.xsd.SchemaIndex;
 import org.geotools.xsd.Schemas;
 import org.geotools.xsd.complex.FeatureTypeRegistryConfiguration;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.FeatureTypeFactory;
-import org.opengis.feature.type.GeometryType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.feature.type.Schema;
-import org.opengis.filter.Filter;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.util.InternationalString;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -393,7 +393,6 @@ public class FeatureTypeRegistry {
      * type does not exists in the registry uses a proxy.
      */
     private AttributeType getTypeOf(XSDElementDeclaration elemDecl, CoordinateReferenceSystem crs) {
-        XSDTypeDefinition typeDefinition;
 
         // TODO REVISIT, I'm not sure this is the way to find out if the
         // element's type is defined in line (an thus no need to register it
@@ -402,7 +401,7 @@ public class FeatureTypeRegistry {
             elemDecl = elemDecl.getResolvedElementDeclaration();
         }
         boolean hasToBeRegistered = false;
-        typeDefinition = elemDecl.getAnonymousTypeDefinition();
+        XSDTypeDefinition typeDefinition = elemDecl.getAnonymousTypeDefinition();
         if (typeDefinition == null) {
             // anonymous types already has type definition inline in the element
             // so the handling is different
@@ -530,8 +529,7 @@ public class FeatureTypeRegistry {
         }
 
         if (typeDefinition instanceof XSDComplexTypeDefinition) {
-            XSDComplexTypeDefinition complexTypeDef;
-            complexTypeDef = (XSDComplexTypeDefinition) typeDefinition;
+            XSDComplexTypeDefinition complexTypeDef = (XSDComplexTypeDefinition) typeDefinition;
             boolean includeParents = true;
             List<XSDElementDeclaration> children =
                     Schemas.getChildElementDeclarations(typeDefinition, includeParents);
@@ -540,8 +538,8 @@ public class FeatureTypeRegistry {
 
             XSDElementDeclaration childDecl;
             AttributeDescriptor descriptor;
-            for (Iterator it = children.iterator(); it.hasNext(); ) {
-                childDecl = (XSDElementDeclaration) it.next();
+            for (XSDElementDeclaration child : children) {
+                childDecl = child;
                 try {
                     descriptor = createAttributeDescriptor(complexTypeDef, childDecl, crs);
                 } catch (NoSuchElementException e) {
@@ -692,10 +690,9 @@ public class FeatureTypeRegistry {
         }
     }
 
-    @SuppressWarnings("unchecked")
     protected void importSchema(Schema schema) {
-        for (Iterator it = schema.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry entry = (Entry) it.next();
+        for (Entry<Name, AttributeType> nameAttributeTypeEntry : schema.entrySet()) {
+            Entry entry = (Entry) nameAttributeTypeEntry;
             Name key = (Name) entry.getKey();
             Object value = entry.getValue();
             if (typeRegistry.containsKey(key)) {
@@ -726,7 +723,7 @@ public class FeatureTypeRegistry {
                             String.class,
                             false,
                             false,
-                            Collections.<Filter>emptyList(),
+                            Collections.emptyList(),
                             null,
                             null);
         }

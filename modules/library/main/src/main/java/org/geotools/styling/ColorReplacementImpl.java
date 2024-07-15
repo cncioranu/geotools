@@ -16,8 +16,8 @@
  */
 package org.geotools.styling;
 
-import org.opengis.filter.expression.Function;
-import org.opengis.style.StyleVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.style.TraversingStyleVisitor;
 
 /**
  * An implementation of ColorReplacement; this is a wrapper around an implementaiton of the "Recode"
@@ -25,7 +25,7 @@ import org.opengis.style.StyleVisitor;
  *
  * @author Jody Garnett
  */
-public class ColorReplacementImpl implements org.geotools.styling.ColorReplacement {
+public class ColorReplacementImpl implements org.geotools.api.style.ColorReplacement {
 
     private Function function;
 
@@ -41,14 +41,17 @@ public class ColorReplacementImpl implements org.geotools.styling.ColorReplaceme
      *
      * @return Implementation of "Recode" function
      */
+    @Override
     public Function getRecoding() {
         return function;
     }
 
-    public Object accept(StyleVisitor visitor, Object extraData) {
+    @Override
+    public Object accept(TraversingStyleVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public void setRecoding(Function function) {
         this.function = function;
     }

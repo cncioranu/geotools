@@ -18,13 +18,13 @@ package org.geotools.filter.function;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class FilterFunction_setCRS extends FunctionExpressionImpl {
 
@@ -39,12 +39,13 @@ public class FilterFunction_setCRS extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         Geometry geom;
         CoordinateReferenceSystem crs;
 
         try { // attempt to get value and perform conversion
-            geom = (Geometry) getExpression(0).evaluate(feature, Geometry.class);
+            geom = getExpression(0).evaluate(feature, Geometry.class);
         } catch (Exception e) // probably a type error
         {
             throw new IllegalArgumentException(

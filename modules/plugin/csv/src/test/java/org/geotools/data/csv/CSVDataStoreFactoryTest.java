@@ -20,7 +20,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.geotools.TestData;
-import org.geotools.data.FileDataStore;
+import org.geotools.api.data.FileDataStore;
 import org.geotools.data.csv.parse.CSVAttributesOnlyStrategy;
 import org.geotools.data.csv.parse.CSVLatLonStrategy;
 import org.geotools.data.csv.parse.CSVSpecifiedWKTStrategy;
@@ -61,6 +61,17 @@ public class CSVDataStoreFactoryTest {
         fileParams.put("file", file);
         FileDataStore dataStore = csvDataStoreFactory.createDataStore(fileParams);
         assertNotNull("Could not create datastore from file params", dataStore);
+        assertNotNull(dataStore.getSchema());
+    }
+
+    @Test
+    public void testCreateDataStoreFileParamsWithURL() throws Exception {
+        Map<String, Serializable> fileParams = new HashMap<>(1);
+        String f = "file://" + file.getAbsolutePath();
+        fileParams.put("file", new File(f));
+        FileDataStore dataStore = csvDataStoreFactory.createDataStore(fileParams);
+        assertNotNull("Could not create datastore from file params", dataStore);
+        assertNotNull(dataStore.getSchema());
     }
 
     @Test
@@ -69,6 +80,7 @@ public class CSVDataStoreFactoryTest {
         urlParams.put("url", locationsResource);
         FileDataStore dataStore = csvDataStoreFactory.createDataStore(urlParams);
         assertNotNull("Could not create datastore from url params", dataStore);
+        assertNotNull(dataStore.getSchema());
     }
 
     @Test
@@ -108,6 +120,7 @@ public class CSVDataStoreFactoryTest {
             assertTrue(true);
             return;
         } catch (Exception e) {
+
         }
         fail("Did not throw illegal argument exception for null file");
     }
@@ -117,9 +130,7 @@ public class CSVDataStoreFactoryTest {
         File f = File.createTempFile("does-not-exist", ".csv");
         CSVDataStore datastore = (CSVDataStore) csvDataStoreFactory.createDataStoreFromFile(f);
 
-        assertTrue(
-                "Did not throw illegal argument exception for non-existent file",
-                datastore != null);
+        assertNotNull("Did not throw illegal argument exception for non-existent file", datastore);
     }
 
     @Test

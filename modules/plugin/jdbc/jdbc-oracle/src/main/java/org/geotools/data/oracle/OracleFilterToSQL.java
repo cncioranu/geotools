@@ -18,16 +18,53 @@ package org.geotools.data.oracle;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
+import org.geotools.api.filter.spatial.Contains;
+import org.geotools.api.filter.spatial.Crosses;
+import org.geotools.api.filter.spatial.DWithin;
+import org.geotools.api.filter.spatial.Disjoint;
+import org.geotools.api.filter.spatial.DistanceBufferOperator;
+import org.geotools.api.filter.spatial.Equals;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.filter.spatial.Overlaps;
+import org.geotools.api.filter.spatial.Touches;
+import org.geotools.api.filter.spatial.Within;
+import org.geotools.api.filter.temporal.After;
+import org.geotools.api.filter.temporal.Before;
+import org.geotools.api.filter.temporal.Begins;
+import org.geotools.api.filter.temporal.BegunBy;
+import org.geotools.api.filter.temporal.During;
+import org.geotools.api.filter.temporal.EndedBy;
+import org.geotools.api.filter.temporal.Ends;
+import org.geotools.api.filter.temporal.TEquals;
+import org.geotools.api.filter.temporal.TOverlaps;
 import org.geotools.data.oracle.filter.FilterFunction_sdonn;
+import org.geotools.data.oracle.sdo.SDOSqlDumper;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.FilterCapabilities;
 import org.geotools.filter.function.FilterFunction_area;
+import org.geotools.filter.function.JsonArrayContainsFunction;
+import org.geotools.filter.function.JsonPointerFunction;
 import org.geotools.filter.text.cql2.CQL;
 import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.jdbc.EscapeSql;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.PreparedFilterToSQL;
 import org.geotools.jdbc.PreparedStatementSQLDialect;
@@ -38,41 +75,12 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.BinarySpatialOperator;
-import org.opengis.filter.spatial.Contains;
-import org.opengis.filter.spatial.Crosses;
-import org.opengis.filter.spatial.DWithin;
-import org.opengis.filter.spatial.Disjoint;
-import org.opengis.filter.spatial.DistanceBufferOperator;
-import org.opengis.filter.spatial.Equals;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.filter.spatial.Overlaps;
-import org.opengis.filter.spatial.Touches;
-import org.opengis.filter.spatial.Within;
-import org.opengis.filter.temporal.After;
-import org.opengis.filter.temporal.Before;
-import org.opengis.filter.temporal.Begins;
-import org.opengis.filter.temporal.BegunBy;
-import org.opengis.filter.temporal.During;
-import org.opengis.filter.temporal.EndedBy;
-import org.opengis.filter.temporal.Ends;
-import org.opengis.filter.temporal.TEquals;
-import org.opengis.filter.temporal.TOverlaps;
 
 /**
  * Oracle specific filter encoder.
@@ -85,19 +93,16 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
 
     /** Contains filter type to SDO_RELATE mask type mappings */
     private static final Map<Class<?>, String> SDO_RELATE_MASK_MAP =
-            new HashMap<Class<?>, String>() {
-                {
-                    put(Contains.class, "contains");
-                    put(Crosses.class, "overlapbdydisjoint");
-                    put(Equals.class, "equal");
-                    put(Overlaps.class, "overlapbdyintersect");
-                    put(Touches.class, "touch");
-                    put(Within.class, "inside");
-                    put(Disjoint.class, "disjoint");
-                    put(BBOX.class, "anyinteract");
-                    put(Intersects.class, "anyinteract");
-                }
-            };
+            Map.of(
+                    Contains.class, "contains",
+                    Crosses.class, "overlapbdydisjoint",
+                    Equals.class, "equal",
+                    Overlaps.class, "overlapbdyintersect",
+                    Touches.class, "touch",
+                    Within.class, "inside",
+                    Disjoint.class, "disjoint",
+                    BBOX.class, "anyinteract",
+                    Intersects.class, "anyinteract");
 
     /** The whole world in WGS84 */
     private static final Envelope WORLD = new Envelope(-179.99, 179.99, -89.99, 89.99);
@@ -107,20 +112,20 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
      * the same result?
      */
     private static final Map<String, String> INVERSE_OPERATOR_MAP =
-            new HashMap<String, String>() {
-                {
+            Map.of(
+
                     // asymmetric operators, op2 = !op
-                    put("contains", "inside");
-                    put("inside", "contains");
+                    "contains", "inside",
+                    "inside", "contains",
                     // symmetric operators, op2 = op
-                    put("overlapbdydisjoint", "overlapbdydisjoint");
-                    put("overlapbdyintersect", "overlapbdyintersect");
-                    put("touch", "touch");
-                    put("equal", "equal");
-                    put("anyinteract", "anyinteract");
-                    put("disjoint", "disjoint");
-                }
-            };
+                    "overlapbdydisjoint", "overlapbdydisjoint",
+                    "overlapbdyintersect", "overlapbdyintersect",
+                    "touch", "touch",
+                    "equal", "equal",
+                    "anyinteract", "anyinteract",
+                    "disjoint", "disjoint");
+
+    private static final Pattern ARRAY_INDEX_PATTERN = Pattern.compile("\\d+");
 
     /** Whether BBOX should be encoded as just a primary filter or primary+secondary */
     protected boolean looseBBOXEnabled;
@@ -157,6 +162,8 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
         caps.addType(Beyond.class);
 
         caps.addType(FilterFunction_sdonn.class);
+        caps.addType(JsonArrayContainsFunction.class);
+        caps.addType(JsonPointerFunction.class);
 
         // replaces the OracleDialect.registerFunction support
         caps.addType(FilterFunction_area.class);
@@ -229,9 +236,47 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
             } catch (IOException ioe) {
                 throw new RuntimeException(IO_ERROR, ioe);
             }
+        } else if (function instanceof JsonArrayContainsFunction) {
+            try {
+                out.write(jsonExists(function));
+                return extraData;
+            } catch (IOException ioe) {
+                throw new RuntimeException(IO_ERROR, ioe);
+            }
+        } else if (function instanceof JsonPointerFunction) {
+            try {
+                out.write(encodeJsonPointer(function, extraData));
+                return extraData;
+            } catch (IOException ioe) {
+                throw new RuntimeException(IO_ERROR, ioe);
+            }
         }
 
         return super.visit(function, extraData);
+    }
+
+    private String encodeJsonPointer(Function jsonPointer, Object extraData) {
+        Expression json = getParameter(jsonPointer, 0, true);
+        Expression pointer = getParameter(jsonPointer, 1, true);
+        if (json instanceof PropertyName && pointer instanceof Literal) {
+            String strPointer = ((Literal) pointer).getValue().toString();
+            String escapedLiteral = EscapeSql.escapeLiteral(strPointer, true, true);
+            List<String> pointerEl =
+                    Stream.of(escapedLiteral.split("/"))
+                            .filter(p -> !p.equals(""))
+                            .collect(Collectors.toList());
+
+            StringBuilder sb = new StringBuilder("$");
+            for (String property : pointerEl) {
+                if (ARRAY_INDEX_PATTERN.matcher(property).matches()) {
+                    sb.append("[" + property + "]");
+                } else {
+                    sb.append("." + property);
+                }
+            }
+            return String.format("JSON_VALUE(%s, '%s')", json, sb);
+        }
+        return null;
     }
 
     private String getPrimaryKeyColumnsAsCommaSeparatedList(List<PrimaryKeyColumn> pkColumns) {
@@ -256,7 +301,7 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
 
         try {
             List<PrimaryKeyColumn> pkColumns = getPrimaryKey().getColumns();
-            if (pkColumns == null || pkColumns.size() == 0) {
+            if (pkColumns == null || pkColumns.isEmpty()) {
                 throw new UnsupportedOperationException(
                         "Unsupported usage of SDO_NN Oracle function: table with no primary key");
             }
@@ -388,7 +433,7 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
             boolean swapped,
             Object extraData) {
         return visitBinarySpatialOperator(
-                filter, (Expression) property, (Expression) geometry, swapped, extraData);
+                filter, property, (Expression) geometry, swapped, extraData);
     }
 
     @Override
@@ -433,7 +478,7 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
                     if (result instanceof GeometryCollection) {
                         result = distillSameTypeGeometries((GeometryCollection) result, eval);
                     }
-                    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+                    FilterFactory ff = CommonFactoryFinder.getFilterFactory();
                     e = ff.literal(result);
                 }
             }
@@ -534,9 +579,10 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
         e2.accept(this, extraData);
 
         // encode the unit verbatim when available
-        if (unit != null && !"".equals(unit.trim()))
+        if (unit != null && !"".equals(unit.trim())) {
+            unit = escapeLiteral(unit);
             out.write(",'distance=" + distance + " unit=" + unit + "') = '" + within + "' ");
-        else out.write(",'distance=" + distance + "') = '" + within + "' ");
+        } else out.write(",'distance=" + distance + "') = '" + within + "' ");
     }
 
     /**
@@ -545,22 +591,19 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
      * SDO_UNIT;"
      */
     private static final Map<String, String> UNITS_MAP =
-            new HashMap<String, String>() {
-                {
-                    put("metre", "m");
-                    put("meters", "m");
-                    put("kilometers", "km");
-                    put("mi", "Mile");
-                    put("miles", "Mile");
-                    put("NM", "naut_mile");
-                    put("feet", "foot");
-                    put("ft", "foot");
-                    put("in", "inch");
-                }
-            };
+            Map.of(
+                    "metre", "m",
+                    "meters", "m",
+                    "kilometers", "km",
+                    "mi", "Mile",
+                    "miles", "Mile",
+                    "NM", "naut_mile",
+                    "feet", "foot",
+                    "ft", "foot",
+                    "in", "inch");
 
     private static String getSDOUnitFromOGCUnit(String ogcUnit) {
-        Object sdoUnit = UNITS_MAP.get(ogcUnit);
+        Object sdoUnit = ogcUnit != null ? UNITS_MAP.get(ogcUnit) : null;
         return sdoUnit != null ? sdoUnit.toString() : ogcUnit;
     }
 
@@ -585,5 +628,54 @@ public class OracleFilterToSQL extends PreparedFilterToSQL {
         } else {
             return name;
         }
+    }
+
+    @Override
+    protected void encodeBinaryComparisonOperator(
+            BinaryComparisonOperator filter,
+            Object extraData,
+            Expression left,
+            Expression right,
+            Class leftContext,
+            Class rightContext) {
+        if (left instanceof JsonArrayContainsFunction) {
+            try {
+                writeBinaryExpressionMember(left, leftContext);
+            } catch (java.io.IOException ioe) {
+                throw new RuntimeException(IO_ERROR, ioe);
+            }
+        } else
+            super.encodeBinaryComparisonOperator(
+                    filter, extraData, left, right, leftContext, rightContext);
+    }
+
+    public String jsonExists(Function function) {
+        PropertyName columnName = (PropertyName) getParameter(function, 0, true);
+        Literal jsonPath = (Literal) getParameter(function, 1, true);
+        Expression expected = getParameter(function, 2, true);
+
+        String[] pointers = jsonPath.getValue().toString().split("/");
+        if (pointers.length > 0) {
+            String strJsonPath = escapeLiteral(String.join(".", pointers));
+            String strExpected = escapeLiteral(expected.evaluate(null, String.class));
+            return String.format(
+                    "json_exists(%s, '$%s?(@ == \"%s\")')", columnName, strJsonPath, strExpected);
+        } else {
+            throw new IllegalArgumentException(
+                    "Cannot encode filter Invalid pointer " + jsonPath.getValue());
+        }
+    }
+
+    @Override
+    protected void visitLiteralGeometry(Literal expression) throws IOException {
+        // evaluate the literal and store it for later
+        Geometry geom = (Geometry) evaluateLiteral(expression, Geometry.class);
+
+        if (geom instanceof LinearRing) {
+            geom = geom.getFactory().createLineString(((LinearRing) geom).getCoordinateSequence());
+        }
+        geom = clipToWorldFeatureTypeGeometry(geom);
+        String sdoGeom = SDOSqlDumper.toSDOGeom(geom, getFeatureTypeGeometrySRID());
+        out.write(sdoGeom);
     }
 }

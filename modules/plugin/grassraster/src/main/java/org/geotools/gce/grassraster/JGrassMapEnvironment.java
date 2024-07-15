@@ -26,9 +26,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
 import org.geotools.gce.grassraster.core.color.AttributeTable;
 import org.geotools.gce.grassraster.core.color.AttributeTable.CellAttribute;
 import org.geotools.gce.grassraster.core.color.JGrassColorTable;
@@ -36,9 +39,6 @@ import org.geotools.gce.grassraster.core.color.JlsTokenizer;
 import org.geotools.gce.grassraster.metadata.GrassBinaryImageMetadata;
 import org.geotools.gce.grassraster.spi.GrassBinaryImageReaderSpi;
 import org.geotools.referencing.CRS;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
 
 /**
  * Represents the structure around a map inside a grass database.
@@ -573,8 +573,7 @@ public class JGrassMapEnvironment {
          * File is a standard file where the categories values are stored in
          * the cats directory.
          */
-        BufferedReader rdr = new BufferedReader(new FileReader(getCATS()));
-        try {
+        try (BufferedReader rdr = new BufferedReader(new FileReader(getCATS()))) {
             /* Instantiate attribute table */
             AttributeTable attTable = new AttributeTable();
             /* Ignore first 4 lines. */
@@ -601,13 +600,11 @@ public class JGrassMapEnvironment {
                 // }
             }
 
-            Enumeration<CellAttribute> categories = attTable.getCategories();
-            while (categories.hasMoreElements()) {
-                AttributeTable.CellAttribute object = categories.nextElement();
+            Iterator<CellAttribute> categories = attTable.getCategories();
+            while (categories.hasNext()) {
+                AttributeTable.CellAttribute object = categories.next();
                 categoriesList.add(object.toString());
             }
-        } finally {
-            rdr.close();
         }
 
         return categoriesList;
@@ -632,7 +629,7 @@ public class JGrassMapEnvironment {
         double[] dataRange = new double[2];
         JGrassColorTable colorTable = new JGrassColorTable(this, null);
         List<String> rules = colorTable.getColorRules();
-        if (rules.size() == 0) {
+        if (rules.isEmpty()) {
             return null;
         }
         for (int i = 0; i < rules.size(); i++) {
@@ -744,16 +741,12 @@ public class JGrassMapEnvironment {
     public CoordinateReferenceSystem getCoordinateReferenceSystem() throws Exception {
         File projWtkFile = getPROJ_WKT();
         if (projWtkFile.exists()) {
-            BufferedReader crsReader = new BufferedReader(new FileReader(projWtkFile));
             StringBuffer wtkString = new StringBuffer();
-            try {
-                String line = null;
+            try (BufferedReader crsReader = new BufferedReader(new FileReader(projWtkFile))) {
+                String line;
                 while ((line = crsReader.readLine()) != null) {
                     wtkString.append(line.trim());
                 }
-
-            } finally {
-                crsReader.close();
             }
             CoordinateReferenceSystem readCrs = null;
             try {

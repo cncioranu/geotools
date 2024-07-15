@@ -18,13 +18,15 @@ package org.geotools.data;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import org.geotools.api.data.DelegatingFeatureReader;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.feature.FeatureTypes;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.util.Classes;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
 
 /**
  * Supports on the fly retyping of FeatureReader<SimpleFeatureType, SimpleFeature> contents.
@@ -99,6 +101,7 @@ public class ReTypeFeatureReader
         builder = new SimpleFeatureBuilder(featureType);
     }
 
+    @Override
     public FeatureReader<SimpleFeatureType, SimpleFeature> getDelegate() {
         return reader;
     }
@@ -152,12 +155,14 @@ public class ReTypeFeatureReader
         return types;
     }
 
-    /** @see org.geotools.data.FeatureReader#getFeatureType() */
+    /** @see FeatureReader#getFeatureType() */
+    @Override
     public SimpleFeatureType getFeatureType() {
         return featureType;
     }
 
-    /** @see org.geotools.data.FeatureReader#next() */
+    /** @see FeatureReader#next() */
+    @Override
     public SimpleFeature next()
             throws IOException, IllegalAttributeException, NoSuchElementException {
         if (reader == null) {
@@ -169,8 +174,8 @@ public class ReTypeFeatureReader
 
         String xpath;
 
-        for (int i = 0; i < types.length; i++) {
-            xpath = types[i].getLocalName();
+        for (AttributeDescriptor type : types) {
+            xpath = type.getLocalName();
             if (clone) builder.add(DataUtilities.duplicate(next.getAttribute(xpath)));
             else builder.add(next.getAttribute(xpath));
         }
@@ -182,12 +187,14 @@ public class ReTypeFeatureReader
         return feature;
     }
 
-    /** @see org.geotools.data.FeatureReader#hasNext() */
+    /** @see FeatureReader#hasNext() */
+    @Override
     public boolean hasNext() throws IOException {
         return reader.hasNext();
     }
 
-    /** @see org.geotools.data.FeatureReader#close() */
+    /** @see FeatureReader#close() */
+    @Override
     public void close() throws IOException {
         if (reader != null) {
             reader.close();

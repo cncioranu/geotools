@@ -26,14 +26,14 @@ import static java.lang.Math.tan;
 
 import java.awt.geom.Point2D;
 import java.util.Collection;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * World Van der Grinten I projection. The Van der Grinten I is the most popular Van der Grinten
@@ -74,6 +74,7 @@ public class WorldVanDerGrintenI extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -82,12 +83,13 @@ public class WorldVanDerGrintenI extends MapProjection {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double lambda, double phi, Point2D ptDst)
             throws ProjectionException {
 
-        double al, al2, g, g2, p2, x, y;
+        double al, al2, g, g2, x, y;
 
-        p2 = abs(phi / (PI / 2));
+        double p2 = abs(phi / (PI / 2));
         if (p2 - TOL > 1.) throw new ProjectionException();
         if (p2 > 1.) p2 = 1.;
         if (abs(phi) <= TOL) {
@@ -129,12 +131,13 @@ public class WorldVanDerGrintenI extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
 
-        double t, c0, c1, c2, c3, al, r2, r, m, d, ay, x2, y2, lambda, phi;
+        double t, c0, c1, c2, c3, r2, r, ay, lambda, phi;
 
-        x2 = x * x;
+        double x2 = x * x;
         if ((ay = abs(y)) < TOL) {
             phi = 0.;
             t = x2 * x2 + TPISQ * (x2 + HPISQ);
@@ -146,7 +149,7 @@ public class WorldVanDerGrintenI extends MapProjection {
             return new Point2D.Double(lambda, phi);
         }
 
-        y2 = y * y;
+        double y2 = y * y;
         r = x2 + y2;
         r2 = r * r;
         c1 = -PI * ay * (r + PISQ);
@@ -154,9 +157,9 @@ public class WorldVanDerGrintenI extends MapProjection {
         c2 = c1 + PISQ * (r - 3. * y2);
         c0 = PI * ay;
         c2 /= c3;
-        al = c1 / c3 - THIRD * c2 * c2;
-        m = 2. * sqrt(-THIRD * al);
-        d = C2_27 * c2 * c2 * c2 + (c0 * c0 - THIRD * c2 * c1) / c3;
+        double al = c1 / c3 - THIRD * c2 * c2;
+        double m = 2. * sqrt(-THIRD * al);
+        double d = C2_27 * c2 * c2 * c2 + (c0 * c0 - THIRD * c2 * c1) / c3;
 
         if (((t = abs(d = 3. * d / (al * m))) - TOL) <= 1.) {
             d = t > 1. ? (d > 0. ? 0. : PI) : acos(d);
@@ -222,6 +225,7 @@ public class WorldVanDerGrintenI extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             return new WorldVanDerGrintenI(parameters);

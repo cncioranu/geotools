@@ -8,19 +8,20 @@ import java.awt.RenderingHints;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-import junit.framework.TestCase;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.style.Style;
 import org.geotools.data.property.PropertyDataStore;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.renderer.label.LabelCacheImpl;
 import org.geotools.renderer.style.FontCache;
-import org.geotools.styling.Style;
 import org.geotools.test.TestData;
+import org.junit.Before;
+import org.junit.Test;
 
-public class PointPlacementTest extends TestCase {
+public class PointPlacementTest {
     private static final long TIME = 5000;
 
     SimpleFeatureSource pointFS;
@@ -29,8 +30,8 @@ public class PointPlacementTest extends TestCase {
 
     ReferencedEnvelope bounds;
 
-    @Override
-    protected void setUp() throws Exception {
+    @Before
+    public void setUp() throws Exception {
         // setup data
         File property = new File(TestData.getResource(this, "point.properties").toURI());
         PropertyDataStore ds = new PropertyDataStore(property.getParentFile());
@@ -48,6 +49,7 @@ public class PointPlacementTest extends TestCase {
         //        System.setProperty("org.geotools.test.interactive", "true");
     }
 
+    @Test
     public void testDefaultLabelCache() throws Exception {
         Style pStyle = RendererBaseTest.loadStyle(this, "textAnchorRotation.sld");
         Style lStyle = RendererBaseTest.loadStyle(this, "lineGray.sld");
@@ -63,6 +65,7 @@ public class PointPlacementTest extends TestCase {
         RendererBaseTest.showRender("Old labeller", renderer, TIME, bounds);
     }
 
+    @Test
     public void testLabelCacheImpl() throws Exception {
         Style pStyle = RendererBaseTest.loadStyle(this, "textAnchorRotation.sld");
         Style lStyle = RendererBaseTest.loadStyle(this, "lineGray.sld");

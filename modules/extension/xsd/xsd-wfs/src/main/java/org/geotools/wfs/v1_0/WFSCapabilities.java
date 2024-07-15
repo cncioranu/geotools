@@ -35,13 +35,14 @@ public final class WFSCapabilities extends org.geotools.wfs.WFS {
         return instance;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     @Override
     protected void addDependencies(Set dependencies) {
         dependencies.add(org.geotools.filter.v1_0.capabilities.OGC.getInstance());
     }
 
     /** Returns the location of 'WFS-transaction.xsd.'. */
+    @Override
     public String getSchemaLocation() {
         return getClass().getResource("WFS-capabilities.xsd").toString();
     }

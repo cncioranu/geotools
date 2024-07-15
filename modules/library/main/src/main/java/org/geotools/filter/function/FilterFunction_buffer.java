@@ -21,13 +21,13 @@ package org.geotools.filter.function;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.filter.capability.FunctionName;
 
 public class FilterFunction_buffer extends FunctionExpressionImpl
         implements GeometryTransformation {
@@ -43,6 +43,7 @@ public class FilterFunction_buffer extends FunctionExpressionImpl
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         Geometry arg0;
         double arg1;
@@ -71,6 +72,7 @@ public class FilterFunction_buffer extends FunctionExpressionImpl
      * If the buffering size is feature dependent the user will have to expand the rendering area
      * via the renderer buffer parameter
      */
+    @Override
     public ReferencedEnvelope invert(ReferencedEnvelope renderingEnvelope) {
         Double buffer = getExpression(1).evaluate(null, Double.class);
         if (buffer == null || buffer <= 0.0) {

@@ -18,13 +18,15 @@ package org.geotools.styling;
 
 // OpenGIS dependencies
 
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.Halo;
+import org.geotools.api.style.StyleVisitor;
+import org.geotools.api.style.TraversingStyleVisitor;
+import org.geotools.api.util.Cloneable;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.GeoTools;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.style.StyleVisitor;
-import org.opengis.util.Cloneable;
 
 /**
  * Direct implementation of Halo.
@@ -46,7 +48,7 @@ public class HaloImpl implements Halo, Cloneable {
      *
      * @return HaloImpl equal to the provided halo
      */
-    static HaloImpl cast(org.opengis.style.Halo halo) {
+    static HaloImpl cast(org.geotools.api.style.Halo halo) {
         if (halo == null) {
             return null;
         } else if (halo instanceof HaloImpl) {
@@ -90,6 +92,7 @@ public class HaloImpl implements Halo, Cloneable {
      *
      * @return Value of property fill.
      */
+    @Override
     public FillImpl getFill() {
         return fill;
     }
@@ -99,7 +102,8 @@ public class HaloImpl implements Halo, Cloneable {
      *
      * @param fill New value of property fill.
      */
-    public void setFill(org.opengis.style.Fill fill) {
+    @Override
+    public void setFill(org.geotools.api.style.Fill fill) {
         this.fill = FillImpl.cast(fill);
     }
 
@@ -108,6 +112,7 @@ public class HaloImpl implements Halo, Cloneable {
      *
      * @return Value of property radius.
      */
+    @Override
     public Expression getRadius() {
         return radius;
     }
@@ -117,15 +122,18 @@ public class HaloImpl implements Halo, Cloneable {
      *
      * @param radius New value of property radius.
      */
+    @Override
     public void setRadius(Expression radius) {
         this.radius = radius;
     }
 
-    public Object accept(StyleVisitor visitor, Object data) {
+    @Override
+    public Object accept(TraversingStyleVisitor visitor, Object data) {
         return visitor.visit(this, data);
     }
 
-    public void accept(org.geotools.styling.StyleVisitor visitor) {
+    @Override
+    public void accept(StyleVisitor visitor) {
         visitor.visit(this);
     }
 
@@ -134,6 +142,7 @@ public class HaloImpl implements Halo, Cloneable {
      *
      * @return The clone.
      */
+    @Override
     public Object clone() {
         try {
             HaloImpl clone = (HaloImpl) super.clone();
@@ -152,6 +161,7 @@ public class HaloImpl implements Halo, Cloneable {
      * @return True if they are equal. They are equal if their fill and radius is equal.
      * @see java.lang.Object#equals(java.lang.Object)
      */
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -169,6 +179,7 @@ public class HaloImpl implements Halo, Cloneable {
     /* (non-Javadoc)
      * @see java.lang.Object#hashCode()
      */
+    @Override
     public int hashCode() {
         final int PRIME = 37;
         int result = 17;

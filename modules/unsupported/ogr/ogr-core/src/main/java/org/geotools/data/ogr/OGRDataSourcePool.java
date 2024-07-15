@@ -24,8 +24,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.impl.GenericObjectPool;
-import org.geotools.data.DataAccessFactory;
-import org.geotools.data.DataSourceException;
+import org.geotools.api.data.DataAccessFactory;
+import org.geotools.api.data.DataSourceException;
 
 class OGRDataSourcePool implements AutoCloseable {
 
@@ -140,6 +140,7 @@ class OGRDataSourcePool implements AutoCloseable {
         return ds;
     }
 
+    @Override
     public void close() {
         try {
             readOnlyPool.close();

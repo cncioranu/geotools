@@ -25,26 +25,24 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.cs.CSAuthorityFactory;
+import org.geotools.api.referencing.datum.DatumAuthorityFactory;
+import org.geotools.api.util.GenericName;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.geotools.referencing.wkt.Parser;
 import org.geotools.referencing.wkt.Symbols;
 import org.geotools.util.DerivedSet;
 import org.geotools.util.NameFactory;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.CSAuthorityFactory;
-import org.opengis.referencing.datum.DatumAuthorityFactory;
-import org.opengis.util.GenericName;
-import org.opengis.util.InternationalString;
 
 /**
  * Default implementation for a coordinate reference system authority factory backed by a property
@@ -152,7 +150,7 @@ public class PropertyAuthorityFactory extends DirectAuthorityFactory
         hints.put(Hints.FORCE_STANDARD_AXIS_UNITS, Boolean.FALSE);
         ensureNonNull("authorities", authorities);
         if (authorities.length == 0) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.EMPTY_ARRAY));
+            throw new IllegalArgumentException(ErrorKeys.EMPTY_ARRAY);
         }
         this.authorities = authorities.clone();
         authority = authorities[0];
@@ -184,6 +182,7 @@ public class PropertyAuthorityFactory extends DirectAuthorityFactory
     /**
      * Returns the organization or party responsible for definition and maintenance of the database.
      */
+    @Override
     public Citation getAuthority() {
         return authority;
     }
@@ -212,6 +211,7 @@ public class PropertyAuthorityFactory extends DirectAuthorityFactory
      *     set.
      * @throws FactoryException if access to the underlying database failed.
      */
+    @Override
     public Set<String> getAuthorityCodes(final Class<? extends IdentifiedObject> type)
             throws FactoryException {
         if (type == null || type.isAssignableFrom(IdentifiedObject.class)) {
@@ -258,6 +258,7 @@ public class PropertyAuthorityFactory extends DirectAuthorityFactory
          * Returns the code if the associated key is of the expected type, or {@code null}
          * otherwise.
          */
+        @Override
         protected String baseToDerived(final String key) {
             final String wkt = definitions.get(key);
             final int length = wkt.length();
@@ -271,6 +272,7 @@ public class PropertyAuthorityFactory extends DirectAuthorityFactory
         }
 
         /** Transforms a value in this set to a value in the base set. */
+        @Override
         protected String derivedToBase(final String element) {
             return element;
         }
@@ -301,6 +303,7 @@ public class PropertyAuthorityFactory extends DirectAuthorityFactory
      * @throws NoSuchAuthorityCodeException if the specified {@code code} was not found.
      * @throws FactoryException if the query failed for some other reason.
      */
+    @Override
     public InternationalString getDescriptionText(final String code)
             throws NoSuchAuthorityCodeException, FactoryException {
         final String wkt = getWKT(code);
@@ -386,8 +389,8 @@ public class PropertyAuthorityFactory extends DirectAuthorityFactory
             return code;
         }
         final String candidate = scope.toString();
-        for (int i = 0; i < authorities.length; i++) {
-            if (Citations.identifierMatches(authorities[i], candidate)) {
+        for (Citation citation : authorities) {
+            if (Citations.identifierMatches(citation, candidate)) {
                 return name.tip().toString().trim();
             }
         }

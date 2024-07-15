@@ -64,6 +64,7 @@ public class GTAffinePropertyGenerator extends PropertyGeneratorImpl {
      * @param name Property name.
      * @param opNode Operation node.
      */
+    @Override
     public Object getProperty(String name, Object opNode) {
         validate(name, opNode);
 
@@ -139,7 +140,7 @@ public class GTAffinePropertyGenerator extends PropertyGeneratorImpl {
                 dstROI = srcROI.performImageOp("Affine", paramBlock, 0, localHints);
             } else {
                 // let the geometry based ROIs do their work at the vector level
-                dstROI = srcROI.transform((AffineTransform) transform);
+                dstROI = srcROI.transform(transform);
             }
 
             // Retrieve the destination bounds.

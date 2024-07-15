@@ -25,6 +25,7 @@ import java.io.RandomAccessFile;
 import java.net.URL;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -88,21 +89,23 @@ public final class StorageFile implements Comparable<StorageFile>, FileWriter {
         ShpFiles currentShpFiles = null;
         URL shpURL = null;
         StorageFile locker = null;
-
+        LinkedList<String> exceptionMessages = new LinkedList<>();
         try {
 
             for (StorageFile storageFile : files) {
                 if (currentShpFiles != storageFile.shpFiles) {
                     // there's a new set of files so unlock old and lock new.
-                    unlock(currentShpFiles, shpURL, locker);
+                    if (currentShpFiles != null) {
+                        currentShpFiles.unlockWrite(shpURL, locker);
+                    }
                     locker = storageFile;
                     currentShpFiles = storageFile.shpFiles;
                     shpURL = currentShpFiles.acquireWrite(ShpFileType.SHP, storageFile);
                 }
 
                 File storage = storageFile.getFile();
+                URL url = currentShpFiles.acquireWrite(storageFile.type, storageFile);
 
-                URL url = storageFile.getSrcURLForWrite();
                 try {
                     File dest = URLs.urlToFile(url);
 
@@ -114,26 +117,19 @@ public final class StorageFile implements Comparable<StorageFile>, FileWriter {
                                     "Unable to delete the file: "
                                             + dest
                                             + " when attempting to replace with temporary copy.");
-                            if (storageFile.shpFiles.numberOfLocks() > 0) {
-                                LOGGER.severe(
-                                        "The problem is almost certainly caused by the fact that there are still locks being held on the shapefiles.  Probably a reader or writer was left unclosed");
-                                storageFile.shpFiles.logCurrentLockers(Level.SEVERE);
-                            }
-                            // throw new IOException("Unable to delete original file: " + url);
                         }
                     }
 
                     if (storage.exists() && !storage.renameTo(dest)) {
-                        LOGGER.finer(
+                        LOGGER.fine(
                                 "Unable to rename temporary file to the file: "
                                         + dest
                                         + " when attempting to replace with temporary copy");
-
                         copyFile(storage, url, dest);
-                        if (!storage.delete()) {
-                            storage.deleteOnExit();
-                        }
                     }
+                } catch (IOException e) {
+                    LOGGER.log(Level.SEVERE, "Unable to replace original file with temporary.", e);
+                    exceptionMessages.add(e.getMessage());
                 } finally {
                     storageFile.unlockWriteURL(url);
 
@@ -143,18 +139,25 @@ public final class StorageFile implements Comparable<StorageFile>, FileWriter {
                 }
             }
         } finally {
-            unlock(currentShpFiles, shpURL, locker);
+            if (currentShpFiles != null) {
+                currentShpFiles.unlockWrite(shpURL, locker);
+            }
+
+            if (!exceptionMessages.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                sb.append(
+                        "Couldn't replace original file with a temporary after a write operation.\nBecause of:\n");
+                exceptionMessages.forEach(s -> sb.append("    ").append(s).append("\n"));
+                throw new IOException(sb.toString());
+            }
         }
     }
 
     @SuppressWarnings("resource")
     private static void copyFile(File storage, URL url, File dest)
             throws FileNotFoundException, IOException {
-        FileChannel in = null;
-        FileChannel out = null;
-        try {
-            in = new FileInputStream(storage).getChannel();
-            out = new FileOutputStream(dest).getChannel();
+        try (FileChannel in = new FileInputStream(storage).getChannel();
+                FileChannel out = new FileOutputStream(dest).getChannel()) {
 
             // magic number for Windows, 64Mb - 32Kb)
             int maxCount = (64 * 1024 * 1024) - (32 * 1024);
@@ -163,36 +166,17 @@ public final class StorageFile implements Comparable<StorageFile>, FileWriter {
             while (position < size) {
                 position += in.transferTo(position, maxCount, out);
             }
-        } finally {
-            if (in != null) {
-                in.close();
-            }
-            if (out != null) {
-                out.close();
-            }
         }
-    }
-
-    private URL getSrcURLForWrite() {
-        return shpFiles.acquireWrite(type, this);
     }
 
     private void unlockWriteURL(URL url) {
         shpFiles.unlockWrite(url, this);
     }
 
-    private static void unlock(ShpFiles currentShpFiles, URL shpURL, StorageFile locker) {
-        // no lock to be unlocked
-        if (currentShpFiles == null) {
-            return;
-        }
-
-        currentShpFiles.unlockWrite(shpURL, locker);
-    }
-
     /** Just groups together files that have the same ShpFiles instance */
+    @Override
     public int compareTo(StorageFile o) {
-        // group togheter files that have the same shpefile instance
+        // group together files that have the same shapefile instance
         if (this == o) {
             return 0;
         }
@@ -207,6 +191,7 @@ public final class StorageFile implements Comparable<StorageFile>, FileWriter {
         return id();
     }
 
+    @Override
     public String id() {
         return getClass().getSimpleName() + ": " + tempFile.getName();
     }

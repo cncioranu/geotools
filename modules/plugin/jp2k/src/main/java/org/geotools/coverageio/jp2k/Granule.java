@@ -36,9 +36,13 @@ import javax.imageio.stream.ImageInputStream;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.InterpolationNearest;
 import javax.media.jai.JAI;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.PixelTranslation;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.geometry.util.XRectangle2D;
@@ -49,10 +53,6 @@ import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.referencing.operation.transform.ProjectiveTransform;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A granule is an elementar piece of data image, with its own overviews and everything.
@@ -166,6 +166,7 @@ class Granule {
 
     ImageReaderSpi cachedSPI;
 
+    @SuppressWarnings("PMD.UseTryWithResources") // the image input stream might be null
     public Granule(BoundingBox granuleBBOX, File granuleFile) {
         super();
         this.granuleBBOX = ReferencedEnvelope.reference(granuleBBOX);
@@ -216,11 +217,9 @@ class Granule {
                     Integer.valueOf(0),
                     new Level(1, 1, originalDimension.width, originalDimension.height));
 
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | IOException e) {
             throw new IllegalArgumentException(e);
 
-        } catch (IOException e) {
-            throw new IllegalArgumentException(e);
         } finally {
             try {
                 if (inStream != null) inStream.close();
@@ -232,6 +231,7 @@ class Granule {
         }
     }
 
+    @SuppressWarnings("PMD.UseTryWithResources") // the image input stream might be null
     public RenderedImage loadRaster(
             final ImageReadParam readParameters,
             final int imageIndex,
@@ -298,7 +298,7 @@ class Granule {
             // we cannot just use the crop grid to world but we need to correct
             // it.
             final Rectangle sourceArea =
-                    CRS.transform(cropWorldToGrid, new GeneralEnvelope(intersection))
+                    CRS.transform(cropWorldToGrid, new GeneralBounds(intersection))
                             .toRectangle2D()
                             .getBounds();
             XRectangle2D.intersect(
@@ -437,28 +437,7 @@ class Granule {
                 worker.affine(finalRaster2Model, nearest, null);
                 return worker.getRenderedImage();
             }
-
-        } catch (IllegalStateException e) {
-            if (LOGGER.isLoggable(java.util.logging.Level.WARNING))
-                LOGGER.log(
-                        java.util.logging.Level.WARNING,
-                        "Unable to load raster for granule "
-                                + this.toString()
-                                + " with request "
-                                + request.toString(),
-                        e);
-            return null;
-        } catch (org.opengis.referencing.operation.NoninvertibleTransformException e) {
-            if (LOGGER.isLoggable(java.util.logging.Level.WARNING))
-                LOGGER.log(
-                        java.util.logging.Level.WARNING,
-                        "Unable to load raster for granule "
-                                + this.toString()
-                                + " with request "
-                                + request.toString(),
-                        e);
-            return null;
-        } catch (TransformException e) {
+        } catch (IllegalStateException | TransformException e) {
             if (LOGGER.isLoggable(java.util.logging.Level.WARNING))
                 LOGGER.log(
                         java.util.logging.Level.WARNING,
@@ -477,6 +456,7 @@ class Granule {
         }
     }
 
+    @SuppressWarnings("PMD.UseTryWithResources") // the image input stream might be null
     public Level getLevel(final int index) {
         synchronized (granuleLevels) {
             if (granuleLevels.containsKey(Integer.valueOf(index)))
@@ -518,11 +498,9 @@ class Granule {
                     this.granuleLevels.put(Integer.valueOf(index), newLevel);
                     return newLevel;
 
-                } catch (IllegalStateException e) {
+                } catch (IllegalStateException | IOException e) {
                     throw new IllegalArgumentException(e);
 
-                } catch (IOException e) {
-                    throw new IllegalArgumentException(e);
                 } finally {
                     try {
                         if (inStream != null) inStream.close();

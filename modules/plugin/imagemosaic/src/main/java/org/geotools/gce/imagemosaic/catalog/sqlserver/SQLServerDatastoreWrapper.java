@@ -26,15 +26,15 @@ import java.sql.Statement;
 import java.util.Properties;
 import java.util.logging.Level;
 import org.apache.commons.beanutils.BeanUtils;
-import org.geotools.data.DataStore;
-import org.geotools.data.Transaction;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.gce.imagemosaic.catalog.oracle.DataStoreWrapper;
 import org.geotools.gce.imagemosaic.catalog.oracle.FeatureTypeMapper;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.SQLDialect;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /** Specific SQLServer implementation for a {@link DataStoreWrapper} */
 public class SQLServerDatastoreWrapper extends DataStoreWrapper {
@@ -64,8 +64,7 @@ public class SQLServerDatastoreWrapper extends DataStoreWrapper {
                 JDBCDataStore jdbcDataStore = (JDBCDataStore) this.datastore;
 
                 SQLDialect dialect = jdbcDataStore.getSQLDialect();
-                String metadataTable =
-                        (String) BeanUtils.getProperty(dialect, METADATA_TABLE_PROPERTY);
+                String metadataTable = BeanUtils.getProperty(dialect, METADATA_TABLE_PROPERTY);
                 if (metadataTable == null) {
                     metadataTable = DEFAULT_METADATA_TABLE;
                     BeanUtils.setProperty(dialect, METADATA_TABLE_PROPERTY, DEFAULT_METADATA_TABLE);
@@ -113,6 +112,7 @@ public class SQLServerDatastoreWrapper extends DataStoreWrapper {
      * Return a specific {@link FeatureTypeMapper} by parsing mapping properties contained within
      * the specified {@link Properties} object
      */
+    @Override
     protected FeatureTypeMapper getFeatureTypeMapper(final Properties props) throws Exception {
         FeatureTypeMapper mapper = super.getFeatureTypeMapper(props);
         return mapper;
@@ -132,9 +132,8 @@ public class SQLServerDatastoreWrapper extends DataStoreWrapper {
             return transformedSource;
         } else {
             transformedSource =
-                    (SimpleFeatureSource)
-                            new SQLServerTransformFeatureStore(
-                                    store, mapper.getName(), mapper.getDefinitions(), datastore);
+                    new SQLServerTransformFeatureStore(
+                            store, mapper.getName(), mapper.getDefinitions(), datastore);
             ((SQLServerTypeMapper) mapper).setSimpleFeatureSource(transformedSource);
             return transformedSource;
         }

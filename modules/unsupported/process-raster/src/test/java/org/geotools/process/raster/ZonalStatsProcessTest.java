@@ -30,15 +30,19 @@ import java.util.List;
 import java.util.Map;
 import javax.imageio.ImageIO;
 import javax.media.jai.PlanarImage;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.FileDataStoreFinder;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
-import org.geotools.data.DataStore;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.FileDataStoreFinder;
 import org.geotools.data.WorldFileReader;
 import org.geotools.data.property.PropertyDataStore;
 import org.geotools.data.shapefile.ShapefileDataStore;
@@ -57,10 +61,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
 
 /** @author DamianoG */
 public class ZonalStatsProcessTest extends Assert {
@@ -113,7 +113,6 @@ public class ZonalStatsProcessTest extends Assert {
         TIFFImageReader reader = null;
         GridCoverage2D coverage2D = null;
         GridCoverage2D covClassificator = null;
-        SimpleFeatureIterator iterator = null;
         try {
             // build the feature collection
             final File fileshp = TestData.file(this, "testpolygon.shp");
@@ -185,17 +184,15 @@ public class ZonalStatsProcessTest extends Assert {
             SimpleFeatureCollection sfc =
                     process.execute(coverage2D, null, featureCollection, covClassificator);
 
-            iterator = sfc.features();
-            assertNotNull(iterator);
+            try (SimpleFeatureIterator iterator = sfc.features()) {
+                assertNotNull(iterator);
 
-            while (iterator.hasNext()) {
-                SimpleFeature feature = iterator.next();
-                assertTrue(
-                        (feature.toString())
-                                .equals(
-                                        results.get(
-                                                feature.getID()
-                                                        + feature.getAttribute("classification"))));
+                while (iterator.hasNext()) {
+                    SimpleFeature feature = iterator.next();
+                    assertEquals(
+                            (feature.toString()),
+                            results.get(feature.getID() + feature.getAttribute("classification")));
+                }
             }
 
         } finally {
@@ -220,12 +217,6 @@ public class ZonalStatsProcessTest extends Assert {
             try {
                 if (covClassificator != null) {
                     covClassificator.dispose(true);
-                }
-            } catch (Exception e) {
-            }
-            try {
-                if (iterator != null) {
-                    iterator.close();
                 }
             } catch (Exception e) {
             }

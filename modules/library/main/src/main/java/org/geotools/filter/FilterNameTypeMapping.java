@@ -19,9 +19,9 @@ package org.geotools.filter;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.expression.Function;
 import org.geotools.factory.CommonFactoryFinder;
-import org.opengis.filter.Filter;
-import org.opengis.filter.expression.Function;
 
 /**
  * A utility class for {@link FilterCapabilities} that assists in mapping between a filter or
@@ -166,7 +166,7 @@ class FilterNameTypeMapping {
     }
 
     public static FilterCapabilities findFunction(String name) {
-        FilterCapabilities filterCapabilities = (FilterCapabilities) functionNameMap.get(name);
+        FilterCapabilities filterCapabilities = functionNameMap.get(name);
         if (filterCapabilities != null) {
             return filterCapabilities;
         }
@@ -182,11 +182,11 @@ class FilterNameTypeMapping {
     public static FilterCapabilities findOperation(String s) {
 
         if (spatialFiltersMap.containsKey(s)) {
-            return (FilterCapabilities) spatialFiltersMap.get(s);
+            return spatialFiltersMap.get(s);
         }
 
         if (comparisonsMap.containsKey(s)) {
-            return (FilterCapabilities) comparisonsMap.get(s);
+            return comparisonsMap.get(s);
         }
 
         return FilterNameTypeMapping.NO_OP_CAPS;
@@ -265,15 +265,18 @@ class FilterNameTypeMapping {
     static final FilterCapabilities NO_OP_CAPS = new FilterCapabilities(FilterCapabilities.NO_OP);
     public static final FilterCapabilities ALL_CAPS =
             new FilterCapabilities() {
+                @Override
                 public boolean supports(Class type) {
                     // TODO Auto-generated method stub
                     return super.supports(type);
                 }
 
+                @Override
                 public boolean supports(Filter filter) {
                     return true;
                 }
 
+                @Override
                 public boolean supports(FilterCapabilities type) {
                     return true;
                 }

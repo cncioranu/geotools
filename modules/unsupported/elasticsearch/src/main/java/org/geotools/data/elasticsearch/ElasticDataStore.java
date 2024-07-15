@@ -29,10 +29,11 @@ import org.apache.http.HttpHost;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.common.joda.Joda;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.elasticsearch.ElasticAttribute.ElasticGeometryType;
+import org.geotools.data.elasticsearch.date.ElasticsearchDateConverter;
 import org.geotools.data.store.ContentDataStore;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
@@ -40,7 +41,6 @@ import org.geotools.feature.NameImpl;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.type.Name;
 
 /** A data store for an Elasticsearch index containing geo_point or geo_shape types. */
 public class ElasticDataStore extends ContentDataStore {
@@ -88,14 +88,20 @@ public class ElasticDataStore extends ContentDataStore {
     }
 
     public ElasticDataStore(RestClient restClient, String indexName) throws IOException {
-        this(restClient, null, indexName, false);
+        this(
+                restClient,
+                null,
+                indexName,
+                false,
+                (Integer) ElasticDataStoreFactory.RESPONSE_BUFFER_LIMIT.sample);
     }
 
     public ElasticDataStore(
             RestClient restClient,
             RestClient proxyRestClient,
             String indexName,
-            boolean enableRunAs)
+            boolean enableRunAs,
+            int responseBufferLimit)
             throws IOException {
         LOGGER.fine("Initializing data store for " + indexName);
 
@@ -106,7 +112,9 @@ public class ElasticDataStore extends ContentDataStore {
             if (proxyRestClient != null) {
                 checkRestClient(proxyRestClient);
             }
-            client = new RestElasticClient(restClient, proxyRestClient, enableRunAs);
+            client =
+                    new RestElasticClient(
+                            restClient, proxyRestClient, enableRunAs, responseBufferLimit);
         } catch (Exception e) {
             throw new IOException("Unable to create REST client", e);
         }
@@ -280,7 +288,7 @@ public class ElasticDataStore extends ContentDataStore {
         return docType;
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     private void walk(
             List<ElasticAttribute> elasticAttributes,
             Map<String, Object> map,
@@ -365,14 +373,14 @@ public class ElasticDataStore extends ContentDataStore {
                     binding = Boolean.class;
                     break;
                 case "date":
-                    List<String> validFormats = new ArrayList<String>();
+                    List<String> validFormats = new ArrayList<>();
                     String availableFormat = (String) map.get("format");
                     if (availableFormat == null) {
                         validFormats.add("date_optional_time");
                     } else {
                         if (!availableFormat.contains("\\|\\|")) {
                             try {
-                                Joda.forPattern(availableFormat);
+                                ElasticsearchDateConverter.forFormat(availableFormat);
                                 validFormats.add(availableFormat);
                             } catch (Exception e) {
                                 LOGGER.fine(
@@ -385,7 +393,7 @@ public class ElasticDataStore extends ContentDataStore {
                             String[] formats = availableFormat.split("\\|\\|");
                             for (String format : formats) {
                                 try {
-                                    Joda.forPattern(format);
+                                    ElasticsearchDateConverter.forFormat(availableFormat);
                                     validFormats.add(format);
                                 } catch (Exception e) {
                                     LOGGER.fine(

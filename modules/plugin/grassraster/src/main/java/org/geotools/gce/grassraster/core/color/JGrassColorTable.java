@@ -59,15 +59,14 @@ public class JGrassColorTable {
     static final Logger LOGGER = Logging.getLogger(JGrassColorTable.class);
 
     /** The rainbow color table, used as default for non existing color table. */
-    private static final int[][] rainbow =
-            new int[][] {
-                {255, 255, 0}, /* yellow */
-                {0, 255, 0}, /* green */
-                {0, 255, 255}, /* cyan */
-                {0, 0, 255}, /* blue */
-                {255, 0, 255}, /* magenta */
-                {255, 0, 0} /* red */
-            };
+    private static final int[][] rainbow = {
+        {255, 255, 0}, /* yellow */
+        {0, 255, 0}, /* green */
+        {0, 255, 255}, /* cyan */
+        {0, 0, 255}, /* blue */
+        {255, 0, 255}, /* magenta */
+        {255, 0, 0} /* red */
+    };
 
     // private final static int[][] aspect = new int[][]{{255, 255, 255}, /* white */
     // {0, 0, 0}, /* black */
@@ -137,7 +136,6 @@ public class JGrassColorTable {
      * @param dataRange the data range for which the color table is created
      * @return the list of color rules as <code>value1:r:g:b value2:r:g:b alpha</code>
      */
-    @SuppressWarnings("nls")
     public static List<String> createDefaultColorTable(double[] dataRange, int alpha) {
         List<String> rules = new ArrayList<>();
         // calculate the color increment

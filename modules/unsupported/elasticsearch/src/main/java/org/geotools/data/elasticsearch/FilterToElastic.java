@@ -16,7 +16,10 @@
  */
 package org.geotools.data.elasticsearch;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import static org.geotools.process.elasticsearch.ElasticBucketVisitor.ES_AGGREGATE_BUCKET;
+import static org.geotools.util.factory.Hints.VIRTUAL_TABLE_PARAMETERS;
+
+import com.bedatadriven.jackson.datatype.jts.JtsModule;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.collect.ImmutableList;
@@ -28,84 +31,88 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.elasticsearch.common.joda.Joda;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.BinaryLogicOperator;
+import org.geotools.api.filter.ExcludeFilter;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.IncludeFilter;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsGreaterThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNil;
+import org.geotools.api.filter.PropertyIsNotEqualTo;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.BinaryExpression;
+import org.geotools.api.filter.expression.Divide;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.Multiply;
+import org.geotools.api.filter.expression.NilExpression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.Subtract;
+import org.geotools.api.filter.identity.Identifier;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
+import org.geotools.api.filter.spatial.Contains;
+import org.geotools.api.filter.spatial.Crosses;
+import org.geotools.api.filter.spatial.DWithin;
+import org.geotools.api.filter.spatial.Disjoint;
+import org.geotools.api.filter.spatial.Equals;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.filter.spatial.Overlaps;
+import org.geotools.api.filter.spatial.Touches;
+import org.geotools.api.filter.spatial.Within;
+import org.geotools.api.filter.temporal.After;
+import org.geotools.api.filter.temporal.AnyInteracts;
+import org.geotools.api.filter.temporal.Before;
+import org.geotools.api.filter.temporal.Begins;
+import org.geotools.api.filter.temporal.BegunBy;
+import org.geotools.api.filter.temporal.BinaryTemporalOperator;
+import org.geotools.api.filter.temporal.During;
+import org.geotools.api.filter.temporal.EndedBy;
+import org.geotools.api.filter.temporal.Ends;
+import org.geotools.api.filter.temporal.Meets;
+import org.geotools.api.filter.temporal.MetBy;
+import org.geotools.api.filter.temporal.OverlappedBy;
+import org.geotools.api.filter.temporal.TContains;
+import org.geotools.api.filter.temporal.TEquals;
+import org.geotools.api.filter.temporal.TOverlaps;
+import org.geotools.api.temporal.Period;
+import org.geotools.data.elasticsearch.date.DateFormat;
+import org.geotools.data.elasticsearch.date.ElasticsearchDateConverter;
+import org.geotools.data.geojson.GeoJSONWriter;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.Capabilities;
-import org.geotools.geojson.geom.GeometryJSON;
 import org.geotools.util.ConverterFactory;
 import org.geotools.util.Converters;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.joda.time.format.DateTimeFormatter;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LinearRing;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.And;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.BinaryLogicOperator;
-import org.opengis.filter.ExcludeFilter;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.Id;
-import org.opengis.filter.IncludeFilter;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNil;
-import org.opengis.filter.PropertyIsNotEqualTo;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.BinaryExpression;
-import org.opengis.filter.expression.Divide;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.Multiply;
-import org.opengis.filter.expression.NilExpression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Subtract;
-import org.opengis.filter.identity.Identifier;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.BinarySpatialOperator;
-import org.opengis.filter.spatial.Contains;
-import org.opengis.filter.spatial.Crosses;
-import org.opengis.filter.spatial.DWithin;
-import org.opengis.filter.spatial.Disjoint;
-import org.opengis.filter.spatial.Equals;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.filter.spatial.Overlaps;
-import org.opengis.filter.spatial.Touches;
-import org.opengis.filter.spatial.Within;
-import org.opengis.filter.temporal.After;
-import org.opengis.filter.temporal.AnyInteracts;
-import org.opengis.filter.temporal.Before;
-import org.opengis.filter.temporal.Begins;
-import org.opengis.filter.temporal.BegunBy;
-import org.opengis.filter.temporal.BinaryTemporalOperator;
-import org.opengis.filter.temporal.During;
-import org.opengis.filter.temporal.EndedBy;
-import org.opengis.filter.temporal.Ends;
-import org.opengis.filter.temporal.Meets;
-import org.opengis.filter.temporal.MetBy;
-import org.opengis.filter.temporal.OverlappedBy;
-import org.opengis.filter.temporal.TContains;
-import org.opengis.filter.temporal.TEquals;
-import org.opengis.filter.temporal.TOverlaps;
-import org.opengis.temporal.Period;
 
 /**
  * Encodes an OGC {@link Filter} and creates a filter for an Elasticsearch query. Optionally applies
@@ -126,8 +133,8 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
     private static final ObjectReader mapReader =
             mapper.readerWithView(Map.class).forType(HashMap.class);
 
-    private static final DateTimeFormatter DEFAULT_DATE_FORMATTER =
-            Joda.forPattern("date_optional_time").printer();
+    private static final ElasticsearchDateConverter DEFAULT_DATE_FORMATTER =
+            ElasticsearchDateConverter.of(DateFormat.date_optional_time);
 
     /** The filter types that this class can encode */
     private Capabilities capabilities = null;
@@ -165,7 +172,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
 
     private Object end;
 
-    private DateTimeFormatter dateFormatter;
+    private ElasticsearchDateConverter dateFormatter;
 
     public FilterToElastic() {
         queryBuilder = ElasticConstants.MATCH_ALL;
@@ -232,13 +239,14 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
         return capabilities; // maybe clone?  Make immutable somehow
     }
 
-    // BEGIN IMPLEMENTING org.opengis.filter.FilterVisitor METHODS
+    // BEGIN IMPLEMENTING org.geotools.api.filter.FilterVisitor METHODS
 
     /**
      * Writes the FilterBuilder for the ExcludeFilter.
      *
      * @param filter the filter to be visited
      */
+    @Override
     public Object visit(ExcludeFilter filter, Object extraData) {
         queryBuilder =
                 ImmutableMap.of("bool", ImmutableMap.of("must_not", ElasticConstants.MATCH_ALL));
@@ -250,6 +258,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      *
      * @param filter the filter to be visited
      */
+    @Override
     public Object visit(IncludeFilter filter, Object extraData) {
         queryBuilder = ElasticConstants.MATCH_ALL;
         return extraData;
@@ -260,6 +269,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      *
      * @param filter the Filter to be visited.
      */
+    @Override
     public Object visit(PropertyIsBetween filter, Object extraData) {
         LOGGER.finest("exporting PropertyIsBetween");
 
@@ -310,6 +320,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      *
      * @param filter the filter to be visited
      */
+    @Override
     public Object visit(PropertyIsLike filter, Object extraData) {
         char esc = filter.getEscape().charAt(0);
         char multi = filter.getWildCard().charAt(0);
@@ -375,6 +386,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param filter the filter to visit
      * @param extraData extra data (unused by this method)
      */
+    @Override
     public Object visit(And filter, Object extraData) {
         return visit((BinaryLogicOperator) filter, "AND");
     }
@@ -385,6 +397,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param filter the filter to visit
      * @param extraData extra data (unused by this method)
      */
+    @Override
     public Object visit(Not filter, Object extraData) {
         if (filter.getFilter() instanceof PropertyIsNull) {
             Expression expr = ((PropertyIsNull) filter.getFilter()).getExpression();
@@ -407,6 +420,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param filter the filter to visit
      * @param extraData extra data (unused by this method)
      */
+    @Override
     public Object visit(Or filter, Object extraData) {
         return visit((BinaryLogicOperator) filter, "OR");
     }
@@ -440,6 +454,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param filter the filter to visit
      * @param extraData extra data (unused by this method)
      */
+    @Override
     public Object visit(PropertyIsEqualTo filter, Object extraData) {
         visitBinaryComparisonOperator(filter, "=");
         return extraData;
@@ -451,6 +466,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param filter the filter to visit
      * @param extraData extra data (unused by this method)
      */
+    @Override
     public Object visit(PropertyIsGreaterThanOrEqualTo filter, Object extraData) {
         visitBinaryComparisonOperator(filter, ">=");
         return extraData;
@@ -462,6 +478,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param filter the filter to visit
      * @param extraData extra data (unused by this method)
      */
+    @Override
     public Object visit(PropertyIsGreaterThan filter, Object extraData) {
         visitBinaryComparisonOperator(filter, ">");
         return extraData;
@@ -473,6 +490,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param filter the filter to visit
      * @param extraData extra data (unused by this method)
      */
+    @Override
     public Object visit(PropertyIsLessThan filter, Object extraData) {
         visitBinaryComparisonOperator(filter, "<");
         return extraData;
@@ -484,6 +502,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param filter the filter to visit
      * @param extraData extra data (unused by this method)
      */
+    @Override
     public Object visit(PropertyIsLessThanOrEqualTo filter, Object extraData) {
         visitBinaryComparisonOperator(filter, "<=");
         return extraData;
@@ -495,6 +514,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param filter the filter to visit
      * @param extraData extra data (unused by this method)
      */
+    @Override
     public Object visit(PropertyIsNotEqualTo filter, Object extraData) {
         visitBinaryComparisonOperator(filter, "!=");
         return extraData;
@@ -622,6 +642,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      *
      * @param filter the null filter.
      */
+    @Override
     public Object visit(PropertyIsNull filter, Object extraData) {
         LOGGER.finest("exporting NullFilter");
 
@@ -639,6 +660,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
         return extraData;
     }
 
+    @Override
     public Object visit(PropertyIsNil filter, Object extraData) {
         throw new UnsupportedOperationException("isNil not supported");
     }
@@ -648,6 +670,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      *
      * @param filter the
      */
+    @Override
     public Object visit(Id filter, Object extraData) {
         final List<String> idList = new ArrayList<>();
         for (final Identifier id : filter.getIdentifiers()) {
@@ -659,46 +682,57 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
         return extraData;
     }
 
+    @Override
     public Object visit(BBOX filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(Beyond filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(Contains filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(Crosses filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(Disjoint filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(DWithin filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(Equals filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(Intersects filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(Overlaps filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(Touches filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
 
+    @Override
     public Object visit(Within filter, Object extraData) {
         return visitBinarySpatialOperator(filter, extraData);
     }
@@ -928,13 +962,14 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
      * @param extraData extra data to be used to evaluate the filter
      * @return the untouched extraData parameter
      */
+    @Override
     public Object visitNullFilter(Object extraData) {
         return extraData;
     }
 
-    // END IMPLEMENTING org.opengis.filter.FilterVisitor METHODS
+    // END IMPLEMENTING org.geotools.api.filter.FilterVisitor METHODS
 
-    // START IMPLEMENTING org.opengis.filter.ExpressionVisitor METHODS
+    // START IMPLEMENTING org.geotools.api.filter.ExpressionVisitor METHODS
 
     /**
      * Writes the FilterBuilder for the attribute Expression.
@@ -1067,7 +1102,7 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
         field = literal;
 
         if (Date.class.isAssignableFrom(literal.getClass())) {
-            field = dateFormatter.print(((Date) literal).getTime());
+            field = dateFormatter.format((Date) literal);
         }
     }
 
@@ -1077,80 +1112,99 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
                         + "method to support encoding timeperiods");
     }
 
+    @Override
     public Object visit(Add expression, Object extraData) {
         throw new UnsupportedOperationException("Add expressions not supported");
     }
 
+    @Override
     public Object visit(Divide expression, Object extraData) {
         throw new UnsupportedOperationException("Divide expressions not supported");
     }
 
+    @Override
     public Object visit(Multiply expression, Object extraData) {
         throw new UnsupportedOperationException("Multiply expressions not supported");
     }
 
+    @Override
     public Object visit(Subtract expression, Object extraData) {
         throw new UnsupportedOperationException("Subtract expressions not supported");
     }
 
+    @Override
     public Object visit(NilExpression expression, Object extraData) {
         field = null;
         return extraData;
     }
 
     // temporal filters, not supported
+    @Override
     public Object visit(After after, Object extraData) {
         return visitBinaryTemporalOperator(after, extraData);
     }
 
+    @Override
     public Object visit(AnyInteracts anyInteracts, Object extraData) {
         return visitBinaryTemporalOperator(anyInteracts, extraData);
     }
 
+    @Override
     public Object visit(Before before, Object extraData) {
         return visitBinaryTemporalOperator(before, extraData);
     }
 
+    @Override
     public Object visit(Begins begins, Object extraData) {
         return visitBinaryTemporalOperator(begins, extraData);
     }
 
+    @Override
     public Object visit(BegunBy begunBy, Object extraData) {
         return visitBinaryTemporalOperator(begunBy, extraData);
     }
 
+    @Override
     public Object visit(During during, Object extraData) {
         return visitBinaryTemporalOperator(during, extraData);
     }
 
+    @Override
     public Object visit(EndedBy endedBy, Object extraData) {
         return visitBinaryTemporalOperator(endedBy, extraData);
     }
 
+    @Override
     public Object visit(Ends ends, Object extraData) {
         return visitBinaryTemporalOperator(ends, extraData);
     }
 
+    @Override
     public Object visit(Meets meets, Object extraData) {
         return visitBinaryTemporalOperator(meets, extraData);
     }
 
+    @Override
     public Object visit(MetBy metBy, Object extraData) {
         return visitBinaryTemporalOperator(metBy, extraData);
     }
 
+    @Override
     public Object visit(OverlappedBy overlappedBy, Object extraData) {
         return visitBinaryTemporalOperator(overlappedBy, extraData);
     }
 
+    @Override
     public Object visit(TContains contains, Object extraData) {
         return visitBinaryTemporalOperator(contains, extraData);
     }
 
+    @Override
     public Object visit(TEquals equals, Object extraData) {
         return visitBinaryTemporalOperator(equals, extraData);
     }
 
+    @Override
     public Object visit(TOverlaps contains, Object extraData) {
         return visitBinaryTemporalOperator(contains, extraData);
     }
@@ -1163,13 +1217,34 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
             // convert LinearRing to LineString
             final GeometryFactory factory = currentGeometry.getFactory();
             final LinearRing linearRing = (LinearRing) currentGeometry;
-            final CoordinateSequence coordinates;
-            coordinates = linearRing.getCoordinateSequence();
+            final CoordinateSequence coordinates = linearRing.getCoordinateSequence();
             currentGeometry = factory.createLineString(coordinates);
         }
-
-        final String geoJson = new GeometryJSON().toString(currentGeometry);
+        int maxDecimals = getMaxDecimalsForEnvelope(currentGeometry.getEnvelopeInternal());
+        final String geoJson = GeoJSONWriter.toGeoJSON(currentGeometry, maxDecimals);
         currentShapeBuilder = mapReader.readValue(geoJson);
+    }
+
+    protected static int getMaxDecimalsForEnvelope(Envelope envelope) {
+        double min = Math.min(Math.abs(envelope.getWidth()), Math.abs(envelope.getHeight()));
+        if (min == 0) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "BBox Geometry has no width or height, it is either a point or a line.");
+            return JtsModule.DEFAULT_MAX_DECIMALS;
+        }
+        double decimalPart = min - Math.floor(min);
+        // min dimension is whole number but the other dimension might have decimals
+        if (decimalPart == 0) {
+            return JtsModule.DEFAULT_MAX_DECIMALS;
+        }
+        double log = Math.log10(decimalPart);
+        int numDecimals = Math.abs((int) Math.floor(log) + 1);
+        if (numDecimals <= JtsModule.DEFAULT_MAX_DECIMALS) {
+            return JtsModule.DEFAULT_MAX_DECIMALS;
+        } else {
+            return numDecimals;
+        }
     }
 
     private Object visitBinarySpatialOperator(
@@ -1191,16 +1266,17 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
         throw new UnsupportedOperationException("Function support not implemented");
     }
 
-    // END IMPLEMENTING org.opengis.filter.ExpressionVisitor METHODS
+    // END IMPLEMENTING org.geotools.api.filter.ExpressionVisitor METHODS
 
     private void updateDateFormatter(AttributeDescriptor attType) {
         if (attType != null) {
+            @SuppressWarnings("unchecked")
             final List<String> validFormats =
                     (List<String>) attType.getUserData().get(ElasticConstants.DATE_FORMAT);
             if (validFormats != null) {
                 for (String format : validFormats) {
                     try {
-                        dateFormatter = Joda.forPattern(format).printer();
+                        dateFormatter = ElasticsearchDateConverter.forFormat(format);
                         break;
                     } catch (Exception e) {
                         LOGGER.fine(
@@ -1226,11 +1302,11 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
     }
 
     void addViewParams(Query query) {
-        if (query.getHints() != null
-                && query.getHints().get(Hints.VIRTUAL_TABLE_PARAMETERS) != null) {
+        Hints hints = query.getHints();
+        // aggregation handling
+        if (hints != null && hints.get(ES_AGGREGATE_BUCKET) != null) {
             @SuppressWarnings("unchecked")
-            Map<String, String> parameters =
-                    (Map<String, String>) query.getHints().get(Hints.VIRTUAL_TABLE_PARAMETERS);
+            Map<String, String> parameters = (Map) hints.get(ES_AGGREGATE_BUCKET);
 
             boolean nativeOnly = false;
             for (final Map.Entry<String, String> entry : parameters.entrySet()) {
@@ -1246,36 +1322,52 @@ class FilterToElastic implements FilterVisitor, ExpressionVisitor {
 
             for (final Map.Entry<String, String> entry : parameters.entrySet()) {
                 if (entry.getKey().equalsIgnoreCase("q")) {
-                    final String value = entry.getValue();
-                    try {
-                        nativeQueryBuilder = mapReader.readValue(value);
-                    } catch (Exception e) {
-                        // retry with decoded value
-                        try {
-                            nativeQueryBuilder =
-                                    mapReader.readValue(ElasticParserUtil.urlDecode(value));
-                        } catch (Exception e2) {
-                            throw new FilterToElasticException("Unable to parse native query", e);
-                        }
-                    }
+                    setupNativeQuery(entry.getValue());
                 }
                 if (entry.getKey().equalsIgnoreCase("a")) {
-                    final ObjectMapper mapper = new ObjectMapper();
-                    final TypeReference<Map<String, Map<String, Map<String, Object>>>> type;
-                    type = new TypeReference<Map<String, Map<String, Map<String, Object>>>>() {};
-                    final String value = entry.getValue();
-                    try {
-                        this.aggregations = mapper.readValue(value, type);
-                    } catch (Exception e) {
-                        try {
-                            this.aggregations =
-                                    mapper.readValue(ElasticParserUtil.urlDecode(value), type);
-                        } catch (Exception e2) {
-                            throw new FilterToElasticException("Unable to parse aggregation", e);
-                        }
-                    }
+                    this.aggregations = GeohashUtil.parseAggregation(entry.getValue());
+
+                    // map default geometry to actual underlying field name, if it was left empty
+                    // (e.g, automatic grid definition in GeoHashProcess, it does not have
+                    // access to the geometry name in general)
+                    Optional.ofNullable(aggregations)
+                            .map(a -> a.get("agg"))
+                            .map(a -> a.get("geohash_grid"))
+                            .ifPresent(this::setGeometryField);
                 }
             }
+        }
+        // allow native query to be provided via view param
+        if (hints != null && hints.get(VIRTUAL_TABLE_PARAMETERS) != null) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> parameters = (Map) hints.get(VIRTUAL_TABLE_PARAMETERS);
+            for (final Map.Entry<String, String> entry : parameters.entrySet()) {
+                if (entry.getKey().equalsIgnoreCase("q")) {
+                    setupNativeQuery(entry.getValue());
+                }
+            }
+        }
+    }
+
+    private void setupNativeQuery(String nativeQuery) {
+        try {
+            nativeQueryBuilder = mapReader.readValue(nativeQuery);
+        } catch (Exception e) {
+            // retry with decoded nativeQuery
+            try {
+                nativeQueryBuilder = mapReader.readValue(ElasticParserUtil.urlDecode(nativeQuery));
+            } catch (Exception e2) {
+                throw new FilterToElasticException("Unable to parse native query", e);
+            }
+        }
+    }
+
+    private void setGeometryField(Map<String, Object> m) {
+        if ("".equals(m.get("field"))) {
+            GeometryDescriptor gd = featureType.getGeometryDescriptor();
+            String name = (String) gd.getUserData().get(ElasticConstants.FULL_NAME);
+            if (name == null) name = gd.getLocalName();
+            m.put("field", name);
         }
     }
 

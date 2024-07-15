@@ -16,11 +16,11 @@
  */
 package org.geotools.referencing.factory.wms;
 
+import java.text.MessageFormat;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
 import org.geotools.measure.Latitude;
 import org.geotools.measure.Longitude;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 
 /**
  * A code parsed by the {@link AutoCRSFactory} methods. The expected format is {@code
@@ -125,12 +125,13 @@ final class Code {
             final Class type, final String code) {
         final String authority = "AUTO";
         return new NoSuchAuthorityCodeException(
-                Errors.format(ErrorKeys.NO_SUCH_AUTHORITY_CODE_$3, code, authority, type),
+                MessageFormat.format(ErrorKeys.NO_SUCH_AUTHORITY_CODE_$3, code, authority, type),
                 authority,
                 code);
     }
 
     /** Returns a string representation of this code. */
+    @Override
     public String toString() {
         return authority + ':' + code + ',' + longitude + ',' + latitude;
     }

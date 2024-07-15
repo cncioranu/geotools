@@ -23,9 +23,9 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.Rectangle2D.Double;
 import java.util.logging.Logger;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.renderer.util.ExplicitBoundsShape;
-import org.opengis.feature.Feature;
-import org.opengis.filter.expression.Expression;
 
 /**
  * The WellKnownMarkFactory is used to hold the knolwedge of how to draw all the marks hardboiled
@@ -153,6 +153,7 @@ public class WellKnownMarkFactory implements MarkFactory {
         square = new Double(-.5, -.5, 1., 1.);
     }
 
+    @Override
     public Shape getShape(Graphics2D graphics, Expression symbolUrl, Feature feature)
             throws Exception {
         // cannot handle a null url

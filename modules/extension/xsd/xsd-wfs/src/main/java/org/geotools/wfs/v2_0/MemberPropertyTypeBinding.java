@@ -24,14 +24,14 @@ import org.eclipse.xsd.XSDElementDeclaration;
 import org.eclipse.xsd.XSDFactory;
 import org.eclipse.xsd.XSDParticle;
 import org.eclipse.xsd.XSDTypeDefinition;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.type.AttributeType;
 import org.geotools.gml2.bindings.GMLEncodingUtils;
 import org.geotools.gml3.XSDIdRegistry;
 import org.geotools.gml3.v3_2.GML;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
 import org.geotools.xsd.SchemaIndex;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.type.AttributeType;
 
 /**
  * Binding object for the type http://www.opengis.net/wfs/2.0:MemberPropertyType.
@@ -66,6 +66,7 @@ public class MemberPropertyTypeBinding
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WFS.MemberPropertyType;
     }
@@ -77,6 +78,7 @@ public class MemberPropertyTypeBinding
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
 
         // TODO: implement and remove call to super

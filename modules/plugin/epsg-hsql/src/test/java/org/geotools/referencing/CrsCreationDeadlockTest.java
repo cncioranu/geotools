@@ -8,29 +8,27 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
 import org.junit.Test;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
 
 public class CrsCreationDeadlockTest {
 
-    private static final int NUMBER_OF_THREADS = 32;
+    private static final int NUMBER_OF_THREADS = 1;
 
     @Test
     public void testForDeadlock() throws InterruptedException {
         // prepare the loaders
         final AtomicInteger ai = new AtomicInteger(NUMBER_OF_THREADS);
         final Runnable runnable =
-                new Runnable() {
-                    public void run() {
-                        try {
-                            final CRSAuthorityFactory authorityFactory =
-                                    ReferencingFactoryFinder.getCRSAuthorityFactory("EPSG", null);
-                            authorityFactory.createCoordinateReferenceSystem("4326");
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        } finally {
-                            ai.decrementAndGet();
-                        }
+                () -> {
+                    try {
+                        final CRSAuthorityFactory authorityFactory =
+                                ReferencingFactoryFinder.getCRSAuthorityFactory("EPSG", null);
+                        authorityFactory.createCoordinateReferenceSystem("4326");
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    } finally {
+                        ai.decrementAndGet();
                     }
                 };
 

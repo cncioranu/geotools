@@ -25,11 +25,11 @@ import it.geosolutions.jaiext.JAIExt;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import javax.media.jai.OperationNode;
+import org.geotools.api.coverage.grid.GridCoverage;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.test.TestData;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.coverage.grid.GridCoverage;
 
 /**
  * Tests JAI operation wrapped as {@link OperatorJAI}.
@@ -72,7 +72,7 @@ public final class OperationsTest extends GridProcessingTestBase {
      */
     @Test
     public void testSubtract() {
-        double[] constants = new double[] {18};
+        double[] constants = {18};
         GridCoverage sourceCoverage = SST;
         GridCoverage targetCoverage = (GridCoverage) processor.subtract(sourceCoverage, constants);
         RenderedImage sourceImage =

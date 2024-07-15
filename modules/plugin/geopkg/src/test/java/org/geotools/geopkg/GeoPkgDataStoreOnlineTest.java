@@ -16,10 +16,10 @@
  */
 package org.geotools.geopkg;
 
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.jdbc.JDBCDataStoreOnlineTest;
 import org.geotools.referencing.CRS;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class GeoPkgDataStoreOnlineTest extends JDBCDataStoreOnlineTest {
 
@@ -34,6 +34,7 @@ public class GeoPkgDataStoreOnlineTest extends JDBCDataStoreOnlineTest {
         // See FAQ (9) from http://www.sqlite.org/faq.html
     }
 
+    @Override
     protected CoordinateReferenceSystem getUTMCRS() throws FactoryException {
         return CRS.decode("EPSG:26713", true);
     }

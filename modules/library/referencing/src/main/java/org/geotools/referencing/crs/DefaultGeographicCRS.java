@@ -24,22 +24,24 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.measure.Unit;
 import javax.measure.quantity.Angle;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.EllipsoidalCS;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.datum.GeodeticDatum;
 import org.geotools.measure.Measure;
+import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.metadata.iso.extent.ExtentImpl;
 import org.geotools.referencing.AbstractReferenceSystem; // For javadoc
+import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.cs.DefaultEllipsoidalCS;
 import org.geotools.referencing.datum.DefaultEllipsoid;
 import org.geotools.referencing.datum.DefaultGeodeticDatum;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.UnsupportedImplementationException;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.EllipsoidalCS;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.datum.GeodeticDatum;
 import si.uom.NonSI;
 
 /**
@@ -85,10 +87,12 @@ public class DefaultGeographicCRS extends AbstractSingleCRS implements Geographi
         };
         properties.put(ALIAS_KEY, alias);
         properties.put(DOMAIN_OF_VALIDITY_KEY, ExtentImpl.WORLD);
+        properties.put(IDENTIFIERS_KEY, new NamedIdentifier(Citations.EPSG, "4326"));
         WGS84 =
                 new DefaultGeographicCRS(
                         properties, DefaultGeodeticDatum.WGS84, DefaultEllipsoidalCS.GEODETIC_2D);
         alias[1] = "WGS 84 (geographic 3D)"; // Replaces the EPSG name.
+        properties.put(IDENTIFIERS_KEY, new NamedIdentifier(Citations.EPSG, "4327"));
         WGS84_3D =
                 new DefaultGeographicCRS(
                         properties, DefaultGeodeticDatum.WGS84, DefaultEllipsoidalCS.GEODETIC_3D);
@@ -171,8 +175,6 @@ public class DefaultGeographicCRS extends AbstractSingleCRS implements Geographi
     @Override
     public Measure distance(final double[] coord1, final double[] coord2)
             throws UnsupportedOperationException, MismatchedDimensionException {
-        final DefaultEllipsoidalCS cs;
-        final DefaultEllipsoid e;
         if (!(coordinateSystem instanceof DefaultEllipsoidalCS)) {
             throw new UnsupportedImplementationException(coordinateSystem.getClass());
         }
@@ -180,8 +182,8 @@ public class DefaultGeographicCRS extends AbstractSingleCRS implements Geographi
         if (!(ellipsoid instanceof DefaultEllipsoid)) {
             throw new UnsupportedImplementationException(ellipsoid.getClass());
         }
-        cs = (DefaultEllipsoidalCS) coordinateSystem;
-        e = (DefaultEllipsoid) ellipsoid;
+        final DefaultEllipsoidalCS cs = (DefaultEllipsoidalCS) coordinateSystem;
+        final DefaultEllipsoid e = (DefaultEllipsoid) ellipsoid;
         if (coord1.length != 2 || coord2.length != 2 || cs.getDimension() != 2) {
             /*
              * Not yet implemented (an exception will be thrown later).

@@ -18,21 +18,21 @@ package org.geotools.data.property;
 
 import java.io.IOException;
 import java.util.Set;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
-import org.geotools.data.ResourceInfo;
-import org.geotools.data.Transaction;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureStore;
 import org.geotools.data.store.ContentState;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
 
 /**
  * Implementation used for writeable property files. Supports limited caching of number of features
@@ -61,12 +61,15 @@ public class PropertyFeatureStore extends ContentFeatureStore {
     }
 
     /** We handle events internally */
+    @Override
     protected boolean canEvent() {
         return false;
     }
 
+    @Override
     protected QueryCapabilities buildQueryCapabilities() {
         return new QueryCapabilities() {
+            @Override
             public boolean isUseProvidedFIDSupported() {
                 return true;
             }
@@ -145,22 +148,27 @@ public class PropertyFeatureStore extends ContentFeatureStore {
         return delegate.getEntry();
     }
 
+    @Override
     public Transaction getTransaction() {
         return delegate.getTransaction();
     }
 
+    @Override
     public ContentState getState() {
         return delegate.getState();
     }
 
+    @Override
     public ResourceInfo getInfo() {
         return delegate.getInfo();
     }
 
+    @Override
     public Name getName() {
         return delegate.getName();
     }
 
+    @Override
     public QueryCapabilities getQueryCapabilities() {
         return delegate.getQueryCapabilities();
     }

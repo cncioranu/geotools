@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import org.geotools.TestData;
+import org.geotools.api.data.FileStoreFactory;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.junit.After;
 
@@ -42,9 +43,7 @@ public class DirectoryTestSupport {
             if (f.isDirectory()) {
                 deleteDirectory(f);
             } else {
-                if (!f.delete()) {
-                    // System.out.println("Couldn't delete " + f.getAbsolutePath());
-                }
+                f.delete();
             }
         }
         directory.delete();

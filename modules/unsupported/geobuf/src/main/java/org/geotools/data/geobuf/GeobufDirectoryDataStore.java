@@ -17,16 +17,15 @@
 package org.geotools.data.geobuf;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.store.ContentDataStore;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.NameImpl;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
 
 public class GeobufDirectoryDataStore extends ContentDataStore {
 
@@ -71,14 +70,7 @@ public class GeobufDirectoryDataStore extends ContentDataStore {
 
     @Override
     protected List<Name> createTypeNames() throws IOException {
-        File[] files =
-                directory.listFiles(
-                        new FilenameFilter() {
-                            @Override
-                            public boolean accept(File dir, String name) {
-                                return name.endsWith(".pbf");
-                            }
-                        });
+        File[] files = directory.listFiles((dir, name) -> name.endsWith(".pbf"));
         List<Name> names = new ArrayList<>();
         if (files != null) {
             for (File file : files) {

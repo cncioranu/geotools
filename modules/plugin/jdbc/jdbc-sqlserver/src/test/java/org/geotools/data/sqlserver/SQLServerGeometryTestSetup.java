@@ -20,12 +20,14 @@ import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCGeometryTestSetup;
 
 /** @author DamianoG */
+@SuppressWarnings("PMD.JUnit4TestShouldUseBeforeAnnotation") // not a JUnit test
 public class SQLServerGeometryTestSetup extends JDBCGeometryTestSetup {
 
     protected SQLServerGeometryTestSetup() {
         super(new SQLServerTestSetup());
     }
 
+    @Override
     public void setUp() throws Exception {
         super.setUp();
         runSafe("DROP TABLE GEOMETRY_COLUMNS");

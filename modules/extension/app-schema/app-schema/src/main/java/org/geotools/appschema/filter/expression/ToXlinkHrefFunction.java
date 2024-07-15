@@ -19,14 +19,14 @@ package org.geotools.appschema.filter.expression;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.data.complex.util.ComplexFeatureConstants;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.util.factory.Hints;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /**
  * This function redirects an attribute to be encoded as xlink:href, instead of being encoded as a
@@ -56,30 +56,37 @@ public class ToXlinkHrefFunction implements Function {
         this.fallback = fallback;
     }
 
+    @Override
     public String getName() {
         return NAME.getName();
     }
 
+    @Override
     public FunctionName getFunctionName() {
         return NAME;
     }
 
+    @Override
     public List<Expression> getParameters() {
         return Collections.unmodifiableList(parameters);
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallback;
     }
 
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public Object evaluate(Object object) {
         return evaluate(object, Hints.class);
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     public <T> T evaluate(Object object, Class<T> context) {
         return (T)

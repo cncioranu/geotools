@@ -31,20 +31,25 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.FeatureStore;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.Repository;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.coverage.util.FeatureUtilities;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.FeatureStore;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
-import org.geotools.data.Repository;
-import org.geotools.data.Transaction;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.NameImpl;
@@ -57,11 +62,6 @@ import org.geotools.gce.imagemosaic.catalog.postgis.PostgisDatastoreWrapper;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Utilities;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
 
 /**
  * This class simply builds an index for fast indexed queries.
@@ -212,7 +212,6 @@ public class CoverageSlicesCatalog {
 
             String typeName = null;
             String[] typeNamesValues = null;
-            boolean scanForTypeNames = false;
 
             // Handle multiple typeNames
             if (params.containsKey(Utils.Prop.TYPENAME)) {
@@ -222,10 +221,7 @@ public class CoverageSlicesCatalog {
                 }
             }
 
-            if (params.containsKey(Utils.SCAN_FOR_TYPENAMES)) {
-                scanForTypeNames = Boolean.valueOf((String) (params.get(Utils.SCAN_FOR_TYPENAMES)));
-            }
-            if (typeNamesValues == null && scanForTypeNames) {
+            if (typeNamesValues == null) {
                 typeNamesValues = slicesIndexStore.getTypeNames();
             }
 
@@ -237,10 +233,10 @@ public class CoverageSlicesCatalog {
                 addTypeName(typeName, false);
             }
 
-            if (this.typeNames.size() > 0) {
-                extractBasicProperties(typeNames.iterator().next());
-            } else {
+            if (this.typeNames.isEmpty()) {
                 extractBasicProperties(typeName);
+            } else {
+                extractBasicProperties(typeNames.iterator().next());
             }
         } catch (Throwable e) {
             try {
@@ -327,7 +323,7 @@ public class CoverageSlicesCatalog {
 
     public String[] getTypeNames() {
         if (this.typeNames != null && !this.typeNames.isEmpty()) {
-            return (String[]) this.typeNames.toArray(new String[] {});
+            return this.typeNames.toArray(new String[] {});
         }
         return null;
     }
@@ -406,8 +402,7 @@ public class CoverageSlicesCatalog {
                         "The provided SimpleFeatureSource is null, it's impossible to create an index!");
             }
             Transaction tx = null;
-            SimpleFeatureIterator it = null;
-            try {
+            try { // NOPMD (UseTryWithResources)
 
                 // Transform feature stores will use an autoCommit transaction which doesn't
                 // have any state. Getting the features iterator may throw an exception
@@ -447,54 +442,51 @@ public class CoverageSlicesCatalog {
                 }
 
                 // load the feature from the underlying datastore as needed
-                it = features.features();
-                if (it == null) {
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.fine(
-                                "The provided SimpleFeatureCollection returned a null iterator, it's impossible to create an index!");
-                    }
-                    return Collections.emptyList();
-                }
-                if (!it.hasNext()) {
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.fine(
-                                "The provided SimpleFeatureCollection is empty, it's impossible to create an index!");
-                    }
-                    return Collections.emptyList();
-                }
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine("Index Loaded");
-                }
-
-                // getting the features
-                while (it.hasNext()) {
-                    SimpleFeature feature = it.next();
-                    final SimpleFeature sf = (SimpleFeature) feature;
-                    final CoverageSlice slice;
-
-                    // caching by granule's index
-                    synchronized (coverageSliceDescriptorsCache) {
-                        Integer granuleIndex = (Integer) sf.getAttribute(IMAGE_INDEX_ATTR);
-                        if (coverageSliceDescriptorsCache.containsKey(granuleIndex)) {
-                            slice = coverageSliceDescriptorsCache.get(granuleIndex);
-                        } else {
-                            // create the granule coverageDescriptor (eventually retyping its
-                            // feature)
-                            slice =
-                                    new CoverageSlice(
-                                            postRetypeRequired
-                                                    ? SimpleFeatureBuilder.retype(sf, target)
-                                                    : sf);
-                            coverageSliceDescriptorsCache.put(granuleIndex, slice);
+                try (SimpleFeatureIterator it = features.features()) {
+                    if (it == null) {
+                        if (LOGGER.isLoggable(Level.FINE)) {
+                            LOGGER.fine(
+                                    "The provided SimpleFeatureCollection returned a null iterator, it's impossible to create an index!");
                         }
+                        return Collections.emptyList();
                     }
-                    returnValue.add(slice);
+                    if (!it.hasNext()) {
+                        if (LOGGER.isLoggable(Level.FINE)) {
+                            LOGGER.fine(
+                                    "The provided SimpleFeatureCollection is empty, it's impossible to create an index!");
+                        }
+                        return Collections.emptyList();
+                    }
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.fine("Index Loaded");
+                    }
+
+                    // getting the features
+                    while (it.hasNext()) {
+                        SimpleFeature feature = it.next();
+                        final SimpleFeature sf = feature;
+                        final CoverageSlice slice;
+
+                        // caching by granule's index
+                        synchronized (coverageSliceDescriptorsCache) {
+                            Integer granuleIndex = (Integer) sf.getAttribute(IMAGE_INDEX_ATTR);
+                            if (coverageSliceDescriptorsCache.containsKey(granuleIndex)) {
+                                slice = coverageSliceDescriptorsCache.get(granuleIndex);
+                            } else {
+                                // create the granule coverageDescriptor (eventually retyping its
+                                // feature)
+                                slice =
+                                        new CoverageSlice(
+                                                postRetypeRequired
+                                                        ? SimpleFeatureBuilder.retype(sf, target)
+                                                        : sf);
+                                coverageSliceDescriptorsCache.put(granuleIndex, slice);
+                            }
+                        }
+                        returnValue.add(slice);
+                    }
                 }
             } finally {
-                if (it != null) {
-                    it.close();
-                }
-
                 if (tx != null) {
                     tx.close();
                 }
@@ -661,6 +653,7 @@ public class CoverageSlicesCatalog {
         }
     }
 
+    @SuppressWarnings("PMD.UseTryWithResources") // transaction needed in catch
     public void purge(Filter filter) throws IOException {
         DefaultTransaction transaction = null;
         try {

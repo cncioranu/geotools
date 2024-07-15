@@ -22,6 +22,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
@@ -44,14 +52,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.operation.buffer.BufferParameters;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 public class AzimulthalEquidistantProjectionHandlerFactory implements ProjectionHandlerFactory {
 
@@ -151,7 +151,7 @@ public class AzimulthalEquidistantProjectionHandlerFactory implements Projection
 
         private Point getAzeqPosition(MathTransform mt, double lon, double lat)
                 throws TransformException {
-            double[] source = new double[] {lon, lat};
+            double[] source = {lon, lat};
             double[] target = new double[2];
             try {
                 mt.transform(source, 0, target, 0, 1);
@@ -169,21 +169,20 @@ public class AzimulthalEquidistantProjectionHandlerFactory implements Projection
             double eps = 1e-3;
             double x = center.x > 0 ? (-180 + center.x) : (180 + center.x);
             double y = -center.y;
-            final double[] line =
-                    new double[] {
-                        center.x,
-                        center.y, //
-                        x,
-                        y, //
-                        rollLongitude(x - eps),
-                        validLat(y - eps), //
-                        rollLongitude(x - eps),
-                        validLat(y + eps), //
-                        rollLongitude(x + eps),
-                        validLat(y - eps), //
-                        rollLongitude(x + eps),
-                        validLat(y + eps)
-                    };
+            final double[] line = {
+                center.x,
+                center.y, //
+                x,
+                y, //
+                rollLongitude(x - eps),
+                validLat(y - eps), //
+                rollLongitude(x - eps),
+                validLat(y + eps), //
+                rollLongitude(x + eps),
+                validLat(y - eps), //
+                rollLongitude(x + eps),
+                validLat(y + eps)
+            };
             CRS.findMathTransform(DefaultGeographicCRS.WGS84, crs).transform(line, 0, line, 0, 6);
             double radius = 0;
             for (int i = 1; i <= 5; i++) {
@@ -322,13 +321,8 @@ public class AzimulthalEquidistantProjectionHandlerFactory implements Projection
         private Envelope getFullEnvelope(Geometry transformed) {
             final Envelope envelope = transformed.getEnvelopeInternal();
             transformed.apply(
-                    new GeometryComponentFilter() {
-
-                        @Override
-                        public void filter(Geometry geom) {
-                            envelope.expandToInclude(geom.getEnvelopeInternal());
-                        }
-                    });
+                    (GeometryComponentFilter)
+                            geom -> envelope.expandToInclude(geom.getEnvelopeInternal()));
 
             return envelope;
         }

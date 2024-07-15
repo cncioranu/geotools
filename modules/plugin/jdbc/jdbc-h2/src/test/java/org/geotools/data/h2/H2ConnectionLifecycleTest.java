@@ -16,16 +16,19 @@
  */
 package org.geotools.data.h2;
 
+import static org.junit.Assert.assertEquals;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.geotools.data.Query;
-import org.geotools.data.simple.SimpleFeatureSource;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
 import org.geotools.jdbc.ConnectionLifecycleListener;
 import org.geotools.jdbc.JDBCConnectionLifecycleOnlineTest;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCTestSetup;
 import org.geotools.jdbc.VirtualTable;
+import org.junit.Test;
 
 public class H2ConnectionLifecycleTest extends JDBCConnectionLifecycleOnlineTest {
 
@@ -33,6 +36,7 @@ public class H2ConnectionLifecycleTest extends JDBCConnectionLifecycleOnlineTest
 
         double value;
 
+        @Override
         public void onBorrow(JDBCDataStore store, Connection cx) throws SQLException {
             Statement st = null;
             try {
@@ -43,23 +47,28 @@ public class H2ConnectionLifecycleTest extends JDBCConnectionLifecycleOnlineTest
             }
         }
 
+        @Override
         public void onRelease(JDBCDataStore store, Connection cx) throws SQLException {
             // nothing to do
         }
 
+        @Override
         public void onCommit(JDBCDataStore store, Connection cx) throws SQLException {
             // nothing to do
         }
 
+        @Override
         public void onRollback(JDBCDataStore store, Connection cx) throws SQLException {
             // nothing to do
         }
     }
 
+    @Override
     protected JDBCTestSetup createTestSetup() {
         return new H2TestSetup();
     }
 
+    @Test
     public void testVariableListener() throws Exception {
         // setup a virtual table using the user variable
         VirtualTable vt =

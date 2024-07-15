@@ -19,7 +19,11 @@ package org.geotools.renderer.lite;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
-import junit.framework.TestCase;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.style.Style;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
@@ -30,23 +34,21 @@ import org.geotools.map.MapContent;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.renderer.RenderListener;
-import org.geotools.styling.Style;
 import org.geotools.styling.StyleBuilder;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Tests for rendering and reprojection
  *
  * @author wolf
  */
-public class ReprojectionTest extends TestCase {
+public class ReprojectionTest {
 
     private SimpleFeatureType pointFeautureType;
 
@@ -54,8 +56,8 @@ public class ReprojectionTest extends TestCase {
 
     protected int errors;
 
-    protected void setUp() throws Exception {
-        super.setUp();
+    @Before
+    public void setUp() throws Exception {
 
         SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
         builder.setName("Lines");
@@ -74,7 +76,7 @@ public class ReprojectionTest extends TestCase {
 
     private SimpleFeature createLine(double x1, double y1, double x2, double y2)
             throws IllegalAttributeException {
-        Coordinate[] coords = new Coordinate[] {new Coordinate(x1, y1), new Coordinate(x2, y2)};
+        Coordinate[] coords = {new Coordinate(x1, y1), new Coordinate(x2, y2)};
         return SimpleFeatureBuilder.build(
                 pointFeautureType, new Object[] {gf.createLineString(coords)}, null);
     }
@@ -84,6 +86,7 @@ public class ReprojectionTest extends TestCase {
         return sb.createStyle(sb.createLineSymbolizer());
     }
 
+    @Test
     public void testSkipProjectionErrors() throws Exception {
         // build map context
         MapContent MapContent = new MapContent();
@@ -106,8 +109,10 @@ public class ReprojectionTest extends TestCase {
         sr.setMapContent(MapContent);
         sr.addRenderListener(
                 new RenderListener() {
+                    @Override
                     public void featureRenderer(SimpleFeature feature) {}
 
+                    @Override
                     public void errorOccurred(Exception e) {
                         java.util.logging.Logger.getGlobal()
                                 .log(java.util.logging.Level.INFO, "", e);
@@ -119,6 +124,6 @@ public class ReprojectionTest extends TestCase {
         MapContent.dispose();
         // we should get two errors since there are two features that cannot be
         // projected but the renderer itself should not throw exceptions
-        assertEquals(1, errors);
+        Assert.assertEquals(1, errors);
     }
 }

@@ -26,8 +26,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.geotools.styling.ResourceLocator;
-import org.geotools.styling.StyledLayerDescriptor;
+import org.geotools.api.style.ResourceLocator;
+import org.geotools.api.style.StyledLayerDescriptor;
 import org.geotools.ysld.UomMapper;
 
 /**
@@ -41,16 +41,12 @@ public class YsldParser extends YamlParser {
     UomMapper uomMapper = new UomMapper();
 
     ResourceLocator locator =
-            new ResourceLocator() {
-
-                @Override
-                public URL locateResource(String uri) {
-                    try {
-                        return new URL(uri);
-                    } catch (MalformedURLException e) {
-                        throw new IllegalArgumentException(
-                                String.format("'%s' is not a valid URI", uri), e);
-                    }
+            uri -> {
+                try {
+                    return new URL(uri);
+                } catch (MalformedURLException e) {
+                    throw new IllegalArgumentException(
+                            String.format("'%s' is not a valid URI", uri), e);
                 }
             };
 

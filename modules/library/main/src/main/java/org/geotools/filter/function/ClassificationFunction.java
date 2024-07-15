@@ -29,6 +29,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Divide;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.Subtract;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.visitor.Aggregate;
@@ -36,14 +44,6 @@ import org.geotools.feature.visitor.GroupByVisitor;
 import org.geotools.filter.DefaultExpression;
 import org.geotools.filter.FunctionExpression;
 import org.geotools.util.factory.GeoTools;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Divide;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.Subtract;
-import org.opengis.util.ProgressListener;
 
 /**
  * Parent for classifiers which break a feature collection into the specified number of classes.
@@ -57,13 +57,13 @@ public abstract class ClassificationFunction extends DefaultExpression
     protected static final java.util.logging.Logger LOGGER =
             org.geotools.util.logging.Logging.getLogger(ClassificationFunction.class);
 
-    static final FilterFactory2 FF =
-            CommonFactoryFinder.getFilterFactory2(GeoTools.getDefaultHints());
+    static final FilterFactory FF =
+            CommonFactoryFinder.getFilterFactory(GeoTools.getDefaultHints());
 
     FunctionName name;
 
     /** function params * */
-    List<org.opengis.filter.expression.Expression> params = new ArrayList<>(2);
+    List<org.geotools.api.filter.expression.Expression> params = new ArrayList<>(2);
 
     Literal fallback;
 
@@ -73,17 +73,21 @@ public abstract class ClassificationFunction extends DefaultExpression
         this.name = name;
     }
 
-    /** @see org.opengis.filter.expression.Expression#accept(ExpressionVisitor, Object) */
+    /** @see org.geotools.api.filter.expression.Expression#accept(ExpressionVisitor, Object) */
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public abstract Object evaluate(Object arg);
 
+    @Override
     public void setFallbackValue(Literal fallback) {
         this.fallback = fallback;
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallback;
     }
@@ -93,10 +97,12 @@ public abstract class ClassificationFunction extends DefaultExpression
      *
      * @return the name of the function.
      */
+    @Override
     public String getName() {
         return name.getName();
     }
 
+    @Override
     public FunctionName getFunctionName() {
         return name;
     }
@@ -105,12 +111,14 @@ public abstract class ClassificationFunction extends DefaultExpression
      * Returns the function parameters (the contents are Expressions, usually attribute expression
      * and literal expression).
      */
-    public List<org.opengis.filter.expression.Expression> getParameters() {
+    @Override
+    public List<org.geotools.api.filter.expression.Expression> getParameters() {
         return params;
     }
 
     /** Sets the function parameters. */
-    public void setParameters(List<org.opengis.filter.expression.Expression> params) {
+    @Override
+    public void setParameters(List<org.geotools.api.filter.expression.Expression> params) {
         this.params = params;
     }
 
@@ -124,16 +132,17 @@ public abstract class ClassificationFunction extends DefaultExpression
 
     public int getClasses() {
         Literal classes = (Literal) getParameters().get(1);
-        return ((Integer) classes.evaluate(null, Integer.class)).intValue();
+        return classes.evaluate(null, Integer.class).intValue();
     }
 
     public void setClasses(int classes) {
-        org.opengis.filter.FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
+        org.geotools.api.filter.FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         Literal expression = ff.literal(classes);
         getParameters().set(1, expression);
     }
 
     /** Returns the implementation hints. The default implementation returns an empty map. */
+    @Override
     public Map<RenderingHints.Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }
@@ -149,7 +158,7 @@ public abstract class ClassificationFunction extends DefaultExpression
                 str = str.substring(0, str.length() - 1);
             }
         }
-        int intPart = Double.valueOf(Math.floor(slotWidth)).intValue();
+        int intPart = (int) Math.floor(slotWidth);
         double decPart = slotWidth - intPart;
         int intPoints = Integer.toString(intPart).length();
         int decPoints = str.length() - intPoints;
@@ -220,10 +229,10 @@ public abstract class ClassificationFunction extends DefaultExpression
         StringBuilder sb = new StringBuilder();
         sb.append(getName());
         sb.append("(");
-        List<org.opengis.filter.expression.Expression> params = getParameters();
+        List<org.geotools.api.filter.expression.Expression> params = getParameters();
         if (params != null) {
-            org.opengis.filter.expression.Expression exp;
-            for (Iterator<org.opengis.filter.expression.Expression> it = params.iterator();
+            org.geotools.api.filter.expression.Expression exp;
+            for (Iterator<org.geotools.api.filter.expression.Expression> it = params.iterator();
                     it.hasNext(); ) {
                 exp = it.next();
                 sb.append("[");
@@ -267,8 +276,7 @@ public abstract class ClassificationFunction extends DefaultExpression
         @SuppressWarnings("unchecked")
         Map<List<Integer>, Integer> result = groupBy.getResult().toMap();
         Map<Integer, Integer> resultIntKeys =
-                result.entrySet()
-                        .stream()
+                result.entrySet().stream()
                         .collect(Collectors.toMap(e -> e.getKey().get(0), e -> e.getValue()));
         // getting a tree set from the keys to get them asc ordered and
         // collect percentages in the right order

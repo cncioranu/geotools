@@ -18,13 +18,13 @@
 package org.geotools.appschema.filter.expression;
 
 import java.util.List;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.IllegalAttributeException;
 import org.geotools.appschema.util.XmlXpathUtilites;
 import org.geotools.data.complex.xml.XmlXpathFilterData;
 import org.geotools.filter.expression.PropertyAccessor;
 import org.geotools.filter.expression.PropertyAccessorFactory;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.Feature;
-import org.opengis.feature.IllegalAttributeException;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -38,6 +38,7 @@ public class XmlXPathPropertyAccessorFactory implements PropertyAccessorFactory 
     /** Namespace support hint */
     public static Hints.Key NAMESPACE_SUPPORT = new Hints.Key(NamespaceSupport.class);
 
+    @Override
     public PropertyAccessor createPropertyAccessor(
             Class type, String xpath, Class target, Hints hints) {
         if (XmlXpathFilterData.class.isAssignableFrom(type)) {
@@ -48,11 +49,13 @@ public class XmlXPathPropertyAccessorFactory implements PropertyAccessorFactory 
     }
 
     static class XmlXPathPropertyAcessor implements PropertyAccessor {
+        @Override
         public boolean canHandle(Object object, String xpath, Class target) {
             // TODO: some better check for a valid xpath expression
             return (xpath != null) && !"".equals(xpath.trim());
         }
 
+        @Override
         public <T> T get(Object object, String xpath, Class<T> target)
                 throws IllegalArgumentException {
 
@@ -68,6 +71,7 @@ public class XmlXPathPropertyAccessorFactory implements PropertyAccessorFactory 
             return null;
         }
 
+        @Override
         public void set(Object object, String xpath, Object value, Class target)
                 throws IllegalAttributeException {
             throw new UnsupportedOperationException("Do not support updating.");

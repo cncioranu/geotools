@@ -28,7 +28,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.FeatureSource;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
@@ -39,8 +41,6 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.WKTWriter;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * Utility class to manage mosaic's footprint
@@ -98,19 +98,14 @@ class FootprintUtils {
 
             final WKTReader geometryReader = new WKTReader();
             while ((footprint = bReader.readLine()) != null) {
-                String fpt[] = footprint.split("=");
+                String[] fpt = footprint.split("=");
                 if (fpt.length == 2) {
                     // parse the geometry
                     footprintsIDGeometryMap.put(fpt[0], geometryReader.read(fpt[1]));
                 }
             }
             bReader.close();
-        } catch (IOException e) {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
-            }
-        } catch (ParseException e) {
-
+        } catch (IOException | ParseException e) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
             }
@@ -161,13 +156,12 @@ class FootprintUtils {
             return;
         }
 
-        FeatureIterator<SimpleFeature> it = null;
-        try {
+        try (FeatureIterator<SimpleFeature> it = features.features()) {
             // load the feature from the footprint shapefile store
-            it = features.features();
             if (!it.hasNext()) {
                 throw new IllegalArgumentException(
-                        "The provided FeatureCollection<SimpleFeatureType, SimpleFeature>  or empty, it's impossible to create an index!");
+                        "The provided FeatureCollection<SimpleFeatureType, SimpleFeature>  or "
+                                + "empty, it's impossible to create an index!");
             }
 
             // now add the footprint to the Map
@@ -176,20 +170,6 @@ class FootprintUtils {
                 final Geometry g = (Geometry) feature.getDefaultGeometry();
                 final String location = (String) feature.getAttribute("location");
                 footprintsMap.put(location, g);
-            }
-
-        } finally {
-
-            try {
-                if (it != null) {
-                    it.close();
-                }
-            } catch (Throwable e) {
-            }
-
-            try {
-                it.close();
-            } catch (Throwable e) {
             }
         }
     }
@@ -210,7 +190,7 @@ class FootprintUtils {
         Utilities.ensureNonNull("footprintGeometryMap", footprintGeometryMap);
 
         if (!footprintGeometryMap.isEmpty() && footprintGeometryMap.containsKey(locationKey)) {
-            final Geometry polygon = (Geometry) footprintGeometryMap.get(locationKey);
+            final Geometry polygon = footprintGeometryMap.get(locationKey);
             if (polygon != null) {
                 final String s = writer.write(polygon);
                 String id = featureID;
@@ -246,7 +226,6 @@ class FootprintUtils {
 
         if (footprintsLocationGeometryMap.isEmpty()) return;
 
-        FeatureIterator<SimpleFeature> it = null;
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(footprintSummaryFile))) {
             final String[] typeNames = store.getTypeNames();
             if (typeNames.length <= 0) {
@@ -268,51 +247,43 @@ class FootprintUtils {
             }
 
             // load the feature from the shapefile
-            it = features.features();
-            if (!it.hasNext())
-                throw new IllegalArgumentException(
-                        "The provided FeatureCollection<SimpleFeatureType, SimpleFeature>  or empty, it's impossible to create an index!");
+            try (FeatureIterator<SimpleFeature> it = features.features()) {
+                if (!it.hasNext())
+                    throw new IllegalArgumentException(
+                            "The provided FeatureCollection<SimpleFeatureType, SimpleFeature>  or empty, it's impossible to create an index!");
 
-            final WKTWriter geometryWriter = new WKTWriter();
+                final WKTWriter geometryWriter = new WKTWriter();
 
-            // Scan the index shapefile to get granules location
-            while (it.hasNext()) {
-                final SimpleFeature feature = it.next();
-                final String location = (String) feature.getAttribute("location");
-                if (location != null && location.trim().length() > 0) {
-                    final String locationKey = location;
+                // Scan the index shapefile to get granules location
+                while (it.hasNext()) {
+                    final SimpleFeature feature = it.next();
+                    final String location = (String) feature.getAttribute("location");
+                    if (location != null && location.trim().length() > 0) {
+                        final String locationKey = location;
 
-                    // Check if a footprint exist in the map for this granule
-                    if (footprintsLocationGeometryMap.containsKey(locationKey)) {
+                        // Check if a footprint exist in the map for this granule
+                        if (footprintsLocationGeometryMap.containsKey(locationKey)) {
 
-                        // Build a featureID=Geometry pair and write it in
-                        // the Footprint summary file
-                        final String idGeometryPair =
-                                FootprintUtils.buildIDGeometryPair(
-                                        footprintsLocationGeometryMap,
-                                        feature.getID(),
-                                        locationKey,
-                                        geometryWriter);
-                        writer.write(idGeometryPair);
+                            // Build a featureID=Geometry pair and write it in
+                            // the Footprint summary file
+                            final String idGeometryPair =
+                                    FootprintUtils.buildIDGeometryPair(
+                                            footprintsLocationGeometryMap,
+                                            feature.getID(),
+                                            locationKey,
+                                            geometryWriter);
+                            writer.write(idGeometryPair);
+                        }
                     }
                 }
+                writer.flush();
+                writer.close();
             }
-            writer.flush();
-            writer.close();
         } catch (Throwable e) {
             // ignore exception
             if (LOGGER.isLoggable(Level.FINEST))
                 LOGGER.log(Level.FINEST, e.getLocalizedMessage(), e);
         } finally {
-            try {
-                if (it != null) {
-                    it.close();
-                }
-            } catch (Throwable e) {
-                if (LOGGER.isLoggable(Level.FINEST))
-                    LOGGER.log(Level.FINEST, e.getLocalizedMessage(), e);
-            }
-
             try {
                 store.dispose();
             } catch (Throwable e) {

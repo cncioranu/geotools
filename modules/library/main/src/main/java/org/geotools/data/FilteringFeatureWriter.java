@@ -18,9 +18,10 @@ package org.geotools.data;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
 
 /**
  * Filtering is performed on this hasNext() method.
@@ -44,10 +45,12 @@ public class FilteringFeatureWriter implements FeatureWriter<SimpleFeatureType, 
         this.filter = filter;
     }
 
+    @Override
     public SimpleFeatureType getFeatureType() {
         return writer.getFeatureType();
     }
 
+    @Override
     public SimpleFeature next() throws IOException {
         if (hasNext()) {
             // use hasNext() to and peek ahead
@@ -65,6 +68,7 @@ public class FilteringFeatureWriter implements FeatureWriter<SimpleFeatureType, 
         throw new NoSuchElementException("FeatureWriter does not have additional content");
     }
 
+    @Override
     public void remove() throws IOException {
         if (writer == null) {
             throw new IOException("FeatureWriter has been closed");
@@ -84,6 +88,7 @@ public class FilteringFeatureWriter implements FeatureWriter<SimpleFeatureType, 
         writer.remove();
     }
 
+    @Override
     public void write() throws IOException {
         if (writer == null) {
             throw new IOException("FeatureWriter has been closed");
@@ -109,6 +114,7 @@ public class FilteringFeatureWriter implements FeatureWriter<SimpleFeatureType, 
      * @return true if writer has additional content
      * @throws IOException If writer we are filtering encounters a problem
      */
+    @Override
     public boolean hasNext() throws IOException {
         if (next != null) {
             return true; // we found next already
@@ -139,6 +145,7 @@ public class FilteringFeatureWriter implements FeatureWriter<SimpleFeatureType, 
         return false;
     }
 
+    @Override
     public void close() throws IOException {
         if (writer != null) {
             writer.close();

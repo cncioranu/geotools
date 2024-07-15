@@ -27,15 +27,15 @@ import static java.lang.Math.toDegrees;
 
 import java.awt.geom.Point2D;
 import java.util.Collection;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.util.SuppressFBWarnings;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform;
 import si.uom.NonSI;
 
 /**
@@ -100,6 +100,7 @@ public class WinkelTripel extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     @SuppressFBWarnings("UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR")
     public ParameterDescriptorGroup getParameterDescriptors() {
         return descriptors;
@@ -109,6 +110,7 @@ public class WinkelTripel extends MapProjection {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double lam, double phi, final Point2D ptDst)
             throws ProjectionException {
         double c, d;
@@ -135,6 +137,7 @@ public class WinkelTripel extends MapProjection {
         }
     }
 
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, final Point2D ptDst)
             throws ProjectionException {
         throw new UnsupportedOperationException("Cannot invert this transformation");
@@ -219,6 +222,7 @@ public class WinkelTripel extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             return new WinkelTripel(ProjectionMode.Winkel, PARAMETERS, parameters);
@@ -258,6 +262,7 @@ public class WinkelTripel extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             return new WinkelTripel(ProjectionMode.Aitoff, PARAMETERS, parameters);

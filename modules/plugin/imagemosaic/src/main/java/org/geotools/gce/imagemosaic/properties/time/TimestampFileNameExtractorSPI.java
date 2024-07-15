@@ -49,18 +49,22 @@ public class TimestampFileNameExtractorSPI implements PropertiesCollectorSPI {
 
     public static final String USE_HIGH_TIME_PREFIX = USE_HIGH_TIME + "=";
 
+    @Override
     public String getName() {
         return "TimestampFileNameExtractorSPI";
     }
 
+    @Override
     public boolean isAvailable() {
         return true;
     }
 
+    @Override
     public Map<Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }
 
+    @Override
     public PropertiesCollector create(final Object o, final List<String> propertyNames) {
         URL source = null;
         String regex = null;
@@ -83,7 +87,7 @@ public class TimestampFileNameExtractorSPI implements PropertiesCollectorSPI {
 
                 // parameters can be in any order
                 // look for the first parameter
-                int indexesOf[] = new int[3];
+                int[] indexesOf = new int[3];
                 indexesOf[0] = value.indexOf("," + FORMAT_PREFIX);
                 indexesOf[1] = value.indexOf("," + FULL_PATH_PREFIX);
                 indexesOf[2] = value.indexOf("," + USE_HIGH_TIME_PREFIX);

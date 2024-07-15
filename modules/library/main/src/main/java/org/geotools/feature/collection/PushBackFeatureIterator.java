@@ -18,8 +18,8 @@
 package org.geotools.feature.collection;
 
 import java.util.NoSuchElementException;
+import org.geotools.api.feature.Feature;
 import org.geotools.feature.FeatureIterator;
-import org.opengis.feature.Feature;
 
 /** A feature iterator allowing to push back one feature */
 public class PushBackFeatureIterator<F extends Feature> extends DecoratingFeatureIterator<F> {
@@ -37,10 +37,12 @@ public class PushBackFeatureIterator<F extends Feature> extends DecoratingFeatur
         super(iterator);
     }
 
+    @Override
     public boolean hasNext() {
         return current != null || delegate.hasNext();
     }
 
+    @Override
     public F next() throws NoSuchElementException {
         if (current != null) {
             last = current;
@@ -66,6 +68,7 @@ public class PushBackFeatureIterator<F extends Feature> extends DecoratingFeatur
         }
     }
 
+    @Override
     public void close() {
         delegate.close();
     }

@@ -18,13 +18,21 @@ package org.geotools.util;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.List;
+import java.util.Locale;
 import java.util.TimeZone;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /** @author Simone Giannecchini, GeoSolutions SAS */
+@RunWith(Parameterized.class)
 public class DateTimeParserTest extends Assert {
 
     private static final DateTimeParser PARSER =
@@ -33,6 +41,23 @@ public class DateTimeParserTest extends Assert {
                     DateTimeParser.FLAG_IS_LENIENT
                             | DateTimeParser.FLAG_GET_TIME_ON_CURRENT
                             | DateTimeParser.FLAG_GET_TIME_ON_NOW);
+
+    private Locale initialLocale;
+
+    public DateTimeParserTest(Locale testLocale) {
+        initialLocale = Locale.getDefault();
+        Locale.setDefault(testLocale);
+    }
+
+    @Parameterized.Parameters
+    public static List<Object[]> locales() {
+        return List.of(new Object[] {Locale.ENGLISH}, new Object[] {Locale.forLanguageTag("NO")});
+    }
+
+    @After
+    public void resetLocale() {
+        Locale.setDefault(initialLocale);
+    }
 
     @Test
     public void testParserOnCurrentTime() throws ParseException, InterruptedException {
@@ -486,6 +511,57 @@ public class DateTimeParserTest extends Assert {
         assertEquals(3, time.size());
         assertEquals(1318241472000l, getTime(time, 0));
         assertEquals(1318241472000l + (3600 * 1000 * 48), getTime(time, 1));
+    }
+
+    @Test
+    public void testInfiniteLoopZeroInterval() {
+        String value = "1970-01-01T00:00:00.000Z/1970-01-01T00:00:00.000Z/P0D";
+        RuntimeException e =
+                Assert.assertThrows(
+                        RuntimeException.class, () -> new DateTimeParser(100).parse(value));
+        Assert.assertEquals("Exceeded 100 iterations parsing times, bailing out.", e.getMessage());
+    }
+
+    @Test
+    public void testInfiniteLoopIntegerOverflow() {
+        String value =
+                "1970-01-01T00:00:00.000Z/292278994-08-17T07:12:55.807Z/PT4611686018427387.903S";
+        RuntimeException e =
+                Assert.assertThrows(
+                        RuntimeException.class, () -> new DateTimeParser(100).parse(value));
+        Assert.assertEquals("Exceeded 100 iterations parsing times, bailing out.", e.getMessage());
+    }
+
+    @Test
+    public void testInfiniteLoopIntegerUnderflow() {
+        String value =
+                "1970-01-01T00:00:00.000Z/292278994-08-17T07:12:55.807Z/PT-4611686018427387.904S";
+        RuntimeException e =
+                Assert.assertThrows(
+                        RuntimeException.class, () -> new DateTimeParser(100).parse(value));
+        Assert.assertEquals("Exceeded 100 iterations parsing times, bailing out.", e.getMessage());
+    }
+
+    // Base on a test from GeoServer
+    // org.geoserver.ows.kvp.TimeKvpParserTest.testNegativeYearCompliance
+    @Test
+    public void testNegativeYear() throws ParseException {
+        final String value = "-01-06-01";
+        DateTimeParser parser =
+                new DateTimeParser(
+                        100,
+                        DateTimeParser.FLAG_GET_TIME_ON_PRESENT
+                                | DateTimeParser.FLAG_SINGLE_DATE_AS_DATERANGE);
+
+        Collection col = parser.parse(value);
+        Assert.assertEquals(1, col.size());
+
+        DateRange range = (DateRange) ((List) col).get(0);
+        GregorianCalendar cal = new GregorianCalendar();
+        cal.setTimeZone(TimeZone.getTimeZone("GMT"));
+        cal.setTime(range.getMinValue());
+        Assert.assertEquals(2, cal.get(Calendar.YEAR));
+        Assert.assertEquals(GregorianCalendar.BC, cal.get(Calendar.ERA));
     }
 
     private static long getTime(Collection time, int i) {

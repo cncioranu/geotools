@@ -21,11 +21,17 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.awt.Color;
 import java.awt.Font;
 import java.util.List;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.data.DataUtilities;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.text.cql2.CQLException;
@@ -34,16 +40,11 @@ import org.geotools.renderer.lite.StreamingRendererTest;
 import org.geotools.renderer.style.FontCache;
 import org.junit.After;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /** Test the {@link ExponentialFunction}, {@link ZoomLevelFunction} and {@link CSSFunction}. */
 public class MBFunctionFactoryTest {
 
-    public static FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+    public static FilterFactory ff = CommonFactoryFinder.getFilterFactory();
 
     @After
     public void cleanup() {
@@ -118,7 +119,7 @@ public class MBFunctionFactoryTest {
         assertEquals(0, (int) expr.evaluate(null, Integer.class));
 
         expr = (Function) ECQL.toExpression("Exponential( 5, 0.7, 0,0, 10,100)");
-        assertTrue(50 < (int) expr.evaluate(null, Integer.class));
+        assertTrue(50 < expr.evaluate(null, Integer.class));
 
         expr = (Function) ECQL.toExpression("Exponential(10, 0.7, 0,0, 10,100)");
         assertEquals(100, (int) expr.evaluate(null, Integer.class));
@@ -130,7 +131,7 @@ public class MBFunctionFactoryTest {
         assertEquals(0, (int) expr.evaluate(null, Integer.class));
 
         expr = (Function) ECQL.toExpression("Exponential( 5, 1.4, 0,0, 10,100)");
-        assertTrue(50 > (int) expr.evaluate(null, Integer.class));
+        assertTrue(50 > expr.evaluate(null, Integer.class));
 
         expr = (Function) ECQL.toExpression("Exponential(10, 1.5, 0,0, 10,100)");
         assertEquals(100, (int) expr.evaluate(null, Integer.class));
@@ -312,7 +313,7 @@ public class MBFunctionFactoryTest {
         assertEquals("SoMeString", f.evaluate(null, String.class));
 
         f = ff.function("StringTransform", ff.literal(null), ff.literal(null));
-        assertTrue(null == f.evaluate(null, String.class));
+        assertNull(f.evaluate(null, String.class));
     }
 
     @Test
@@ -355,7 +356,6 @@ public class MBFunctionFactoryTest {
                 StreamingRendererTest.class
                         .getResource("/org/geotools/renderer/lite/test-data/" + fontName)
                         .toExternalForm();
-        System.out.println(url);
         return FontCache.loadFromUrl(url);
     }
 }

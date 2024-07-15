@@ -30,14 +30,14 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.referencing.AuthorityFactory;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.NoSuchIdentifierException;
+import org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory; // For javadoc
 import org.geotools.util.Utilities;
-import org.opengis.metadata.Identifier;
-import org.opengis.referencing.AuthorityFactory;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.NoSuchIdentifierException;
-import org.opengis.referencing.operation.CoordinateOperationAuthorityFactory; // For javadoc
 
 /**
  * A lazy set of {@linkplain IdentifiedObject identified objects}. This set creates {@link
@@ -115,6 +115,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
      * during the iteration process if the creation of some {@linkplain IdentifiedObject identified
      * objects} failed.
      */
+    @Override
     public int size() {
         return objects.size();
     }
@@ -127,7 +128,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
      */
     public boolean addAuthorityCode(final String code) {
         final boolean already = objects.containsKey(code);
-        final IdentifiedObject old = (IdentifiedObject) objects.put(code, null);
+        final IdentifiedObject old = objects.put(code, null);
         if (old != null) {
             // A fully created object was already there. Keep it.
             objects.put(code, old);
@@ -143,6 +144,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
      * specified one, then the old object is replaced by the new one even if the objects are not
      * otherwise identical.
      */
+    @Override
     public boolean add(final Object object) {
         final String code = getAuthorityCode((IdentifiedObject) object);
         return !Utilities.equals(objects.put(code, (IdentifiedObject) object), object);
@@ -155,7 +157,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
      * @throws BackingStoreException if the object creation failed.
      */
     private IdentifiedObject get(final String code) throws BackingStoreException {
-        IdentifiedObject object = (IdentifiedObject) objects.get(code);
+        IdentifiedObject object = objects.get(code);
         if (object == null && objects.containsKey(code)) {
             try {
                 object = createObject(code);
@@ -172,6 +174,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
     }
 
     /** Returns {@code true} if this collection contains the specified object. */
+    @Override
     public boolean contains(final Object object) {
         final String code = getAuthorityCode((IdentifiedObject) object);
         final IdentifiedObject current = get(code);
@@ -181,6 +184,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
     /**
      * Removes a single instance of the specified element from this collection, if it is present.
      */
+    @Override
     public boolean remove(final Object object) {
         final String code = getAuthorityCode((IdentifiedObject) object);
         final IdentifiedObject current = get(code);
@@ -195,10 +199,11 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
      * Removes from this collection all of its elements that are contained in the specified
      * collection.
      */
+    @Override
     public boolean removeAll(final Collection collection) {
         boolean modified = false;
-        for (final Iterator it = collection.iterator(); it.hasNext(); ) {
-            if (remove(it.next())) {
+        for (Object o : collection) {
+            if (remove(o)) {
                 modified = true;
             }
         }
@@ -210,6 +215,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
      * {@link FactoryException} other than {@link NoSuchIdentifierException}, then the exception
      * will be rethrown as an unchecked {@link BackingStoreException}.
      */
+    @Override
     public Iterator iterator() {
         return new Iter(objects.entrySet().iterator());
     }
@@ -226,11 +232,11 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
      *     {@linkplain #size set's size}, then the creation of all objects is garantee successful.
      * @throws FactoryException if an {@linkplain #createObject object creation} failed.
      */
+    @SuppressWarnings("PMD.UnusedLocalVariable")
     public void resolve(int n) throws FactoryException {
         if (n > 0)
             try {
-                for (final Iterator it = iterator(); it.hasNext(); ) {
-                    it.next();
+                for (Object o : this) {
                     if (--n == 0) {
                         break;
                     }
@@ -270,12 +276,11 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
      *
      * @see #addAuthorityCode
      */
-    public void setAuthorityCodes(final String[] codes) {
+    public void setAuthorityCodes(final String... codes) {
         final Map<String, IdentifiedObject> copy = new HashMap<>(objects);
         objects.clear();
-        for (int i = 0; i < codes.length; i++) {
-            final String code = codes[i];
-            objects.put(code, (IdentifiedObject) copy.get(code));
+        for (final String code : codes) {
+            objects.put(code, copy.get(code));
         }
     }
 
@@ -397,6 +402,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
         }
 
         /** Returns {@code true} if there is more elements. */
+        @Override
         public boolean hasNext() {
             return element != null;
         }
@@ -406,6 +412,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
          *
          * @throws NoSuchElementException if there is no more operations in the set.
          */
+        @Override
         public Object next() throws NoSuchElementException {
             final IdentifiedObject next = element;
             if (next == null) {
@@ -416,6 +423,7 @@ public class IdentifiedObjectSet extends AbstractSet implements Serializable {
         }
 
         /** Removes the last element from the underlying set. */
+        @Override
         public void remove() {
             iterator.remove();
         }

@@ -18,10 +18,10 @@ package org.geotools.filter;
 
 import java.util.Collection;
 import java.util.Collections;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.util.Converters;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Straight implementation of GeoAPI interface.
@@ -45,6 +45,7 @@ public class IsBetweenImpl extends CompareFilterImpl implements PropertyIsBetwee
         this(lower, expression, upper, MatchAction.ANY);
     }
 
+    @Override
     public Expression getExpression() {
         return expression;
     }
@@ -53,11 +54,13 @@ public class IsBetweenImpl extends CompareFilterImpl implements PropertyIsBetwee
         this.expression = expression;
     }
 
+    @Override
     public MatchAction getMatchAction() {
         return matchAction;
     }
 
     // @Override
+    @Override
     public boolean evaluate(Object feature) {
         // NC - support for multiple values
         final Object object0 = eval(expression, feature);
@@ -166,10 +169,12 @@ public class IsBetweenImpl extends CompareFilterImpl implements PropertyIsBetwee
         return lc.compareTo(ojbect) <= 0 && uc.compareTo(ojbect) >= 0;
     }
 
+    @Override
     public Object accept(FilterVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public Expression getLowerBoundary() {
         return getExpression1();
     }
@@ -178,6 +183,7 @@ public class IsBetweenImpl extends CompareFilterImpl implements PropertyIsBetwee
         setExpression1(lowerBoundary);
     }
 
+    @Override
     public Expression getUpperBoundary() {
         return getExpression2();
     }
@@ -186,6 +192,7 @@ public class IsBetweenImpl extends CompareFilterImpl implements PropertyIsBetwee
         setExpression2(upperBoundary);
     }
 
+    @Override
     public String toString() {
         return "[ " + expression + " BETWEEN " + expression1 + " AND " + expression2 + " ]";
     }

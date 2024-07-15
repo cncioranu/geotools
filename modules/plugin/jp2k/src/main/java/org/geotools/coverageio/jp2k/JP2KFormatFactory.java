@@ -30,8 +30,8 @@ import java.util.logging.Logger;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.media.jai.JAI;
 import javax.media.jai.ParameterBlockJAI;
+import org.geotools.api.coverage.grid.Format;
 import org.geotools.coverage.grid.io.GridFormatFactorySpi;
-import org.opengis.coverage.grid.Format;
 
 /**
  * Implementation of the {@link Format} service provider interface for JP2K files.
@@ -118,6 +118,7 @@ public final class JP2KFormatFactory implements GridFormatFactorySpi {
      *
      * @return <code>true</code> if the plugin is available, <code>false</code> otherwise.
      */
+    @Override
     public boolean isAvailable() {
         boolean available = false;
 
@@ -154,6 +155,7 @@ public final class JP2KFormatFactory implements GridFormatFactorySpi {
      *
      * @return A {@link JP2KFormat}.;
      */
+    @Override
     public JP2KFormat createFormat() {
         return new JP2KFormat();
     }
@@ -163,6 +165,7 @@ public final class JP2KFormatFactory implements GridFormatFactorySpi {
      *
      * @return An empty map.
      */
+    @Override
     public Map<RenderingHints.Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }

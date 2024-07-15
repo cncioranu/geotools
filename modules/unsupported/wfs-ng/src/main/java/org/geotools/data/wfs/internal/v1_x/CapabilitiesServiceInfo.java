@@ -28,7 +28,7 @@ import net.opengis.ows10.OnlineResourceType;
 import net.opengis.ows10.ServiceIdentificationType;
 import net.opengis.ows10.ServiceProviderType;
 import net.opengis.wfs.WFSCapabilitiesType;
-import org.geotools.data.ServiceInfo;
+import org.geotools.api.data.ServiceInfo;
 import org.geotools.data.wfs.WFSServiceInfo;
 
 /** Adapts a WFS capabilities document to {@link ServiceInfo} */
@@ -56,6 +56,7 @@ public final class CapabilitiesServiceInfo implements WFSServiceInfo {
      *
      * @see ServiceInfo#getDescription()
      */
+    @Override
     public String getDescription() {
         ServiceIdentificationType serviceIdentification = capabilities.getServiceIdentification();
         return serviceIdentification == null ? null : serviceIdentification.getAbstract();
@@ -74,11 +75,11 @@ public final class CapabilitiesServiceInfo implements WFSServiceInfo {
      *
      * @see ServiceInfo#getDescription()
      */
+    @Override
     public Set<String> getKeywords() {
         Set<String> kws = new HashSet<>();
         ServiceIdentificationType serviceIdentification = capabilities.getServiceIdentification();
         if (serviceIdentification != null) {
-            @SuppressWarnings("unchecked")
             List<KeywordsType> keywords = serviceIdentification.getKeywords();
             if (keywords != null) {
                 for (KeywordsType k : keywords) {
@@ -91,6 +92,7 @@ public final class CapabilitiesServiceInfo implements WFSServiceInfo {
     }
 
     /** @see ServiceInfo#getPublisher() */
+    @Override
     public URI getPublisher() {
         ServiceProviderType serviceProvider = capabilities.getServiceProvider();
         if (null == serviceProvider) {
@@ -113,6 +115,7 @@ public final class CapabilitiesServiceInfo implements WFSServiceInfo {
      *
      * @see ServiceInfo#getSchema()
      */
+    @Override
     public URI getSchema() {
         return schemaUri;
     }
@@ -122,17 +125,20 @@ public final class CapabilitiesServiceInfo implements WFSServiceInfo {
      *
      * @see ServiceInfo#getSource()
      */
+    @Override
     public URI getSource() {
         return getCapsUrl;
     }
 
     /** @see ServiceInfo#getTitle() */
+    @Override
     public String getTitle() {
         ServiceIdentificationType serviceIdentification = capabilities.getServiceIdentification();
         return serviceIdentification == null ? null : serviceIdentification.getTitle();
     }
 
     /** @see WFSServiceInfo#getVersion() */
+    @Override
     public String getVersion() {
         return capabilities.getVersion();
     }

@@ -18,10 +18,9 @@
 package org.geotools.swing.menu;
 
 import java.awt.Component;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.CRS;
 import org.geotools.swing.MapPane;
@@ -29,7 +28,6 @@ import org.geotools.swing.dialog.JCRSChooser;
 import org.geotools.swing.dialog.JExceptionReporter;
 import org.geotools.swing.dialog.JTextReporter;
 import org.geotools.swing.locale.LocaleUtils;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * A pop-up menu that can be used with a {@code MapPane} for coordinate reference system operations.
@@ -72,23 +70,11 @@ public class JCRSPopupMenu extends JPopupMenu {
 
         JMenuItem setCRSItem = new JMenuItem(SET_CRS_STRING);
 
-        setCRSItem.addActionListener(
-                new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        setCRS();
-                    }
-                });
+        setCRSItem.addActionListener(e -> setCRS());
         add(setCRSItem);
 
         JMenuItem showCRSItem = new JMenuItem(SHOW_CRS_STRING);
-        showCRSItem.addActionListener(
-                new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        showCRS();
-                    }
-                });
+        showCRSItem.addActionListener(e -> showCRS());
         add(showCRSItem);
     }
 

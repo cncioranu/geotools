@@ -17,14 +17,17 @@
 package org.geotools.ows.wmts.model;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.ows.wms.Layer;
 import org.geotools.ows.wms.StyleImpl;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.referencing.CRS;
 
 /**
  * @author ian
@@ -103,7 +106,7 @@ public class WMTSLayer extends Layer {
         if (srs == null) {
             srs = new HashSet<>();
         }
-        srs.addAll(extractCRSNames(crs));
+        srs.add(CRS.toSRS(crs));
     }
 
     /** @return the preferredCRS */
@@ -133,5 +136,10 @@ public class WMTSLayer extends Layer {
      */
     public Map<String, String> getTemplates() {
         return templates;
+    }
+
+    @Override
+    protected Collection<String> extractCRSNames(CoordinateReferenceSystem crs) {
+        return Arrays.asList(CRS.toSRS(crs));
     }
 }

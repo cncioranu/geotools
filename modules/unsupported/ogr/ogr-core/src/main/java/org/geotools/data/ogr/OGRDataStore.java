@@ -23,8 +23,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.Query;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.store.ContentDataStore;
@@ -33,18 +38,12 @@ import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.NameImpl;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
 
 /**
  * A data store based on the OGR native library
  *
  * @author Andrea Aime - GeoSolutions
  */
-@SuppressWarnings("rawtypes")
 public class OGRDataStore extends ContentDataStore {
 
     OGRDataSourcePool dataSourcePool;
@@ -153,6 +152,7 @@ public class OGRDataStore extends ContentDataStore {
         }
     }
 
+    @Override
     public void createSchema(SimpleFeatureType schema) throws IOException {
         // TODO: add a field to allow approximate definitions
         createSchema(schema, false, null);
@@ -342,7 +342,6 @@ public class OGRDataStore extends ContentDataStore {
             String[] options,
             FeatureTypeMapper mapper)
             throws IOException, DataSourceException {
-        Object layer;
         // get the spatial reference corresponding to the default geometry
         GeometryDescriptor geomType = schema.getGeometryDescriptor();
         long ogrGeomType = mapper.getOGRGeometryType(geomType);
@@ -350,7 +349,7 @@ public class OGRDataStore extends ContentDataStore {
                 mapper.getSpatialReference(geomType.getCoordinateReferenceSystem());
 
         // create the layer
-        layer =
+        Object layer =
                 dataSource.createLayer(
                         schema.getTypeName(), spatialReference, ogrGeomType, options);
         if (layer == null) {
@@ -361,6 +360,7 @@ public class OGRDataStore extends ContentDataStore {
     }
 
     @Override
+    @SuppressWarnings("PMD.UseTryWithResources") // closing field
     public void dispose() {
         try {
             super.dispose();

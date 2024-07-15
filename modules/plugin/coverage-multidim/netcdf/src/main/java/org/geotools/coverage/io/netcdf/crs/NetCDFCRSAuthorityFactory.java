@@ -19,11 +19,11 @@ package org.geotools.coverage.io.netcdf.crs;
 import java.io.File;
 import java.net.URL;
 import java.util.logging.Level;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.referencing.factory.epsg.FactoryUsingWKT;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * A factory providing NetCDF/GRIB custom {@link CoordinateReferenceSystem} instances with the
@@ -51,6 +51,7 @@ public class NetCDFCRSAuthorityFactory extends FactoryUsingWKT implements CRSAut
      *
      * @return The URL, or {@code null} if none.
      */
+    @Override
     protected URL getDefinitionsURL() {
         String cust_proj_file = System.getProperty(SYSTEM_DEFAULT_USER_PROJ_FILE);
 

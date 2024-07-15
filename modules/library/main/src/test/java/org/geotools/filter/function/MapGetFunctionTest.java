@@ -16,39 +16,41 @@
  */
 package org.geotools.filter.function;
 
+import static java.util.Map.entry;
+
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
-import junit.framework.TestCase;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.expression.Function;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.feature.type.AttributeDescriptorImpl;
 import org.geotools.feature.type.AttributeTypeImpl;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.expression.Function;
 
-public class MapGetFunctionTest extends TestCase {
+public class MapGetFunctionTest {
 
-    static FilterFactory2 FF = CommonFactoryFinder.getFilterFactory2();
+    static FilterFactory FF = CommonFactoryFinder.getFilterFactory();
     private SimpleFeatureType sampleDataType;
 
     private String namespace = "ns";
     private SimpleFeature[] features;
     private GeometryFactory gf;
 
-    @Override
-    protected void setUp() throws Exception {
+    @Before
+    public void setUp() throws Exception {
         SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
         builder.setName("map");
         builder.setNamespaceURI(namespace);
@@ -70,14 +72,11 @@ public class MapGetFunctionTest extends TestCase {
                             Integer.valueOf(1),
                             line(new int[] {1, 1, 2, 2, 4, 2, 5, 1}),
                             "object1",
-                            new HashMap<String, Object>() {
-                                {
-                                    put("name", "firstObject");
-                                    put("valid", false);
-                                    put("score", 100);
-                                    put("key1", "value1");
-                                }
-                            }
+                            Map.ofEntries(
+                                    entry("name", "firstObject"),
+                                    entry("valid", false),
+                                    entry("score", 100),
+                                    entry("key1", "value1"))
                         },
                         "sample.s1");
 
@@ -88,14 +87,11 @@ public class MapGetFunctionTest extends TestCase {
                             Integer.valueOf(2),
                             line(new int[] {3, 0, 3, 2, 3, 3, 3, 4}),
                             "object2",
-                            new HashMap<String, Object>() {
-                                {
-                                    put("name", "secondObject");
-                                    put("valid", true);
-                                    put("score", 50);
-                                    put("key1", 10);
-                                }
-                            }
+                            Map.ofEntries(
+                                    entry("name", "secondObject"),
+                                    entry("valid", true),
+                                    entry("score", 50),
+                                    entry("key1", 10))
                         },
                         "sample.s2");
 
@@ -106,13 +102,10 @@ public class MapGetFunctionTest extends TestCase {
                             Integer.valueOf(2),
                             line(new int[] {3, 2, 4, 2, 5, 3}),
                             "object3",
-                            new HashMap<String, Object>() {
-                                {
-                                    put("name", "thirdObject");
-                                    put("score", 70);
-                                    put("key1", true);
-                                }
-                            }
+                            Map.ofEntries(
+                                    entry("name", "thirdObject"),
+                                    entry("score", 70),
+                                    entry("key1", true))
                         },
                         "sample.s3");
     }
@@ -148,29 +141,29 @@ public class MapGetFunctionTest extends TestCase {
     public void testEvaluate() {
         // evaluating on attributes.name
         Function f = FF.function("mapGet", FF.property("attributes"), FF.literal("name"));
-        assertEquals("firstObject", f.evaluate(features[0], String.class));
-        assertEquals("secondObject", f.evaluate(features[1], String.class));
-        assertEquals("thirdObject", f.evaluate(features[2], String.class));
+        Assert.assertEquals("firstObject", f.evaluate(features[0], String.class));
+        Assert.assertEquals("secondObject", f.evaluate(features[1], String.class));
+        Assert.assertEquals("thirdObject", f.evaluate(features[2], String.class));
 
         PropertyIsGreaterThan gt =
                 FF.greater(
                         FF.function("mapGet", FF.property("attributes"), FF.literal("score")),
                         FF.literal(80));
-        assertEquals(true, gt.evaluate(features[0]));
-        assertEquals(false, gt.evaluate(features[1]));
-        assertEquals(false, gt.evaluate(features[2]));
+        Assert.assertTrue(gt.evaluate(features[0]));
+        Assert.assertFalse(gt.evaluate(features[1]));
+        Assert.assertFalse(gt.evaluate(features[2]));
 
         Function f2 = FF.function("mapGet", FF.property("attributes"), FF.literal("valid"));
-        assertFalse(f2.evaluate(features[0], Boolean.class));
-        assertTrue(f2.evaluate(features[1], Boolean.class));
-        assertNull(f2.evaluate(features[2], Boolean.class));
+        Assert.assertFalse(f2.evaluate(features[0], Boolean.class));
+        Assert.assertTrue(f2.evaluate(features[1], Boolean.class));
+        Assert.assertNull(f2.evaluate(features[2], Boolean.class));
 
         Function f3 = FF.function("mapGet", FF.property("attributes"), FF.literal("key1"));
-        assertEquals("value1", f3.evaluate(features[0], String.class));
-        assertEquals(Integer.valueOf(10), f3.evaluate(features[1], Integer.class));
-        assertEquals(Boolean.TRUE, f3.evaluate(features[2], Boolean.class));
+        Assert.assertEquals("value1", f3.evaluate(features[0], String.class));
+        Assert.assertEquals(Integer.valueOf(10), f3.evaluate(features[1], Integer.class));
+        Assert.assertEquals(Boolean.TRUE, f3.evaluate(features[2], Boolean.class));
 
         Function f4 = FF.function("mapGet", FF.property("missingMap"), FF.literal("key1"));
-        assertNull(f4.evaluate(features[0], String.class));
+        Assert.assertNull(f4.evaluate(features[0], String.class));
     }
 }

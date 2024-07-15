@@ -76,16 +76,19 @@ public class WeakValueHashMap<K, V> extends AbstractMap<K, V> {
         }
 
         /** Returns the key corresponding to this entry. */
+        @Override
         public K getKey() {
             return key;
         }
 
         /** Returns the value corresponding to this entry. */
+        @Override
         public V getValue() {
             return get();
         }
 
         /** Replaces the value corresponding to this entry with the specified value. */
+        @Override
         public V setValue(final V value) {
             if (value != null) {
                 throw new UnsupportedOperationException();
@@ -247,8 +250,8 @@ public class WeakValueHashMap<K, V> extends AbstractMap<K, V> {
         final Entry[] oldTable = table;
         newEntryTable(capacity);
         threshold = Math.round(capacity * LOAD_FACTOR);
-        for (int i = 0; i < oldTable.length; i++) {
-            for (Entry old = oldTable[i]; old != null; ) {
+        for (Entry entry : oldTable) {
+            for (Entry old = entry; old != null; ) {
                 final Entry e = old;
                 old = old.next; // On retient 'next' tout de suite car sa valeur va changer...
                 final Object key = e.key;
@@ -284,8 +287,8 @@ public class WeakValueHashMap<K, V> extends AbstractMap<K, V> {
      */
     private boolean valid() {
         int n = 0;
-        for (int i = 0; i < table.length; i++) {
-            for (Entry e = table[i]; e != null; e = e.next) {
+        for (Entry entry : table) {
+            for (Entry e = entry; e != null; e = e.next) {
                 n++;
             }
         }

@@ -31,13 +31,13 @@ import javax.media.jai.PlanarImage;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.util.Arguments;
 import org.geotools.util.Classes;
 import org.geotools.util.Utilities;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.util.InternationalString;
 
 /**
  * A very simple viewer for {@link GridCoverage2D}. This viewer provides no zoom capability, no user
@@ -251,6 +251,7 @@ public class Viewer extends JPanel {
      * @param args The command-line arguments.
      * @throws IOException if an error occured while reading an image.
      */
+    @SuppressWarnings("PMD.CloseResource")
     public static void main(String[] args) throws IOException {
         final Arguments arguments = new Arguments(args);
         final PrintWriter out = arguments.out;

@@ -16,6 +16,12 @@
  */
 package org.geotools.referencing.factory.epsg;
 
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.cs.CSAuthorityFactory;
+import org.geotools.api.referencing.datum.DatumAuthorityFactory;
+import org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.factory.AbstractAuthorityFactory;
@@ -25,12 +31,6 @@ import org.geotools.util.factory.FactoryNotFoundException;
 import org.geotools.util.factory.FactoryRegistryException;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.cs.CSAuthorityFactory;
-import org.opengis.referencing.datum.DatumAuthorityFactory;
-import org.opengis.referencing.operation.CoordinateOperationAuthorityFactory;
 
 /**
  * An EPSG authority factory using (<var>longitude</var>, <var>latitude</var>) axis order. This
@@ -125,6 +125,7 @@ public class LongitudeFirstFactory extends DeferredAuthorityFactory
      * version in the {@linkplain Citation#getEdition edition} attribute, together with the
      * {@linkplain Citation#getEditionDate edition date}.
      */
+    @Override
     public Citation getAuthority() {
         final Citation authority = super.getAuthority();
         return (authority != null) ? authority : Citations.EPSG;
@@ -136,6 +137,7 @@ public class LongitudeFirstFactory extends DeferredAuthorityFactory
      *
      * @throws FactoryException If no suitable factory instance was found.
      */
+    @Override
     protected AbstractAuthorityFactory createBackingStore() throws FactoryException {
         /*
          * Set the hints for the backing store to fetch. I'm not sure that we should request a
@@ -151,8 +153,8 @@ public class LongitudeFirstFactory extends DeferredAuthorityFactory
          * false since forcing axis directions / units is handled by OrderedAxisAuthorityFactory
          * and we don't want the backing store to interfer with that.
          */
-        final Hints backingStoreHints;
-        backingStoreHints = new Hints(Hints.CRS_AUTHORITY_FACTORY, ThreadedEpsgFactory.class);
+        final Hints backingStoreHints =
+                new Hints(Hints.CRS_AUTHORITY_FACTORY, ThreadedEpsgFactory.class);
         backingStoreHints.put(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.FALSE);
         backingStoreHints.put(Hints.FORCE_STANDARD_AXIS_DIRECTIONS, Boolean.FALSE);
         backingStoreHints.put(Hints.FORCE_STANDARD_AXIS_UNITS, Boolean.FALSE);

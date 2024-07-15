@@ -19,6 +19,7 @@ package org.geotools.xs.bindings;
 import java.math.BigDecimal;
 import java.util.Calendar;
 import javax.xml.namespace.QName;
+import org.apache.commons.lang3.StringUtils;
 import org.geotools.xs.XS;
 import org.geotools.xsd.InstanceComponent;
 import org.geotools.xsd.SimpleBinding;
@@ -61,6 +62,7 @@ import org.geotools.xsd.SimpleBinding;
  */
 public class XSDecimalBinding implements SimpleBinding {
     /** @generated */
+    @Override
     public QName getTarget() {
         return XS.DECIMAL;
     }
@@ -72,6 +74,7 @@ public class XSDecimalBinding implements SimpleBinding {
      *
      * @generated modifiable
      */
+    @Override
     public int getExecutionMode() {
         return AFTER;
     }
@@ -84,6 +87,7 @@ public class XSDecimalBinding implements SimpleBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return BigDecimal.class;
     }
@@ -97,6 +101,7 @@ public class XSDecimalBinding implements SimpleBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(InstanceComponent instance, Object value) throws Exception {
         // DatatypeConverter.setDatatypeConverter(DatatypeConverterImpl.theInstance);
         // BigDecimal decimal = DatatypeConverter.parseDecimal((String) value);
@@ -104,6 +109,8 @@ public class XSDecimalBinding implements SimpleBinding {
 
         if (text.startsWith("+")) {
             text = text.substring(1);
+        } else if (StringUtils.isBlank(text)) {
+            return null;
         }
 
         BigDecimal decimal = new BigDecimal(text);
@@ -151,6 +158,7 @@ public class XSDecimalBinding implements SimpleBinding {
      *
      * @generated modifiable
      */
+    @Override
     public String encode(Object object, String value) {
         BigDecimal decimal = (BigDecimal) object;
 

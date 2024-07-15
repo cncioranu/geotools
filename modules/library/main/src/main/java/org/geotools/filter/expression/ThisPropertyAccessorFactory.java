@@ -16,13 +16,14 @@
  */
 package org.geotools.filter.expression;
 
+import org.geotools.api.feature.Attribute;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.Attribute;
 
 public class ThisPropertyAccessorFactory implements PropertyAccessorFactory {
 
     static final ThisPropertyAccessor THIS_ACCESSOR = new ThisPropertyAccessor();
 
+    @Override
     public PropertyAccessor createPropertyAccessor(
             Class type, String xpath, Class target, Hints hints) {
         if (".".equals(xpath)) return THIS_ACCESSOR;
@@ -31,10 +32,12 @@ public class ThisPropertyAccessorFactory implements PropertyAccessorFactory {
 
     static class ThisPropertyAccessor implements PropertyAccessor {
 
+        @Override
         public boolean canHandle(Object object, String xpath, Class target) {
             return ".".equals(xpath);
         }
 
+        @Override
         @SuppressWarnings("unchecked")
         public <T> T get(Object object, String xpath, Class<T> target)
                 throws IllegalArgumentException {
@@ -42,6 +45,7 @@ public class ThisPropertyAccessorFactory implements PropertyAccessorFactory {
             else return (T) object;
         }
 
+        @Override
         public void set(Object object, String xpath, Object value, Class target)
                 throws IllegalArgumentException {
             throw new IllegalArgumentException("Can't change the value itself");

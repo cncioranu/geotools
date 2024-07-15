@@ -21,18 +21,19 @@ package org.geotools.gml3.v3_2;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.PropertyDescriptor;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.type.AbstractLazyAttributeTypeImpl;
 import org.geotools.feature.type.AbstractLazyComplexTypeImpl;
 import org.geotools.feature.type.AttributeDescriptorImpl;
 import org.geotools.feature.type.SchemaImpl;
+import org.geotools.geometry.jts.MultiSurface;
 import org.geotools.gml3.v3_2.gmd.GMDSchema;
 import org.geotools.xlink.XLINKSchema;
 import org.geotools.xs.XSSchema;
 import org.locationtech.jts.geom.LineString;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.PropertyDescriptor;
 
 public class GMLSchema extends SchemaImpl {
 
@@ -4852,8 +4853,7 @@ public class GMLSchema extends SchemaImpl {
     public static final AttributeType CURVEPROPERTYTYPE_TYPE = build_CURVEPROPERTYTYPE_TYPE();
 
     private static AttributeType build_CURVEPROPERTYTYPE_TYPE() {
-        AttributeType builtType;
-        builtType =
+        AttributeType builtType =
                 new AbstractLazyAttributeTypeImpl(
                         new NameImpl("http://www.opengis.net/gml/3.2", "CurvePropertyType"),
                         LineString.class,
@@ -16658,8 +16658,7 @@ public class GMLSchema extends SchemaImpl {
             build_MULTICURVEPROPERTYTYPE_TYPE();
 
     private static AttributeType build_MULTICURVEPROPERTYTYPE_TYPE() {
-        AttributeType builtType;
-        builtType =
+        AttributeType builtType =
                 new AbstractLazyAttributeTypeImpl(
                         new NameImpl("http://www.opengis.net/gml/3.2", "MultiCurvePropertyType"),
                         org.locationtech.jts.geom.MultiLineString.class,
@@ -17064,7 +17063,7 @@ public class GMLSchema extends SchemaImpl {
         AttributeType builtType =
                 new AbstractLazyAttributeTypeImpl(
                         new NameImpl("http://www.opengis.net/gml/3.2", "MultiSurfacePropertyType"),
-                        org.locationtech.jts.geom.MultiPolygon.class,
+                        MultiSurface.class,
                         false,
                         false,
                         null,
@@ -17104,7 +17103,7 @@ public class GMLSchema extends SchemaImpl {
         AttributeType builtType =
                 new AbstractLazyAttributeTypeImpl(
                         new NameImpl("http://www.opengis.net/gml/3.2", "MultiSurfaceType"),
-                        org.locationtech.jts.geom.MultiPolygon.class,
+                        MultiSurface.class,
                         false,
                         false,
                         null,
@@ -25292,8 +25291,7 @@ public class GMLSchema extends SchemaImpl {
     public static final AttributeType MULTICURVETYPE_TYPE = build_MULTICURVETYPE_TYPE();
 
     private static AttributeType build_MULTICURVETYPE_TYPE() {
-        AttributeType builtType;
-        builtType =
+        AttributeType builtType =
                 new AbstractLazyAttributeTypeImpl(
                         new NameImpl("http://www.opengis.net/gml/3.2", "MultiCurveType"),
                         org.locationtech.jts.geom.MultiLineString.class,

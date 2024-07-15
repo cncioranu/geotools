@@ -24,9 +24,9 @@ import java.awt.image.DataBuffer;
 import java.util.Arrays;
 import java.util.Map;
 import javax.media.jai.LookupTableJAI;
+import org.geotools.api.referencing.operation.MathTransform1D;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.util.WeakValueHashMap;
-import org.opengis.referencing.operation.MathTransform1D;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A factory for {@link LookupTableJAI} objects built from an array of {@link MathTransform1D}. This
@@ -80,8 +80,8 @@ public final class LookupTableFactory {
          * Argument check. Null values are legal but can't be processed by this method.
          */
         final int nbands = transforms.length;
-        for (int i = 0; i < nbands; i++) {
-            if (transforms[i] == null) {
+        for (MathTransform1D transform : transforms) {
+            if (transform == null) {
                 return null;
             }
         }
@@ -172,13 +172,8 @@ public final class LookupTableFactory {
                             final MathTransform1D tr = transforms[i];
                             final int[] array = new int[length];
                             for (int j = length; --j >= 0; ) {
-                                array[j] =
-                                        (int)
-                                                min(
-                                                        max(
-                                                                round(tr.transform(j + offset)),
-                                                                Integer.MIN_VALUE),
-                                                        Integer.MAX_VALUE);
+                                long v = round(tr.transform(j + offset));
+                                array[j] = (int) min(max(v, Integer.MIN_VALUE), Integer.MAX_VALUE);
                             }
                             data[i] = array;
                         }
@@ -201,13 +196,8 @@ public final class LookupTableFactory {
                             final MathTransform1D tr = transforms[i];
                             final short[] array = new short[length];
                             for (int j = length; --j >= 0; ) {
-                                array[j] =
-                                        (short)
-                                                min(
-                                                        max(
-                                                                round(tr.transform(j + offset)),
-                                                                minimum),
-                                                        maximum);
+                                long v = round(tr.transform(j + offset));
+                                array[j] = (short) min(max(v, minimum), maximum);
                             }
                             data[i] = array;
                         }

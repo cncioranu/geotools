@@ -16,6 +16,8 @@
  */
 package org.geotools.styling.css;
 
+import static java.util.Map.entry;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -30,6 +32,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -37,6 +40,18 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.xml.transform.TransformerException;
 import org.apache.commons.io.FileUtils;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.ColorMap;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.NamedLayer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.StyledLayerDescriptor;
+import org.geotools.api.style.TextSymbolizer;
 import org.geotools.brewer.styling.builder.ChannelSelectionBuilder;
 import org.geotools.brewer.styling.builder.ColorMapBuilder;
 import org.geotools.brewer.styling.builder.ColorMapEntryBuilder;
@@ -59,14 +74,8 @@ import org.geotools.brewer.styling.builder.SymbolizerBuilder;
 import org.geotools.brewer.styling.builder.TextSymbolizerBuilder;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.NameImpl;
+import org.geotools.filter.text.cql2.CQL;
 import org.geotools.filter.visitor.SimplifyingFilterVisitor;
-import org.geotools.styling.ColorMap;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.NamedLayer;
-import org.geotools.styling.Rule;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.StyledLayerDescriptor;
-import org.geotools.styling.TextSymbolizer;
 import org.geotools.styling.css.Value.Function;
 import org.geotools.styling.css.Value.Literal;
 import org.geotools.styling.css.Value.MultiValue;
@@ -87,12 +96,6 @@ import org.geotools.util.Converters;
 import org.geotools.util.Range;
 import org.geotools.util.logging.Logging;
 import org.geotools.xml.styling.SLDTransformer;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Expression;
-import org.opengis.style.Style;
 
 /**
  * Transforms a GeoCSS into an equivalent GeoTools {@link Style} object
@@ -136,9 +139,13 @@ public class CssTranslator {
 
     static final String DIRECTIVE_TRANSLATION_MODE = "mode";
 
+    static final String DIRECTIVE_STYLE_NAME = "styleName";
+
     static final String DIRECTIVE_STYLE_TITLE = "styleTitle";
 
     static final String DIRECTIVE_STYLE_ABSTRACT = "styleAbstract";
+
+    static final String DIRECTIVE_AUTO_RULE_NAMES = "autoRuleNames";
 
     static final int MAX_OUTPUT_RULES_DEFAULT =
             Integer.valueOf(
@@ -148,7 +155,7 @@ public class CssTranslator {
             Integer.valueOf(
                     System.getProperty("org.geotools.css." + DIRECTIVE_AUTO_THRESHOLD, "100"));
 
-    static final FilterFactory2 FF = CommonFactoryFinder.getFilterFactory2();
+    static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
 
     /** Matches the title tag inside a rule comment */
     static final Pattern TITLE_PATTERN = Pattern.compile("^.*@title\\s*(?:\\:\\s*)?(.+)\\s*$");
@@ -177,97 +184,80 @@ public class CssTranslator {
 
     @SuppressWarnings("serial")
     static final Map<String, String> POLYGON_VENDOR_OPTIONS =
-            new HashMap<String, String>() {
-                {
-                    put("graphic-margin", "graphic-margin");
-                    put("fill-label-obstacle", "labelObstacle");
-                    put("fill-random", "random");
-                    put("fill-random-seed", "random-seed");
-                    put("fill-random-tile-size", "random-tile-size");
-                    put("fill-random-symbol-count", "random-symbol-count");
-                    put("fill-random-space-around", "random-space-around");
-                    put("fill-random-rotation", "random-rotation");
-                    put("fill-composite", "composite");
-                }
-            };
+            Map.ofEntries(
+                    entry("graphic-margin", "graphic-margin"),
+                    entry("fill-label-obstacle", "labelObstacle"),
+                    entry("fill-random", "random"),
+                    entry("fill-random-seed", "random-seed"),
+                    entry("fill-random-tile-size", "random-tile-size"),
+                    entry("fill-random-symbol-count", "random-symbol-count"),
+                    entry("fill-random-space-around", "random-space-around"),
+                    entry("fill-random-rotation", "random-rotation"),
+                    entry("fill-composite", "composite"));
 
     @SuppressWarnings("serial")
     static final Map<String, String> TEXT_VENDOR_OPTIONS =
-            new HashMap<String, String>() {
-                {
-                    put("label-padding", TextSymbolizer.SPACE_AROUND_KEY);
-                    put("label-group", "group");
-                    put("label-max-displacement", TextSymbolizer.MAX_DISPLACEMENT_KEY);
-                    put("label-min-group-distance", TextSymbolizer.MIN_GROUP_DISTANCE_KEY);
-                    put("label-repeat", TextSymbolizer.LABEL_REPEAT_KEY);
-                    put("label-all-group", TextSymbolizer.LABEL_ALL_GROUP_KEY);
-                    put("label-remove-overlaps", TextSymbolizer.REMOVE_OVERLAPS_KEY);
-                    put("label-allow-overruns", TextSymbolizer.ALLOW_OVERRUNS_KEY);
-                    put("label-follow-line", TextSymbolizer.FOLLOW_LINE_KEY);
-                    put("label-underline-text", TextSymbolizer.UNDERLINE_TEXT_KEY);
-                    put("label-strikethrough-text", TextSymbolizer.STRIKETHROUGH_TEXT_KEY);
-                    put("label-char-spacing", TextSymbolizer.CHAR_SPACING_KEY);
-                    put("label-word-spacing", TextSymbolizer.WORD_SPACING_KEY);
-                    put("label-max-angle-delta", TextSymbolizer.MAX_ANGLE_DELTA_KEY);
-                    put("label-auto-wrap", TextSymbolizer.AUTO_WRAP_KEY);
-                    put("label-force-ltr", TextSymbolizer.FORCE_LEFT_TO_RIGHT_KEY);
-                    put("label-conflict-resolution", TextSymbolizer.CONFLICT_RESOLUTION_KEY);
-                    put("label-fit-goodness", TextSymbolizer.GOODNESS_OF_FIT_KEY);
-                    put("label-kerning", TextSymbolizer.KERNING_KEY);
-                    put("label-polygon-align", TextSymbolizer.POLYGONALIGN_KEY);
-                    put("shield-resize", "graphic-resize");
-                    put("shield-margin", "graphic-margin");
-                    put("shield-placement", TextSymbolizer.GRAPHIC_PLACEMENT_KEY);
-                }
-            };
+            Map.ofEntries(
+                    entry("label-padding", TextSymbolizer.SPACE_AROUND_KEY),
+                    entry("label-group", TextSymbolizer.GROUP_KEY),
+                    entry("label-max-displacement", TextSymbolizer.MAX_DISPLACEMENT_KEY),
+                    entry("label-min-group-distance", TextSymbolizer.MIN_GROUP_DISTANCE_KEY),
+                    entry("label-repeat", TextSymbolizer.LABEL_REPEAT_KEY),
+                    entry("label-all-group", TextSymbolizer.LABEL_ALL_GROUP_KEY),
+                    entry("label-remove-overlaps", TextSymbolizer.REMOVE_OVERLAPS_KEY),
+                    entry("label-allow-overruns", TextSymbolizer.ALLOW_OVERRUNS_KEY),
+                    entry("label-follow-line", TextSymbolizer.FOLLOW_LINE_KEY),
+                    entry("label-underline-text", TextSymbolizer.UNDERLINE_TEXT_KEY),
+                    entry("label-strikethrough-text", TextSymbolizer.STRIKETHROUGH_TEXT_KEY),
+                    entry("label-char-spacing", TextSymbolizer.CHAR_SPACING_KEY),
+                    entry("label-word-spacing", TextSymbolizer.WORD_SPACING_KEY),
+                    entry("label-max-angle-delta", TextSymbolizer.MAX_ANGLE_DELTA_KEY),
+                    entry("label-auto-wrap", TextSymbolizer.AUTO_WRAP_KEY),
+                    entry("label-force-ltr", TextSymbolizer.FORCE_LEFT_TO_RIGHT_KEY),
+                    entry("label-conflict-resolution", TextSymbolizer.CONFLICT_RESOLUTION_KEY),
+                    entry("label-fit-goodness", TextSymbolizer.GOODNESS_OF_FIT_KEY),
+                    entry("label-kerning", TextSymbolizer.KERNING_KEY),
+                    entry("label-polygon-align", TextSymbolizer.POLYGONALIGN_KEY),
+                    entry("label-partials", TextSymbolizer.PARTIALS_KEY),
+                    entry("label-displacement-mode", TextSymbolizer.DISPLACEMENT_MODE_KEY),
+                    entry("shield-resize", TextSymbolizer.GRAPHIC_RESIZE_KEY),
+                    entry("shield-margin", TextSymbolizer.GRAPHIC_MARGIN_KEY),
+                    entry("shield-placement", TextSymbolizer.GRAPHIC_PLACEMENT_KEY),
+                    entry("font-shrink-size-min", TextSymbolizer.FONT_SHRINK_SIZE_MIN));
 
     @SuppressWarnings("serial")
     static final Map<String, String> LINE_VENDOR_OPTIONS =
-            new HashMap<String, String>() {
-                {
-                    put("stroke-label-obstacle", "labelObstacle");
-                    put("stroke-composite", "composite");
-                }
-            };
+            Map.ofEntries(
+                    entry("stroke-label-obstacle", "labelObstacle"),
+                    entry("stroke-composite", "composite"));
 
     @SuppressWarnings("serial")
     static final Map<String, String> POINT_VENDOR_OPTIONS =
-            new HashMap<String, String>() {
-                {
-                    put("mark-label-obstacle", "labelObstacle");
-                    put("mark-composite", "composite");
-                }
-            };
+            Map.ofEntries(
+                    entry("mark-label-obstacle", "labelObstacle"),
+                    entry("mark-composite", "composite"));
 
     @SuppressWarnings("serial")
     static final Map<String, String> RASTER_VENDOR_OPTIONS =
-            new HashMap<String, String>() {
-                {
-                    put("raster-composite", "composite");
-                }
-            };
+            Map.ofEntries(
+                    entry("raster-composite", "composite"),
+                    entry("raster-label-fi", "labelInFeatureInfo"),
+                    entry("raster-label-name", "labelAttributeName"));
 
     @SuppressWarnings("serial")
     static final Map<String, String> CONTRASTENHANCMENT_VENDOR_OPTIONS =
-            new HashMap<String, String>() {
-                {
-                    put("raster-contrast-enhancement-algorithm", "algorithm");
-
-                    put("raster-contrast-enhancement-min", "minValue");
-                    put("raster-contrast-enhancement-max", "maxValue");
-
-                    put("raster-contrast-enhancement-normalizationfactor", "normalizationFactor");
-                    put("raster-contrast-enhancement-correctionfactor", "correctionFactor");
+            Map.ofEntries(
+                    entry("raster-contrast-enhancement-algorithm", "algorithm"),
+                    entry("raster-contrast-enhancement-min", "minValue"),
+                    entry("raster-contrast-enhancement-max", "maxValue"),
+                    entry("raster-contrast-enhancement-normalizationfactor", "normalizationFactor"),
+                    entry("raster-contrast-enhancement-correctionfactor", "correctionFactor"),
                     // short forms for lazy people
-                    put("rce-algorithm", "algorithm");
-
-                    put("rce-min", "minValue");
-                    put("rce-max", "maxValue");
-
-                    put("rce-normalizationfactor", "normalizationFactor");
-                    put("rce-correctionfactor", "correctionFactor");
-                }
-            };
+                    entry("rce-algorithm", "algorithm"),
+                    entry("rce-min", "minValue"),
+                    entry("rce-max", "maxValue"),
+                    entry("rce-normalizationfactor", "normalizationFactor"),
+                    entry("rce-correctionfactor", "correctionFactor"));
 
     /** Limits how many output rules we are going to generate */
     int maxCombinations = MAX_OUTPUT_RULES_DEFAULT;
@@ -292,7 +282,11 @@ public class CssTranslator {
 
         // prepare the full SLD builder
         StyleBuilder styleBuilder = new StyleBuilder();
-        styleBuilder.name("Default Styler");
+
+        String styleName =
+                Objects.requireNonNullElse(
+                        stylesheet.getDirectiveValue(DIRECTIVE_STYLE_NAME), "Default Styler");
+        styleBuilder.name(styleName);
         styleBuilder.title(stylesheet.getDirectiveValue(DIRECTIVE_STYLE_TITLE));
         styleBuilder.styleAbstract(stylesheet.getDirectiveValue(DIRECTIVE_STYLE_ABSTRACT));
 
@@ -329,8 +323,17 @@ public class CssTranslator {
                             + "any symbolization. The properties activating the symbolizers are fill, "
                             + "stroke, mark, label, raster-channels, have any been used in a rule matching any feature?");
         }
+        Style translated = styleBuilder.build();
 
-        return styleBuilder.build();
+        if (Boolean.parseBoolean(stylesheet.getDirectiveValue(DIRECTIVE_AUTO_RULE_NAMES))) {
+            int ruleNbr = 0;
+            for (FeatureTypeStyle ftStyle : translated.featureTypeStyles()) {
+                for (Rule rule : ftStyle.rules()) {
+                    rule.setName(String.format("%d", ruleNbr++));
+                }
+            }
+        }
+        return translated;
     }
 
     private List<CssRule> expandNested(List<CssRule> topRules) {
@@ -356,7 +359,7 @@ public class CssTranslator {
             LOGGER.fine("Split the rules into " + zIndexRules + "  sets after z-index separation");
         }
         int translatedRuleCount = 0;
-        boolean backgroundFound = false;
+        AtomicBoolean backgroundFound = new AtomicBoolean();
         for (Map.Entry<Integer, List<CssRule>> zEntry : zIndexRules.entrySet()) {
             final Integer zIndex = zEntry.getKey();
             List<CssRule> rules = zEntry.getValue();
@@ -369,19 +372,7 @@ public class CssTranslator {
                 final FeatureType targetFeatureType =
                         getTargetFeatureType(featureTypeName, localRules);
                 if (targetFeatureType != null) {
-                    // attach the target feature type to all Data selectors to allow range based
-                    // simplification
-                    for (CssRule rule : localRules) {
-                        rule.getSelector()
-                                .accept(
-                                        new AbstractSelectorVisitor() {
-                                            @Override
-                                            public Object visit(Data data) {
-                                                data.featureType = targetFeatureType;
-                                                return super.visit(data);
-                                            }
-                                        });
-                    }
+                    qualifyRules(localRules, targetFeatureType);
                 }
                 // at this point we can have rules with selectors having two scale ranges
                 // in or, we should split them, as we cannot represent them in SLD
@@ -402,19 +393,8 @@ public class CssTranslator {
                 CachedSimplifyingFilterVisitor cachedSimplifier =
                         new CachedSimplifyingFilterVisitor(targetFeatureType);
                 RulePowerSetBuilder builder =
-                        new RulePowerSetBuilder(flattenedRules, cachedSimplifier, maxCombinations) {
-                            @Override
-                            protected java.util.List<CssRule> buildResult(
-                                    java.util.List<CssRule> rules) {
-                                if (zIndex != null && zIndex > 0) {
-                                    TreeSet<Integer> zIndexes = getZIndexesForRules(rules);
-                                    if (!zIndexes.contains(zIndex)) {
-                                        return null;
-                                    }
-                                }
-                                return super.buildResult(rules);
-                            }
-                        };
+                        new ZIndexPowerSetBuilder(
+                                flattenedRules, cachedSimplifier, maxCombinations, zIndex);
                 List<CssRule> combinedRules = builder.buildPowerSet();
                 if (combinedRules.isEmpty()) {
                     continue;
@@ -429,8 +409,7 @@ public class CssTranslator {
                         FeatureTypeStyle.VALUE_EVALUATION_MODE_FIRST);
 
                 if (featureTypeName != null) {
-                    ftsBuilder.setFeatureTypeNames(
-                            Arrays.asList((Name) new NameImpl(featureTypeName)));
+                    ftsBuilder.setFeatureTypeNames(Arrays.asList(new NameImpl(featureTypeName)));
                 }
                 Collections.sort(combinedRules, CssRuleComparator.DESCENDING);
                 int rulesCount = combinedRules.size();
@@ -440,150 +419,191 @@ public class CssTranslator {
                                     + rulesCount
                                     + " combined rules after filtered power set expansion");
                 }
-                String composite = null;
-                Boolean compositeBase = null;
-                String sortBy = null;
-                String sortByGroup = null;
-                Expression transform = null;
                 // setup the tool that will eliminate redundant rules (if necessary)
                 DomainCoverage coverage = new DomainCoverage(targetFeatureType, cachedSimplifier);
-                if (mode == TranslationMode.Exclusive) {
-                    // create a SLD rule for each css one, making them exclusive, that is,
-                    // remove from each rule the union of the zoom/data domain matched by previous
-                    // rules
-                    coverage.exclusiveRulesEnabled = true;
-                } else if (mode == TranslationMode.Auto) {
-                    if (rulesCount < autoThreshold) {
-                        LOGGER.fine(
-                                "Sticking to Exclusive translation mode, rules number is "
-                                        + rulesCount
-                                        + " with a threshold of "
-                                        + autoThreshold);
-                        coverage.exclusiveRulesEnabled = true;
-                        coverage.complexityThreshold = autoThreshold;
-                    } else {
-                        LOGGER.info(
-                                "Switching to Simple translation mode, rules number is "
-                                        + rulesCount
-                                        + " with a threshold of "
-                                        + autoThreshold);
-                        coverage.exclusiveRulesEnabled = false;
-                        // switch the translation mode permanently from this point on
-                        mode = TranslationMode.Simple;
-                    }
-
-                } else {
-                    // just skip rules with the same selector
-                    coverage.exclusiveRulesEnabled = false;
-                }
+                mode = configureDomainCoverage(mode, autoThreshold, rulesCount, coverage);
                 // generate the SLD rules
-                for (int i = 0; i < rulesCount; i++) {
-                    // skip eventual combinations that are not sporting any
-                    // root pseudo class
-                    CssRule cssRule = combinedRules.get(i);
-                    if (!cssRule.hasSymbolizerProperty()) {
-                        continue;
-                    }
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.fine("Current domain coverage: " + coverage);
-                        LOGGER.fine("Adding rule to domain coverage: " + cssRule);
-                        LOGGER.fine("Rules left to process: " + (rulesCount - i));
-                    }
-                    List<CssRule> derivedRules = coverage.addRule(cssRule);
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.fine(
-                                "Derived rules not yet covered in domain coverage: "
-                                        + derivedRules.size()
-                                        + "\n"
-                                        + derivedRules);
-                    }
-                    for (CssRule derived : derivedRules) {
-                        if (!derived.hasNonNullSymbolizerProperty()) {
-                            continue;
-                        }
-                        buildSldRule(derived, ftsBuilder, targetFeatureType, null);
-
-                        translatedRuleCount++;
-
-                        // Reminder about why this is done the way it's done. These are all rule
-                        // properties
-                        // in CSS and are subject to override. In SLD they contribute to containing
-                        // FeatureTypeStyle, so the first one found wins and controls this z-level
-
-                        // check if we have global composition going, and use the value of
-                        // the first rule providing the information (the one with the highest
-                        // priority)
-                        if (composite == null) {
-                            List<Value> values =
-                                    derived.getPropertyValues(PseudoClass.ROOT, COMPOSITE)
-                                            .get(COMPOSITE);
-                            if (values != null && !values.isEmpty()) {
-                                composite = values.get(0).toLiteral();
-                            }
-                        }
-                        if (compositeBase == null) {
-                            List<Value> values =
-                                    derived.getPropertyValues(PseudoClass.ROOT, COMPOSITE_BASE)
-                                            .get(COMPOSITE_BASE);
-                            if (values != null && !values.isEmpty()) {
-                                compositeBase = Boolean.valueOf(values.get(0).toLiteral());
-                            }
-                        }
-
-                        // check if we have any sort-by
-                        if (sortBy == null) {
-                            List<Value> values =
-                                    derived.getPropertyValues(PseudoClass.ROOT, SORT_BY)
-                                            .get(SORT_BY);
-                            if (values != null && !values.isEmpty()) {
-                                sortBy = values.get(0).toLiteral();
-                            }
-                        }
-
-                        // check if we have any sort-by-group
-                        if (sortByGroup == null) {
-                            List<Value> values =
-                                    derived.getPropertyValues(PseudoClass.ROOT, SORT_BY_GROUP)
-                                            .get(SORT_BY_GROUP);
-                            if (values != null && !values.isEmpty()) {
-                                sortByGroup = values.get(0).toLiteral();
-                            }
-                        }
-
-                        // check if we have a transform, apply it
-                        if (transform == null) {
-                            List<Value> values =
-                                    derived.getPropertyValues(PseudoClass.ROOT, TRANSFORM)
-                                            .get(TRANSFORM);
-                            if (values != null && !values.isEmpty()) {
-                                transform = values.get(0).toExpression();
-                            }
-                        }
-
-                        if (!backgroundFound) {
-                            backgroundFound = buildBackground(styleBuilder, derived);
-                        }
-                    }
-
-                    if (composite != null) {
-                        ftsBuilder.option(COMPOSITE, composite);
-                    }
-                    if (Boolean.TRUE.equals(compositeBase)) {
-                        ftsBuilder.option(COMPOSITE_BASE, "true");
-                    }
-                    if (sortBy != null) {
-                        ftsBuilder.option(FeatureTypeStyle.SORT_BY, sortBy);
-                    }
-                    if (sortByGroup != null) {
-                        ftsBuilder.option(FeatureTypeStyle.SORT_BY_GROUP, sortByGroup);
-                    }
-                    if (transform != null) {
-                        ftsBuilder.transformation(transform);
-                    }
-                }
+                translatedRuleCount =
+                        translateRules(
+                                styleBuilder,
+                                translatedRuleCount,
+                                backgroundFound,
+                                targetFeatureType,
+                                combinedRules,
+                                ftsBuilder,
+                                coverage);
             }
         }
         return translatedRuleCount;
+    }
+
+    private int translateRules(
+            StyleBuilder styleBuilder,
+            int translatedRuleCount,
+            AtomicBoolean backgroundFound,
+            FeatureType targetFeatureType,
+            List<CssRule> combinedRules,
+            FeatureTypeStyleBuilder ftsBuilder,
+            DomainCoverage coverage) {
+        String composite = null;
+        Boolean compositeBase = null;
+        String sortBy = null;
+        String sortByGroup = null;
+        Expression transform = null;
+        int rulesCount = combinedRules.size();
+        for (int i = 0; i < rulesCount; i++) {
+            // skip eventual combinations that are not sporting any
+            // root pseudo class
+            CssRule cssRule = combinedRules.get(i);
+            if (!cssRule.hasSymbolizerProperty()) {
+                continue;
+            }
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine("Current domain coverage: " + coverage);
+                LOGGER.fine("Adding rule to domain coverage: " + cssRule);
+                LOGGER.fine("Rules left to process: " + (rulesCount - i));
+            }
+            List<CssRule> derivedRules = coverage.addRule(cssRule);
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine(
+                        "Derived rules not yet covered in domain coverage: "
+                                + derivedRules.size()
+                                + "\n"
+                                + derivedRules);
+            }
+            for (CssRule derived : derivedRules) {
+                if (!derived.hasNonNullSymbolizerProperty()) {
+                    continue;
+                }
+                buildSldRule(derived, ftsBuilder, targetFeatureType, null);
+
+                translatedRuleCount++;
+
+                // Reminder about why this is done the way it's done. These are all rule
+                // properties
+                // in CSS and are subject to override. In SLD they contribute to containing
+                // FeatureTypeStyle, so the first one found wins and controls this z-level
+
+                // check if we have global composition going, and use the value of
+                // the first rule providing the information (the one with the highest
+                // priority)
+                if (composite == null) {
+                    List<Value> values =
+                            derived.getPropertyValues(PseudoClass.ROOT, COMPOSITE).get(COMPOSITE);
+                    if (values != null && !values.isEmpty()) {
+                        composite = values.get(0).toLiteral();
+                    }
+                }
+                if (compositeBase == null) {
+                    List<Value> values =
+                            derived.getPropertyValues(PseudoClass.ROOT, COMPOSITE_BASE)
+                                    .get(COMPOSITE_BASE);
+                    if (values != null && !values.isEmpty()) {
+                        compositeBase = Boolean.valueOf(values.get(0).toLiteral());
+                    }
+                }
+
+                // check if we have any sort-by
+                if (sortBy == null) {
+                    List<Value> values =
+                            derived.getPropertyValues(PseudoClass.ROOT, SORT_BY).get(SORT_BY);
+                    if (values != null && !values.isEmpty()) {
+                        sortBy = values.get(0).toLiteral();
+                    }
+                }
+
+                // check if we have any sort-by-group
+                if (sortByGroup == null) {
+                    List<Value> values =
+                            derived.getPropertyValues(PseudoClass.ROOT, SORT_BY_GROUP)
+                                    .get(SORT_BY_GROUP);
+                    if (values != null && !values.isEmpty()) {
+                        sortByGroup = values.get(0).toLiteral();
+                    }
+                }
+
+                // check if we have a transform, apply it
+                if (transform == null) {
+                    List<Value> values =
+                            derived.getPropertyValues(PseudoClass.ROOT, TRANSFORM).get(TRANSFORM);
+                    if (values != null && !values.isEmpty()) {
+                        transform = values.get(0).toExpression();
+                    }
+                }
+
+                if (!backgroundFound.get()) {
+                    backgroundFound.set(buildBackground(styleBuilder, derived));
+                }
+            }
+
+            if (composite != null) {
+                ftsBuilder.option(COMPOSITE, composite);
+            }
+            if (Boolean.TRUE.equals(compositeBase)) {
+                ftsBuilder.option(COMPOSITE_BASE, "true");
+            }
+            if (sortBy != null) {
+                ftsBuilder.option(FeatureTypeStyle.SORT_BY, sortBy);
+            }
+            if (sortByGroup != null) {
+                ftsBuilder.option(FeatureTypeStyle.SORT_BY_GROUP, sortByGroup);
+            }
+            if (transform != null) {
+                ftsBuilder.transformation(transform);
+            }
+        }
+
+        return translatedRuleCount;
+    }
+
+    private TranslationMode configureDomainCoverage(
+            TranslationMode mode, int autoThreshold, int rulesCount, DomainCoverage coverage) {
+        if (mode == TranslationMode.Exclusive) {
+            // create a SLD rule for each css one, making them exclusive, that is,
+            // remove from each rule the union of the zoom/data domain matched by previous
+            // rules
+            coverage.exclusiveRulesEnabled = true;
+        } else if (mode == TranslationMode.Auto) {
+            if (rulesCount < autoThreshold) {
+                LOGGER.fine(
+                        "Sticking to Exclusive translation mode, rules number is "
+                                + rulesCount
+                                + " with a threshold of "
+                                + autoThreshold);
+                coverage.exclusiveRulesEnabled = true;
+                coverage.complexityThreshold = autoThreshold;
+            } else {
+                LOGGER.info(
+                        "Switching to Simple translation mode, rules number is "
+                                + rulesCount
+                                + " with a threshold of "
+                                + autoThreshold);
+                coverage.exclusiveRulesEnabled = false;
+                // switch the translation mode permanently from this point on
+                mode = TranslationMode.Simple;
+            }
+
+        } else {
+            // just skip rules with the same selector
+            coverage.exclusiveRulesEnabled = false;
+        }
+        return mode;
+    }
+
+    private void qualifyRules(List<CssRule> localRules, FeatureType targetFeatureType) {
+        // attach the target feature type to all Data selectors to allow range based
+        // simplification
+        for (CssRule rule : localRules) {
+            rule.getSelector()
+                    .accept(
+                            new AbstractSelectorVisitor() {
+                                @Override
+                                public Object visit(Data data) {
+                                    data.featureType = targetFeatureType;
+                                    return super.visit(data);
+                                }
+                            });
+        }
     }
 
     private int translateFlat(List<CssRule> allRules, StyleBuilder styleBuilder) {
@@ -647,8 +667,7 @@ public class CssTranslator {
 
                 FeatureTypeStyleBuilder ftsBuilder = styleBuilder.featureTypeStyle();
                 if (featureTypeName != null) {
-                    ftsBuilder.setFeatureTypeNames(
-                            Arrays.asList((Name) new NameImpl(featureTypeName)));
+                    ftsBuilder.setFeatureTypeNames(Arrays.asList(new NameImpl(featureTypeName)));
                 }
 
                 String composite = null;
@@ -839,7 +858,7 @@ public class CssTranslator {
                 if (others.size() == 1) {
                     final CssRule r = deriveWithSelector(rule, others.get(0));
                     result.add(r);
-                } else if (others.size() > 0) {
+                } else if (!others.isEmpty()) {
                     final CssRule r = deriveWithSelector(rule, new Or(others));
                     result.add(r);
                 }
@@ -995,8 +1014,7 @@ public class CssTranslator {
         }
 
         // ok, build the rule
-        RuleBuilder ruleBuilder;
-        ruleBuilder = fts.rule();
+        RuleBuilder ruleBuilder = fts.rule();
         ruleBuilder.filter(filter);
         String title = getCombinedTag(cssRule.getComment(), TITLE_PATTERN, ", ");
         if (title != null) {
@@ -1246,6 +1264,7 @@ public class CssTranslator {
                                 "font-family",
                                 "font-style",
                                 "font-weight",
+                                "font-size",
                                 "font-family");
                 for (int j = 0; j < maxSize; j++) {
                     FontBuilder fb = tb.newFont();
@@ -1409,10 +1428,13 @@ public class CssTranslator {
                                             + entry);
                         }
                         ColorMapEntryBuilder eb = cmb.entry();
-                        eb.color(f.parameters.get(0).toExpression());
-                        eb.quantity(f.parameters.get(1).toExpression());
+                        eb.colorAsLiteral(
+                                wrapColorMapAttribute(f.parameters.get(0).toExpression()));
+                        eb.quantityAsLiteral(
+                                wrapColorMapAttribute(f.parameters.get(1).toExpression()));
                         if (f.parameters.size() > 2) {
-                            eb.opacity(f.parameters.get(2).toExpression());
+                            eb.opacityAsLiteral(
+                                    wrapColorMapAttribute(f.parameters.get(2).toExpression()));
                         }
                         if (f.parameters.size() == 4) {
                             eb.label(f.parameters.get(3).toLiteral());
@@ -1430,10 +1452,28 @@ public class CssTranslator {
                             throw new IllegalArgumentException("Invalid color map type " + type);
                         }
                     }
+
+                    String extended = getLiteral(values, "raster-color-map-extended", i, null);
+                    if (extended != null) {
+                        cmb.extended(Boolean.valueOf(extended));
+                    } else if (cm.values.size() > 255) {
+                        cmb.extended(true);
+                    }
                 }
             }
 
             addVendorOptions(rb, RASTER_VENDOR_OPTIONS, values, i);
+        }
+    }
+
+    private String wrapColorMapAttribute(Expression expression) {
+        if (expression instanceof org.geotools.api.filter.expression.Literal) {
+            // return expression as simple String
+            return expression.toString();
+        } else {
+            // This allows to support CQL Expressions for colorMapEntry attributes
+            // being lately used by SLD ColorMapBuilder
+            return "${" + CQL.toCQL(expression) + "}";
         }
     }
 
@@ -1629,11 +1669,11 @@ public class CssTranslator {
 
     /** Returns true if the expression is a constant value zero */
     private boolean isZero(Expression expression) {
-        if (!(expression instanceof org.opengis.filter.expression.Literal)) {
+        if (!(expression instanceof org.geotools.api.filter.expression.Literal)) {
             return false;
         }
-        org.opengis.filter.expression.Literal l =
-                (org.opengis.filter.expression.Literal) expression;
+        org.geotools.api.filter.expression.Literal l =
+                (org.geotools.api.filter.expression.Literal) expression;
         return l.evaluate(null, Double.class) == 0;
     }
 
@@ -2060,7 +2100,7 @@ public class CssTranslator {
         StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory();
         StyledLayerDescriptor sld = styleFactory.createStyledLayerDescriptor();
         NamedLayer layer = styleFactory.createNamedLayer();
-        layer.addStyle((org.geotools.styling.Style) style);
+        layer.addStyle((org.geotools.api.style.Style) style);
         sld.layers().add(layer);
         SLDTransformer tx = new SLDTransformer();
         tx.setIndentation(2);
@@ -2070,5 +2110,29 @@ public class CssTranslator {
         long end = System.currentTimeMillis();
 
         System.out.println("Translation performed in " + (end - start) / 1000d + " seconds");
+    }
+
+    private class ZIndexPowerSetBuilder extends RulePowerSetBuilder {
+        private final Integer zIndex;
+
+        public ZIndexPowerSetBuilder(
+                List<CssRule> flattenedRules,
+                CachedSimplifyingFilterVisitor cachedSimplifier,
+                int maxCombinations,
+                Integer zIndex) {
+            super(flattenedRules, cachedSimplifier, maxCombinations);
+            this.zIndex = zIndex;
+        }
+
+        @Override
+        protected List<CssRule> buildResult(List<CssRule> rules) {
+            if (zIndex != null && zIndex > 0) {
+                TreeSet<Integer> zIndexes = getZIndexesForRules(rules);
+                if (!zIndexes.contains(zIndex)) {
+                    return null;
+                }
+            }
+            return super.buildResult(rules);
+        }
     }
 }

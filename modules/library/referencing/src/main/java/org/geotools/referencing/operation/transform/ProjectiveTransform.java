@@ -26,8 +26,16 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.ejml.MatrixDimensionException;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.Matrix;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
@@ -40,15 +48,6 @@ import org.geotools.referencing.operation.matrix.GeneralMatrix;
 import org.geotools.referencing.operation.matrix.MatrixFactory;
 import org.geotools.referencing.operation.matrix.SingularMatrixException;
 import org.geotools.referencing.operation.matrix.XMatrix;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.Matrix;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
 import si.uom.NonSI;
 
 /**
@@ -248,8 +247,7 @@ public class ProjectiveTransform extends AbstractMathTransform
      * @return A copy of the parameter values for this math transform.
      */
     static ParameterValueGroup getParameterValues(final Matrix matrix) {
-        final MatrixParameters values;
-        values = (MatrixParameters) ProviderAffine.PARAMETERS.createValue();
+        final MatrixParameters values = (MatrixParameters) ProviderAffine.PARAMETERS.createValue();
         values.setMatrix(matrix);
         return values;
     }
@@ -339,6 +337,7 @@ public class ProjectiveTransform extends AbstractMathTransform
      *     destination array. The source and destination array sections can be overlaps.
      * @param numPts The number of points to be transformed
      */
+    @Override
     public void transform(
             double[] srcPts, int srcOff, final double[] dstPts, int dstOff, int numPts) {
         final int inputDimension = numCol - 1; // The last ordinate will be assumed equals to 1.
@@ -385,7 +384,7 @@ public class ProjectiveTransform extends AbstractMathTransform
      */
     @Override
     public Matrix derivative(final Point2D point) {
-        return derivative((DirectPosition) null);
+        return derivative((Position) null);
     }
 
     /**
@@ -393,13 +392,14 @@ public class ProjectiveTransform extends AbstractMathTransform
      * the same everywhere.
      */
     @Override
-    public Matrix derivative(final DirectPosition point) {
+    public Matrix derivative(final Position point) {
         final GeneralMatrix matrix = getGeneralMatrix();
         matrix.setSize(numRow - 1, numCol - 1);
         return matrix;
     }
 
     /** Returns a copy of the matrix. */
+    @Override
     public Matrix getMatrix() {
         return getGeneralMatrix();
     }
@@ -410,11 +410,13 @@ public class ProjectiveTransform extends AbstractMathTransform
     }
 
     /** Gets the dimension of input points. */
+    @Override
     public int getSourceDimensions() {
         return numCol - 1;
     }
 
     /** Gets the dimension of output points. */
+    @Override
     public int getTargetDimensions() {
         return numRow - 1;
     }
@@ -444,6 +446,7 @@ public class ProjectiveTransform extends AbstractMathTransform
      *
      * @since 2.4
      */
+    @Override
     public boolean isIdentity(double tolerance) {
         tolerance = Math.abs(tolerance);
         if (numRow != numCol) {
@@ -479,7 +482,7 @@ public class ProjectiveTransform extends AbstractMathTransform
                         | IllegalArgumentException
                         | MatrixDimensionException exception) {
                     throw new NoninvertibleTransformException(
-                            Errors.format(ErrorKeys.NONINVERTIBLE_TRANSFORM), exception);
+                            ErrorKeys.NONINVERTIBLE_TRANSFORM, exception);
                 }
                 inverse = createInverse(matrix);
                 inverse.inverse = this;
@@ -595,10 +598,11 @@ public class ProjectiveTransform extends AbstractMathTransform
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup values)
                 throws ParameterNotFoundException {
-            final MathTransform transform;
-            transform = create(((MatrixParameterDescriptors) getParameters()).getMatrix(values));
+            final MathTransform transform =
+                    create(((MatrixParameterDescriptors) getParameters()).getMatrix(values));
             return new Delegate(
                     transform,
                     getProvider(transform.getSourceDimensions(), transform.getTargetDimensions()));
@@ -677,6 +681,7 @@ public class ProjectiveTransform extends AbstractMathTransform
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup values)
                 throws ParameterNotFoundException {
             final double offset = doubleValue(OFFSET, values);

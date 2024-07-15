@@ -18,22 +18,16 @@ package org.geotools.renderer.lite.gridcoverage2d;
 
 import java.awt.Color;
 import javax.media.jai.PlanarImage;
-import junit.framework.TestCase;
 import org.geotools.coverage.Category;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.util.SimpleInternationalString;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * {@link TestCase} subclass for {@link BaseCoverageProcessingNode} .
- *
- * @author Simone Giannecchini, GeoSlutions.
- */
 public class BaseCoverageProcessingNodeTest {
 
     private BaseCoverageProcessingNode testedObject;
@@ -47,13 +41,14 @@ public class BaseCoverageProcessingNodeTest {
                         1,
                         SimpleInternationalString.wrap("fake node"),
                         SimpleInternationalString.wrap("fake node")) {
+                    @Override
                     protected GridCoverage2D execute() {
                         return CoverageFactoryFinder.getGridCoverageFactory(null)
                                 .create(
                                         "name",
                                         PlanarImage.wrapRenderedImage(
                                                 RasterSymbolizerTest.getSynthetic(Double.NaN)),
-                                        new GeneralEnvelope(
+                                        new GeneralBounds(
                                                 new double[] {-90, -180}, new double[] {90, 180}),
                                         new GridSampleDimension[] {
                                             new GridSampleDimension(
@@ -73,13 +68,14 @@ public class BaseCoverageProcessingNodeTest {
                         SimpleInternationalString.wrap("fake node"),
                         SimpleInternationalString.wrap("fake node")) {
 
+                    @Override
                     protected GridCoverage2D execute() {
                         return CoverageFactoryFinder.getGridCoverageFactory(null)
                                 .create(
                                         "name",
                                         PlanarImage.wrapRenderedImage(
                                                 RasterSymbolizerTest.getSynthetic(Double.NaN)),
-                                        new GeneralEnvelope(
+                                        new GeneralBounds(
                                                 new double[] {-90, -180}, new double[] {90, 180}),
                                         new GridSampleDimension[] {
                                             new GridSampleDimension(
@@ -124,7 +120,7 @@ public class BaseCoverageProcessingNodeTest {
             // trying to get the output from a disposed coverage should throw an
             // error
             testedObject.getOutput();
-            Assert.assertTrue(false);
+            Assert.fail();
         } catch (Exception e) {
 
         }
@@ -143,7 +139,7 @@ public class BaseCoverageProcessingNodeTest {
         testedObject.addSink((testedObject2));
         try {
             testedObject2.addSink((testedObject));
-            Assert.assertTrue(false);
+            Assert.fail();
         } catch (IllegalStateException e) {
             // TODO: handle exception
         }

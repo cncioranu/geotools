@@ -19,11 +19,11 @@ package org.geotools.coverage.grid;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.io.Serializable;
+import org.geotools.api.coverage.grid.GridGeometry;
+import org.geotools.api.util.Cloneable;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.util.Classes;
 import org.geotools.util.Utilities;
-import org.opengis.coverage.grid.GridGeometry;
-import org.opengis.util.Cloneable;
 
 /**
  * A simple grid geometry holding the grid range as a {@linkplain Rectangle rectangle} and the
@@ -61,11 +61,13 @@ public class ImageGeometry implements GridGeometry, Serializable, Cloneable {
     }
 
     /** Returns the image bounds in pixel coordinates. */
+    @Override
     public GridEnvelope2D getGridRange() {
         return gridRange.clone();
     }
 
     /** Returns the conversion from grid coordinates to real world earth coordinates. */
+    @Override
     public AffineTransform2D getGridToCRS() {
         return gridToCRS; // No need to clone since AffineTransform2D is immutable.
     }

@@ -19,8 +19,8 @@
  */
 package org.geotools.metadata.iso.extent;
 
+import org.geotools.api.metadata.extent.GeographicExtent;
 import org.geotools.metadata.iso.MetadataEntity;
-import org.opengis.metadata.extent.GeographicExtent;
 
 /**
  * Base class for geographic area of the dataset.
@@ -63,6 +63,7 @@ public class GeographicExtentImpl extends MetadataEntity implements GeographicEx
      *
      * @return {@code true} for inclusion, or {@code false} for exclusion.
      */
+    @Override
     public Boolean getInclusion() {
         return inclusion;
     }

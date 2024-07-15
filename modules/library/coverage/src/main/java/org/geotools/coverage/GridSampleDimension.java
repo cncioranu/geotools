@@ -20,6 +20,7 @@ import java.awt.Color;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,9 +28,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
 import javax.measure.Unit;
+import org.geotools.api.coverage.ColorInterpretation;
+import org.geotools.api.coverage.SampleDimension;
+import org.geotools.api.coverage.SampleDimensionType;
+import org.geotools.api.util.InternationalString;
 import org.geotools.image.util.ColorUtilities;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.util.ClassChanger;
@@ -39,10 +43,6 @@ import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.Utilities;
 import org.geotools.util.XArray;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.ColorInterpretation;
-import org.opengis.coverage.SampleDimension;
-import org.opengis.coverage.SampleDimensionType;
-import org.opengis.util.InternationalString;
 
 /**
  * Describes the data values for a coverage as a list of {@linkplain Category categories}. For a
@@ -65,10 +65,10 @@ import org.opengis.util.InternationalString;
  * In this example, sample values in range {@code [10..210]} defines a quantitative category, while
  * all others categories are qualitative.
  *
- * <p>While this class can be used with arbitrary {@linkplain org.opengis.coverage.Coverage
+ * <p>While this class can be used with arbitrary {@linkplain org.geotools.api.coverage.Coverage
  * coverage}, the primary target for this implementation is {@linkplain
- * org.opengis.coverage.grid.GridCoverage grid coverage} storing their sample values as integers.
- * This explain the "{@code Grid}" prefix in the class name.
+ * org.geotools.api.coverage.grid.GridCoverage grid coverage} storing their sample values as
+ * integers. This explain the "{@code Grid}" prefix in the class name.
  *
  * @since 2.1
  * @version $Id$
@@ -125,7 +125,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      * @since 2.3
      */
     public GridSampleDimension(final CharSequence description) {
-        this(description, (CategoryList) null, 1, 0);
+        this(description, null, 1, 0);
     }
 
     /**
@@ -188,7 +188,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
     /** Constructs a list of categories. Used by constructors only. */
     private static CategoryList list(final CharSequence[] names, final Color[] colors) {
         if (names.length != colors.length) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.MISMATCHED_ARRAY_LENGTH));
+            throw new IllegalArgumentException(ErrorKeys.MISMATCHED_ARRAY_LENGTH);
         }
         final int length = names.length;
         final Category[] categories = new Category[length];
@@ -301,7 +301,6 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      *     the value to be returned by {@link #getUnits}.
      * @throws IllegalArgumentException if the range {@code [minimum..maximum]} is not valid.
      */
-    @SuppressWarnings("deprecation")
     public GridSampleDimension(
             final CharSequence description,
             final SampleDimensionType type,
@@ -322,7 +321,6 @@ public class GridSampleDimension implements SampleDimension, Serializable {
     }
 
     /** Constructs a list of categories. Used by constructors only. */
-    @SuppressWarnings("deprecation")
     private static CategoryList list(
             CharSequence description,
             SampleDimensionType type,
@@ -338,7 +336,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
         }
         if (Double.isInfinite(minimum) || Double.isInfinite(maximum) || !(minimum < maximum)) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.BAD_RANGE_$2, minimum, maximum));
+                    MessageFormat.format(ErrorKeys.BAD_RANGE_$2, minimum, maximum));
         }
         if (type == null) {
             type = TypeMap.getSampleDimensionType(minimum, maximum);
@@ -656,7 +654,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      *
      * @return A code value indicating grid value data type.
      */
-    @SuppressWarnings("unchecked")
+    @Override
     public SampleDimensionType getSampleDimensionType() {
         final NumberRange range = getRange();
         if (range == null) {
@@ -671,6 +669,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      *
      * @return The title or description of this sample dimension.
      */
+    @Override
     public InternationalString getDescription() {
         return description;
     }
@@ -698,6 +697,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      * @see #getCategories
      * @see #getCategory
      */
+    @Override
     public InternationalString[] getCategoryNames() throws IllegalStateException {
         if (categories == null) {
             return null;
@@ -711,7 +711,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
             final int lower = (int) category.minimum;
             final int upper = (int) category.maximum;
             if (lower != category.minimum || lower < 0 || upper != category.maximum || upper < 0) {
-                throw new IllegalStateException(Errors.format(ErrorKeys.NON_INTEGER_CATEGORY));
+                throw new IllegalStateException(ErrorKeys.NON_INTEGER_CATEGORY);
             }
             if (names == null) {
                 names = new InternationalString[upper + 1];
@@ -761,6 +761,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      * @throws IllegalStateException if some qualitative categories use a range of non-integer
      *     values.
      */
+    @Override
     public double[] getNoDataValues() throws IllegalStateException {
         if (!hasQuantitative) {
             return null;
@@ -804,8 +805,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
                         if (lower != min
                                 || upper != max
                                 || !Classes.isInteger(category.getRange().getElementClass())) {
-                            throw new IllegalStateException(
-                                    Errors.format(ErrorKeys.NON_INTEGER_CATEGORY));
+                            throw new IllegalStateException(ErrorKeys.NON_INTEGER_CATEGORY);
                         }
                         final int requiredLength = count + (upper - lower);
                         if (requiredLength > padValues.length) {
@@ -831,10 +831,10 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      *
      * @see #getRange
      */
+    @Override
     public double getMinimumValue() {
         if (categories != null && !categories.isEmpty()) {
-            for (int i = 0; i < categories.size(); i++) {
-                Category cat = categories.get(i);
+            for (Category cat : categories) {
                 if (!Category.NODATA.getName().equals(cat.getName())) {
                     // Exclude the value of the NODATA category
                     // which can be retrieved with getNoDataValues
@@ -855,6 +855,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      *
      * @see #getRange
      */
+    @Override
     public double getMaximumValue() {
         if (categories != null && !categories.isEmpty()) {
             for (int i = categories.size(); --i >= 0; ) {
@@ -897,8 +898,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
     private static boolean rangeContains(
             final double lower, final double upper, final double[] values) {
         if (values != null) {
-            for (int i = 0; i < values.length; i++) {
-                final double v = values[i];
+            for (final double v : values) {
                 if (v >= lower && v < upper) {
                     return true;
                 }
@@ -938,6 +938,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      * Returns the unit information for this sample dimension. May returns {@code null} if this
      * dimension has no units.
      */
+    @Override
     public Unit<?> getUnits() {
         return (categories != null) ? categories.getUnits() : units;
     }
@@ -958,6 +959,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      *
      * @return The offset to add to grid values.
      */
+    @Override
     public double getOffset() {
         return offset;
     }
@@ -978,6 +980,7 @@ public class GridSampleDimension implements SampleDimension, Serializable {
      *
      * @return The scale to multiply to grid value.
      */
+    @Override
     public double getScale() {
         return scale;
     }

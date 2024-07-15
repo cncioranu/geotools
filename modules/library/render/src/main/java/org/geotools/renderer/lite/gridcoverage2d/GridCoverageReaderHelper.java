@@ -26,6 +26,20 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.media.jai.Interpolation;
 import javax.media.jai.InterpolationNearest;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.metadata.spatial.PixelOrientation;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.SingleCRS;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridEnvelope2D;
@@ -49,20 +63,6 @@ import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.SingleCRS;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Support class that performs the actions needed to read a GridCoverage for the task of rendering
@@ -123,8 +123,9 @@ public class GridCoverageReaderHelper {
         // determine if we need a reading gutter, or not, we do if we are reprojecting, or if
         // there is an interpolation to be applied, in that case we need to expand the area
         // we are going to read
+
         sameCRS =
-                CRS.equalsIgnoreMetadata(
+                GridCoverageRendererUtilities.isEquivalentCRS(
                         mapExtent.getCoordinateReferenceSystem(),
                         reader.getCoordinateReferenceSystem());
         paddingRequired =

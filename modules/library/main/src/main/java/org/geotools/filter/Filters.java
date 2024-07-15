@@ -22,9 +22,22 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.BinaryLogicOperator;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.Divide;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.Multiply;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.Subtract;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.visitor.AbstractSearchFilterVisitor;
 import org.geotools.filter.visitor.DefaultFilterVisitor;
@@ -33,20 +46,6 @@ import org.geotools.util.Converters;
 import org.geotools.util.Utilities;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.And;
-import org.opengis.filter.BinaryLogicOperator;
-import org.opengis.filter.Filter;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.Divide;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.Multiply;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Subtract;
 
 /**
  * Utility class for working with Filters & Expression.
@@ -111,18 +110,18 @@ public class Filters {
      */
     private static Filters STATIC = new Filters();
 
-    org.opengis.filter.FilterFactory2 ff;
+    org.geotools.api.filter.FilterFactory ff;
 
     /** Create Filters helper object using global FilterFactory provided by CommonFactoryFinder */
     public Filters() {
-        this(CommonFactoryFinder.getFilterFactory2(null));
+        this(CommonFactoryFinder.getFilterFactory(null));
     }
     /** Create a Filters helper using the provided FilterFactory */
-    public Filters(org.opengis.filter.FilterFactory2 factory) {
+    public Filters(org.geotools.api.filter.FilterFactory factory) {
         ff = factory;
     }
 
-    public void setFilterFactory(org.opengis.filter.FilterFactory2 factory) {
+    public void setFilterFactory(org.geotools.api.filter.FilterFactory factory) {
         ff = factory;
     }
 
@@ -135,7 +134,7 @@ public class Filters {
      * @return The combination in AND of the filters, or Filter.EXCLUDE if filters is null or empty,
      *     or the one filter found in the list, in case it has only one element
      */
-    public static Filter and(org.opengis.filter.FilterFactory ff, List<Filter> filters) {
+    public static Filter and(org.geotools.api.filter.FilterFactory ff, List<Filter> filters) {
         if (filters == null || filters.isEmpty()) {
             return Filter.EXCLUDE;
         } else if (filters.size() == 1) {
@@ -151,7 +150,8 @@ public class Filters {
      *
      * @return And
      */
-    public static Filter and(org.opengis.filter.FilterFactory ff, Filter filter1, Filter filter2) {
+    public static Filter and(
+            org.geotools.api.filter.FilterFactory ff, Filter filter1, Filter filter2) {
         ArrayList<Filter> list = new ArrayList<>(2);
         if (filter1 instanceof And) {
             And some = (And) filter1;
@@ -167,7 +167,7 @@ public class Filters {
             list.add(filter2);
         }
 
-        if (list.size() == 0) {
+        if (list.isEmpty()) {
             return Filter.EXCLUDE;
         } else if (list.size() == 1) {
             return list.get(0);
@@ -185,7 +185,7 @@ public class Filters {
      * @return The combination in OR of the filters, or Filter.EXCLUDE if filters is null or empty,
      *     or the one filter found in the list, in case it has only one element
      */
-    public static Filter or(org.opengis.filter.FilterFactory ff, List<Filter> filters) {
+    public static Filter or(org.geotools.api.filter.FilterFactory ff, List<Filter> filters) {
         if (filters == null || filters.isEmpty()) {
             return Filter.EXCLUDE;
         } else if (filters.size() == 1) {
@@ -199,7 +199,8 @@ public class Filters {
      * Safe version of FilterFactory *or* that is willing to combine filter1 and filter2 correctly
      * in the even either of them is already an Or filter.
      */
-    public static Filter or(org.opengis.filter.FilterFactory ff, Filter filter1, Filter filter2) {
+    public static Filter or(
+            org.geotools.api.filter.FilterFactory ff, Filter filter1, Filter filter2) {
         ArrayList<Filter> list = new ArrayList<>();
         if (filter1 instanceof Or) {
             Or some = (Or) filter1;
@@ -215,7 +216,7 @@ public class Filters {
             list.add(filter2);
         }
 
-        if (list.size() == 0) {
+        if (list.isEmpty()) {
             return Filter.EXCLUDE;
         } else if (list.size() == 1) {
             return list.get(0);
@@ -252,7 +253,8 @@ public class Filters {
      * @see ExpressionType
      * @return ExpressionType constant.
      */
-    public static short getExpressionType(org.opengis.filter.expression.Expression experssion) {
+    public static short getExpressionType(
+            org.geotools.api.filter.expression.Expression experssion) {
         if (experssion == null) return 0;
         else if (experssion instanceof PropertyName) return ExpressionType.ATTRIBUTE;
         else if (experssion instanceof Function) return ExpressionType.FUNCTION;
@@ -393,7 +395,7 @@ public class Filters {
         if (value instanceof String) {
             String text = (String) value;
             try {
-                Number number = (Number) gets(text, Number.class);
+                Number number = gets(text, Number.class);
                 return number.doubleValue();
             } catch (Throwable e) {
                 throw new IllegalArgumentException("Unable to decode '" + text + "' as a number");
@@ -461,17 +463,12 @@ public class Filters {
         try {
             Constructor<T> create = TYPE.getConstructor(new Class[] {String.class});
             return create.newInstance(new Object[] {text});
-        } catch (SecurityException e) {
-            // hates you
-        } catch (NoSuchMethodException e) {
-            // nope
-        } catch (IllegalArgumentException e) {
-            // should not occur
-        } catch (InstantiationException e) {
-            // should not occur, perhaps the class was abstract?
-            // eg. Number.class is a bad idea
-        } catch (IllegalAccessException e) {
-            // hates you
+        } catch (SecurityException
+                | IllegalAccessException
+                | NoSuchMethodException
+                | IllegalArgumentException
+                | InstantiationException e) {
+            // should not occurr, or is meant to be ignored
         } catch (InvocationTargetException e) {
             // should of worked but we got a real problem,
             // an actual problem
@@ -588,8 +585,8 @@ public class Filters {
 
     /**
      * Removes the targetFilter from the baseFilter if the baseFilter is a group filter (And or Or).
-     * See {@link #removeFilter(org.opengis.filter.Filter, org.opengis.filter.Filter)} for details,
-     * except this method includes the option to not recurse into child filters.
+     * See {@link #removeFilter(org.geotools.api.filter.Filter, org.geotools.api.filter.Filter)} for
+     * details, except this method includes the option to not recurse into child filters.
      *
      * @param recurse true if the method should descend into child group filters looking for the
      *     target
@@ -613,6 +610,7 @@ public class Filters {
         if (recurse) {
             DuplicatingFilterVisitor remove =
                     new DuplicatingFilterVisitor() {
+                        @Override
                         public Object visit(Or filter, Object extraData) {
                             List<Filter> newChildren = children(filter, targetFilter, extraData);
                             if (newChildren.isEmpty()) {
@@ -626,6 +624,7 @@ public class Filters {
                             }
                         }
 
+                        @Override
                         public Object visit(And filter, Object extraData) {
                             List<Filter> newChildren = children(filter, targetFilter, extraData);
                             if (newChildren.isEmpty()) {
@@ -645,8 +644,7 @@ public class Filters {
                                 Object extraData) {
                             List<Filter> children = filter.getChildren();
                             List<Filter> newChildren = new ArrayList<>();
-                            for (Iterator<Filter> iter = children.iterator(); iter.hasNext(); ) {
-                                Filter child = iter.next();
+                            for (Filter child : children) {
                                 if (targetFilter.equals(child)) {
                                     continue; // skip this one
                                 }
@@ -789,10 +787,12 @@ public class Filters {
             return false;
         }
         class SearchFilterVisitor extends AbstractSearchFilterVisitor {
+            @Override
             protected boolean found(Object data) {
                 return Boolean.TRUE == data;
             }
 
+            @Override
             public Object visit(PropertyName name, Object data) {
                 if (Utilities.equals(name.getPropertyName(), propertyName)) {
                     return true;
@@ -880,6 +880,7 @@ public class Filters {
         if (all) {
             filter.accept(
                     new DefaultFilterVisitor() {
+                        @Override
                         public Object visit(And filter, Object data) {
                             List<Filter> childList = filter.getChildren();
                             if (childList != null) {
@@ -893,6 +894,7 @@ public class Filters {
                             return data;
                         }
 
+                        @Override
                         public Object visit(Or filter, Object data) {
                             List<Filter> childList = filter.getChildren();
                             if (childList != null) {
@@ -906,6 +908,7 @@ public class Filters {
                             return data;
                         }
 
+                        @Override
                         public Object visit(Not filter, Object data) {
                             Filter child = filter.getFilter();
                             if (child != null) {
@@ -964,10 +967,12 @@ public class Filters {
         if (filter == null) return null;
 
         class SearchFilterVisitor extends AbstractSearchFilterVisitor {
+            @Override
             protected boolean found(Object data) {
                 return data != null;
             }
 
+            @Override
             public Object visit(PropertyName name, Object data) {
                 return name.getPropertyName();
             }

@@ -19,15 +19,19 @@ package org.geotools.referencing.factory.epsg;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
+import java.text.MessageFormat;
 import java.util.jar.Attributes.Name;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import javax.naming.NoInitialContextException;
 import javax.sql.DataSource;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.cs.CSAuthorityFactory;
+import org.geotools.api.referencing.datum.DatumAuthorityFactory;
+import org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.LoggingKeys;
 import org.geotools.metadata.i18n.Loggings;
 import org.geotools.metadata.i18n.Vocabulary;
@@ -40,12 +44,6 @@ import org.geotools.referencing.factory.FactoryNotFoundException;
 import org.geotools.referencing.factory.ReferencingFactoryContainer;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.cs.CSAuthorityFactory;
-import org.opengis.referencing.datum.DatumAuthorityFactory;
-import org.opengis.referencing.operation.CoordinateOperationAuthorityFactory;
 
 /**
  * Base class for EPSG factories to be registered in {@link ReferencingFactoryFinder}. Various
@@ -91,27 +89,11 @@ public class ThreadedEpsgFactory extends DeferredAuthorityFactory
      */
     public static final String DATASOURCE_NAME = "java:comp/env/jdbc/EPSG";
 
-    /**
-     * {@code true} if automatic registration of {@link #datasourceName} is allowed. Set to {@code
-     * false} for now because the registration has not been correctly tested in JEE environment.
-     *
-     * @todo Consider removing completly the code related to JNDI binding. In such case, this field
-     *     and the {@link #registerInto} field would be removed.
-     */
-    private static final boolean ALLOW_REGISTRATION = false;
-
     /** The default priority level for this factory. */
     protected static final int PRIORITY = MAXIMUM_PRIORITY - 10;
 
     /** The factories to be given to the backing store. */
     private final ReferencingFactoryContainer factories;
-
-    /**
-     * The context where to register {@link #datasource}, or {@code null} if it should not be
-     * registered. This is used only as a way to pass "hiden" return value between {@link
-     * #createDataSource()} and {@link #createBackingStore()}.
-     */
-    private transient InitialContext registerInto;
 
     /**
      * The data source name. If it was not specified by the {@link Hints#EPSG_DATA_SOURCE
@@ -230,7 +212,7 @@ public class ThreadedEpsgFactory extends DeferredAuthorityFactory
             if (!super.isAvailable()) {
                 // Connection failed, but the exception is not available.
                 datasource = null;
-                throw new SQLException(Errors.format(ErrorKeys.NO_DATA_SOURCE));
+                throw new SQLException(ErrorKeys.NO_DATA_SOURCE);
             }
         }
         return datasource;
@@ -301,17 +283,10 @@ public class ThreadedEpsgFactory extends DeferredAuthorityFactory
      * @throws SQLException if an error occured while creating the data source.
      */
     protected DataSource createDataSource() throws SQLException {
-        InitialContext context = null;
         DataSource source = null;
         try {
-            context = GeoTools.getInitialContext(new Hints(hints));
-            source = (DataSource) context.lookup(datasourceName);
-        } catch (IllegalArgumentException exception) {
-            // Fall back on 'return null' below.
-        } catch (NoInitialContextException exception) {
-            // Fall back on 'return null' below.
-        } catch (NamingException exception) {
-            registerInto = context;
+            source = (DataSource) GeoTools.jndiLookup(datasourceName);
+        } catch (IllegalArgumentException | NamingException exception) {
             // Fall back on 'return null' below.
         }
         return source;
@@ -368,7 +343,11 @@ public class ThreadedEpsgFactory extends DeferredAuthorityFactory
      *     code.
      */
     private AbstractAuthorityFactory createBackingStore0() throws FactoryException, SQLException {
-        assert Thread.holdsLock(this);
+        /*
+         * We are locking on ReferencingFactoryFinder to avoid deadlocks.
+         * @see DeferredAuthorityFactory#getBackingStore()
+         */
+        assert Thread.holdsLock(ReferencingFactoryFinder.class);
         final Hints sourceHints = new Hints(hints);
         sourceHints.putAll(factories.getImplementationHints());
         if (datasource != null) {
@@ -378,16 +357,9 @@ public class ThreadedEpsgFactory extends DeferredAuthorityFactory
          * Try to gets the DataSource from JNDI. In case of success, it will be tried
          * for a connection before any DataSource declared in META-INF/services/.
          */
-        DataSource source;
-        final InitialContext context;
-        try {
-            source = createDataSource();
-            context = registerInto;
-        } finally {
-            registerInto = null;
-        }
+        DataSource source = createDataSource();
         if (source == null) {
-            throw new FactoryNotFoundException(Errors.format(ErrorKeys.NO_DATA_SOURCE));
+            throw new FactoryNotFoundException(ErrorKeys.NO_DATA_SOURCE);
         }
         final AbstractAuthorityFactory factory;
         try {
@@ -395,27 +367,6 @@ public class ThreadedEpsgFactory extends DeferredAuthorityFactory
             factory = createBackingStore(sourceHints);
         } finally {
             datasource = null;
-        }
-        /*
-         * We now have a working connection. If a naming directory is running but didn't contains
-         * the "jdbc/EPSG" entry, add it now. In such case, a message is prepared and logged.
-         */
-        LogRecord record;
-        if (ALLOW_REGISTRATION && context != null) {
-            try {
-                context.bind(datasourceName, source);
-                record =
-                        Loggings.format(
-                                Level.FINE,
-                                LoggingKeys.CREATED_DATASOURCE_ENTRY_$1,
-                                datasourceName);
-            } catch (NamingException exception) {
-                record =
-                        Loggings.format(
-                                Level.WARNING, LoggingKeys.CANT_BIND_DATASOURCE_$1, datasourceName);
-                record.setThrown(exception);
-            }
-            log(record);
         }
         this.datasource = source; // Stores the data source only after success.
         return factory;
@@ -428,6 +379,7 @@ public class ThreadedEpsgFactory extends DeferredAuthorityFactory
      * @throws FactoryException if the constructor failed to connect to the EPSG database. This
      *     exception usually has a {@link SQLException} as its cause.
      */
+    @Override
     protected AbstractAuthorityFactory createBackingStore() throws FactoryException {
         final AbstractAuthorityFactory factory;
         String product = '<' + Vocabulary.format(VocabularyKeys.UNKNOWN) + '>';
@@ -442,7 +394,7 @@ public class ThreadedEpsgFactory extends DeferredAuthorityFactory
             }
         } catch (SQLException exception) {
             throw new FactoryException(
-                    Errors.format(ErrorKeys.CANT_CONNECT_DATABASE_$1, "EPSG"), exception);
+                    MessageFormat.format(ErrorKeys.CANT_CONNECT_DATABASE_$1, "EPSG"), exception);
         }
         log(Loggings.format(Level.CONFIG, LoggingKeys.CONNECTED_EPSG_DATABASE_$2, url, product));
         if (factory instanceof DirectEpsgFactory) {

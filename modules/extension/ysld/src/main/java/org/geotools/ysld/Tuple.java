@@ -135,10 +135,10 @@ public class Tuple {
     }
 
     /** @return A String representation of the tuple, of the form "(a, b)". */
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("(");
-        for (int i = 0; i < values.length; i++) {
-            Object v = values[i];
+        for (Object v : values) {
             if (v != null) {
                 if (v instanceof Color) {
                     sb.append('\'');
@@ -161,8 +161,8 @@ public class Tuple {
 
     /** @return true if all values of the tuple are null, false otherwise. */
     public boolean isNull() {
-        for (int i = 0; i < values.length; i++) {
-            if (values[i] != null) {
+        for (Object value : values) {
+            if (value != null) {
                 return false;
             }
         }

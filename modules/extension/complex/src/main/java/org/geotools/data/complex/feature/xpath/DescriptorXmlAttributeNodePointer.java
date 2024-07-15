@@ -22,11 +22,11 @@ import org.apache.commons.jxpath.ri.QName;
 import org.apache.commons.jxpath.ri.model.NodePointer;
 import org.eclipse.xsd.XSDAttributeDeclaration;
 import org.eclipse.xsd.XSDElementDeclaration;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.feature.type.PropertyType;
 import org.geotools.xsd.Schemas;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.feature.type.PropertyType;
 
 /**
  * Special node pointer for an XML-attribute inside an attribute.
@@ -51,26 +51,32 @@ public class DescriptorXmlAttributeNodePointer extends NodePointer {
         this.descriptor = descriptor;
     }
 
+    @Override
     public boolean isLeaf() {
         return true;
     }
 
+    @Override
     public boolean isCollection() {
         return false;
     }
 
+    @Override
     public boolean isAttribute() {
         return true;
     }
 
+    @Override
     public QName getName() {
         return new QName(name.getURI(), name.getLocalPart());
     }
 
+    @Override
     public Object getBaseValue() {
         return null;
     }
 
+    @Override
     public Object getImmediateNode() {
 
         // first try regular way
@@ -100,6 +106,7 @@ public class DescriptorXmlAttributeNodePointer extends NodePointer {
         return null;
     }
 
+    @Override
     public void setValue(Object value) {
         throw new UnsupportedOperationException("Feature types are immutable");
     }

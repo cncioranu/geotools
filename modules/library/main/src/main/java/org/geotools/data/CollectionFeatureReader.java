@@ -21,12 +21,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.collection.DelegateSimpleFeatureIterator;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * FeatureReader<SimpleFeatureType, SimpleFeature> that reads features from a java.util.collection
@@ -70,34 +71,38 @@ public class CollectionFeatureReader implements FeatureReader<SimpleFeatureType,
      *
      * @param featuresArg an of features. <b>All features must be of the same FeatureType</b>
      */
-    public CollectionFeatureReader(SimpleFeature[] featuresArg) {
+    public CollectionFeatureReader(SimpleFeature... featuresArg) {
         assert featuresArg.length > 0;
         Iterator<SimpleFeature> iterator = Arrays.asList(featuresArg).iterator();
         this.features = new DelegateSimpleFeatureIterator(iterator);
         type = featuresArg[0].getFeatureType();
     }
 
-    /** @see org.geotools.data.FeatureReader#getFeatureType() */
+    /** @see FeatureReader#getFeatureType() */
+    @Override
     public SimpleFeatureType getFeatureType() {
         return type;
     }
 
-    /** @see org.geotools.data.FeatureReader#next() */
+    /** @see FeatureReader#next() */
+    @Override
     public SimpleFeature next()
             throws IOException, IllegalAttributeException, NoSuchElementException {
         if (closed) {
             throw new NoSuchElementException("Reader has been closed");
         }
 
-        return (SimpleFeature) features.next();
+        return features.next();
     }
 
-    /** @see org.geotools.data.FeatureReader#hasNext() */
+    /** @see FeatureReader#hasNext() */
+    @Override
     public boolean hasNext() throws IOException {
         return features != null && features.hasNext() && !closed;
     }
 
-    /** @see org.geotools.data.FeatureReader#close() */
+    /** @see FeatureReader#close() */
+    @Override
     public void close() throws IOException {
         closed = true;
 

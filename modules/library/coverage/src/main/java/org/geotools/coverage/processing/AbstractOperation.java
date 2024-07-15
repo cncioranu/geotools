@@ -17,18 +17,17 @@
 package org.geotools.coverage.processing;
 
 import java.io.Serializable;
-import java.util.Iterator;
+import org.geotools.api.coverage.Coverage;
+import org.geotools.api.coverage.processing.Operation;
+import org.geotools.api.filter.identity.Identifier;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.util.InternationalString;
 import org.geotools.util.Classes;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.Coverage;
-import org.opengis.coverage.processing.Operation;
-import org.opengis.filter.identity.Identifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.util.InternationalString;
 
 /**
  * Provides descriptive information for a {@linkplain Coverage coverage} processing operation. The
@@ -63,6 +62,7 @@ public abstract class AbstractOperation implements Operation, Serializable {
      *
      * @todo The return type will be changed from {@link String} to {@link Identifier}.
      */
+    @Override
     public String getName() {
         return descriptor.getName().getCode();
     }
@@ -71,6 +71,7 @@ public abstract class AbstractOperation implements Operation, Serializable {
      * Returns the description of the processing operation. If there is no description, returns
      * {@code null}. The default implementation returns the {@linkplain #descriptor} remarks.
      */
+    @Override
     public String getDescription() {
         final InternationalString remarks = descriptor.getRemarks();
         return (remarks != null) ? remarks.toString() : null;
@@ -80,11 +81,13 @@ public abstract class AbstractOperation implements Operation, Serializable {
      * Returns the URL for documentation on the processing operation. If no online documentation is
      * available the string will be null. The default implementation returns {@code null}.
      */
+    @Override
     public String getDocURL() {
         return null;
     }
 
     /** Returns the version number of the implementation. */
+    @Override
     public String getVersion() {
         return descriptor.getName().getVersion();
     }
@@ -93,11 +96,13 @@ public abstract class AbstractOperation implements Operation, Serializable {
      * Returns the vendor name of the processing operation implementation. The default
      * implementation returns "Geotools 2".
      */
+    @Override
     public String getVendor() {
         return "Geotools 2";
     }
 
     /** Returns the number of source coverages required for the operation. */
+    @Override
     public int getNumSources() {
         return getNumSources(descriptor);
     }
@@ -105,8 +110,7 @@ public abstract class AbstractOperation implements Operation, Serializable {
     /** Returns the number of source coverages in the specified parameter group. */
     private static int getNumSources(final ParameterDescriptorGroup descriptor) {
         int count = 0;
-        for (final Iterator it = descriptor.descriptors().iterator(); it.hasNext(); ) {
-            final GeneralParameterDescriptor candidate = (GeneralParameterDescriptor) it.next();
+        for (final GeneralParameterDescriptor candidate : descriptor.descriptors()) {
             if (candidate instanceof ParameterDescriptorGroup) {
                 count += getNumSources((ParameterDescriptorGroup) candidate);
                 continue;
@@ -122,6 +126,7 @@ public abstract class AbstractOperation implements Operation, Serializable {
     }
 
     /** Returns an initially empty set of parameters. */
+    @Override
     public ParameterValueGroup getParameters() {
         return descriptor.createValue();
     }

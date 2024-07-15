@@ -17,13 +17,13 @@
 package org.geotools.temporal.reference;
 
 import java.util.Date;
+import org.geotools.api.metadata.extent.Extent;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.temporal.TemporalCoordinate;
+import org.geotools.api.temporal.TemporalCoordinateSystem;
+import org.geotools.api.util.InternationalString;
 import org.geotools.temporal.object.DefaultTemporalCoordinate;
 import org.geotools.util.Utilities;
-import org.opengis.metadata.extent.Extent;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.temporal.TemporalCoordinate;
-import org.opengis.temporal.TemporalCoordinateSystem;
-import org.opengis.util.InternationalString;
 
 /** @author Mehdi Sidhoum (Geomatys) */
 public class DefaultTemporalCoordinateSystem extends DefaultTemporalReferenceSystem
@@ -59,10 +59,12 @@ public class DefaultTemporalCoordinateSystem extends DefaultTemporalReferenceSys
         this.interval = interval;
     }
 
+    @Override
     public Date getOrigin() {
         return origin;
     }
 
+    @Override
     public InternationalString getInterval() {
         return interval;
     }
@@ -71,6 +73,7 @@ public class DefaultTemporalCoordinateSystem extends DefaultTemporalReferenceSys
      * Returns the equivalent Date in the Gregorian calendar and UTC of a coordinate value defined
      * in this temporal coordinate system.
      */
+    @Override
     public Date transformCoord(TemporalCoordinate c_value) {
         Date response;
         final long yearMS = 31536000000L;
@@ -120,8 +123,8 @@ public class DefaultTemporalCoordinateSystem extends DefaultTemporalReferenceSys
      * Returns the equivalent TemporalCoordinate of a Date in Gregorian Calendar. Default of unit is
      * millisecond.
      */
+    @Override
     public TemporalCoordinate transformDateTime(Date dateTime) {
-        TemporalCoordinate response;
         final long yearMS = 31536000000L;
         final long monthMS = 2628000000L;
         final long weekMS = 604800000L;
@@ -146,7 +149,7 @@ public class DefaultTemporalCoordinateSystem extends DefaultTemporalReferenceSys
         } else if (interval.toString().equals("second")) {
             coordinateValue = (float) coordinateValue.longValue() / (float) secondMS;
         }
-        response = new DefaultTemporalCoordinate(this, null, coordinateValue);
+        TemporalCoordinate response = new DefaultTemporalCoordinate(this, null, coordinateValue);
         return response;
     }
 

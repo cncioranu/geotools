@@ -41,7 +41,7 @@ import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
-import org.geotools.data.DataStore;
+import org.geotools.api.data.DataStore;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -81,6 +81,7 @@ public class ElasticDatastoreFactoryTest {
         Mockito.doReturn(clientBuilder)
                 .when(dataStoreFactory)
                 .createClientBuilder(hostsCaptor.capture());
+        @SuppressWarnings("PMD.CloseResource")
         final RestClient restClient = mock(RestClient.class);
         when(clientBuilder.build()).thenReturn(restClient);
         final DataStore dataStore = mock(DataStore.class);
@@ -239,7 +240,7 @@ public class ElasticDatastoreFactoryTest {
     @Test
     public void testCreateClientbuilder() {
         ElasticDataStoreFactory factory = new ElasticDataStoreFactory();
-        HttpHost[] hosts = new HttpHost[] {new HttpHost("localhost", 9200)};
+        HttpHost[] hosts = {new HttpHost("localhost", 9200)};
         assertNotNull(factory.createClientBuilder(hosts));
     }
 

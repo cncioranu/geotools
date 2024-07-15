@@ -45,17 +45,18 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.xml.bind.JAXBException;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.coverage.grid.io.GranuleSource;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
 import org.geotools.coverage.io.catalog.DataStoreConfiguration;
-import org.geotools.data.DataStore;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
 import org.geotools.data.h2.H2DataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.feature.visitor.UniqueVisitor;
 import org.geotools.gce.imagemosaic.ImageMosaicReader;
@@ -70,7 +71,6 @@ import org.geotools.jdbc.Index;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.util.URLs;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /** Converts NetCDF slice H2 indexes towards a centralized database approach */
 public class H2Migrator {
@@ -183,27 +183,19 @@ public class H2Migrator {
             final File mosaicDirectory = configuration.getMosaicDirectory();
             // simplifying assumption, the coverages are the ones that have a config file with
             // a sidecar sample image file
+            String[] files =
+                    mosaicDirectory.list(
+                            (dir, name) -> {
+                                if (!name.endsWith(".properties")) {
+                                    return false;
+                                }
+                                String baseName = FilenameUtils.getBaseName(name);
+                                return new File(dir, baseName + Utils.SAMPLE_IMAGE_NAME).exists()
+                                        || new File(dir, baseName + Utils.SAMPLE_IMAGE_NAME_LEGACY)
+                                                .exists();
+                            });
             names =
-                    Arrays.stream(
-                                    mosaicDirectory.list(
-                                            (dir, name) -> {
-                                                if (!name.endsWith(".properties")) {
-                                                    return false;
-                                                }
-                                                String baseName = FilenameUtils.getBaseName(name);
-                                                return new File(
-                                                                        dir,
-                                                                        baseName
-                                                                                + Utils
-                                                                                        .SAMPLE_IMAGE_NAME)
-                                                                .exists()
-                                                        || new File(
-                                                                        dir,
-                                                                        baseName
-                                                                                + Utils
-                                                                                        .SAMPLE_IMAGE_NAME_LEGACY)
-                                                                .exists();
-                                            }))
+                    Arrays.stream(files)
                             .map(f -> FilenameUtils.getBaseName(f))
                             .toArray(n -> new String[n]);
         }
@@ -226,15 +218,14 @@ public class H2Migrator {
 
         // query the location attribute
         Query q = new Query(table);
-        q.setPropertyNames(new String[] {locationAttribute});
+        q.setPropertyNames(locationAttribute);
         // extract unique values
         UniqueVisitor uniqueLocations = new UniqueVisitor(locationAttribute);
         featureSource.getFeatures(q).accepts(uniqueLocations, null);
         @SuppressWarnings("unchecked")
         Set<String> locations = uniqueLocations.getUnique();
         // map via pathtype and return
-        return locations
-                .stream()
+        return locations.stream()
                 .map(l -> pathType.resolvePath(configuration.getMosaicDirectory().getPath(), l))
                 .map(url -> URLs.urlToFile(url).getAbsolutePath())
                 .collect(Collectors.toList());
@@ -292,7 +283,7 @@ public class H2Migrator {
         // query the location attribute
         final String locationAttribute = catalogConfiguration.getLocationAttribute();
         Query q = new Query(coverage);
-        q.setPropertyNames(new String[] {locationAttribute});
+        q.setPropertyNames(locationAttribute);
         // extract unique values
         UniqueVisitor uniqueLocations = new UniqueVisitor(locationAttribute);
         final SimpleFeatureCollection granules = granuleSource.getGranules(q);
@@ -300,8 +291,7 @@ public class H2Migrator {
         @SuppressWarnings("unchecked")
         Set<String> locations = uniqueLocations.getUnique();
         // map via pathtype and return
-        return locations
-                .stream()
+        return locations.stream()
                 .map(l -> pathType.resolvePath(mosaicDirectoryPath, l))
                 .map(url -> URLs.urlToFile(url).getAbsolutePath())
                 .collect(Collectors.toList());
@@ -392,8 +382,7 @@ public class H2Migrator {
         }
         final DataStore sourceDataStore =
                 config.getDatastoreSpi().createDataStore(config.getParams());
-        Transaction t = new DefaultTransaction();
-        try {
+        try (Transaction t = new DefaultTransaction()) {
             final Set<String> typeNames =
                     new HashSet<>(Arrays.asList(sourceDataStore.getTypeNames()));
             // shuffle coverages to avoid all threads accumulating on the same coverage
@@ -418,7 +407,6 @@ public class H2Migrator {
             netcdfWriter.addLines(path);
             h2Writer.addLines(collectH2Files(config));
         } finally {
-            t.close();
             if (sourceDataStore != null) {
                 sourceDataStore.dispose();
             }

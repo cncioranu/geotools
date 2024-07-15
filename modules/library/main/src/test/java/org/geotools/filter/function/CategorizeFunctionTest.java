@@ -17,15 +17,14 @@
 package org.geotools.filter.function;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 
 import java.util.ArrayList;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Test the Categorize function against the Symbology Encoding 1.1 specs.
@@ -51,7 +50,7 @@ public class CategorizeFunctionTest extends SEFunctionTestBase {
         Function fn = finder.findFunction("categorize", parameters, fallback);
         Object result = fn.evaluate(feature(0));
 
-        assertFalse("Could not locate 'categorize' function", result.equals(fallback.getValue()));
+        assertNotEquals("Could not locate 'categorize' function", result, fallback.getValue());
     }
 
     @Test

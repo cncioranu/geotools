@@ -17,12 +17,13 @@
 package org.geotools.brewer.filter.expression;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.brewer.styling.filter.expression.ExpressionBuilder;
 import org.geotools.factory.CommonFactoryFinder;
 import org.junit.Test;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
 
 /**
  * ExpressionBuilder is the main entry point from a fluent programming point of view. We will mostly
@@ -32,12 +33,11 @@ public class ExpressionBuilderTest {
 
     @Test
     public void testLiteral() {
-        FilterFactory ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         ExpressionBuilder b = new ExpressionBuilder();
-        Expression e;
 
         b.literal("hello world");
-        e = b.build();
+        Expression e = b.build();
         assertEquals(ff.literal("hello world"), e);
 
         assertEquals(ff.literal(1), b.literal().value(1).build());
@@ -48,38 +48,34 @@ public class ExpressionBuilderTest {
 
         assertEquals(ff.literal(null), b.literal(null).build());
 
-        assertEquals(null, b.unset().build());
+        assertNull(b.unset().build());
         assertEquals(ff.literal(2), b.reset(ff.literal(2)).build());
     }
 
     @Test
     public void testNullHandling() {
-        FilterFactory ff = CommonFactoryFinder.getFilterFactory2(null);
         ExpressionBuilder b = new ExpressionBuilder();
-        Expression e;
 
         assertEquals(Expression.NIL, b.reset().build());
-        assertEquals(null, b.reset(null).build());
+        assertNull(b.reset(null).build());
     }
 
     @Test
     public void testPropertyName() {
-        FilterFactory ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         ExpressionBuilder b = new ExpressionBuilder();
-        Expression e;
 
         assertEquals(ff.property("x"), b.property("x").build());
         assertEquals(ff.property("x"), b.property().property("x").build());
         assertEquals(ff.property("x"), b.property().name("x").build());
 
-        assertEquals(ff.property(null), b.property(null).build());
+        assertEquals(ff.property((String) null), b.property(null).build());
     }
 
     @Test
     public void testFunction() {
-        FilterFactory ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         ExpressionBuilder b = new ExpressionBuilder();
-        Expression e;
 
         // function
         assertEquals(ff.function("pi"), b.function().name("pi").build());
@@ -108,7 +104,7 @@ public class ExpressionBuilderTest {
 
     @Test
     public void testNestedFunction() {
-        FilterFactory ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         ExpressionBuilder b = new ExpressionBuilder();
 
         assertEquals(
@@ -146,9 +142,8 @@ public class ExpressionBuilderTest {
 
     @Test
     public void testAdd() {
-        FilterFactory ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         ExpressionBuilder b = new ExpressionBuilder();
-        Expression e;
 
         assertEquals(
                 ff.add(ff.literal(1), ff.literal(2)),

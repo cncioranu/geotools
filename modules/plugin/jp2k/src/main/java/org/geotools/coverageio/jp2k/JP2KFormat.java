@@ -25,20 +25,19 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.imageio.stream.ImageInputStream;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.GeneralParameterValue;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.imageio.GeoToolsWriteParams;
-import org.geotools.data.DataSourceException;
 import org.geotools.parameter.DefaultParameterDescriptor;
 import org.geotools.parameter.DefaultParameterDescriptorGroup;
 import org.geotools.parameter.ParameterGroup;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.GeneralParameterValue;
 
 /**
  * An implementation of {@link Format} for the JP2K format.
@@ -109,15 +108,7 @@ public final class JP2KFormat extends AbstractGridFormat implements Format {
     public AbstractGridCoverage2DReader getReader(Object source, Hints hints) {
         try {
             return new JP2KReader(source, hints);
-        } catch (MismatchedDimensionException e) {
-            if (LOGGER.isLoggable(Level.WARNING))
-                LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-            return null;
-        } catch (DataSourceException e) {
-            if (LOGGER.isLoggable(Level.WARNING))
-                LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-            return null;
-        } catch (IOException e) {
+        } catch (MismatchedDimensionException | IOException e) {
             if (LOGGER.isLoggable(Level.WARNING))
                 LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
             return null;

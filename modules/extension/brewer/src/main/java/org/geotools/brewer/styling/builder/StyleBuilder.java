@@ -19,8 +19,8 @@ package org.geotools.brewer.styling.builder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Style;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Style;
 import org.geotools.util.SimpleInternationalString;
 
 public class StyleBuilder extends AbstractStyleBuilder<Style> {
@@ -76,13 +76,14 @@ public class StyleBuilder extends AbstractStyleBuilder<Style> {
         return background;
     }
 
+    @Override
     public Style build() {
         if (unset) {
             return null;
         }
 
         Style s;
-        if (fts.size() == 0) {
+        if (fts.isEmpty()) {
             s = sf.createNamedStyle();
             s.setName(name);
         } else {
@@ -104,10 +105,12 @@ public class StyleBuilder extends AbstractStyleBuilder<Style> {
         return s;
     }
 
+    @Override
     public StyleBuilder unset() {
         return (StyleBuilder) super.unset();
     }
 
+    @Override
     public StyleBuilder reset() {
         fts.clear();
         name = null;
@@ -119,6 +122,7 @@ public class StyleBuilder extends AbstractStyleBuilder<Style> {
         return this;
     }
 
+    @Override
     public StyleBuilder reset(Style style) {
         if (style == null) {
             return unset();

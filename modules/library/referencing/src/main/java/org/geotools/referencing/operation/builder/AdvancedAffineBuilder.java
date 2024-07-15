@@ -19,13 +19,13 @@ package org.geotools.referencing.operation.builder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.geometry.MismatchedReferenceSystemException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.referencing.operation.matrix.GeneralMatrix;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.referencing.operation.transform.ProjectiveTransform;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.geometry.MismatchedReferenceSystemException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Builder for affine transformation with possibility to set several constrains for affine
@@ -477,13 +477,13 @@ public class AdvancedAffineBuilder extends MathTransformBuilder {
         /** Runs calculation of parameter values */
         double[] param = getDxMatrix().getElements()[0];
 
-        /** calcuates matrix coefficients form geometric coefficients */
+        /** calculates matrix coefficients from geometric coefficients */
         double a11 = sx * Math.cos(phix);
         double a12 = -sy * Math.sin(phiy);
         double a21 = sx * Math.sin(phix);
         double a22 = sy * Math.cos(phiy);
 
-        /** Fill the metrix */
+        /** Fill the matrix */
         double[] m0 = {a11, a12, param[4]};
         double[] m1 = {a21, a22, param[5]};
         double[] m2 = {0, 0, 1};
@@ -496,7 +496,7 @@ public class AdvancedAffineBuilder extends MathTransformBuilder {
 
     @Override
     protected MathTransform computeMathTransform() throws FactoryException {
-        if (valueConstrain.size() == 0) {
+        if (valueConstrain.isEmpty()) {
             return affineTrans;
         }
 

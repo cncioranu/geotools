@@ -35,14 +35,24 @@ import static java.lang.Math.toRadians;
 
 import java.awt.geom.Point2D;
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.InvalidParameterValueException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
+import org.geotools.api.referencing.operation.Projection;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.measure.Latitude;
 import org.geotools.measure.Longitude;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.metadata.math.XMath;
 import org.geotools.referencing.NamedIdentifier;
@@ -50,16 +60,6 @@ import org.geotools.referencing.operation.MathTransformProvider;
 import org.geotools.referencing.operation.transform.AbstractMathTransform;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.InvalidParameterValueException;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.Projection;
-import org.opengis.referencing.operation.TransformException;
 import si.uom.NonSI;
 import si.uom.SI;
 import tech.units.indriya.AbstractUnit;
@@ -314,28 +314,12 @@ public abstract class MapProjection extends AbstractMathTransform
 
         //  Compute constants for the mlfn
         double t;
-        en0 =
-                C00
-                        - excentricitySquared
-                                * (C02
-                                        + excentricitySquared
-                                                * (C04
-                                                        + excentricitySquared
-                                                                * (C06
-                                                                        + excentricitySquared
-                                                                                * C08)));
-        en1 =
-                excentricitySquared
-                        * (C22
-                                - excentricitySquared
-                                        * (C04
-                                                + excentricitySquared
-                                                        * (C06 + excentricitySquared * C08)));
-        en2 =
-                (t = excentricitySquared * excentricitySquared)
-                        * (C44 - excentricitySquared * (C46 + excentricitySquared * C48));
-        en3 = (t *= excentricitySquared) * (C66 - excentricitySquared * C68);
-        en4 = t * excentricitySquared * C88;
+        final double es = excentricitySquared;
+        en0 = C00 - es * (C02 + es * (C04 + es * (C06 + es * C08)));
+        en1 = es * (C22 - es * (C04 + es * (C06 + es * C08)));
+        en2 = (t = es * es) * (C44 - es * (C46 + es * C48));
+        en3 = (t *= es) * (C66 - es * C68);
+        en4 = t * es * C88;
     }
 
     /**
@@ -403,7 +387,7 @@ public abstract class MapProjection extends AbstractMathTransform
      */
     final void ensureSpherical() throws IllegalArgumentException {
         if (!isSpherical) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ELLIPTICAL_NOT_SUPPORTED));
+            throw new IllegalArgumentException(ErrorKeys.ELLIPTICAL_NOT_SUPPORTED);
         }
     }
 
@@ -421,8 +405,9 @@ public abstract class MapProjection extends AbstractMathTransform
         if (!(abs(abs(y) - expected) < EPSILON)) {
             y = toDegrees(y);
             final String n = name.getName().getCode();
+            final Object arg1 = new Latitude(y);
             throw new InvalidParameterValueException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, n, new Latitude(y)), n, y);
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, n, arg1), n, y);
         }
     }
 
@@ -442,8 +427,9 @@ public abstract class MapProjection extends AbstractMathTransform
             return;
         }
         y = toDegrees(y);
+        final Object arg0 = new Latitude(y);
         throw new InvalidParameterValueException(
-                Errors.format(ErrorKeys.LATITUDE_OUT_OF_RANGE_$1, new Latitude(y)),
+                MessageFormat.format(ErrorKeys.LATITUDE_OUT_OF_RANGE_$1, arg0),
                 name.getName().getCode(),
                 y);
     }
@@ -464,8 +450,9 @@ public abstract class MapProjection extends AbstractMathTransform
             return;
         }
         x = toDegrees(x);
+        final Object arg0 = new Longitude(x);
         throw new InvalidParameterValueException(
-                Errors.format(ErrorKeys.LONGITUDE_OUT_OF_RANGE_$1, new Longitude(x)),
+                MessageFormat.format(ErrorKeys.LONGITUDE_OUT_OF_RANGE_$1, arg0),
                 name.getName().getCode(),
                 x);
     }
@@ -484,11 +471,10 @@ public abstract class MapProjection extends AbstractMathTransform
     private static boolean verifyGeographicRanges(
             final AbstractMathTransform tr, final double x, final double y) {
         // Note: the following tests should not fails for NaN values.
-        final boolean xOut, yOut;
-        xOut =
+        final boolean xOut =
                 (x < (Longitude.MIN_VALUE - ANGLE_TOLERANCE)
                         || x > (Longitude.MAX_VALUE + ANGLE_TOLERANCE));
-        yOut =
+        final boolean yOut =
                 (y < (Latitude.MIN_VALUE - ANGLE_TOLERANCE)
                         || y > (Latitude.MAX_VALUE + ANGLE_TOLERANCE));
         if (!xOut && !yOut) {
@@ -496,14 +482,17 @@ public abstract class MapProjection extends AbstractMathTransform
         }
         final String lineSeparator = System.getProperty("line.separator", "\n");
         final StringBuilder buffer = new StringBuilder();
-        buffer.append(Errors.format(ErrorKeys.OUT_OF_PROJECTION_VALID_AREA_$1, tr.getName()));
+        final Object arg01 = tr.getName();
+        buffer.append(MessageFormat.format(ErrorKeys.OUT_OF_PROJECTION_VALID_AREA_$1, arg01));
         if (xOut) {
             buffer.append(lineSeparator);
-            buffer.append(Errors.format(ErrorKeys.LONGITUDE_OUT_OF_RANGE_$1, new Longitude(x)));
+            final Object arg0 = new Longitude(x);
+            buffer.append(MessageFormat.format(ErrorKeys.LONGITUDE_OUT_OF_RANGE_$1, arg0));
         }
         if (yOut) {
             buffer.append(lineSeparator);
-            buffer.append(Errors.format(ErrorKeys.LATITUDE_OUT_OF_RANGE_$1, new Latitude(y)));
+            final Object arg0 = new Latitude(y);
+            buffer.append(MessageFormat.format(ErrorKeys.LATITUDE_OUT_OF_RANGE_$1, arg0));
         }
         final LogRecord record = new LogRecord(Level.WARNING, buffer.toString());
         final String classe;
@@ -591,11 +580,13 @@ public abstract class MapProjection extends AbstractMathTransform
     }
 
     /** Returns the dimension of input points. */
+    @Override
     public final int getSourceDimensions() {
         return 2;
     }
 
     /** Returns the dimension of output points. */
+    @Override
     public final int getTargetDimensions() {
         return 2;
     }
@@ -701,13 +692,16 @@ public abstract class MapProjection extends AbstractMathTransform
                      * "try ... catch" statements. Failure are normal in their case and we want to let
                      * them handle the exception the way they are used to.
                      */
+                    final Object arg1 = new Longitude(longitude - toDegrees(centralMeridian));
+                    final Object arg2 = new Latitude(latitude - toDegrees(latitudeOfOrigin));
+                    final Object arg3 = getName();
                     throw new ProjectionException(
-                            Errors.format(
+                            MessageFormat.format(
                                     ErrorKeys.PROJECTION_CHECK_FAILED_$4,
                                     distance,
-                                    new Longitude(longitude - toDegrees(centralMeridian)),
-                                    new Latitude(latitude - toDegrees(latitudeOfOrigin)),
-                                    getName()));
+                                    arg1,
+                                    arg2,
+                                    arg3));
                 }
             } catch (ProjectionException exception) {
                 throw exception;
@@ -786,7 +780,7 @@ public abstract class MapProjection extends AbstractMathTransform
                 expected = toDegrees(expected);
             }
             throw new AssertionError(
-                    Errors.format(ErrorKeys.TEST_FAILURE_$3, variable, expected, actual));
+                    MessageFormat.format(ErrorKeys.TEST_FAILURE_$3, variable, expected, actual));
         }
     }
 
@@ -917,6 +911,7 @@ public abstract class MapProjection extends AbstractMathTransform
      *     have value {@link Double#NaN}. If more than one point can't be transformed, then this
      *     exception may be about an arbitrary point.
      */
+    @Override
     public final void transform(
             final double[] srcPts, int srcOff, final double[] dstPts, int dstOff, int numPts)
             throws ProjectionException {
@@ -1083,6 +1078,7 @@ public abstract class MapProjection extends AbstractMathTransform
          *     points will have value {@link Double#NaN}. If more than one point can't be
          *     transformed, then this exception may be about an arbitrary point.
          */
+        @Override
         public final void transform(
                 final double[] src, int srcOffset, final double[] dest, int dstOffset, int numPts)
                 throws TransformException {
@@ -1179,8 +1175,7 @@ public abstract class MapProjection extends AbstractMathTransform
     @Override
     public final MathTransform2D inverse() throws NoninvertibleTransformException {
         if (!invertible) {
-            throw new NoninvertibleTransformException(
-                    Errors.format(ErrorKeys.NONINVERTIBLE_TRANSFORM));
+            throw new NoninvertibleTransformException(ErrorKeys.NONINVERTIBLE_TRANSFORM);
         }
 
         // No synchronization. Not a big deal if this method is invoked in
@@ -1367,12 +1362,12 @@ public abstract class MapProjection extends AbstractMathTransform
      * @throws ProjectionException if the itteration does not converge.
      */
     protected final double inv_mlfn(double arg) throws ProjectionException {
-        double s, t, phi, k = 1.0 / (1.0 - excentricitySquared);
+        double s, t, k = 1.0 / (1.0 - excentricitySquared);
         int i;
-        phi = arg;
+        double phi = arg;
         for (i = MAXIMUM_ITERATIONS; true; ) { // rarely goes over 5 iterations
             if (--i < 0) {
-                throw new ProjectionException(Errors.format(ErrorKeys.NO_CONVERGENCE));
+                throw new ProjectionException(ErrorKeys.NO_CONVERGENCE);
             }
             s = Math.sin(phi);
             t = 1.0 - excentricitySquared * s * s;

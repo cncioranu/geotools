@@ -17,6 +17,7 @@
 package org.geotools.filter.function;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -38,13 +39,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.util.logging.Logging;
 import org.junit.After;
 import org.junit.Test;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
 
 /**
  * @author Andrea Aime
@@ -95,6 +96,7 @@ public class EnvFunctionTest {
                 this.threadIndex = threadIndex;
             }
 
+            @Override
             public void run() {
                 // set the local values for this thread and then wait for
                 // the other thread to do the same before testing
@@ -141,6 +143,7 @@ public class EnvFunctionTest {
                 this.threadIndex = threadIndex;
             }
 
+            @Override
             public void run() {
                 // set the local var then wait for the other thread
                 // to do the same before testing
@@ -189,6 +192,7 @@ public class EnvFunctionTest {
                 this.key = key;
             }
 
+            @Override
             public void run() {
                 // set the global value assigned to this thread then wait for the other
                 // thread to do the same
@@ -228,6 +232,7 @@ public class EnvFunctionTest {
 
         class Task implements Runnable {
 
+            @Override
             public void run() {
                 Object result = ff.function("env", ff.literal(varName)).evaluate(null);
                 assertEquals(varValue, result.toString());
@@ -396,7 +401,7 @@ public class EnvFunctionTest {
     public void testExistingKeyEvalIsNotNil() {
         EnvFunction.setGlobalValue("foo", "whatever");
         boolean isNil = ff.isNil(ff.function("env", ff.literal("foo")), null).evaluate(null);
-        assertTrue(!isNil);
+        assertFalse(isNil);
     }
 
     @Test

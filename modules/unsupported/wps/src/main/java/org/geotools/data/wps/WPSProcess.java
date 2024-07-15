@@ -30,12 +30,12 @@ import net.opengis.wps10.InputDescriptionType;
 import net.opengis.wps10.ProcessDescriptionType;
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.ecore.EObject;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.data.wps.request.ExecuteProcessRequest;
 import org.geotools.data.wps.response.ExecuteProcessResponse;
 import org.geotools.ows.ServiceException;
 import org.geotools.process.ProcessFactory;
 import org.geotools.process.impl.AbstractProcess;
-import org.opengis.util.ProgressListener;
 
 /**
  * This is a representation of a process built from the WPSFactory class. It is not a real process,
@@ -61,7 +61,7 @@ public class WPSProcess extends AbstractProcess {
      * @param monitor currently this is not used for this process reprensentation but it could be
      *     implemented in some form in the future.
      */
-    @SuppressWarnings("unchecked")
+    @Override
     public Map<String, Object> execute(Map<String, Object> input, ProgressListener monitor) {
 
         // Get the describeprocess object so we can use it to build up a request and
@@ -72,9 +72,7 @@ public class WPSProcess extends AbstractProcess {
         WebProcessingService wps;
         try {
             wps = new WebProcessingService(url);
-        } catch (ServiceException e) {
-            return null;
-        } catch (IOException e) {
+        } catch (ServiceException | IOException e) {
             return null;
         }
 
@@ -93,7 +91,7 @@ public class WPSProcess extends AbstractProcess {
             if (inputValue != null) {
                 // if our value is some sort of collection, then created multiple
                 // dataTypes for this inputdescriptiontype.
-                List<EObject> list = new ArrayList<EObject>();
+                List<EObject> list = new ArrayList<>();
                 if (inputValue instanceof Map) {
                     for (Object inVal : ((Map) inputValue).values()) {
                         DataType createdInput = WPSUtils.createInputDataType(inVal, idt);
@@ -118,9 +116,7 @@ public class WPSProcess extends AbstractProcess {
         ExecuteProcessResponse response;
         try {
             response = wps.issueRequest(exeRequest);
-        } catch (ServiceException e) {
-            return null;
-        } catch (IOException e) {
+        } catch (ServiceException | IOException e) {
             return null;
         }
 
@@ -134,7 +130,7 @@ public class WPSProcess extends AbstractProcess {
         ExecuteResponseType executeResponse = response.getExecuteResponse();
 
         // create the result map of outputs
-        Map<String, Object> results = new TreeMap<String, Object>();
+        Map<String, Object> results = new TreeMap<>();
         results = WPSUtils.createResultMap(executeResponse, results);
 
         return results;

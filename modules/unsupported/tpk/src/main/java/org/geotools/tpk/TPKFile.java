@@ -32,8 +32,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import org.geotools.api.geometry.Bounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.geometry.Envelope;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -79,7 +79,7 @@ public class TPKFile {
     private String imageFormat;
 
     // holds the Geographical bounds of the map coverage
-    private Envelope bounds;
+    private Bounds bounds;
 
     // maps conf.xml//CacheInfo/TileCacheInfo/LODInfos/LODInfo/LevelID values to actual Web Map
     // Tile Service zoom levels (only used in initial open of TPK)
@@ -114,9 +114,7 @@ public class TPKFile {
 
         // find the "conf.xml" file
         String xmlConf =
-                zipEntryMap
-                        .keySet()
-                        .stream()
+                zipEntryMap.keySet().stream()
                         .filter(s -> s.endsWith(CONFIGURATION_FILE))
                         .findFirst()
                         .orElse(null);
@@ -138,10 +136,7 @@ public class TPKFile {
      * @param imageFormat -- the image format being used
      */
     public TPKFile(
-            File theFile,
-            Map<Long, TPKZoomLevel> zoomLevelMap,
-            Envelope bounds,
-            String imageFormat) {
+            File theFile, Map<Long, TPKZoomLevel> zoomLevelMap, Bounds bounds, String imageFormat) {
         openTPK(theFile);
         this.imageFormat = imageFormat;
         this.bounds = bounds;
@@ -186,14 +181,13 @@ public class TPKFile {
      *
      * @return -- the geographical coverage of the map
      */
-    public Envelope getBounds() {
+    public Bounds getBounds() {
         if (bounds == null) {
-            if (zoomLevelMap != null && zoomLevelMap.size() > 0) {
-                // calculate the coverage bounds from the highest zoom level tile set
-                calculateBoundsFromTileset(zoomLevelMap.get(getMaxZoomLevel()));
-            } else {
+            if (zoomLevelMap == null || zoomLevelMap.isEmpty()) {
                 throw new RuntimeException("Can't get bounds, zoomLevelMap not initialized");
             }
+            // calculate the coverage bounds from the highest zoom level tile set
+            calculateBoundsFromTileset(zoomLevelMap.get(getMaxZoomLevel()));
         }
         return bounds;
     }
@@ -427,14 +421,11 @@ public class TPKFile {
             // "LevelID" folder
             String levelFolder = String.format(LEVEL_FOLDER, levelId);
 
-            List<String> bundles;
             List<String> indexes = null;
 
             // find names of all bundles for level
-            bundles =
-                    zipEntryMap
-                            .keySet()
-                            .stream()
+            List<String> bundles =
+                    zipEntryMap.keySet().stream()
                             .filter(s -> s.contains(levelFolder))
                             .filter(s -> s.endsWith(BUNDLE_DATA_EXTENSION))
                             .collect(Collectors.toList());
@@ -442,9 +433,7 @@ public class TPKFile {
             // find names of all bundle indexes for level
             if (cacheType == CacheType.V1) { // V2 caches don't have independent indexes
                 indexes =
-                        zipEntryMap
-                                .keySet()
-                                .stream()
+                        zipEntryMap.keySet().stream()
                                 .filter(s -> s.contains(levelFolder))
                                 .filter(s -> s.endsWith(BUNDLE_INDEX_EXTENSION))
                                 .collect(Collectors.toList());

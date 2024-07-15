@@ -20,14 +20,14 @@ package org.geotools.filter.text.ecql;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.filter.text.cql2.CQLException;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opengis.filter.Filter;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
 
 /**
  * Test for IN Predicate
@@ -52,7 +52,7 @@ public class ECQLINPredicateTest {
         String propName = "length";
         final String txtPredicate = makeInPredicate(propName, intList);
 
-        Filter filter = ECQL.toFilter(txtPredicate);
+        Filter filter = parseFilter(txtPredicate);
 
         commonAssertForInPredicate(filter);
 
@@ -73,7 +73,7 @@ public class ECQLINPredicateTest {
         String propName = "length";
         final String txtPredicate = makeInPredicate(propName, intList);
 
-        Filter filter = ECQL.toFilter(txtPredicate);
+        Filter filter = parseFilter(txtPredicate);
 
         commonAssertForInPredicate(filter);
 
@@ -94,7 +94,7 @@ public class ECQLINPredicateTest {
         String propName = "name";
         final String txtPredicate = makeInPredicateUsingString(propName, stringList);
 
-        Filter filter = ECQL.toFilter(txtPredicate);
+        Filter filter = parseFilter(txtPredicate);
 
         commonAssertForInPredicate(filter);
 
@@ -112,11 +112,15 @@ public class ECQLINPredicateTest {
         String propName = "length";
         final String txtPredicate = makeInPredicate(propName, mathExptList);
 
-        Filter filter = ECQL.toFilter(txtPredicate);
+        Filter filter = parseFilter(txtPredicate);
 
         commonAssertForInPredicate(filter);
 
         assertFilterHasProperty((Or) filter, propName);
+    }
+
+    protected Filter parseFilter(String txtPredicate) throws CQLException {
+        return ECQL.toFilter(txtPredicate);
     }
 
     /** sample: huc_8 IN (abs(-1),area(the_geom) ) */
@@ -129,7 +133,7 @@ public class ECQLINPredicateTest {
         String propName = "length";
         final String txtPredicate = makeInPredicate(propName, intList);
 
-        Filter filter = ECQL.toFilter(txtPredicate);
+        Filter filter = parseFilter(txtPredicate);
 
         commonAssertForInPredicate(filter);
 
@@ -142,21 +146,21 @@ public class ECQLINPredicateTest {
      * @param propName property name
      * @param exprList list of integer values
      */
-    private void commonAssertForInPredicate(Filter filter) throws CQLException {
+    protected void commonAssertForInPredicate(Filter filter) throws CQLException {
 
         Assert.assertNotNull(filter);
         Assert.assertTrue(filter instanceof Or);
 
         Or filterId = (Or) filter;
         List<Filter> filterList = filterId.getChildren();
-        Assert.assertTrue(
-                "one or more expressions in Or filter was expected", filterList.size() >= 1);
+        Assert.assertFalse(
+                "one or more expressions in Or filter was expected", filterList.isEmpty());
     }
     /**
      * This is successful if each PropertyIsEqual filter has on the left hand the same property
      * name.
      */
-    private void assertFilterHasProperty(final Or filter, final String expectedName) {
+    protected void assertFilterHasProperty(final Or filter, final String expectedName) {
 
         List<Filter> filterlist = filter.getChildren();
 
@@ -177,7 +181,7 @@ public class ECQLINPredicateTest {
      *
      * @return an In Predicate
      */
-    private String makeInPredicate(final String propName, final List<String> exprList) {
+    protected String makeInPredicate(final String propName, final List<String> exprList) {
 
         StringBuffer txtExprList = new StringBuffer();
         Iterator<String> iterator = exprList.iterator();

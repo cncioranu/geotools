@@ -16,11 +16,26 @@
  */
 package org.geotools.referencing;
 
-import java.util.Iterator;
+import static org.junit.Assert.assertArrayEquals;
+
 import java.util.Locale;
 import java.util.Set;
-import org.geotools.geometry.DirectPosition2D;
-import org.geotools.geometry.Envelope2D;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.CoordinateOperationFactory;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.geometry.GeneralBounds;
+import org.geotools.geometry.Position2D;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.CRS.AxisOrder;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -31,20 +46,7 @@ import org.geotools.referencing.operation.projection.TransverseMercator;
 import org.geotools.test.OnlineTestCase;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
-import org.opengis.geometry.Envelope;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.CoordinateOperationFactory;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
+import org.junit.Test;
 
 /**
  * Tests if the CRS utility class is functioning correctly when using HSQL datastore.
@@ -58,6 +60,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     /** {@code true} for tracing operations on the standard output. */
     private static boolean verbose = false;
 
+    @Override
     protected void tearDownInternal() throws Exception {
         System.clearProperty("org.geotools.referencing.forceXY");
         Hints.removeSystemDefault(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER);
@@ -65,6 +68,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Tests the (latitude, longitude) axis order for EPSG:4326. */
+    @Test
     public void testCorrectAxisOrder() throws NoSuchAuthorityCodeException, FactoryException {
         final CoordinateReferenceSystem crs = CRS.decode("EPSG:4326");
         final CoordinateSystem cs = crs.getCoordinateSystem();
@@ -78,6 +82,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Tests the (longitude, latitude) axis order for EPSG:4326. */
+    @Test
     public void testForcedAxisOrder() throws NoSuchAuthorityCodeException, FactoryException {
         final CoordinateReferenceSystem crs = CRS.decode("EPSG:4326", true);
         final CoordinateSystem cs = crs.getCoordinateSystem();
@@ -113,6 +118,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
      * @todo Partially uncomment since we are allowed to compile for J2SE 1.5, but doesn't work as
      *     it did prior some changes in the referencing module. Need to investigate why.
      */
+    @Test
     public void testSystemPropertyToForceXY()
             throws NoSuchAuthorityCodeException, FactoryException {
         assertNull(System.getProperty(GeoTools.FORCE_LONGITUDE_FIRST_AXIS_ORDER));
@@ -131,6 +137,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Tests {@link CRS#lookupIdentifier}. */
+    @Test
     public void testFind() throws FactoryException {
         CoordinateReferenceSystem crs = getED50("ED50");
         assertEquals(
@@ -148,7 +155,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
             assertEquals(Integer.valueOf(4230), CRS.lookupEpsgCode(crs, false));
         } else {
             assertNull("Should not find the CRS without a scan.", CRS.lookupIdentifier(crs, false));
-            assertEquals(null, CRS.lookupEpsgCode(crs, false));
+            assertNull(CRS.lookupEpsgCode(crs, false));
         }
 
         assertEquals(
@@ -176,6 +183,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Tests the {@link CRS#parseWKT} method. */
+    @Test
     public void testWKT() throws FactoryException {
         String wkt =
                 "GEOGCS[\"WGS 84\",\n"
@@ -191,6 +199,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Makes sure that the transform between two EPSG:4326 is the identity transform. */
+    @Test
     public void testFindMathTransformIdentity() throws FactoryException {
         CoordinateReferenceSystem crs1default = CRS.decode("EPSG:4326");
         CoordinateReferenceSystem crs2default = CRS.decode("EPSG:4326");
@@ -204,13 +213,12 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Makes sure that the authority factory has the proper name. */
+    @Test
     public void testAuthority() {
-        CRSAuthorityFactory factory;
-        Citation authority;
 
         // Tests the official factory.
-        factory = ReferencingFactoryFinder.getCRSAuthorityFactory("EPSG", null);
-        authority = factory.getAuthority();
+        CRSAuthorityFactory factory = ReferencingFactoryFinder.getCRSAuthorityFactory("EPSG", null);
+        Citation authority = factory.getAuthority();
         assertNotNull(authority);
         assertEquals("European Petroleum Survey Group", authority.getTitle().toString(Locale.US));
         assertTrue(Citations.identifierMatches(authority, "EPSG"));
@@ -223,18 +231,18 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Tests the vendor name. */
+    @Test
     public void testVendor() {
-        CRSAuthorityFactory factory;
-        Citation vendor;
 
-        factory = new OrderedAxisAuthorityFactory("EPSG", null, null);
-        vendor = factory.getVendor();
+        CRSAuthorityFactory factory = new OrderedAxisAuthorityFactory("EPSG", null, null);
+        Citation vendor = factory.getVendor();
         assertNotNull(vendor);
         assertEquals("Geotools", vendor.getTitle().toString(Locale.US));
         assertFalse(Citations.identifierMatches(vendor, "EPSG"));
     }
 
     /** Tests the amount of codes available. */
+    @Test
     public void testCodes() throws FactoryException {
         final CRSAuthorityFactory factory = new OrderedAxisAuthorityFactory("EPSG", null, null);
         final Set codes = factory.getAuthorityCodes(CoordinateReferenceSystem.class);
@@ -243,6 +251,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** A random CRS for fun. */
+    @Test
     public void test26910() throws FactoryException {
         final CRSAuthorityFactory factory = new OrderedAxisAuthorityFactory("EPSG", null, null);
         final CoordinateReferenceSystem crs = factory.createCoordinateReferenceSystem("EPSG:26910");
@@ -251,6 +260,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** UDIG requires this to work. */
+    @Test
     public void test4326() throws FactoryException {
         final CRSAuthorityFactory factory = new OrderedAxisAuthorityFactory("EPSG", null, null);
         final CoordinateReferenceSystem crs = factory.createCoordinateReferenceSystem("EPSG:4326");
@@ -259,6 +269,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** UDIG requires this to work. */
+    @Test
     public void test4269() throws FactoryException {
         final CRSAuthorityFactory factory = new OrderedAxisAuthorityFactory("EPSG", null, null);
         final CoordinateReferenceSystem crs = factory.createCoordinateReferenceSystem("EPSG:4269");
@@ -267,36 +278,42 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** A random CRS for fun. */
+    @Test
     public void test26910Lower() throws FactoryException {
         CoordinateReferenceSystem crs = CRS.decode("epsg:26910");
         assertNotNull(crs);
     }
 
     /** A random CRS for fun. */
+    @Test
     public void test26986Lower() throws FactoryException {
         CoordinateReferenceSystem crs = CRS.decode("epsg:26986");
         assertNotNull(crs);
     }
 
     /** WFS requires this to work. */
+    @Test
     public void test4326Lower() throws FactoryException {
         CoordinateReferenceSystem crs = CRS.decode("epsg:4326");
         assertNotNull(crs);
     }
 
     /** WFS requires this to work. */
+    @Test
     public void test26742Lower() throws FactoryException {
         CoordinateReferenceSystem crs = CRS.decode("epsg:26742");
         assertNotNull(crs);
     }
 
     /** WFS requires this to work. */
+    @Test
     public void test4269Lower() throws FactoryException {
         CoordinateReferenceSystem crs = CRS.decode("epsg:4269");
         assertNotNull(crs);
     }
 
     /** Check that a code with a axis direction with a reference to W works */
+    @Test
     public void testWestDirection() throws FactoryException {
         // see GEOT-2901
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3573");
@@ -304,12 +321,13 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Check we support Plate Carré projection */
+    @Test
     public void testPlateCarre() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:32662");
         assertNotNull(crs);
 
         MathTransform mt = CRS.findMathTransform(DefaultGeographicCRS.WGS84, crs);
-        double[] source = new double[] {-20, 35};
+        double[] source = {-20, 35};
         double[] dest = new double[2];
         mt.transform(source, 0, dest, 0, 1);
 
@@ -319,6 +337,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Tests {@link CRS#getHorizontalCRS} from a compound CRS. */
+    @Test
     public void testHorizontalFromCompound() throws FactoryException {
         // retrives "NTF (Paris) / France II + NGF Lallemand"
         CoordinateReferenceSystem compound = CRS.decode("EPSG:7401");
@@ -328,6 +347,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Tests {@link CRS#getHorizontalCRS} from a Geographic 3D CR. */
+    @Test
     public void testHorizontalFromGeodetic() throws FactoryException {
         // retrives "WGS 84 (geographic 3D)"
         CoordinateReferenceSystem compound = CRS.decode("EPSG:4327");
@@ -344,21 +364,19 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
      * Tests the number of CRS that can be created. This test will be executed only if this test
      * suite is run with the {@code -verbose} option provided on the command line.
      */
+    @Test
     public void testSuccess() throws FactoryException {
         if (!verbose) {
             return;
         }
         final CRSAuthorityFactory factory = new OrderedAxisAuthorityFactory("EPSG", null, null);
         Set codes = factory.getAuthorityCodes(CoordinateReferenceSystem.class);
-        int total = codes.size();
-        int count = 0;
-        for (Iterator i = codes.iterator(); i.hasNext(); ) {
+        for (Object o : codes) {
             CoordinateReferenceSystem crs;
-            String code = (String) i.next();
+            String code = (String) o;
             try {
                 crs = factory.createCoordinateReferenceSystem(code);
                 assertNotNull(crs);
-                count++;
             } catch (FactoryException e) {
                 // System.err.println("WARNING (CRS: " + code + " ):" + e.getMessage());
             }
@@ -367,6 +385,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         // "%)");
     }
 
+    @Test
     public void testSRSAxisOrder() throws Exception {
         try {
             CoordinateReferenceSystem crs = CRS.decode("EPSG:4326");
@@ -379,6 +398,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         }
     }
 
+    @Test
     public void testSRSAxisOrder2() throws Exception {
         try {
             Hints.putSystemDefault(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.TRUE);
@@ -392,6 +412,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
     }
 
     /** Tests similarity transform on the example provided in the EPSG projection guide, page 140 */
+    @Test
     public void testSimilarityTransform() throws Exception {
         // ED50 / UTM zone 31N
         CoordinateReferenceSystem tombak = CRS.decode("EPSG:23031", true);
@@ -399,7 +420,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         CoordinateReferenceSystem ng39 = CRS.decode("EPSG:25831", true);
 
         // forward
-        double[] src = new double[] {300000, 4500000};
+        double[] src = {300000, 4500000};
         double[] dst = new double[2];
         MathTransform mt = CRS.findMathTransform(tombak, ng39);
         mt.transform(src, 0, dst, 0, 1);
@@ -413,6 +434,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         assertEquals(4500000, src[1], 0.001);
     }
 
+    @Test
     public void testOperationSourceTarget() throws Exception {
         // flip one way
         CoordinateReferenceSystem source = CRS.decode("EPSG:32638", true); // lon/lat
@@ -431,6 +453,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         assertEquals(target, co.getTargetCRS());
     }
 
+    @Test
     public void testNadCon() throws Exception {
         CoordinateReferenceSystem crs4138 = CRS.decode("EPSG:4138");
         CoordinateReferenceSystem crs4326 = CRS.decode("EPSG:4326");
@@ -438,8 +461,8 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
 
         assertTrue(mt.toWKT().contains("NADCON"));
 
-        double[] src = new double[] {56.575, -169.625};
-        double[] expected = new double[] {56.576034, -169.62744};
+        double[] src = {56.575, -169.625};
+        double[] expected = {56.576034, -169.62744};
         double[] p = new double[2];
         mt.transform(src, 0, p, 0, 1);
         assertEquals(expected[0], p[0], 1e-6);
@@ -451,6 +474,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
      * identifiers to the spatial reference system name used by OGC web services. There are a number
      * of options here depending on the specification used.
      */
+    @Test
     public void testSRS() throws Exception {
         try {
             CRS.reset("all");
@@ -490,18 +514,15 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         } finally {
             Hints.removeSystemDefault(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER);
         }
-        try {
-            CRS.reset("all");
-            assertEquals(AxisOrder.NORTH_EAST, CRS.getAxisOrder(CRS.decode("EPSG:4326", false)));
-            assertEquals(AxisOrder.EAST_NORTH, CRS.getAxisOrder(CRS.decode("EPSG:4326", true)));
-            assertEquals(
-                    AxisOrder.NORTH_EAST,
-                    CRS.getAxisOrder(CRS.decode("urn:x-ogc:def:crs:EPSG::4326", false)));
-            assertEquals(
-                    AxisOrder.NORTH_EAST,
-                    CRS.getAxisOrder(CRS.decode("urn:x-ogc:def:crs:EPSG::4326", true)));
-        } finally {
-        }
+        CRS.reset("all");
+        assertEquals(AxisOrder.NORTH_EAST, CRS.getAxisOrder(CRS.decode("EPSG:4326", false)));
+        assertEquals(AxisOrder.EAST_NORTH, CRS.getAxisOrder(CRS.decode("EPSG:4326", true)));
+        assertEquals(
+                AxisOrder.NORTH_EAST,
+                CRS.getAxisOrder(CRS.decode("urn:x-ogc:def:crs:EPSG::4326", false)));
+        assertEquals(
+                AxisOrder.NORTH_EAST,
+                CRS.getAxisOrder(CRS.decode("urn:x-ogc:def:crs:EPSG::4326", true)));
         try {
             CRS.reset("all");
             System.setProperty("org.geotools.referencing.forceXY", "true");
@@ -518,6 +539,7 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         }
     }
 
+    @Test
     public void testCRS_CH1903_LV03()
             throws NoSuchAuthorityCodeException, FactoryException, MismatchedDimensionException,
                     TransformException {
@@ -528,15 +550,15 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         // test coordinate: Berne, old reference point
         // see
         // http://www.swisstopo.admin.ch/internet/swisstopo/en/home/topics/survey/sys/refsys/switzerland.html
-        DirectPosition2D source =
-                new DirectPosition2D(sourceCRS, 46.9510827861504654, 7.4386324175389165);
-        DirectPosition2D result = new DirectPosition2D();
+        Position2D source = new Position2D(sourceCRS, 46.9510827861504654, 7.4386324175389165);
+        Position2D result = new Position2D();
 
         transform.transform(source, result);
         assertEquals(600000.0, result.x, 0.1);
         assertEquals(200000.0, result.y, 0.1);
     }
 
+    @Test
     public void testGetMapProjection() throws Exception {
         CoordinateReferenceSystem utm32OnLonLat = CRS.decode("EPSG:23032", true);
         assertTrue(CRS.getMapProjection(utm32OnLonLat) instanceof TransverseMercator);
@@ -546,12 +568,13 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         assertTrue(CRS.getMapProjection(nad27Tennessee) instanceof LambertConformal1SP);
     }
 
+    @Test
     public void testTransformWgs84PolarStereographic() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3031", true);
-        Envelope2D envelope = new Envelope2D(DefaultGeographicCRS.WGS84);
+        GeneralBounds envelope = new GeneralBounds(DefaultGeographicCRS.WGS84);
         envelope.add(-180, -90);
         envelope.add(180, 0);
-        Envelope transformed = CRS.transform(envelope, crs);
+        Bounds transformed = CRS.transform(envelope, crs);
         // the result is a square
         assertEquals(transformed.getMaximum(0), transformed.getMaximum(1), 1d);
         assertEquals(transformed.getMinimum(0), transformed.getMinimum(1), 1d);
@@ -560,73 +583,79 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         assertEquals(transformed.getMaximum(0), 1.236739621845986E7, 1d);
     }
 
+    @Test
     public void testTransformPolarStereographicWgs84() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3031", true);
-        Envelope2D envelope = new Envelope2D(crs);
+        GeneralBounds envelope = new GeneralBounds(crs);
         // random bbox that does include the pole
         envelope.add(-4223632.8125, -559082.03125);
         envelope.add(5053710.9375, 3347167.96875);
-        Envelope transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
+        Bounds transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
         // check we got the whole range of longitudes, since the original bbox contains the pole
         assertEquals(-180d, transformed.getMinimum(0), 0d);
         assertEquals(180d, transformed.getMaximum(0), 0d);
         // another bbox
-        envelope = new Envelope2D(crs);
+        envelope = new GeneralBounds(crs);
         // random bbox that does not include the pole, but it's really just slightly off it
         envelope.add(-10718812.640513, -10006238.053703);
-        envelope.add(12228504.561708, -344209.75803081);
+        envelope.add(12228504.561708, 344209.75803081);
         transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
         assertEquals(-90, transformed.getMinimum(1), 0.1d);
     }
 
+    @Test
     public void testTransformLambertAzimuthalEqualAreaWgs84() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3574", true);
-        Envelope2D envelope = new Envelope2D(crs);
+        GeneralBounds envelope = new GeneralBounds(crs);
         // random bbox that does include the pole
         envelope.add(-3142000, -3142000);
         envelope.add(3142000, 3142000);
-        Envelope transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
+        Bounds transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
         // check we got the whole range of longitudes, since the original bbox contains the pole
         assertEquals(-180d, transformed.getMinimum(0), 0d);
         assertEquals(180d, transformed.getMaximum(0), 0d);
     }
 
+    @Test
     public void testTransformLambertAzimuthalEqualAreaWgs84NonPolar() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3035", true);
         // a bbox that does _not_ include the pole
-        Envelope2D envelope = new Envelope2D(crs);
-        envelope.setFrameFromDiagonal(4029000, 2676000, 4696500, 3567700);
-        Envelope transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
+        GeneralBounds envelope = new GeneralBounds(crs);
+        envelope.setEnvelope(4029000, 2676000, 4696500, 3567700);
+        Bounds transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
         // check we did _not_ get the whole range of longitudes
         assertEquals(5.42, transformed.getMinimum(0), 1e-2);
         assertEquals(15.88, transformed.getMaximum(0), 1e-2);
     }
 
+    @Test
     public void testTransformPolarStereographicWgs84FalseOrigin() throws Exception {
         // this one has false origins at 6000000/6000000
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3032", true);
-        Envelope2D envelope = new Envelope2D(crs);
+        GeneralBounds envelope = new GeneralBounds(crs);
         envelope.add(5900000, 5900000);
         envelope.add(6100000, 6100000);
-        Envelope transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
+        Bounds transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
         // check we got the whole range of longitudes, since the original bbox contains the pole
         assertEquals(-180d, transformed.getMinimum(0), 0d);
         assertEquals(180d, transformed.getMaximum(0), 0d);
     }
 
+    @Test
     public void testTransformPolarStereographicToOther() throws Exception {
         CoordinateReferenceSystem antarcticPs = CRS.decode("EPSG:3031", true);
         CoordinateReferenceSystem australianPs = CRS.decode("EPSG:3032", true);
-        Envelope2D envelope = new Envelope2D(antarcticPs);
+        GeneralBounds envelope = new GeneralBounds(antarcticPs);
         envelope.add(-4223632.8125, -559082.03125);
         envelope.add(5053710.9375, 3347167.96875);
-        Envelope transformed = CRS.transform(envelope, australianPs);
+        Bounds transformed = CRS.transform(envelope, australianPs);
         // has a false easting and northing, we can only check the spans are equal
         assertEquals(transformed.getSpan(0), transformed.getSpan(1), 1d);
 
         assertEquals(transformed.getMaximum(0), 1.2309982175378662E7, 1d);
     }
 
+    @Test
     public void testTransformWorldVanDerGrintenI() throws Exception {
         try {
             MapProjection.SKIP_SANITY_CHECKS = true;
@@ -652,17 +681,17 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
 
             CoordinateReferenceSystem worldVanDerGrinten = CRS.parseWKT(wkt);
 
-            Envelope2D envelope = new Envelope2D(worldVanDerGrinten);
+            GeneralBounds envelope = new GeneralBounds(worldVanDerGrinten);
             envelope.add(-39842778.796051726, -42306552.87521737);
             envelope.add(40061162.89695589, 37753756.60975308);
 
-            Envelope transformed = CRS.transform(envelope, DefaultGeographicCRS.WGS84);
-            // System.out.println(transformed);
+            CRS.transform(envelope, DefaultGeographicCRS.WGS84);
         } finally {
             MapProjection.SKIP_SANITY_CHECKS = false;
         }
     }
 
+    @Test
     public void testTransformSouthEmisphereToStereographic() throws Exception {
         String wkt =
                 "PROJCS[\"NSIDC Sea Ice Polar Stereographic South\",\n"
@@ -689,11 +718,11 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
                         + "    AUTHORITY[\"EPSG\",\"3412\"]]";
         CoordinateReferenceSystem polar = CRS.parseWKT(wkt);
 
-        Envelope2D envelope = new Envelope2D(DefaultGeographicCRS.WGS84);
+        GeneralBounds envelope = new GeneralBounds(DefaultGeographicCRS.WGS84);
         envelope.add(-180, -90);
         envelope.add(180, 0);
 
-        Envelope transformed = CRS.transform(envelope, polar);
+        Bounds transformed = CRS.transform(envelope, polar);
         assertEquals(-1.271387435620243E7, transformed.getMinimum(0), 1e3);
         assertEquals(-1.271387435620243E7, transformed.getMinimum(1), 1e3);
         assertEquals(1.271387435620243E7, transformed.getMaximum(0), 1e3);
@@ -711,76 +740,128 @@ public abstract class AbstractCRSTest extends OnlineTestCase {
         }
     }
 
+    @Test
     public void testNorthPolarStereographicLeftQuadrant() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3995", true);
-        Envelope2D envelope = new Envelope2D(DefaultGeographicCRS.WGS84);
+        GeneralBounds envelope = new GeneralBounds(DefaultGeographicCRS.WGS84);
         envelope.add(-156, 0);
         envelope.add(-40, 48);
-        Envelope transformed = CRS.transform(envelope, crs);
+        Bounds transformed = CRS.transform(envelope, crs);
 
         // transformation of -90, 0, which is included in the range, and
         // a extreme point in the reprojected space (quadrant point)
         assertEquals(-12367396.22, transformed.getMinimum(0), 1d);
     }
 
+    @Test
     public void testNorthPolarStereographicRightQuadrant() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3995", true);
-        Envelope2D envelope = new Envelope2D(DefaultGeographicCRS.WGS84);
+        GeneralBounds envelope = new GeneralBounds(DefaultGeographicCRS.WGS84);
         envelope.add(40, 0);
         envelope.add(156, 48);
-        Envelope transformed = CRS.transform(envelope, crs);
+        Bounds transformed = CRS.transform(envelope, crs);
 
         // transformation of 90, 0, which is included in the range, and
         // a extreme point in the reprojected space (quadrant point)
         assertEquals(12367396.22, transformed.getMaximum(0), 1d);
     }
 
+    @Test
     public void testNorthPolarStereographicLeftRightQuadrant() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3995", true);
-        Envelope2D envelope = new Envelope2D(DefaultGeographicCRS.WGS84);
+        GeneralBounds envelope = new GeneralBounds(DefaultGeographicCRS.WGS84);
         envelope.add(-156, 0);
         envelope.add(156, 48);
-        Envelope transformed = CRS.transform(envelope, crs);
+        Bounds transformed = CRS.transform(envelope, crs);
 
         // Touches both ends
         assertEquals(-12367396.22, transformed.getMinimum(0), 1d);
         assertEquals(12367396.22, transformed.getMaximum(0), 1d);
     }
 
+    @Test
     public void testNorthPolarStereographicUpQuadrant() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3995", true);
-        Envelope2D envelope = new Envelope2D(DefaultGeographicCRS.WGS84);
+        GeneralBounds envelope = new GeneralBounds(DefaultGeographicCRS.WGS84);
         envelope.add(-200, 0);
         envelope.add(-160, 48);
-        Envelope transformed = CRS.transform(envelope, crs);
+        Bounds transformed = CRS.transform(envelope, crs);
 
         // transformation of -180, 0, which is included in the range, and
         // a extreme point in the reprojected space (quadrant point)
         assertEquals(12367396.22, transformed.getMaximum(1), 1d);
     }
 
+    @Test
     public void testNorthPolarStereographicDownQuadrant() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3995", true);
-        Envelope2D envelope = new Envelope2D(DefaultGeographicCRS.WGS84);
+        GeneralBounds envelope = new GeneralBounds(DefaultGeographicCRS.WGS84);
         envelope.add(-20, 0);
         envelope.add(20, 48);
-        Envelope transformed = CRS.transform(envelope, crs);
+        Bounds transformed = CRS.transform(envelope, crs);
 
         // transformation of 0, 0, which is included in the range, and
         // a extreme point in the reprojected space (quadrant point)
         assertEquals(-12367396.22, transformed.getMinimum(1), 1d);
     }
 
+    @Test
     public void testNorthPolarStereographicUpDownQuadrant() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:3995", true);
-        Envelope2D envelope = new Envelope2D(DefaultGeographicCRS.WGS84);
+        GeneralBounds envelope = new GeneralBounds(DefaultGeographicCRS.WGS84);
         envelope.add(-200, 0);
         envelope.add(20, 48);
-        Envelope transformed = CRS.transform(envelope, crs);
+        Bounds transformed = CRS.transform(envelope, crs);
 
         // transformation of 0, 0, which is included in the range, and
         // a extreme point in the reprojected space (quadrant point)
         assertEquals(-12367396.22, transformed.getMinimum(1), 1d);
         assertEquals(12367396.22, transformed.getMaximum(1), 1d);
+    }
+
+    @Test
+    public void testKrovak() throws Exception {
+        // lat/lon orientated
+        CoordinateReferenceSystem jtsk = CRS.decode("EPSG:4156", false);
+        CoordinateReferenceSystem krovak = CRS.decode("EPSG:5513", false);
+
+        MathTransform mt = CRS.findMathTransform(jtsk, krovak);
+
+        // values verified with cs2cs
+        double[] dest = new double[2];
+        mt.transform(new double[] {47.7, 12.1}, 0, dest, 0, 1);
+        assertArrayEquals(new double[] {1279735.79, 951371.74}, dest, 1e-2);
+        mt.transform(new double[] {51.1, 12.1}, 0, dest, 0, 1);
+        assertArrayEquals(new double[] {906868.41, 888239.70}, dest, 1e-2);
+        mt.transform(new double[] {47.7, 22.6}, 0, dest, 0, 1);
+        assertArrayEquals(new double[] {1356744.52, 167574.75}, dest, 1e-2);
+        mt.transform(new double[] {51.1, 22.6}, 0, dest, 0, 1);
+        assertArrayEquals(new double[] {978716.79, 156588.71}, dest, 1e-2);
+    }
+
+    @Test
+    public void testKrovakNorth() throws Exception {
+        // lat/lon orientated
+        CoordinateReferenceSystem jtsk = CRS.decode("EPSG:4156", false);
+        CoordinateReferenceSystem krovakNorth = CRS.decode("EPSG:5514", false);
+
+        MathTransform mt = CRS.findMathTransform(jtsk, krovakNorth);
+
+        // values verified with cs2cs
+        double[] dest = new double[2];
+        mt.transform(new double[] {47.7, 12.1}, 0, dest, 0, 1);
+        assertArrayEquals(new double[] {-951371.74, -1279735.79}, dest, 1e-2);
+        mt.transform(new double[] {51.1, 12.1}, 0, dest, 0, 1);
+        assertArrayEquals(new double[] {-888239.70, -906868.41}, dest, 1e-2);
+        mt.transform(new double[] {47.7, 22.6}, 0, dest, 0, 1);
+        assertArrayEquals(new double[] {-167574.75, -1356744.52}, dest, 1e-2);
+        mt.transform(new double[] {51.1, 22.6}, 0, dest, 0, 1);
+        assertArrayEquals(new double[] {-156588.71, -978716.79}, dest, 1e-2);
+    }
+
+    @Test
+    public void testKrovakFerro() throws Exception {
+        // used to fail decoding
+        CRS.decode("EPSG:2065", true);
     }
 }

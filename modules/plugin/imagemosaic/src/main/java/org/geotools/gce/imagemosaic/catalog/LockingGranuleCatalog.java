@@ -24,31 +24,31 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.geometry.BoundingBox;
 import org.geotools.coverage.grid.io.footprint.MultiLevelROI;
 import org.geotools.coverage.grid.io.footprint.MultiLevelROIProvider;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
-import org.geotools.data.Transaction;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.visitor.FeatureCalc;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.geometry.BoundingBox;
 
 /**
  * Applies read/write locks around all operations to protect the underlying store, which might not
  * be able to handle this scenario correctly
  */
-class LockingGranuleCatalog extends GranuleCatalog {
+public class LockingGranuleCatalog extends GranuleCatalog {
 
     GranuleCatalog delegate;
     ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
 
     /** */
     public LockingGranuleCatalog(GranuleCatalog delegate, Hints hints) {
-        super(hints);
+        super(hints, delegate.getConfigurations());
         this.delegate = delegate;
     }
 
@@ -165,6 +165,7 @@ class LockingGranuleCatalog extends GranuleCatalog {
         }
     }
 
+    @Override
     public BoundingBox getBounds(final String typeName, Transaction t) {
         Lock lock = rwLock.readLock();
         try {
@@ -255,5 +256,14 @@ class LockingGranuleCatalog extends GranuleCatalog {
     @Override
     public void drop() throws IOException {
         guardIO(() -> delegate.drop(), rwLock.writeLock());
+    }
+
+    @Override
+    protected String getParentLocation() {
+        return delegate.getParentLocation();
+    }
+
+    public GranuleCatalog getAdaptee() {
+        return delegate;
     }
 }

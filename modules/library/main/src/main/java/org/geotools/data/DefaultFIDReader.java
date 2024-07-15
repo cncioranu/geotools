@@ -17,7 +17,8 @@
 package org.geotools.data;
 
 import java.io.IOException;
-import org.opengis.feature.simple.SimpleFeatureType;
+import org.geotools.api.data.FIDReader;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 
 /**
  * A Default FIDReader. Just auto-increments an index. May be sufficient for files, representing
@@ -45,6 +46,7 @@ public class DefaultFIDReader implements FIDReader {
     }
 
     /** Release any resources associated with this reader */
+    @Override
     public void close() {
         index = -1;
     }
@@ -55,6 +57,7 @@ public class DefaultFIDReader implements FIDReader {
      * @return <code>true</code> if more attributes exist
      * @throws IOException If closed
      */
+    @Override
     public boolean hasNext() throws IOException {
         if (index < 0) {
             throw new IOException(CLOSE_MESG);
@@ -69,6 +72,7 @@ public class DefaultFIDReader implements FIDReader {
      * @return Attribute at index
      * @throws IOException If closed
      */
+    @Override
     public String next() throws IOException {
         if (index < 0) {
             throw new IOException(CLOSE_MESG);

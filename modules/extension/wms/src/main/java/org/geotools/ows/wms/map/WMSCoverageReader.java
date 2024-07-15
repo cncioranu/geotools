@@ -25,22 +25,30 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
-import org.geotools.geometry.DirectPosition2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
+import org.geotools.geometry.Position2D;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.io.ImageIOExt;
 import org.geotools.ows.ServiceException;
+import org.geotools.ows.wms.CRSEnvelope;
 import org.geotools.ows.wms.Layer;
 import org.geotools.ows.wms.WebMapServer;
 import org.geotools.ows.wms.request.GetFeatureInfoRequest;
@@ -49,12 +57,6 @@ import org.geotools.ows.wms.response.GetFeatureInfoResponse;
 import org.geotools.ows.wms.response.GetMapResponse;
 import org.geotools.referencing.CRS;
 import org.geotools.renderer.lite.RendererUtilities;
-import org.opengis.coverage.grid.Format;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /** A grid coverage readers backing onto a WMS server by issuing GetMap */
 // JNH
@@ -152,15 +154,23 @@ public class WMSCoverageReader extends AbstractGridCoverage2DReader {
         this.layers.add(new LayerStyle(layer, style));
 
         if (srsName == null) {
-            // initialize from first layer
-            for (String srs : layer.getBoundingBoxes().keySet()) {
-                try {
-                    // check it's valid, if not we crap out and move to the next
-                    CRS.decode(srs);
-                    srsName = srs;
-                    break;
-                } catch (Exception e) {
-                    // it's fine, we could not decode that code
+            // check first srs available on srs set and
+            String priorityCRS = getCRSWithBoundingBoxes(layer);
+            if (priorityCRS != null) {
+                srsName = priorityCRS;
+            }
+
+            if (srsName == null) {
+                // initialize from first layer
+                for (String srs : layer.getBoundingBoxes().keySet()) {
+                    try {
+                        // check it's valid, if not we crap out and move to the next
+                        CRS.decode(srs);
+                        srsName = srs;
+                        break;
+                    } catch (Exception e) {
+                        // it's fine, we could not decode that code
+                    }
                 }
             }
 
@@ -173,14 +183,14 @@ public class WMSCoverageReader extends AbstractGridCoverage2DReader {
                     srsName = layer.getSrs().iterator().next();
                 }
             }
-            validSRS = layer.getSrs();
+            validSRS = new LinkedHashSet<>(layer.getSrs());
         } else {
-            Set<String> intersection = new HashSet<>(validSRS);
+            Set<String> intersection = new LinkedHashSet<>(validSRS);
             intersection.retainAll(layer.getSrs());
 
             // can we reuse what we have?
             if (!intersection.contains(srsName)) {
-                if (intersection.size() == 0) {
+                if (intersection.isEmpty()) {
                     throw new IllegalArgumentException(
                             "The layer being appended does "
                                     + "not have any SRS in common with the ones already "
@@ -207,9 +217,30 @@ public class WMSCoverageReader extends AbstractGridCoverage2DReader {
         updateBounds();
     }
 
+    /** Returns the first CRS from layer srs list that matches with bounding boxes map keys. */
+    private String getCRSWithBoundingBoxes(Layer layer) {
+        // return the first valid CRS with bounding box
+        for (String srs : getCRSWithBoundingBoxesList(layer)) {
+            try {
+                // check it's valid, if not we crap out and move to the next
+                CRS.decode(srs);
+                return srs;
+            } catch (Exception e) {
+                LOGGER.log(Level.FINE, "Error decoding CRS code.", e);
+            }
+        }
+        return null;
+    }
+
+    private List<String> getCRSWithBoundingBoxesList(Layer layer) {
+        Set<String> layerSrsSet = new LinkedHashSet<>(layer.getSrs());
+        Map<String, CRSEnvelope> boundingBoxes = layer.getBoundingBoxes();
+        return layerSrsSet.stream().filter(boundingBoxes::containsKey).collect(Collectors.toList());
+    }
+
     /** Issues GetFeatureInfo against a point using the params of the last GetMap request */
     public InputStream getFeatureInfo(
-            DirectPosition2D pos, String infoFormat, int featureCount, GetMapRequest getmap)
+            Position2D pos, String infoFormat, int featureCount, GetMapRequest getmap)
             throws IOException {
         GetFeatureInfoRequest request = wms.createGetFeatureInfoRequest(getmap);
         request.setFeatureCount(1);
@@ -229,7 +260,7 @@ public class WMSCoverageReader extends AbstractGridCoverage2DReader {
             tx.transform(src, dest);
             request.setQueryPoint((int) dest.getX(), (int) dest.getY());
         } catch (Exception e) {
-            throw (IOException) new IOException("Failed to grab feature info").initCause(e);
+            throw (IOException) new IOException("Failed to grab feature info", e);
         }
 
         try {
@@ -241,7 +272,7 @@ public class WMSCoverageReader extends AbstractGridCoverage2DReader {
         } catch (IOException e) {
             throw e;
         } catch (Throwable t) {
-            throw (IOException) new IOException("Failed to grab feature info").initCause(t);
+            throw (IOException) new IOException("Failed to grab feature info", t);
         }
     }
 
@@ -249,7 +280,7 @@ public class WMSCoverageReader extends AbstractGridCoverage2DReader {
     public GridCoverage2D read(GeneralParameterValue[] parameters)
             throws IllegalArgumentException, IOException {
         // try to get request params from the request
-        Envelope requestedEnvelope = null;
+        Bounds requestedEnvelope = null;
         int width = -1;
         int height = -1;
         Color backgroundColor = null;
@@ -315,7 +346,7 @@ public class WMSCoverageReader extends AbstractGridCoverage2DReader {
                 response.dispose();
             }
         } catch (ServiceException e) {
-            throw (IOException) new IOException("GetMap failed").initCause(e);
+            throw (IOException) new IOException("GetMap failed", e);
         }
     }
 
@@ -403,6 +434,7 @@ public class WMSCoverageReader extends AbstractGridCoverage2DReader {
         return gridEnvelope;
     }
 
+    @Override
     public Format getFormat() {
         // this reader has not backing format
         return null;
@@ -417,19 +449,19 @@ public class WMSCoverageReader extends AbstractGridCoverage2DReader {
         }
 
         this.bounds = result;
-        this.originalEnvelope = new GeneralEnvelope(result);
+        this.originalEnvelope = new GeneralBounds(result);
     }
 
-    /** Converts a {@link Envelope} into a {@link ReferencedEnvelope} */
-    ReferencedEnvelope reference(Envelope envelope) {
+    /** Converts a {@link Bounds} into a {@link ReferencedEnvelope} */
+    ReferencedEnvelope reference(Bounds envelope) {
         ReferencedEnvelope env = new ReferencedEnvelope(envelope.getCoordinateReferenceSystem());
         env.expandToInclude(envelope.getMinimum(0), envelope.getMinimum(1));
         env.expandToInclude(envelope.getMaximum(0), envelope.getMaximum(1));
         return env;
     }
 
-    /** Converts a {@link GeneralEnvelope} into a {@link ReferencedEnvelope} */
-    ReferencedEnvelope reference(GeneralEnvelope ge) {
+    /** Converts a {@link GeneralBounds} into a {@link ReferencedEnvelope} */
+    ReferencedEnvelope reference(GeneralBounds ge) {
         return new ReferencedEnvelope(
                 ge.getMinimum(0),
                 ge.getMaximum(0),

@@ -16,6 +16,7 @@
  */
 package org.geotools.coverage.io.netcdf.tools;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
@@ -31,7 +32,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -46,10 +46,12 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 import javax.xml.bind.JAXBException;
 import org.apache.commons.io.FileUtils;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.io.netcdf.NetCDFMosaicReaderTest;
-import org.geotools.data.DataStore;
 import org.geotools.data.DefaultRepository;
 import org.geotools.data.h2.H2DataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -72,8 +74,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
 
 public class H2MigratorTest {
 
@@ -178,7 +178,7 @@ public class H2MigratorTest {
     }
 
     /** Test migration on a mosaic with multiple files each one having multiple coverages */
-    public void testMultiCoverageRepository(String[] coverageNames, boolean setIndexStoreName)
+    protected void testMultiCoverageRepository(String[] coverageNames, boolean setIndexStoreName)
             throws Exception {
         // copy the data over
         File testDir = tempFolder.newFolder("multi-coverage");
@@ -325,7 +325,7 @@ public class H2MigratorTest {
         // check the log files contents
         File netcdfLog = new File(logDir, "migrated.txt");
         assertTrue(netcdfLog.exists());
-        final List<String> netcdfList = Files.readLines(netcdfLog, Charset.forName("UTF-8"));
+        final List<String> netcdfList = Files.readLines(netcdfLog, UTF_8);
         assertEquals(2, netcdfList.size());
         assertThat(
                 netcdfList,
@@ -333,7 +333,7 @@ public class H2MigratorTest {
                         endsWith("multi-coverage-1.nc"), endsWith("multi-coverage-2.nc")));
         File h2Log = new File(logDir, "h2.txt");
         assertTrue(h2Log.exists());
-        final List<String> h2List = Files.readLines(h2Log, Charset.forName("UTF-8"));
+        final List<String> h2List = Files.readLines(h2Log, UTF_8);
         assertEquals(10, h2List.size());
         assertThat(
                 h2List,
@@ -365,9 +365,7 @@ public class H2MigratorTest {
         assertTrue(indexerFile.exists());
         final Indexer indexer = Utils.unmarshal(indexerFile);
         final Optional<String> auxDataStore =
-                indexer.getParameters()
-                        .getParameter()
-                        .stream()
+                indexer.getParameters().getParameter().stream()
                         .filter(p -> Utils.Prop.AUXILIARY_DATASTORE_FILE.equals(p.getName()))
                         .map(p -> p.getValue())
                         .findFirst();
@@ -375,7 +373,7 @@ public class H2MigratorTest {
         assertEquals(H2Migrator.NETCDF_DATASTORE_PROPERTIES, auxDataStore.get());
     }
 
-    public void testMultiCoverageMosaic(URL testUrl, Hints hints) throws Exception {
+    protected void testMultiCoverageMosaic(URL testUrl, Hints hints) throws Exception {
         ImageMosaicReader reader = null;
         try {
             reader = new ImageMosaicReader(testUrl, hints);
@@ -408,8 +406,7 @@ public class H2MigratorTest {
             throws Exception {
         ParameterValue<List> time = ImageMosaicFormat.TIME.createValue();
         time.setValue(Arrays.asList(new Date[] {parseTimeStamp(timestamp)}));
-        GeneralParameterValue[] params =
-                new GeneralParameterValue[] {NO_DEFERRED_LOADING_PARAM, time};
+        GeneralParameterValue[] params = {NO_DEFERRED_LOADING_PARAM, time};
         GridCoverage2D coverage = reader.read(coverageName, params);
         assertNotNull(coverage);
         // delta is zero because an exact match is expected
@@ -440,8 +437,7 @@ public class H2MigratorTest {
         final Indexer indexer = Utils.unmarshal(indexerFile);
         final List<ParametersType.Parameter> parameters = indexer.getParameters().getParameter();
         final List<ParametersType.Parameter> filteredParameters =
-                parameters
-                        .stream()
+                parameters.stream()
                         .filter(p -> !p.getName().equals(Utils.Prop.AUXILIARY_DATASTORE_FILE))
                         .collect(Collectors.toList());
         parameters.addAll(filteredParameters);
@@ -507,7 +503,7 @@ public class H2MigratorTest {
         // check the log files contents
         File netcdfLog = new File(logDir, "migrated.txt");
         assertTrue(netcdfLog.exists());
-        final List<String> netcdfList = Files.readLines(netcdfLog, Charset.forName("UTF-8"));
+        final List<String> netcdfList = Files.readLines(netcdfLog, UTF_8);
         assertEquals(4, netcdfList.size());
         assertThat(
                 netcdfList,
@@ -518,7 +514,7 @@ public class H2MigratorTest {
                         endsWith("20130108.NO2.DUMMY.nc")));
         File h2Log = new File(logDir, "h2.txt");
         assertTrue(h2Log.exists());
-        final List<String> h2List = Files.readLines(h2Log, Charset.forName("UTF-8"));
+        final List<String> h2List = Files.readLines(h2Log, UTF_8);
         assertEquals(20, h2List.size());
         assertThat(h2List, Matchers.everyItem(allOf(endsWith(".db"))));
         // for extra measure, check and remove the H2 dbs, they should not be needed anymore

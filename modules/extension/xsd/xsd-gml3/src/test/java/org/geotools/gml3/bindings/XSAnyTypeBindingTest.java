@@ -16,10 +16,20 @@
  */
 package org.geotools.gml3.bindings;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
 import org.geotools.feature.AttributeImpl;
 import org.geotools.feature.ComplexAttributeImpl;
 import org.geotools.feature.NameImpl;
@@ -32,12 +42,7 @@ import org.geotools.xs.XSSchema;
 import org.geotools.xsd.Configuration;
 import org.geotools.xsd.SchemaLocator;
 import org.geotools.xsd.XSD;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
+import org.junit.Test;
 import org.picocontainer.MutablePicoContainer;
 import org.w3c.dom.Document;
 
@@ -66,15 +71,18 @@ public class XSAnyTypeBindingTest extends GML3TestSupport {
             return instance;
         }
 
+        @Override
         public String getNamespaceURI() {
             return NAMESPACE;
         }
 
         /** Returns the location of 'AnyTypeTest.xsd'. */
+        @Override
         public String getSchemaLocation() {
             return getClass().getResource("AnyTypeTest.xsd").toString();
         }
 
+        @Override
         public SchemaLocator createSchemaLocator() {
             // we explicity return null here because of a circular dependnecy with
             // gml3 schema... returning null breaks the circle when the schemas are
@@ -90,6 +98,7 @@ public class XSAnyTypeBindingTest extends GML3TestSupport {
             super(ANYTYPETEST.getInstance());
         }
 
+        @Override
         protected void registerBindings(MutablePicoContainer container) {}
     }
 
@@ -102,9 +111,10 @@ public class XSAnyTypeBindingTest extends GML3TestSupport {
     }
 
     @Override
-    protected void setUp() throws Exception {
-        super.setUp();
-        registerNamespaceMapping("test", "http://www.geotools.org/anytypetest");
+    protected Map<String, String> getNamespaces() {
+        final Map<String, String> namespaces = super.getNamespaces();
+        namespaces.put("test", "http://www.geotools.org/anytypetest");
+        return namespaces;
     }
 
     @Override
@@ -112,9 +122,10 @@ public class XSAnyTypeBindingTest extends GML3TestSupport {
         return new MyConfiguration();
     }
 
+    @Test
     public void testEncode() throws Exception {
         QName observation = ANYTYPETEST.OBSERVATION;
-        ComplexAttribute myCode = testAnyTypeTest(observation, SAMPLE_CLASS_VALUE);
+        ComplexAttribute myCode = checkAnyTypeTest(observation, SAMPLE_CLASS_VALUE);
         Document dom = encode(myCode, observation);
         // print(dom);
         assertEquals("test:Observation", dom.getDocumentElement().getNodeName());
@@ -133,6 +144,7 @@ public class XSAnyTypeBindingTest extends GML3TestSupport {
                         .getNodeValue());
     }
 
+    @Test
     public void testEncodeUnrestricted() throws Exception {
         QName typeName = ANYTYPETEST.UNRESTRICTED;
         ComplexAttribute unrestricted = createUnrestrictedAttr(typeName, SAMPLE_UNRESTRICTED_VALUE);
@@ -142,7 +154,7 @@ public class XSAnyTypeBindingTest extends GML3TestSupport {
         assertEquals(SAMPLE_UNRESTRICTED_VALUE, dom.getDocumentElement().getTextContent());
     }
 
-    public ComplexAttribute testAnyTypeTest(QName typeName, String classValue) {
+    public ComplexAttribute checkAnyTypeTest(QName typeName, String classValue) {
         Name myType = new NameImpl(typeName.getNamespaceURI(), typeName.getLocalPart());
 
         List<Property> properties = new ArrayList<>();

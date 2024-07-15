@@ -16,6 +16,8 @@
  */
 package org.geotools.data.postgis;
 
+import static org.junit.Assert.assertEquals;
+
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.jdbc.JDBCCompound3DOnlineTest;
 import org.geotools.jdbc.JDBCCompound3DTestSetup;
@@ -30,6 +32,7 @@ public class PostGISCompound3DOnlineTest extends JDBCCompound3DOnlineTest {
     }
 
     /** Make sure we can properly retrieve the bounds of 3d layers */
+    @Override
     public void testBounds() throws Exception {
         ((PostGISDialect) dataStore.getSQLDialect()).setEstimatedExtentsEnabled(true);
 

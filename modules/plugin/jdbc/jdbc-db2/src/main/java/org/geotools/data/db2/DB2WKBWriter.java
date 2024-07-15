@@ -52,6 +52,7 @@ public class DB2WKBWriter {
     static class DimensionCoordFilter implements CoordinateFilter {
         int dimension = 2;
 
+        @Override
         public void filter(Coordinate coord) {
             if (dimension == 3) // no further testing needed
             return;
@@ -78,8 +79,7 @@ public class DB2WKBWriter {
 
     public static String bytesToHex(byte[] bytes) {
         StringBuffer buf = new StringBuffer();
-        for (int i = 0; i < bytes.length; i++) {
-            byte b = bytes[i];
+        for (byte b : bytes) {
             buf.append(toHexDigit((b >> 4) & 0x0F));
             buf.append(toHexDigit(b & 0x0F));
         }

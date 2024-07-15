@@ -23,20 +23,20 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.geotools.data.DataStore;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.FileDataStoreFactorySpi;
-import org.geotools.data.Transaction;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.FileDataStoreFactorySpi;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.gen.info.GeneralizationInfosProviderImpl;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * Utility class
@@ -72,7 +72,7 @@ public class Toolbox {
         else System.exit(1);
     }
 
-    public boolean parse(String args[]) throws IOException {
+    public boolean parse(String[] args) throws IOException {
         if (args.length == 0) {
             System.out.println("Missing cmd validate | generalize");
             return false;
@@ -139,7 +139,10 @@ public class Toolbox {
         shapeDS.dispose();
     }
 
-    @SuppressWarnings("PMD.CloseResource") // writers are actually closed
+    @SuppressWarnings({
+        "PMD.CloseResource",
+        "PMD.UseTryWithResources"
+    }) // writers are actually closed
     protected void generalizeShapeFile(
             File shapeFile, DataStore shapeDS, File targetDir, Double[] distanceArray)
             throws IOException {
@@ -149,13 +152,12 @@ public class Toolbox {
         DataStore[] dataStores = createDataStores(shapeFile, targetDir, ftype, distanceArray);
 
         SimpleFeatureCollection fcoll = fs.getFeatures();
-        SimpleFeatureIterator it = fcoll.features();
         List<FeatureWriter<SimpleFeatureType, SimpleFeature>> writers = new ArrayList<>();
-        try {
+        try (SimpleFeatureIterator it = fcoll.features()) {
             int countTotal = fcoll.size();
 
-            for (int i = 0; i < dataStores.length; i++) {
-                writers.add(dataStores[i].getFeatureWriter(typeName, Transaction.AUTO_COMMIT));
+            for (DataStore dataStore : dataStores) {
+                writers.add(dataStore.getFeatureWriter(typeName, Transaction.AUTO_COMMIT));
             }
 
             int counter = 0;
@@ -182,7 +184,6 @@ public class Toolbox {
                     // ignore on purpose and move on
                 }
             }
-            it.close();
         }
 
         for (DataStore ds : dataStores) {
@@ -225,7 +226,7 @@ public class Toolbox {
         return result;
     }
 
-    private void dumpGeneralizeParameters(String argv[]) {
+    private void dumpGeneralizeParameters(String[] argv) {
         for (int i = 1; i < argv.length; i++) {
             String paramName = null;
             switch (i) {

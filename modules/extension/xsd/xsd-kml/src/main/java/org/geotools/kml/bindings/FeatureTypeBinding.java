@@ -23,6 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.style.FeatureTypeStyle;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
@@ -30,17 +35,12 @@ import org.geotools.kml.FolderStack;
 import org.geotools.kml.KML;
 import org.geotools.kml.StyleMap;
 import org.geotools.kml.v22.SchemaRegistry;
-import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.xsd.AbstractComplexBinding;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.Name;
 
 /**
  * Binding object for the type http://earth.google.com/kml/2.1:FeatureType.
@@ -125,6 +125,7 @@ public class FeatureTypeBinding extends AbstractComplexBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return KML.FeatureType;
     }
@@ -136,6 +137,7 @@ public class FeatureTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return SimpleFeature.class;
     }
@@ -163,6 +165,7 @@ public class FeatureTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
 
         // start off with the default feature type, and retype as necessary
@@ -271,6 +274,7 @@ public class FeatureTypeBinding extends AbstractComplexBinding {
         return schemaURI.getPath();
     }
 
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         if (object instanceof FeatureCollection) {
             FeatureCollection features = (FeatureCollection) object;

@@ -17,12 +17,16 @@
 package org.geotools.brewer.styling.builder;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import org.geotools.styling.GraphicLegend;
-import org.geotools.styling.Rule;
-import org.geotools.styling.Symbolizer;
-import org.opengis.filter.Filter;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.style.GraphicLegend;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Symbolizer;
+import org.geotools.api.util.InternationalString;
+import org.geotools.util.SimpleInternationalString;
 
 public class RuleBuilder extends AbstractStyleBuilder<Rule> {
     List<Symbolizer> symbolizers = new ArrayList<>();
@@ -31,7 +35,7 @@ public class RuleBuilder extends AbstractStyleBuilder<Rule> {
 
     String name;
 
-    String ruleAbstract;
+    InternationalString ruleAbstract;
 
     double minScaleDenominator;
 
@@ -41,7 +45,9 @@ public class RuleBuilder extends AbstractStyleBuilder<Rule> {
 
     boolean elseFilter;
 
-    String title;
+    InternationalString title;
+
+    protected Map<String, String> options = new LinkedHashMap<>();
 
     private GraphicLegendBuilder legend = new GraphicLegendBuilder(this).unset();
 
@@ -60,15 +66,27 @@ public class RuleBuilder extends AbstractStyleBuilder<Rule> {
         return this;
     }
 
-    public RuleBuilder title(String title) {
+    public RuleBuilder title(InternationalString title) {
         unset = false;
         this.title = title;
         return this;
     }
 
-    public RuleBuilder ruleAbstract(String ruleAbstract) {
+    public RuleBuilder title(String title) {
+        unset = false;
+        this.title = new SimpleInternationalString(title);
+        return this;
+    }
+
+    public RuleBuilder ruleAbstract(InternationalString ruleAbstract) {
         unset = false;
         this.ruleAbstract = ruleAbstract;
+        return this;
+    }
+
+    public RuleBuilder ruleAbstract(String ruleAbstract) {
+        unset = false;
+        this.ruleAbstract = new SimpleInternationalString(ruleAbstract);
         return this;
     }
 
@@ -154,15 +172,16 @@ public class RuleBuilder extends AbstractStyleBuilder<Rule> {
     public ExtensionSymbolizerBuilder extension() {
         unset = false;
         if (symbolizerBuilder != null) symbolizers.add(symbolizerBuilder.build());
-        symbolizerBuilder = new ExtensionSymbolizerBuilder(this);
+        symbolizerBuilder = (Builder<? extends Symbolizer>) new ExtensionSymbolizerBuilder(this);
         return (ExtensionSymbolizerBuilder) symbolizerBuilder;
     }
 
+    @Override
     public Rule build() {
         if (unset) {
             return null;
         }
-        if (symbolizerBuilder == null && symbolizers.size() == 0) {
+        if (symbolizerBuilder == null && symbolizers.isEmpty()) {
             symbolizerBuilder = new PointSymbolizerBuilder();
         }
         if (symbolizerBuilder != null) {
@@ -183,17 +202,19 @@ public class RuleBuilder extends AbstractStyleBuilder<Rule> {
         if (gl != null) {
             rule.setLegend(gl);
         }
-
+        rule.getOptions().putAll(options);
         if (parent == null) {
             reset();
         }
         return rule;
     }
 
+    @Override
     public RuleBuilder unset() {
         return (RuleBuilder) super.unset();
     }
 
+    @Override
     public RuleBuilder reset() {
         name = null;
         title = null;
@@ -205,24 +226,19 @@ public class RuleBuilder extends AbstractStyleBuilder<Rule> {
         symbolizers.clear();
         legend.unset();
         unset = false;
+        this.options.clear();
         return this;
     }
 
+    @Override
     public RuleBuilder reset(Rule rule) {
         if (rule == null) {
             return unset();
         }
         name = rule.getName();
-        title =
-                Optional.ofNullable(rule.getDescription())
-                        .map(d -> d.getTitle())
-                        .map(t -> t.toString())
-                        .orElse(null);
+        title = Optional.ofNullable(rule.getDescription()).map(d -> d.getTitle()).orElse(null);
         ruleAbstract =
-                Optional.ofNullable(rule.getDescription())
-                        .map(d -> d.getAbstract())
-                        .map(t -> t.toString())
-                        .orElse(null);
+                Optional.ofNullable(rule.getDescription()).map(d -> d.getAbstract()).orElse(null);
         minScaleDenominator = rule.getMinScaleDenominator();
         maxScaleDenominator = rule.getMaxScaleDenominator();
         filter = rule.getFilter();
@@ -232,10 +248,17 @@ public class RuleBuilder extends AbstractStyleBuilder<Rule> {
         symbolizerBuilder = null;
         unset = false;
         legend.reset(rule.getLegend());
+        options.putAll(rule.getOptions());
         return this;
     }
 
+    @Override
     protected void buildStyleInternal(StyleBuilder sb) {
         sb.featureTypeStyle().rule().init(this);
+    }
+
+    public RuleBuilder option(String name, String value) {
+        options.put(name, value);
+        return this;
     }
 }

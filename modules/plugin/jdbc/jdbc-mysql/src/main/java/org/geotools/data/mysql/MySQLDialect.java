@@ -25,6 +25,11 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.Map;
 import java.util.logging.Level;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.Geometries;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.SQLDialect;
@@ -42,11 +47,6 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Delegate for {@link MySQLDialectBasic} and {@link MySQLDialectPrepared} which implements the
@@ -114,10 +114,12 @@ public class MySQLDialect extends SQLDialect {
         return super.includeTable(schemaName, tableName, cx);
     }
 
+    @Override
     public String getNameEscape() {
         return (usePreciseSpatialOps ? "`" : "");
     }
 
+    @Override
     public String getGeometryTypeName(Integer type) {
         if (POINT.equals(type)) {
             return "POINT";
@@ -150,6 +152,7 @@ public class MySQLDialect extends SQLDialect {
         return super.getGeometryTypeName(type);
     }
 
+    @Override
     public Integer getGeometrySRID(
             String schemaName, String tableName, String columnName, Connection cx)
             throws SQLException {
@@ -249,6 +252,7 @@ public class MySQLDialect extends SQLDialect {
         sql.append(")");
     }
 
+    @Override
     public void encodeGeometryEnvelope(String tableName, String geometryColumn, StringBuffer sql) {
         if (this.usePreciseSpatialOps) {
             if (this.isMySqlVersion80OrAbove) {
@@ -285,6 +289,7 @@ public class MySQLDialect extends SQLDialect {
         sql.append("))");
     }
 
+    @Override
     public Envelope decodeGeometryEnvelope(ResultSet rs, int column, Connection cx)
             throws SQLException, IOException {
         byte[] wkb = rs.getBytes(column);
@@ -306,6 +311,7 @@ public class MySQLDialect extends SQLDialect {
         }
     }
 
+    @Override
     public Geometry decodeGeometryValue(
             GeometryDescriptor descriptor,
             ResultSet rs,
@@ -326,6 +332,7 @@ public class MySQLDialect extends SQLDialect {
         }
     }
 
+    @Override
     public void registerClassToSqlMappings(Map<Class<?>, Integer> mappings) {
         super.registerClassToSqlMappings(mappings);
 
@@ -338,6 +345,7 @@ public class MySQLDialect extends SQLDialect {
         mappings.put(Geometry.class, GEOMETRY);
     }
 
+    @Override
     public void registerSqlTypeToClassMappings(Map<Integer, Class<?>> mappings) {
         super.registerSqlTypeToClassMappings(mappings);
 
@@ -350,6 +358,7 @@ public class MySQLDialect extends SQLDialect {
         mappings.put(GEOMETRY, Geometry.class);
     }
 
+    @Override
     public void registerSqlTypeNameToClassMappings(Map<String, Class<?>> mappings) {
         super.registerSqlTypeNameToClassMappings(mappings);
 
@@ -366,8 +375,10 @@ public class MySQLDialect extends SQLDialect {
     @Override
     public void registerSqlTypeToSqlTypeNameOverrides(Map<Integer, String> overrides) {
         overrides.put(Types.BOOLEAN, "BOOL");
+        overrides.put(Types.CLOB, "TEXT");
     }
 
+    @Override
     public void encodePostCreateTable(String tableName, StringBuffer sql) {
         // TODO: make this configurable
         sql.append("ENGINE=" + storageEngine);
@@ -387,7 +398,7 @@ public class MySQLDialect extends SQLDialect {
     public void postCreateTable(String schemaName, SimpleFeatureType featureType, Connection cx)
             throws SQLException, IOException {
 
-        // create teh geometry_columns table if necessary
+        // create the geometry_columns table if necessary
         DatabaseMetaData md = cx.getMetaData();
         ResultSet rs =
                 md.getTables(
@@ -502,6 +513,7 @@ public class MySQLDialect extends SQLDialect {
         }
     }
 
+    @Override
     public void encodePrimaryKey(String column, StringBuffer sql) {
         encodeColumnName(null, column, sql);
         sql.append(" int AUTO_INCREMENT PRIMARY KEY");
@@ -583,5 +595,10 @@ public class MySQLDialect extends SQLDialect {
             dataStore.closeSafe(st);
             dataStore.closeSafe(cx);
         }
+    }
+
+    @Override
+    public boolean canGroupOnGeometry() {
+        return true;
     }
 }

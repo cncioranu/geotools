@@ -20,7 +20,6 @@ package org.geotools.xml.styling;
  * This code generated using Refractions SchemaCodeGenerator For more information, view the attached
  * licensing information. CopyRight 105
  */
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
@@ -46,20 +45,24 @@ public class sldSchema implements Schema {
         }
     }
 
+    @Override
     public int getBlockDefault() {
         return 0;
     }
 
+    @Override
     public int getFinalDefault() {
         return 0;
     }
 
+    @Override
     public String getId() {
         return "null";
     }
 
     private static Schema[] imports = null;
 
+    @Override
     public Schema[] getImports() {
         if (imports == null) {
             imports =
@@ -71,45 +74,55 @@ public class sldSchema implements Schema {
         return imports;
     }
 
+    @Override
     public String getPrefix() {
         return "sld";
     }
 
+    @Override
     public URI getTargetNamespace() {
         return NAMESPACE;
     }
 
+    @Override
     public URI getURI() {
         return NAMESPACE;
     }
 
+    @Override
     public String getVersion() {
         return "null";
     }
 
+    @Override
     public boolean includesURI(URI uri) {
         // // TODO fill me in!
         return false; // // safer
     }
 
+    @Override
     public boolean isAttributeFormDefault() {
         return false;
     }
 
+    @Override
     public boolean isElementFormDefault() {
         return true;
     }
 
+    @Override
     public AttributeGroup[] getAttributeGroups() {
         return null;
     }
 
+    @Override
     public Attribute[] getAttributes() {
         return null;
     }
     /** TODO comment here */
     private static ComplexType[] complexTypes = null;
 
+    @Override
     public ComplexType[] getComplexTypes() {
         if (complexTypes == null) {
             complexTypes =
@@ -124,6 +137,7 @@ public class sldSchema implements Schema {
     /** TODO comment here */
     private static Element[] elements = null;
 
+    @Override
     public Element[] getElements() {
         if (elements == null) {
             elements =
@@ -136,18 +150,13 @@ public class sldSchema implements Schema {
                                 1),
                         new sldElement(
                                 "GammaValue",
-                                org.geotools.xml.xsi.XSISimpleTypes.Double
-                                        .getInstance() /* simpleType name is double */,
+                                org.geotools.xml.xsi.XSISimpleTypes.Double.getInstance(),
                                 null,
                                 1,
                                 1),
                         new sldElement(
                                 "MaxScaleDenominator",
-                                org.geotools.xml.xsi.XSISimpleTypes.Double.getInstance() /*
-                                                                                     * simpleType
-                                                                                     * name is
-                                                                                     * double
-                                                                                     */,
+                                org.geotools.xml.xsi.XSISimpleTypes.Double.getInstance(),
                                 null,
                                 1,
                                 1),
@@ -224,28 +233,19 @@ public class sldSchema implements Schema {
                                 "Graphic", sldComplexTypes._Graphic.getInstance(), null, 1, 1),
                         new sldElement(
                                 "WellKnownName",
-                                org.geotools.xml.xsi.XSISimpleTypes.String
-                                        .getInstance() /* simpleType name is string */,
+                                org.geotools.xml.xsi.XSISimpleTypes.String.getInstance(),
                                 null,
                                 1,
                                 1),
                         new sldElement(
                                 "Name",
-                                org.geotools.xml.xsi.XSISimpleTypes.String.getInstance() /*
-                                                                                     * simpleType
-                                                                                     * name is
-                                                                                     * string
-                                                                                     */,
+                                org.geotools.xml.xsi.XSISimpleTypes.String.getInstance(),
                                 null,
                                 1,
                                 1),
                         new sldElement(
                                 "MinScaleDenominator",
-                                org.geotools.xml.xsi.XSISimpleTypes.Double.getInstance() /*
-                                                                                     * simpleType
-                                                                                     * name is
-                                                                                     * double
-                                                                                     */,
+                                org.geotools.xml.xsi.XSISimpleTypes.Double.getInstance(),
                                 null,
                                 1,
                                 1),
@@ -295,18 +295,13 @@ public class sldSchema implements Schema {
                         new sldElement("Mark", sldComplexTypes2._Mark.getInstance(), null, 1, 1),
                         new sldElement(
                                 "BrightnessOnly",
-                                org.geotools.xml.xsi.XSISimpleTypes.Boolean
-                                        .getInstance() /* simpleType name is boolean */,
+                                org.geotools.xml.xsi.XSISimpleTypes.Boolean.getInstance(),
                                 null,
                                 1,
                                 1),
                         new sldElement(
                                 "SemanticTypeIdentifier",
-                                org.geotools.xml.xsi.XSISimpleTypes.String.getInstance() /*
-                                                                                     * simpleType
-                                                                                     * name is
-                                                                                     * string
-                                                                                     */,
+                                org.geotools.xml.xsi.XSISimpleTypes.String.getInstance(),
                                 null,
                                 1,
                                 1),
@@ -332,8 +327,7 @@ public class sldSchema implements Schema {
                                 1),
                         new sldElement(
                                 "Abstract",
-                                org.geotools.xml.xsi.XSISimpleTypes.String
-                                        .getInstance() /* simpleType name is string */,
+                                org.geotools.xml.xsi.XSISimpleTypes.String.getInstance(),
                                 null,
                                 1,
                                 1),
@@ -363,8 +357,7 @@ public class sldSchema implements Schema {
                                 1),
                         new sldElement(
                                 "Format",
-                                org.geotools.xml.xsi.XSISimpleTypes.String
-                                        .getInstance() /* simpleType name is string */,
+                                org.geotools.xml.xsi.XSISimpleTypes.String.getInstance(),
                                 null,
                                 1,
                                 1),
@@ -471,8 +464,7 @@ public class sldSchema implements Schema {
                                 1),
                         new sldElement(
                                 "SourceChannelName",
-                                org.geotools.xml.xsi.XSISimpleTypes.String
-                                        .getInstance() /* simpleType name is string */,
+                                org.geotools.xml.xsi.XSISimpleTypes.String.getInstance(),
                                 null,
                                 1,
                                 1),
@@ -507,8 +499,7 @@ public class sldSchema implements Schema {
                                 "AVERAGE", sldComplexTypes._AVERAGE.getInstance(), null, 1, 1),
                         new sldElement(
                                 "IsDefault",
-                                org.geotools.xml.xsi.XSISimpleTypes.Boolean
-                                        .getInstance() /* simpleType name is boolean */,
+                                org.geotools.xml.xsi.XSISimpleTypes.Boolean.getInstance(),
                                 null,
                                 1,
                                 1),
@@ -523,8 +514,7 @@ public class sldSchema implements Schema {
                         new sldElement("Extent", sldComplexTypes._Extent.getInstance(), null, 1, 1),
                         new sldElement(
                                 "ReliefFactor",
-                                org.geotools.xml.xsi.XSISimpleTypes.Double
-                                        .getInstance() /* simpleType name is double */,
+                                org.geotools.xml.xsi.XSISimpleTypes.Double.getInstance(),
                                 null,
                                 1,
                                 1),
@@ -580,10 +570,12 @@ public class sldSchema implements Schema {
         return elements;
     }
 
+    @Override
     public Group[] getGroups() {
         return null;
     }
 
+    @Override
     public SimpleType[] getSimpleTypes() {
         return null;
     }
@@ -595,6 +587,7 @@ public class sldSchema implements Schema {
     }
 
     /** Returns the implementation hints. The default implementation returns en empty map. */
+    @Override
     public Map<java.awt.RenderingHints.Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }

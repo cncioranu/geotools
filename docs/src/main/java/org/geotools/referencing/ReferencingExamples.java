@@ -1,21 +1,14 @@
 /*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
+ *    GeoTools Sample code and Tutorials by Open Source Geospatial Foundation, and others
+ *    https://docs.geotools.org
  *
- *    (C) 2019, Open Source Geospatial Foundation (OSGeo)
+ *    To the extent possible under law, the author(s) have dedicated all copyright
+ *    and related and neighboring rights to this software to the public domain worldwide.
+ *    This software is distributed without any warranty.
  *
- *    This library is free software; you can redistribute it and/or
- *    modify it under the terms of the GNU Lesser General Public
- *    License as published by the Free Software Foundation;
- *    version 2.1 of the License.
- *
- *    This library is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *    Lesser General Public License for more details.
- *
+ *    You should have received a copy of the CC0 Public Domain Dedication along with this
+ *    software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
-
 package org.geotools.referencing;
 
 import java.awt.RenderingHints.Key;
@@ -24,6 +17,27 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CRSFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CSFactory;
+import org.geotools.api.referencing.cs.CartesianCS;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.EllipsoidalCS;
+import org.geotools.api.referencing.datum.DatumFactory;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.datum.GeodeticDatum;
+import org.geotools.api.referencing.datum.PrimeMeridian;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.MathTransformFactory;
+import org.geotools.api.util.GenericName;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.datum.BursaWolfParameters;
@@ -35,27 +49,6 @@ import org.geotools.util.SuppressFBWarnings;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Coordinate;
-import org.opengis.metadata.Identifier;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CRSFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CSFactory;
-import org.opengis.referencing.cs.CartesianCS;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.EllipsoidalCS;
-import org.opengis.referencing.datum.DatumFactory;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.datum.GeodeticDatum;
-import org.opengis.referencing.datum.PrimeMeridian;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.MathTransformFactory;
-import org.opengis.util.GenericName;
 import si.uom.NonSI;
 import si.uom.SI;
 
@@ -482,7 +475,7 @@ public class ReferencingExamples {
             System.out.println("    no aliases");
         } else {
             for (int i = 0; aliases.hasNext(); i++) {
-                System.out.println("    alias(" + i + "): " + (GenericName) aliases.next());
+                System.out.println("    alias(" + i + "): " + aliases.next());
             }
         }
 

@@ -16,6 +16,12 @@
  */
 package org.geotools.jdbc;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.util.HashMap;
@@ -26,23 +32,25 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
-import org.geotools.data.DataStoreFinder;
-import org.geotools.data.FeatureReader;
+import org.geotools.api.data.DataStoreFinder;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.NameImpl;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.geotools.test.OnlineTestCase;
+import org.geotools.referencing.CRS;
+import org.geotools.test.OnlineTestSupport;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Test support class for jdbc test cases.
@@ -52,7 +60,8 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  *
  * @author Justin Deoliveira, The Open Planning Project, jdeolive@openplans.org
  */
-public abstract class JDBCTestSupport extends OnlineTestCase {
+@SuppressWarnings({"PMD.EmptyInitializer", "PMD.EmptyControlStatement"})
+public abstract class JDBCTestSupport extends OnlineTestSupport {
 
     static final Logger LOGGER = Logging.getLogger(JDBCTestSupport.class);
 
@@ -79,6 +88,9 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
     protected JDBCDataStore dataStore;
     protected SQLDialect dialect;
 
+    /** Allows implementations to request a longitude first axis ordering for CRSs. */
+    protected boolean forceLongitudeFirst = false;
+
     @Override
     protected Properties createOfflineFixture() {
         return createTestSetup().createOfflineFixture();
@@ -97,15 +109,11 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
     @Override
     protected boolean isOnline() throws Exception {
         JDBCTestSetup setup = createTestSetup();
-        setup.setFixture(fixture);
+        setup.setFixture(getFixture());
 
-        try {
-            DataSource dataSource = setup.getDataSource();
-            Connection cx = dataSource.getConnection();
-            cx.close();
+        DataSource dataSource = setup.getDataSource();
+        try (Connection cx = dataSource.getConnection()) {
             return true;
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
         } finally {
             try {
                 setup.tearDown();
@@ -122,7 +130,7 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
             setup = createTestSetup();
         }
 
-        setup.setFixture(fixture);
+        setup.setFixture(getFixture());
         setup.setUp();
 
         // initialize the database
@@ -136,7 +144,7 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> temp = (Map<String, Object>) ((HashMap) params).clone();
-            fixture.forEach((k, v) -> temp.put((String) k, v));
+            getFixture().forEach((k, v) -> temp.put((String) k, v));
             dataStore = (JDBCDataStore) DataStoreFinder.getDataStore(temp);
         } catch (Exception e) {
             // ignore
@@ -154,7 +162,8 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
     protected Map<String, Object> createDataStoreFactoryParams() throws Exception {
         Map<String, Object> params = new HashMap<>();
         params.put(JDBCDataStoreFactory.NAMESPACE.key, "http://www.geotools.org/test");
-        params.put(JDBCDataStoreFactory.SCHEMA.key, "geotools");
+        String testSchema = getFixture().getProperty(JDBCDataStoreFactory.SCHEMA.key, "geotools");
+        params.put(JDBCDataStoreFactory.SCHEMA.key, testSchema);
         params.put(JDBCDataStoreFactory.DATASOURCE.key, setup.getDataSource());
 
         // Enable batch insert in the tests. Some tests will revert that back to the default because
@@ -165,6 +174,7 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
         return params;
     }
 
+    @Override
     protected void disconnect() throws Exception {
         setup.tearDown();
         dataStore.dispose();
@@ -239,6 +249,7 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
         }
     }
 
+    @SuppressWarnings("PMD.SimplifiableTestAssertion")
     protected void assertAttributeValuesEqual(Object expected, Object actual) {
         if (expected == null) {
             assertNull(actual);
@@ -251,6 +262,14 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
         }
 
         assertEquals(expected, actual);
+    }
+
+    /**
+     * Returns the {@link CoordinateReferenceSystem} denoted by epsgCode with an axis order taking
+     * into account the {@link #forceLongitudeFirst} setting.
+     */
+    protected CoordinateReferenceSystem decodeEPSG(int epsgCode) throws FactoryException {
+        return CRS.decode(String.format("EPSG:%d", epsgCode), forceLongitudeFirst);
     }
 
     protected boolean areCRSEqual(CoordinateReferenceSystem crs1, CoordinateReferenceSystem crs2) {
@@ -329,19 +348,23 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
             int numberExpected,
             final Iterator<F> iterator,
             FeatureAssertion<F> assertion) {
-        FeatureIterator<F> adapter =
+        try (FeatureIterator<F> adapter =
                 new FeatureIterator<F>() {
+                    @Override
                     public boolean hasNext() {
                         return iterator.hasNext();
                     }
 
+                    @Override
                     public F next() {
                         return iterator.next();
                     }
 
+                    @Override
                     public void close() {}
-                };
-        assertFeatureIterator(startIndex, numberExpected, adapter, assertion);
+                }) {
+            assertFeatureIterator(startIndex, numberExpected, adapter, assertion);
+        }
     }
 
     protected <FT extends FeatureType, F extends Feature> void assertFeatureReader(
@@ -350,9 +373,10 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
             final FeatureReader<FT, F> reader,
             FeatureAssertion<F> assertion)
             throws IOException {
-        FeatureIterator<F> iter =
+        try (FeatureIterator<F> iter =
                 new FeatureIterator<F>() {
 
+                    @Override
                     public boolean hasNext() {
                         try {
                             return reader.hasNext();
@@ -361,6 +385,7 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
                         }
                     }
 
+                    @Override
                     public F next() throws NoSuchElementException {
                         try {
                             return reader.next();
@@ -369,6 +394,7 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
                         }
                     }
 
+                    @Override
                     public void close() {
                         try {
                             reader.close();
@@ -376,8 +402,8 @@ public abstract class JDBCTestSupport extends OnlineTestCase {
                             throw new AssertionError(e);
                         }
                     }
-                };
-
-        assertFeatureIterator(startIndex, numberExpected, iter, assertion);
+                }) {
+            assertFeatureIterator(startIndex, numberExpected, iter, assertion);
+        }
     }
 }

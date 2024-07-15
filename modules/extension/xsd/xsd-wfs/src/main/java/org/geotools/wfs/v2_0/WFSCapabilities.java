@@ -35,12 +35,12 @@ public final class WFSCapabilities extends XSD {
         return instance;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     protected void addDependencies(Set dependencies) {
         /// dependencies.add(org.geotools.filter.v1_0.capabilities.OGC.getInstance());
     }
 
+    @Override
     public String getSchemaLocation() {
         return getClass().getResource("wfs.xsd").toString();
     }

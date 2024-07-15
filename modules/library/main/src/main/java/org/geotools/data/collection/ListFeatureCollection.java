@@ -23,18 +23,16 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CopyOnWriteArrayList;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.collection.AbstractFeatureCollection;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.sort.SortBy;
 
 /**
  * FeatureCollection implementation wrapping around a java.util.List.
@@ -92,7 +90,7 @@ public class ListFeatureCollection extends AbstractFeatureCollection
      *
      * <p>The provided array is directly used with a {@link CopyOnWriteArrayList} for storage.
      */
-    public ListFeatureCollection(SimpleFeatureType schema, SimpleFeature array[]) {
+    public ListFeatureCollection(SimpleFeatureType schema, SimpleFeature... array) {
         super(schema);
         this.list = new CopyOnWriteArrayList<>(array);
     }
@@ -108,13 +106,7 @@ public class ListFeatureCollection extends AbstractFeatureCollection
      */
     public ListFeatureCollection(SimpleFeatureCollection copy) throws IOException {
         this(copy.getSchema());
-        copy.accepts(
-                new FeatureVisitor() {
-                    public void visit(Feature feature) {
-                        list.add((SimpleFeature) feature);
-                    }
-                },
-                null);
+        copy.accepts(feature -> list.add((SimpleFeature) feature), null);
     }
 
     @Override
@@ -213,7 +205,7 @@ public class ListFeatureCollection extends AbstractFeatureCollection
     @Override
     public SimpleFeatureCollection sort(SortBy order) {
         Query subQuery = new Query(getSchema().getTypeName());
-        subQuery.setSortBy(new SortBy[] {order});
+        subQuery.setSortBy(order);
 
         CollectionFeatureSource temp = new CollectionFeatureSource(this);
         return temp.getFeatures(subQuery);

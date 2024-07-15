@@ -9,20 +9,19 @@
  */
 package org.geotools.feature;
 
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
 import org.geotools.feature.type.AttributeDescriptorImpl;
 import org.geotools.feature.type.AttributeTypeImpl;
 import org.geotools.feature.type.ComplexTypeImpl;
 import org.geotools.feature.type.FeatureTypeImpl;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.filter.Filter;
 
 public class FakeTypes {
     // *** Taken from XSSchema ***
@@ -32,7 +31,7 @@ public class FakeTypes {
                     /* binding: */ java.lang.Object.class,
                     /* identified: */ false,
                     /* abstract: */ false,
-                    /* restrictions: */ Collections.<Filter>emptyList(),
+                    /* restrictions: */ Collections.emptyList(),
                     /* superType: */ null,
                     /* description: */ null);
 
@@ -42,7 +41,7 @@ public class FakeTypes {
                     /* binding: */ java.lang.Object.class,
                     /* identified: */ false,
                     /* abstract: */ false,
-                    /* restrictions: */ Collections.<Filter>emptyList(),
+                    /* restrictions: */ Collections.emptyList(),
                     /* superType: */ ANYTYPE_TYPE,
                     /* description: */ null);
 
@@ -52,7 +51,7 @@ public class FakeTypes {
                     /* binding: */ String.class,
                     /* identified: */ false,
                     /* abstract: */ false,
-                    /* restrictions: */ Collections.<Filter>emptyList(),
+                    /* restrictions: */ Collections.emptyList(),
                     /* superType: */ ANYSIMPLETYPE_TYPE,
                     /* description: */ null);
 
@@ -62,7 +61,7 @@ public class FakeTypes {
                     /* binding: */ Boolean.class,
                     /* identified: */ false,
                     /* abstract: */ false,
-                    /* restrictions: */ Collections.<Filter>emptyList(),
+                    /* restrictions: */ Collections.emptyList(),
                     /* superType: */ ANYSIMPLETYPE_TYPE,
                     /* description: */ null);
 
@@ -72,14 +71,13 @@ public class FakeTypes {
     public static final AttributeType GEOMETRYPROPERTYTYPE_TYPE = build_GEOMETRYPROPERTYTYPE_TYPE();
 
     private static AttributeType build_GEOMETRYPROPERTYTYPE_TYPE() {
-        AttributeType builtType;
-        builtType =
+        AttributeType builtType =
                 new AttributeTypeImpl(
                         new NameImpl("http://www.opengis.net/gml", "GeometryPropertyType"),
                         org.locationtech.jts.geom.Geometry.class,
                         false,
                         false,
-                        Collections.<Filter>emptyList(),
+                        Collections.emptyList(),
                         FakeTypes.ANYTYPE_TYPE,
                         null);
 
@@ -89,14 +87,13 @@ public class FakeTypes {
     public static final AttributeType NULLTYPE_TYPE = build_NULLTYPE_TYPE();
 
     private static AttributeType build_NULLTYPE_TYPE() {
-        AttributeType builtType;
-        builtType =
+        AttributeType builtType =
                 new AttributeTypeImpl(
                         new NameImpl("http://www.opengis.net/gml", "NullType"),
-                        java.lang.Object.class,
+                        Object.class,
                         false,
                         false,
-                        Collections.<Filter>emptyList(),
+                        Collections.emptyList(),
                         FakeTypes.ANYSIMPLETYPE_TYPE,
                         null);
 
@@ -144,13 +141,8 @@ public class FakeTypes {
                         /* isNillable: */ false,
                         /* defaultValue: */ null);
 
-        public static ArrayList<PropertyDescriptor> MINENAMETYPE_SCHEMA =
-                new ArrayList<PropertyDescriptor>() {
-                    {
-                        add(ISPREFERRED_DESCRIPTOR);
-                        add(mineNAME_DESCRIPTOR);
-                    }
-                };
+        public static List<PropertyDescriptor> MINENAMETYPE_SCHEMA =
+                List.of(ISPREFERRED_DESCRIPTOR, mineNAME_DESCRIPTOR);
 
         // (3)
         public static final ComplexType MINENAMETYPE_TYPE =
@@ -159,7 +151,7 @@ public class FakeTypes {
                         /* properties: */ MINENAMETYPE_SCHEMA,
                         /* identified: */ false,
                         /* isAbstract: */ false,
-                        /* restrictions: */ Collections.<Filter>emptyList(),
+                        /* restrictions: */ Collections.emptyList(),
                         /* superType: */ ANYTYPE_TYPE,
                         /* description: */ null);
 
@@ -173,12 +165,8 @@ public class FakeTypes {
                         /* isNillable: */ false,
                         /* defaultValue: */ null);
 
-        public static ArrayList<PropertyDescriptor> MINENAMEPROPERTYTYPE_SCHEMA =
-                new ArrayList<PropertyDescriptor>() {
-                    {
-                        add(MINENAME_DESCRIPTOR);
-                    }
-                };
+        public static List<PropertyDescriptor> MINENAMEPROPERTYTYPE_SCHEMA =
+                List.of(MINENAME_DESCRIPTOR);
 
         // (5)
         public static final ComplexType MINENAMEPROPERTYTYPE_TYPE =
@@ -187,7 +175,7 @@ public class FakeTypes {
                         /* properties: */ MINENAMEPROPERTYTYPE_SCHEMA,
                         /* identified: */ false,
                         /* isAbstract: */ false,
-                        /* restrictions: */ Collections.<Filter>emptyList(),
+                        /* restrictions: */ Collections.emptyList(),
                         /* superType: */ ANYTYPE_TYPE,
                         /* description: */ null);
 
@@ -201,13 +189,7 @@ public class FakeTypes {
                         /* isNillable: */ false,
                         /* defaultValue: */ null);
 
-        public static ArrayList<PropertyDescriptor> MINETYPE_SCHEMA =
-                new ArrayList<PropertyDescriptor>() {
-                    {
-                        add(MINEmineNAME_DESCRIPTOR);
-                    }
-                };
-
+        public static List<PropertyDescriptor> MINETYPE_SCHEMA = List.of(MINEmineNAME_DESCRIPTOR);
         // (7)
         public static final FeatureType MINETYPE_TYPE =
                 new FeatureTypeImpl(
@@ -218,7 +200,7 @@ public class FakeTypes {
                         // here.
                         /* defaultGeometry: */ null,
                         /* isAbstract: */ false,
-                        /* restrictions: */ Collections.<Filter>emptyList(),
+                        /* restrictions: */ Collections.emptyList(),
                         /* superType: */ ANYTYPE_TYPE, // In real life it's actually a
                         // MiningFeatureType but I don't think it
                         // matters.

@@ -22,11 +22,11 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.List;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.Transaction;
 import org.geotools.feature.NameImpl;
 import org.junit.Test;
-import org.opengis.feature.type.Name;
 
 /**
  * Test the behaviour of {@link ContentEntry}.
@@ -53,6 +53,7 @@ public class ContentEntryTest {
                     }
                 };
 
+        @SuppressWarnings("PMD.CloseResource") // need to test after closing
         Transaction transaction = new DefaultTransaction();
 
         ContentEntry entry = new ContentEntry(dataStore, new NameImpl("test"));

@@ -20,14 +20,15 @@
 package org.geotools.parameter;
 
 import java.net.URI;
+import java.text.MessageFormat;
+import java.util.Objects;
 import javax.measure.Unit;
+import org.geotools.api.parameter.InvalidParameterTypeException;
+import org.geotools.api.parameter.InvalidParameterValueException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValue;
 import org.geotools.measure.Units;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
-import org.opengis.parameter.InvalidParameterTypeException;
-import org.opengis.parameter.InvalidParameterValueException;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
 
 /**
  * A parameter value as a floating point (double precision) number. This class provides the same
@@ -68,9 +69,9 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
         final Class expected = Double.class;
         if (!expected.equals(type) && !Double.TYPE.equals(type)) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ILLEGAL_CLASS_$2, type, expected));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_CLASS_$2, type, expected));
         }
-        final Number value = (Number) descriptor.getDefaultValue();
+        final Number value = descriptor.getDefaultValue();
         this.value = (value != null) ? value.doubleValue() : Double.NaN;
     }
 
@@ -101,6 +102,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *
      * @return The unit of measure, or {@code null} if none.
      */
+    @Override
     public Unit<?> getUnit() {
         return ((ParameterDescriptor) descriptor).getUnit();
     }
@@ -114,15 +116,16 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *     double} and conversion to {@code unit}.
      * @throws IllegalArgumentException if the specified unit is invalid for this parameter.
      */
+    @Override
     public double doubleValue(final Unit<?> unit) throws IllegalArgumentException {
         ensureNonNull("unit", unit);
         final Unit<?> thisUnit = getUnit();
         if (thisUnit == null) {
             throw unitlessParameter(descriptor);
         }
-        final int expectedID = Parameter.getUnitMessageID(thisUnit);
-        if (Parameter.getUnitMessageID(unit) != expectedID) {
-            throw new IllegalArgumentException(Errors.format(expectedID, unit));
+        final String expectedID = Parameter.getUnitMessageID(thisUnit);
+        if (!Objects.equals(Parameter.getUnitMessageID(unit), expectedID)) {
+            throw new IllegalArgumentException(MessageFormat.format(expectedID, unit));
         }
         return Units.getConverterToAny(thisUnit, unit).convert(value);
     }
@@ -134,6 +137,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      * @return The numeric value represented by this parameter after conversion to type {@code
      *     double}.
      */
+    @Override
     public double doubleValue() {
         return value;
     }
@@ -143,6 +147,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *
      * @return The numeric value represented by this parameter after conversion to type {@code int}.
      */
+    @Override
     public int intValue() {
         return (int) Math.round(value);
     }
@@ -152,6 +157,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *
      * @return The boolean value represented by this parameter.
      */
+    @Override
     public boolean booleanValue() {
         return value != 0 && !Double.isNaN(value);
     }
@@ -161,6 +167,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *
      * @return The string value represented by this parameter.
      */
+    @Override
     public String stringValue() {
         return String.valueOf(value);
     }
@@ -173,6 +180,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *     double} and conversion to {@code unit}.
      * @throws IllegalArgumentException if the specified unit is invalid for this parameter.
      */
+    @Override
     public double[] doubleValueList(final Unit<?> unit) throws IllegalArgumentException {
         return new double[] {doubleValue(unit)};
     }
@@ -182,6 +190,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *
      * @return The sequence of values represented by this parameter.
      */
+    @Override
     public double[] doubleValueList() {
         return new double[] {doubleValue()};
     }
@@ -191,6 +200,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *
      * @return The sequence of values represented by this parameter.
      */
+    @Override
     public int[] intValueList() {
         return new int[] {intValue()};
     }
@@ -201,13 +211,14 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      * @return Never return.
      * @throws InvalidParameterTypeException The value is not a reference to a file or an URI.
      */
+    @Override
     public URI valueFile() throws InvalidParameterTypeException {
         throw new InvalidParameterTypeException(getClassTypeError(), Parameter.getName(descriptor));
     }
 
     /** Format an error message for illegal method call for the current value type. */
     private static String getClassTypeError() {
-        return Errors.format(ErrorKeys.ILLEGAL_OPERATION_FOR_VALUE_CLASS_$1, Double.class);
+        return MessageFormat.format(ErrorKeys.ILLEGAL_OPERATION_FOR_VALUE_CLASS_$1, Double.class);
     }
 
     /**
@@ -215,6 +226,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *
      * @return The parameter value as an object.
      */
+    @Override
     public Double getValue() {
         return Double.valueOf(value);
     }
@@ -227,6 +239,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      * @throws InvalidParameterValueException if the value is illegal for some reason (for example a
      *     value out of range).
      */
+    @Override
     public void setValue(double value, final Unit<?> unit) throws InvalidParameterValueException {
         ensureNonNull("unit", unit);
         @SuppressWarnings("unchecked") // Checked by constructor.
@@ -235,9 +248,9 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
         if (thisUnit == null) {
             throw unitlessParameter(descriptor);
         }
-        final int expectedID = Parameter.getUnitMessageID(thisUnit);
-        if (Parameter.getUnitMessageID(unit) != expectedID) {
-            throw new IllegalArgumentException(Errors.format(expectedID, unit));
+        final String expectedID = Parameter.getUnitMessageID(thisUnit);
+        if (!Objects.equals(Parameter.getUnitMessageID(unit), expectedID)) {
+            throw new IllegalArgumentException(MessageFormat.format(expectedID, unit));
         }
         value = Units.getConverterToAny(unit, thisUnit).convert(value);
         this.value = Parameter.ensureValidValue(descriptor, Double.valueOf(value));
@@ -250,6 +263,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      * @throws InvalidParameterValueException if the value is illegal for some reason (for example a
      *     value out of range).
      */
+    @Override
     public void setValue(final double value) throws InvalidParameterValueException {
         @SuppressWarnings("unchecked") // Checked by constructor.
         final ParameterDescriptor<Double> descriptor = (ParameterDescriptor) this.descriptor;
@@ -263,6 +277,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      * @throws InvalidParameterValueException if the value is illegal for some reason (for example a
      *     value out of range).
      */
+    @Override
     public void setValue(final int value) throws InvalidParameterValueException {
         setValue((double) value);
     }
@@ -274,6 +289,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      * @throws InvalidParameterValueException if the boolean type is inappropriate for this
      *     parameter.
      */
+    @Override
     public void setValue(final boolean value) throws InvalidParameterValueException {
         setValue(value ? 1.0 : 0.0);
     }
@@ -286,6 +302,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
      *     parameter, or if the value is illegal for some other reason (for example the value is
      *     numeric and out of range).
      */
+    @Override
     public void setValue(final Object value) throws InvalidParameterValueException {
         @SuppressWarnings("unchecked") // Checked by constructor.
         final ParameterDescriptor<Double> descriptor = (ParameterDescriptor) this.descriptor;
@@ -293,6 +310,7 @@ public class FloatParameter extends AbstractParameter implements ParameterValue<
     }
 
     /** Always throws an exception, since this parameter is not an array. */
+    @Override
     public void setValue(double[] values, final Unit<?> unit)
             throws InvalidParameterValueException {
         throw new InvalidParameterTypeException(getClassTypeError(), Parameter.getName(descriptor));

@@ -19,11 +19,11 @@ package org.geotools.filter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import org.opengis.filter.And;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
 
 /**
  * Defines a logic filter (the only filter type that contains other filters). This filter holds one
@@ -41,7 +41,7 @@ public abstract class LogicFilterImpl extends BinaryLogicAbstract {
      */
     int cachedHash = 0;
 
-    protected LogicFilterImpl(List<org.opengis.filter.Filter> children) {
+    protected LogicFilterImpl(List<org.geotools.api.filter.Filter> children) {
         super(children);
     }
 
@@ -71,7 +71,8 @@ public abstract class LogicFilterImpl extends BinaryLogicAbstract {
      * @throws IllegalFilterException Does not conform to logic filter structure
      * @task REVISIT: make all filters immutable. This should return a new filter.
      */
-    public final void addFilter(org.opengis.filter.Filter filter) throws IllegalFilterException {
+    public final void addFilter(org.geotools.api.filter.Filter filter)
+            throws IllegalFilterException {
         // reset
         cachedHash = 0;
         if (this instanceof Not && children.size() != 0) {
@@ -96,6 +97,7 @@ public abstract class LogicFilterImpl extends BinaryLogicAbstract {
      *
      * @return String representation of the logic filter.
      */
+    @Override
     public String toString() {
         String returnString = "[";
         String operator = "";
@@ -140,6 +142,7 @@ public abstract class LogicFilterImpl extends BinaryLogicAbstract {
      *
      * @return a code to hash this object by.
      */
+    @Override
     public int hashCode() {
         if (cachedHash == 0) {
             int result = 17;
@@ -160,5 +163,6 @@ public abstract class LogicFilterImpl extends BinaryLogicAbstract {
      * @param visitor The visitor which requires access to this filter, the method must call
      *     visitor.visit(this);
      */
+    @Override
     public abstract Object accept(FilterVisitor visitor, Object extraData);
 }

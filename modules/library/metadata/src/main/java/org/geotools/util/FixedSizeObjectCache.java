@@ -57,6 +57,7 @@ final class FixedSizeObjectCache<K, V> implements ObjectCache<K, V> {
     }
 
     /** Removes all entries from this map. */
+    @Override
     public void clear() {
         synchronized (locks) {
             locks.clear();
@@ -78,14 +79,17 @@ final class FixedSizeObjectCache<K, V> implements ObjectCache<K, V> {
      *
      * @param key The authority code.
      */
+    @Override
     public V get(final Object key) {
         return cache.get(key);
     }
 
+    @Override
     public V peek(final K key) {
         return cache.get(key);
     }
 
+    @Override
     public void writeLock(final K key) {
         ReentrantLock lock;
         synchronized (locks) {
@@ -99,9 +103,10 @@ final class FixedSizeObjectCache<K, V> implements ObjectCache<K, V> {
         lock.lock();
     }
 
+    @Override
     public void writeUnLock(final K key) {
         synchronized (locks) {
-            final ReentrantLock lock = (ReentrantLock) locks.get(key);
+            final ReentrantLock lock = locks.get(key);
             if (lock == null) {
                 throw new IllegalMonitorStateException("Cannot unlock prior to locking");
             }
@@ -117,7 +122,7 @@ final class FixedSizeObjectCache<K, V> implements ObjectCache<K, V> {
 
     boolean holdsLock(final K key) {
         synchronized (locks) {
-            final ReentrantLock lock = (ReentrantLock) locks.get(key);
+            final ReentrantLock lock = locks.get(key);
             if (lock != null) {
                 return lock.getHoldCount() != 0;
             }
@@ -125,6 +130,7 @@ final class FixedSizeObjectCache<K, V> implements ObjectCache<K, V> {
         return false;
     }
     /** Stores a value */
+    @Override
     public void put(final K key, final V object) {
         if (cache.size() < LIMIT) {
             writeLock(key);
@@ -134,11 +140,13 @@ final class FixedSizeObjectCache<K, V> implements ObjectCache<K, V> {
     }
 
     /** @return the keys of the object currently in the set */
+    @Override
     public Set<K> getKeys() {
         return new HashSet<>(cache.keySet());
     }
 
     /** Removes the given key from the cache. */
+    @Override
     public void remove(K key) {
         // ensure nobody else is writing to this key as we remove it
         synchronized (locks) {

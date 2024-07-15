@@ -18,6 +18,13 @@
  */
 package org.geotools.feature;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.lang.reflect.Array;
 import java.net.URI;
 import java.util.ArrayList;
@@ -27,20 +34,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import junit.framework.Test;
-import junit.framework.TestSuite;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.FeatureType;
 import org.geotools.data.DataTestCase;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.feature.type.BasicFeatureTypes;
+import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
 
 /**
  * Test SimpleFeatureTypeBuilder and friends.
@@ -49,20 +54,7 @@ import org.opengis.feature.type.FeatureType;
  * @author jgarnett
  */
 public class FeatureTypeTest extends DataTestCase {
-
-    public FeatureTypeTest(String testName) {
-        super(testName);
-    }
-
-    public static void main(String[] args) {
-        junit.textui.TestRunner.run(suite());
-    }
-
-    public static Test suite() {
-        TestSuite suite = new TestSuite(FeatureTypeTest.class);
-        return suite;
-    }
-
+    @Test
     public void testAbstractType() throws Exception {
 
         SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
@@ -93,18 +85,17 @@ public class FeatureTypeTest extends DataTestCase {
         try {
             SimpleFeatureBuilder.build(abstractType, new Object[0], null);
             fail("abstract type allowed create");
-        } catch (IllegalArgumentException iae) {
-        } catch (UnsupportedOperationException uoe) {
+        } catch (IllegalArgumentException | UnsupportedOperationException iae) {
         }
 
         try {
             SimpleFeatureBuilder.build(abstractType2, new Object[0], null);
             fail("abstract type allowed create");
-        } catch (IllegalArgumentException iae) {
-        } catch (UnsupportedOperationException uoe) {
+        } catch (IllegalArgumentException | UnsupportedOperationException iae) {
         }
     }
 
+    @Test
     public void testEquals() throws Exception {
         SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
         tb.setName("Thing");
@@ -121,15 +112,16 @@ public class FeatureTypeTest extends DataTestCase {
         assertEquals(ft, ft2);
 
         tb.setName("Thingee");
-        assertTrue(!ft.equals(tb.buildFeatureType()));
+        assertNotEquals(ft, tb.buildFeatureType());
 
         tb.init(ft);
         tb.setNamespaceURI("http://www.somewhereelse.net");
 
-        assertTrue(!ft.equals(tb.buildFeatureType()));
-        assertTrue(!ft.equals(null));
+        assertNotEquals(ft, tb.buildFeatureType());
+        assertNotEquals(ft, null);
     }
 
+    @Test
     public void testCopyFeature() throws Exception {
         SimpleFeature feature = lakeFeatures[0];
         assertDuplicate("feature", feature, SimpleFeatureBuilder.copy(feature));
@@ -142,11 +134,11 @@ public class FeatureTypeTest extends DataTestCase {
      * <p>UML type hierarchy of test types: Feature <|-- A <|-- B <|-- C
      */
     @SuppressWarnings("serial")
+    @Test
     public void testAncestors() throws Exception {
         URI uri = new URI("http://www.geotools.org/example");
-        SimpleFeatureTypeBuilder tb;
 
-        tb = new SimpleFeatureTypeBuilder();
+        SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
         tb.setName("A");
         tb.setNamespaceURI(uri);
         final SimpleFeatureType typeA = tb.buildFeatureType();
@@ -173,35 +165,21 @@ public class FeatureTypeTest extends DataTestCase {
 
         assertEquals(
                 "Ancestors of A, nearest first",
-                new ArrayList<FeatureType>() {
-                    {
-                        add(BasicFeatureTypes.FEATURE);
-                    }
-                },
+                List.of(BasicFeatureTypes.FEATURE),
                 FeatureTypes.getAncestors(typeA));
 
         assertEquals(
                 "Ancestors of B, nearest first",
-                new ArrayList<FeatureType>() {
-                    {
-                        add(typeA);
-                        add(BasicFeatureTypes.FEATURE);
-                    }
-                },
+                List.of(typeA, BasicFeatureTypes.FEATURE),
                 FeatureTypes.getAncestors(typeB));
 
         assertEquals(
                 "Ancestors of C, nearest first",
-                new ArrayList<FeatureType>() {
-                    {
-                        add(typeB);
-                        add(typeA);
-                        add(BasicFeatureTypes.FEATURE);
-                    }
-                },
+                List.of(typeB, typeA, BasicFeatureTypes.FEATURE),
                 FeatureTypes.getAncestors(typeC));
     }
 
+    @Test
     public void testDeepCopy() throws Exception {
         // primative
         String str = "FooBar";
@@ -209,24 +187,18 @@ public class FeatureTypeTest extends DataTestCase {
         Float f = Float.valueOf(3.14f);
         Double d = Double.valueOf(3.14159);
 
-        AttributeTypeBuilder ab = new AttributeTypeBuilder();
-
-        AttributeDescriptor testType = ab.binding(Object.class).buildDescriptor("test");
-
         assertSame("String", str, DataUtilities.duplicate(str));
         assertSame("Integer", i, DataUtilities.duplicate(i));
         assertSame("Float", f, DataUtilities.duplicate(f));
         assertSame("Double", d, DataUtilities.duplicate(d));
 
         // collections
-        Object objs[] =
-                new Object[] {
-                    str, i, f, d,
-                };
-        int ints[] =
-                new int[] {
-                    1, 2, 3, 4,
-                };
+        Object[] objs = {
+            str, i, f, d,
+        };
+        int[] ints = {
+            1, 2, 3, 4,
+        };
         List<Object> list = new ArrayList<>();
         list.add(str);
         list.add(i);
@@ -284,10 +256,6 @@ public class FeatureTypeTest extends DataTestCase {
                     ((SimpleFeature) value).getAttributes());
         } else {
             assertEquals(message, expected, value);
-        }
-        // Ensure Non Immutables are actually copied
-        if (!immutable.contains(expected.getClass())) {
-            // assertNotSame( message, expected, value );
         }
     }
 }

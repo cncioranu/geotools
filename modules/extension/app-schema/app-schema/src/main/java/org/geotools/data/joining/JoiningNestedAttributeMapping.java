@@ -23,10 +23,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.opengis.wfs20.ResolveValueType;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.appschema.jdbc.JoiningJDBCFeatureSource;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
 import org.geotools.data.complex.AbstractMappingFeatureIterator;
 import org.geotools.data.complex.AppSchemaDataAccessRegistry;
 import org.geotools.data.complex.AttributeMapping;
@@ -40,11 +45,6 @@ import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.filter.FilterAttributeExtractor;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -105,6 +105,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
                 namespaces);
     }
 
+    @Override
     public List<Feature> getInputFeatures(Object foreignKeyValue, FeatureTypeMapping fMapping) {
         throw new UnsupportedOperationException(
                 "Internal error: Not Allowed to run this method for Joining Nested Attribute Mapping!");
@@ -179,7 +180,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
 
         query.setProperties(selectedProperties);
 
-        FeatureSource fSource = DataAccessRegistry.getFeatureSource((Name) featureTypeName);
+        FeatureSource fSource = DataAccessRegistry.getFeatureSource(featureTypeName);
 
         if (fSource == null) {
             throw new IOException("Internal error: Source could not be found");
@@ -314,7 +315,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
         }
         @SuppressWarnings("PMD.CloseResource") // not managed here (field, closed later)
         DataAccessMappingFeatureIterator featureIterator =
-                instance.featureIterators.get((Name) featureTypeName);
+                instance.featureIterators.get(featureTypeName);
         if (featureIterator == null) {
             featureIterator =
                     initSourceFeatures(
@@ -327,8 +328,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
                             null,
                             transaction);
         }
-        Expression nestedSourceExpression =
-                instance.nestedSourceExpressions.get((Name) featureTypeName);
+        Expression nestedSourceExpression = instance.nestedSourceExpressions.get(featureTypeName);
         if (nestedSourceExpression == null) {
             throw new IllegalArgumentException(
                     "Internal error: nested source expression expected but found "
@@ -407,7 +407,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
         }
         @SuppressWarnings("PMD.CloseResource") // not managed here, closed later
         DataAccessMappingFeatureIterator featureIterator =
-                instance.featureIterators.get((Name) featureTypeName);
+                instance.featureIterators.get(featureTypeName);
         if (featureIterator == null) {
             featureIterator =
                     initSourceFeatures(
@@ -420,8 +420,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
                             resolveTimeOut,
                             transaction);
         }
-        Expression nestedSourceExpression =
-                instance.nestedSourceExpressions.get((Name) featureTypeName);
+        Expression nestedSourceExpression = instance.nestedSourceExpressions.get(featureTypeName);
         if (nestedSourceExpression == null) {
             throw new IllegalArgumentException(
                     "Internal error: nested source expression expected but found "

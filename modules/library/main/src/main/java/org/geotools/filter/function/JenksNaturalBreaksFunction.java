@@ -24,14 +24,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Calculate the Jenks' Natural Breaks classification for a featurecollection
@@ -39,7 +39,7 @@ import org.opengis.filter.expression.Literal;
  * @author Ian Turton
  */
 public class JenksNaturalBreaksFunction extends ClassificationFunction {
-    org.opengis.util.ProgressListener progress;
+    org.geotools.api.util.ProgressListener progress;
 
     private static final Logger logger = Logging.getLogger(JenksNaturalBreaksFunction.class);
 
@@ -60,6 +60,7 @@ public class JenksNaturalBreaksFunction extends ClassificationFunction {
      *
      * @see org.geotools.filter.function.ClassificationFunction#evaluate(java.lang.Object)
      */
+    @Override
     public Object evaluate(Object feature) {
         if (!(feature instanceof FeatureCollection)) {
             return null;
@@ -150,7 +151,7 @@ public class JenksNaturalBreaksFunction extends ClassificationFunction {
                 // update running totals
                 s2 = s2 + (val * val);
                 s1 += val;
-                double s0 = (double) ii;
+                double s0 = ii;
                 // calculate (square of) the variance
                 // (http://secure.wikimedia.org/wikipedia/en/wiki/Standard_deviation#Rapid_calculation_methods)
                 var = s2 - ((s1 * s1) / s0);
@@ -192,12 +193,12 @@ public class JenksNaturalBreaksFunction extends ClassificationFunction {
         localMax[k - 1] = data.get(ik);
         for (int j = k; j >= 2; j--) {
             logger.finest("index " + ik + ", class" + j);
-            int id = (int) iwork[ik][j] - 1; // subtract one as we want inclusive breaks on the
+            int id = iwork[ik][j] - 1; // subtract one as we want inclusive breaks on the
             // left?
 
             localMax[j - 2] = data.get(id);
             localMin[j - 1] = data.get(id);
-            ik = (int) iwork[ik][j] - 1;
+            ik = iwork[ik][j] - 1;
         }
         localMin[0] = data.get(0);
         /*

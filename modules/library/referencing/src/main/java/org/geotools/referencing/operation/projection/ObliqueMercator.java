@@ -35,24 +35,24 @@ import static java.lang.Math.tan;
 import static java.lang.Math.toDegrees;
 
 import java.awt.geom.Point2D;
+import java.text.MessageFormat;
 import java.util.Collection;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.InvalidParameterValueException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.CylindricalProjection;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.util.InternationalString;
 import org.geotools.measure.Angle;
 import org.geotools.measure.Latitude;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.InvalidParameterValueException;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.CylindricalProjection;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.InternationalString;
 import si.uom.NonSI;
 
 /**
@@ -215,7 +215,7 @@ public class ObliqueMercator extends MapProjection {
      * <p>This parameter applies to the "two points" case only. It is set to {@link Double#NaN NaN}
      * for the "azimuth" case.
      */
-    private final double latitudeOf1stPoint;
+    private final double p1Lat;
 
     /**
      * The longitude of the 1st point used to specify the central line, in radians.
@@ -223,7 +223,7 @@ public class ObliqueMercator extends MapProjection {
      * <p>This parameter applies to the "two points" case only. It is set to {@link Double#NaN NaN}
      * for the "azimuth" case.
      */
-    private final double longitudeOf1stPoint;
+    private final double p1Lon;
 
     /**
      * The latitude of the 2nd point used to specify the central line, in radians.
@@ -231,7 +231,7 @@ public class ObliqueMercator extends MapProjection {
      * <p>This parameter applies to the "two points" case only. It is set to {@link Double#NaN NaN}
      * for the "azimuth" case.
      */
-    private final double latitudeOf2ndPoint;
+    private final double p2Lat;
 
     /**
      * The longitude of the 2nd point used to specify the central line, in radians.
@@ -239,7 +239,7 @@ public class ObliqueMercator extends MapProjection {
      * <p>This parameter applies to the "two points" case only. It is set to {@link Double#NaN NaN}
      * for the "azimuth" case.
      */
-    private final double longitudeOf2ndPoint;
+    private final double p2Lon;
 
     //////
     //////    Map projection coefficients computed from the above parameters.
@@ -356,18 +356,15 @@ public class ObliqueMercator extends MapProjection {
         final double gamma0;
         if (twoPoint) {
             longitudeOfCentre = Double.NaN; // This is for the "azimuth" case only.
-            latitudeOf1stPoint =
-                    doubleValue(expected, Provider_TwoPoint.LAT_OF_1ST_POINT, parameters);
+            p1Lat = doubleValue(expected, Provider_TwoPoint.LAT_OF_1ST_POINT, parameters);
             // Checks that latOf1stPoint is not +-90 degrees
-            ensureLatitudeInRange(Provider_TwoPoint.LAT_OF_1ST_POINT, latitudeOf1stPoint, false);
-            longitudeOf1stPoint =
-                    doubleValue(expected, Provider_TwoPoint.LONG_OF_1ST_POINT, parameters);
-            ensureLongitudeInRange(Provider_TwoPoint.LONG_OF_1ST_POINT, longitudeOf1stPoint, true);
-            latitudeOf2ndPoint =
-                    doubleValue(expected, Provider_TwoPoint.LAT_OF_2ND_POINT, parameters);
-            ensureLatitudeInRange(Provider_TwoPoint.LAT_OF_2ND_POINT, latitudeOf2ndPoint, true);
-            double longitudeOf2ndPoint; // Will be assigned to the field later.
-            longitudeOf2ndPoint =
+            ensureLatitudeInRange(Provider_TwoPoint.LAT_OF_1ST_POINT, p1Lat, false);
+            p1Lon = doubleValue(expected, Provider_TwoPoint.LONG_OF_1ST_POINT, parameters);
+            ensureLongitudeInRange(Provider_TwoPoint.LONG_OF_1ST_POINT, p1Lon, true);
+            p2Lat = doubleValue(expected, Provider_TwoPoint.LAT_OF_2ND_POINT, parameters);
+            ensureLatitudeInRange(Provider_TwoPoint.LAT_OF_2ND_POINT, p2Lat, true);
+            // Will be assigned to the field later.
+            double longitudeOf2ndPoint =
                     doubleValue(expected, Provider_TwoPoint.LONG_OF_2ND_POINT, parameters);
             ensureLongitudeInRange(Provider_TwoPoint.LONG_OF_2ND_POINT, longitudeOf2ndPoint, true);
             /*
@@ -376,59 +373,50 @@ public class ObliqueMercator extends MapProjection {
              */
             ParameterDescriptor desc = null;
             Object value = null;
-            if (abs(latitudeOf1stPoint - latitudeOf2ndPoint) < EPSILON_LATITUDE) {
+            if (abs(p1Lat - p2Lat) < EPSILON_LATITUDE) {
                 desc = Provider_TwoPoint.LAT_OF_1ST_POINT;
                 value = Provider_TwoPoint.LAT_OF_2ND_POINT.getName().getCode();
                 // Exception will be thrown below.
             }
-            if (abs(latitudeOf1stPoint) < EPSILON_LATITUDE) {
+            if (abs(p1Lat) < EPSILON_LATITUDE) {
                 desc = Provider_TwoPoint.LAT_OF_1ST_POINT;
-                value = new Latitude(latitudeOf1stPoint);
+                value = new Latitude(p1Lat);
                 // Exception will be thrown below.
             }
-            if (abs(latitudeOf2ndPoint + PI / 2.0) < EPSILON_LATITUDE) {
+            if (abs(p2Lat + PI / 2.0) < EPSILON_LATITUDE) {
                 desc = Provider_TwoPoint.LAT_OF_2ND_POINT;
-                value = new Latitude(latitudeOf2ndPoint);
+                value = new Latitude(p2Lat);
                 // Exception will be thrown below.
             }
             if (desc != null) {
                 final String name = desc.getName().getCode();
                 throw new InvalidParameterValueException(
-                        Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, name, value), name, value);
+                        MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, name, value),
+                        name,
+                        value);
             }
             /*
              * The coefficients for the "two points" case.
              */
-            final double H = pow(tsfn(latitudeOf1stPoint, sin(latitudeOf1stPoint)), B);
-            final double L = pow(tsfn(latitudeOf2ndPoint, sin(latitudeOf2ndPoint)), B);
+            final double H = pow(tsfn(p1Lat, sin(p1Lat)), B);
+            final double L = pow(tsfn(p2Lat, sin(p2Lat)), B);
             final double Fp = E / H;
             final double P = (L - H) / (L + H);
             double J = E * E;
             J = (J - L * H) / (J + L * H);
-            double diff = longitudeOf1stPoint - longitudeOf2ndPoint;
+            double diff = p1Lon - longitudeOf2ndPoint;
             if (diff < -PI) {
                 longitudeOf2ndPoint -= 2.0 * PI;
             } else if (diff > PI) {
                 longitudeOf2ndPoint += 2.0 * PI;
             }
-            this.longitudeOf2ndPoint = longitudeOf2ndPoint;
+            this.p2Lon = longitudeOf2ndPoint;
             centralMeridian =
                     rollLongitude(
-                            0.5 * (longitudeOf1stPoint + longitudeOf2ndPoint)
-                                    - atan(
-                                                    J
-                                                            * tan(
-                                                                    0.5
-                                                                            * B
-                                                                            * (longitudeOf1stPoint
-                                                                                    - longitudeOf2ndPoint))
-                                                            / P)
+                            0.5 * (p1Lon + longitudeOf2ndPoint)
+                                    - atan(J * tan(0.5 * B * (p1Lon - longitudeOf2ndPoint)) / P)
                                             / B);
-            gamma0 =
-                    atan(
-                            2.0
-                                    * sin(B * rollLongitude(longitudeOf1stPoint - centralMeridian))
-                                    / (Fp - 1.0 / Fp));
+            gamma0 = atan(2.0 * sin(B * rollLongitude(p1Lon - centralMeridian)) / (Fp - 1.0 / Fp));
             azimuth = asin(D * sin(gamma0));
             rectifiedGridAngle = azimuth;
         } else {
@@ -437,10 +425,10 @@ public class ObliqueMercator extends MapProjection {
              * to (NaN,NaN) since they are specific to the "two points" case.  They are
              * involved in WKT formatting only, not in transformation calculation.
              */
-            latitudeOf1stPoint = Double.NaN;
-            longitudeOf1stPoint = Double.NaN;
-            latitudeOf2ndPoint = Double.NaN;
-            longitudeOf2ndPoint = Double.NaN;
+            p1Lat = Double.NaN;
+            p1Lon = Double.NaN;
+            p2Lat = Double.NaN;
+            p2Lon = Double.NaN;
             longitudeOfCentre = doubleValue(expected, Provider.LONGITUDE_OF_CENTRE, parameters);
             ensureLongitudeInRange(Provider.LONGITUDE_OF_CENTRE, longitudeOfCentre, true);
             azimuth = doubleValue(expected, Provider.AZIMUTH, parameters);
@@ -450,7 +438,9 @@ public class ObliqueMercator extends MapProjection {
                 final String name = Provider.AZIMUTH.getName().getCode();
                 final Angle value = new Angle(toDegrees(azimuth));
                 throw new InvalidParameterValueException(
-                        Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, name, value), name, value);
+                        MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, name, value),
+                        name,
+                        value);
             }
             temp = doubleValue(expected, Provider.RECTIFIED_GRID_ANGLE, parameters);
             if (Double.isNaN(temp)) {
@@ -462,7 +452,7 @@ public class ObliqueMercator extends MapProjection {
             temp = 0.5 * (F - 1.0 / F) * tan(gamma0);
             if (abs(temp) > 1.0) {
                 if (abs(abs(temp) - 1.0) > EPSILON) {
-                    throw new IllegalArgumentException(Errors.format(ErrorKeys.TOLERANCE_ERROR));
+                    throw new IllegalArgumentException(ErrorKeys.TOLERANCE_ERROR);
                 }
                 temp = (temp > 0) ? 1.0 : -1.0;
             }
@@ -497,6 +487,7 @@ public class ObliqueMercator extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return (twoPoint) ? Provider_TwoPoint.PARAMETERS : Provider.PARAMETERS;
     }
@@ -513,10 +504,10 @@ public class ObliqueMercator extends MapProjection {
         set(expected, Provider.LONGITUDE_OF_CENTRE, values, longitudeOfCentre);
         set(expected, Provider.AZIMUTH, values, azimuth);
         set(expected, Provider.RECTIFIED_GRID_ANGLE, values, rectifiedGridAngle);
-        set(expected, Provider_TwoPoint.LAT_OF_1ST_POINT, values, latitudeOf1stPoint);
-        set(expected, Provider_TwoPoint.LONG_OF_1ST_POINT, values, longitudeOf1stPoint);
-        set(expected, Provider_TwoPoint.LAT_OF_2ND_POINT, values, latitudeOf2ndPoint);
-        set(expected, Provider_TwoPoint.LONG_OF_2ND_POINT, values, longitudeOf2ndPoint);
+        set(expected, Provider_TwoPoint.LAT_OF_1ST_POINT, values, p1Lat);
+        set(expected, Provider_TwoPoint.LONG_OF_1ST_POINT, values, p1Lon);
+        set(expected, Provider_TwoPoint.LAT_OF_2ND_POINT, values, p2Lat);
+        set(expected, Provider_TwoPoint.LONG_OF_2ND_POINT, values, p2Lon);
         return values;
     }
 
@@ -526,6 +517,7 @@ public class ObliqueMercator extends MapProjection {
      * @param x The longitude of the coordinate, in <strong>radians</strong>.
      * @param y The latitude of the coordinate, in <strong>radians</strong>.
      */
+    @Override
     protected Point2D transformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         double u, v;
@@ -561,6 +553,7 @@ public class ObliqueMercator extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         double v = x * cosrot - y * sinrot;
@@ -608,8 +601,8 @@ public class ObliqueMercator extends MapProjection {
         code = code * 37 + Double.doubleToLongBits(longitudeOfCentre);
         code = code * 37 + Double.doubleToLongBits(azimuth);
         code = code * 37 + Double.doubleToLongBits(rectifiedGridAngle);
-        code = code * 37 + Double.doubleToLongBits(latitudeOf1stPoint);
-        code = code * 37 + Double.doubleToLongBits(latitudeOf2ndPoint);
+        code = code * 37 + Double.doubleToLongBits(p1Lat);
+        code = code * 37 + Double.doubleToLongBits(p2Lat);
         return ((int) code ^ (int) (code >>> 32)) + 37 * super.hashCode();
     }
 
@@ -631,10 +624,10 @@ public class ObliqueMercator extends MapProjection {
                     && equals(
                             rollLongitude(this.rectifiedGridAngle),
                             rollLongitude(that.rectifiedGridAngle))
-                    && equals(this.latitudeOf1stPoint, that.latitudeOf1stPoint)
-                    && equals(this.longitudeOf1stPoint, that.longitudeOf1stPoint)
-                    && equals(this.latitudeOf2ndPoint, that.latitudeOf2ndPoint)
-                    && equals(this.longitudeOf2ndPoint, that.longitudeOf2ndPoint)
+                    && equals(this.p1Lat, that.p1Lat)
+                    && equals(this.p1Lon, that.p1Lon)
+                    && equals(this.p2Lat, that.p2Lat)
+                    && equals(this.p2Lon, that.p2Lon)
                     && equals(this.u_c, that.u_c);
             // Note: "u_c" is a derived parameter, so in theory we don't need to compare it.
             //        However we still compare it as a safety, because it takes a different
@@ -793,6 +786,7 @@ public class ObliqueMercator extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             final Collection<GeneralParameterDescriptor> descriptors = PARAMETERS.descriptors();

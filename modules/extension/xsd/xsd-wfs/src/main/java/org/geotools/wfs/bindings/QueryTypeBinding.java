@@ -156,13 +156,13 @@ import org.geotools.xsd.AbstractComplexEMFBinding;
  *
  * @generated
  */
-@SuppressWarnings({"nls", "unchecked"})
 public class QueryTypeBinding extends AbstractComplexEMFBinding {
     public QueryTypeBinding(WfsFactory factory) {
         super(factory);
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WFS.QueryType;
     }
@@ -199,7 +199,7 @@ public class QueryTypeBinding extends AbstractComplexEMFBinding {
         } else if ("SortBy".equals(name.getLocalPart())) {
             QueryType query = (QueryType) object;
             List sortBy = query.getSortBy();
-            if (sortBy != null && sortBy.size() == 0) {
+            if (sortBy != null && sortBy.isEmpty()) {
                 return null;
             }
         }

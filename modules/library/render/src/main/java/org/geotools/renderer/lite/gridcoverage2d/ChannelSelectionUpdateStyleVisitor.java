@@ -17,10 +17,10 @@
 
 package org.geotools.renderer.lite.gridcoverage2d;
 
+import org.geotools.api.style.ChannelSelection;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.SelectedChannelType;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
-import org.geotools.styling.ChannelSelection;
-import org.geotools.styling.RasterSymbolizer;
-import org.geotools.styling.SelectedChannelType;
 import org.geotools.styling.visitor.DuplicatingStyleVisitor;
 
 /**
@@ -46,7 +46,7 @@ public class ChannelSelectionUpdateStyleVisitor extends DuplicatingStyleVisitor 
     @Override
     protected ChannelSelection copy(ChannelSelection channelSelection) {
         if (channels.length != 3) {
-            return sf.createChannelSelection(new SelectedChannelType[] {channels[0]});
+            return sf.createChannelSelection(channels[0]);
         } else {
             return sf.createChannelSelection(channels);
         }

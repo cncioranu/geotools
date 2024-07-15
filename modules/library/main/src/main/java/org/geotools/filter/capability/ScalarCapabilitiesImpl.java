@@ -16,9 +16,9 @@
  */
 package org.geotools.filter.capability;
 
-import org.opengis.filter.capability.ArithmeticOperators;
-import org.opengis.filter.capability.ComparisonOperators;
-import org.opengis.filter.capability.ScalarCapabilities;
+import org.geotools.api.filter.capability.ArithmeticOperators;
+import org.geotools.api.filter.capability.ComparisonOperators;
+import org.geotools.api.filter.capability.ScalarCapabilities;
 
 /**
  * Implementation of the ScalarCapabilities interface.
@@ -64,6 +64,7 @@ public class ScalarCapabilitiesImpl implements ScalarCapabilities {
         this.arithmeticOperators = arithmeticOperators;
     }
 
+    @Override
     public ArithmeticOperatorsImpl getArithmeticOperators() {
         return arithmeticOperators;
     }
@@ -72,6 +73,7 @@ public class ScalarCapabilitiesImpl implements ScalarCapabilities {
         this.comparisonOperators = comparisonOperators;
     }
 
+    @Override
     public ComparisonOperatorsImpl getComparisonOperators() {
         return comparisonOperators;
     }
@@ -80,6 +82,7 @@ public class ScalarCapabilitiesImpl implements ScalarCapabilities {
         this.logicalOperators = logicalOperators;
     }
 
+    @Override
     public boolean hasLogicalOperators() {
         return logicalOperators;
     }

@@ -17,6 +17,7 @@
 package org.geotools.util;
 
 import java.lang.ref.SoftReference;
+import java.text.MessageFormat;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.Collection;
@@ -31,7 +32,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.logging.Logging;
 
 /**
@@ -117,7 +117,8 @@ public class SoftValueHashMap<K, V> extends AbstractMap<K, V> {
     /** Ensures that the specified value is non-null. */
     private static void ensureNotNull(final Object value) throws IllegalArgumentException {
         if (value == null) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "value"));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "value"));
         }
     }
 
@@ -265,7 +266,7 @@ public class SoftValueHashMap<K, V> extends AbstractMap<K, V> {
              *
              * In highly concurrent environments, key could have been already removed.
              */
-            hardCache.remove((K) replaceNull(key));
+            hardCache.remove(replaceNull(key));
         }
         retainStrongly((K) replaceNull(key));
         final V v = (V) oldValue;
@@ -352,11 +353,13 @@ public class SoftValueHashMap<K, V> extends AbstractMap<K, V> {
     /** Implementation of the entries set to be returned by {@link #entrySet()}. */
     private final class Entries extends AbstractSet<Map.Entry<K, V>> {
         /** Returns an iterator over the elements contained in this collection. */
+        @Override
         public Iterator<Map.Entry<K, V>> iterator() {
             return new Iter<>(hash);
         }
 
         /** Returns the number of elements in this collection. */
+        @Override
         public int size() {
             return SoftValueHashMap.this.size();
         }
@@ -479,6 +482,7 @@ public class SoftValueHashMap<K, V> extends AbstractMap<K, V> {
         }
 
         /** Returns {@code true} if this iterator can return more value. */
+        @Override
         public boolean hasNext() {
             return entry != null || findNext();
         }
@@ -488,6 +492,7 @@ public class SoftValueHashMap<K, V> extends AbstractMap<K, V> {
          * created, they will not be returned. A {@link ConcurrentModificationException} is not
          * thrown since a ConcurrentHashMap is used.
          */
+        @Override
         public Map.Entry<K, V> next() {
             if (entry == null && !findNext()) {
                 throw new NoSuchElementException();
@@ -498,6 +503,7 @@ public class SoftValueHashMap<K, V> extends AbstractMap<K, V> {
         }
 
         /** Removes the last entry. */
+        @Override
         public void remove() {
             iterator.remove();
         }

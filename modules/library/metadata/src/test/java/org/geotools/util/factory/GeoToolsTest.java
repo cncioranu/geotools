@@ -27,15 +27,18 @@ import java.awt.RenderingHints;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import javax.media.jai.JAI;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
 import org.apache.commons.logging.LogFactory;
+import org.geotools.api.filter.Filter;
 import org.geotools.util.NullEntityResolver;
 import org.geotools.util.PreventLocalEntityResolver;
 import org.geotools.util.Version;
+import org.junit.Before;
 import org.junit.Test;
-import org.opengis.filter.Filter;
+import org.mockito.Mockito;
 import org.xml.sax.EntityResolver;
 
 /**
@@ -47,6 +50,13 @@ import org.xml.sax.EntityResolver;
  * @author Martin Desruisseaux
  */
 public final class GeoToolsTest {
+
+    @Before
+    public void clearJNDI() throws NamingException {
+        GeoTools.clearInitialContext();
+        GeoTools.setJNDINameValidator(GeoTools.DEFAULT_JNDI_VALIDATOR);
+    }
+
     /** Makes sures that J2SE 1.4 assertions are enabled. */
     @Test
     public void testAssertionEnabled() {
@@ -118,7 +128,6 @@ public final class GeoToolsTest {
         // this should always be generated during a maven or ide build
         Manifest metadata = GeoTools.getManifest(GeoTools.class);
         assertFalse("manifest metadata", metadata.getMainAttributes().isEmpty());
-        Attributes attributes = metadata.getAttributes("Project-Version");
         assertEquals(
                 GeoTools.getVersion().toString(),
                 metadata.getMainAttributes().getValue("Project-Version"));
@@ -130,17 +139,16 @@ public final class GeoToolsTest {
         Manifest commons_logging = GeoTools.getManifest(LogFactory.class);
         assertNotNull(commons_logging);
         assertFalse("manifest metadata", commons_logging.getMainAttributes().isEmpty());
-        assertEquals(
-                "1.1.1", commons_logging.getMainAttributes().getValue("Implementation-Version"));
+        assertEquals("1.2", commons_logging.getMainAttributes().getValue("Implementation-Version"));
     }
 
     /** Test version lookup */
     @Test
     public void testVersion() {
-        String location;
 
-        location =
-                "jar:file:/Users/jody/.m2/repository/org.locationtech/jts/1.14/jts-1.14.jar!/org.locationtech/jts/geom/Geometry.class";
+        String location =
+                "jar:file:/Users/jody/.m2/repository/org.locationtech/jts/1.14/jts-1.14"
+                        + ".jar!/org.locationtech/jts/geom/Geometry.class";
         assertEquals("1.14", GeoTools.jarVersion(location));
 
         location =
@@ -164,7 +172,7 @@ public final class GeoToolsTest {
 
         version = GeoTools.getVersion(LogFactory.class);
         assertNotNull(version);
-        assertEquals("1.1.1", version.toString());
+        assertEquals("1.2", version.toString());
     }
     /** Tests the use of system properties. */
     @Test
@@ -196,6 +204,7 @@ public final class GeoToolsTest {
      * We avoid the tests that would require a real initial context.
      */
     @Test
+    @SuppressWarnings("deprecation")
     public void testFixName() {
         assertNull(GeoTools.fixName(null));
         assertEquals("simpleName", GeoTools.fixName("simpleName"));
@@ -207,9 +216,8 @@ public final class GeoToolsTest {
     public void testEntityResolver() {
 
         // confirm instantiate works
-        EntityResolver resolver;
 
-        resolver =
+        EntityResolver resolver =
                 GeoTools.instantiate(
                         "org.geotools.util.factory.PlaceholderEntityResolver",
                         EntityResolver.class,
@@ -264,5 +272,37 @@ public final class GeoToolsTest {
             Hints.removeSystemDefault(Hints.ENTITY_RESOLVER);
             Hints.scanSystemProperties();
         }
+    }
+
+    @Test
+    public void testLookupValidation() throws Exception {
+        // setup mock initial context (need a JNDI provider otherwise, like simple-jndi)
+        InitialContext ctx = Mockito.mock(InitialContext.class);
+        Object test1 = new Object();
+        String name1 = "java://test1";
+        Mockito.when(ctx.lookup(name1)).thenReturn(test1);
+        Object test2 = new Object();
+        String name2 = "ftp://test2";
+        Mockito.when(ctx.lookup(name2)).thenReturn(test2);
+        Object test3 = new Object();
+        String name3 = "http://test3";
+        Mockito.when(ctx.lookup(name3)).thenReturn(test3);
+        Object test4 = new Object();
+        String name4 = "java://test4{}"; // invalid URI
+        Mockito.when(ctx.lookup(name4)).thenReturn(test4);
+
+        // using default validator
+        GeoTools.init(ctx);
+        assertSame(test1, GeoTools.jndiLookup(name1));
+        assertNull(GeoTools.jndiLookup(name2));
+        assertNull(GeoTools.jndiLookup(name3));
+        assertNull(GeoTools.jndiLookup(name4));
+
+        // setup an "accept all" filter
+        GeoTools.setJNDINameValidator(name -> true);
+        assertSame(test1, GeoTools.jndiLookup(name1));
+        assertSame(test2, GeoTools.jndiLookup(name2));
+        assertSame(test3, GeoTools.jndiLookup(name3));
+        assertSame(test4, GeoTools.jndiLookup(name4));
     }
 }

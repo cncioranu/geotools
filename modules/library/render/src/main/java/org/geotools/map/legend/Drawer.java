@@ -28,6 +28,20 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.LineSymbolizer;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.PointSymbolizer;
+import org.geotools.api.style.PolygonSymbolizer;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.Symbolizer;
+import org.geotools.api.style.TextSymbolizer;
 import org.geotools.data.DataUtilities;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.SchemaException;
@@ -38,18 +52,8 @@ import org.geotools.renderer.style.GraphicStyle2D;
 import org.geotools.renderer.style.MarkStyle2D;
 import org.geotools.renderer.style.SLDStyleFactory;
 import org.geotools.renderer.style.Style2D;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.LineSymbolizer;
-import org.geotools.styling.Mark;
-import org.geotools.styling.PointSymbolizer;
-import org.geotools.styling.PolygonSymbolizer;
-import org.geotools.styling.RasterSymbolizer;
-import org.geotools.styling.Rule;
 import org.geotools.styling.SLD;
-import org.geotools.styling.Style;
 import org.geotools.styling.StyleBuilder;
-import org.geotools.styling.Symbolizer;
-import org.geotools.styling.TextSymbolizer;
 import org.geotools.util.NumberRange;
 import org.geotools.util.factory.GeoTools;
 import org.locationtech.jts.geom.Coordinate;
@@ -63,11 +67,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.expression.Expression;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * This class is used to isolate GeoTools from the specific graphic library being used for
@@ -185,9 +184,8 @@ public class Drawer {
             // set graphic size to 10 by default
             point.getGraphic()
                     .setSize(
-                            (Expression)
-                                    CommonFactoryFinder.getFilterFactory(GeoTools.getDefaultHints())
-                                            .literal(10));
+                            CommonFactoryFinder.getFilterFactory(GeoTools.getDefaultHints())
+                                    .literal(10));
 
             // danger assumes a Mark!
             Mark mark = (Mark) point.getGraphic().graphicalSymbols().get(0);
@@ -213,8 +211,8 @@ public class Drawer {
 
         LiteShape shape = new LiteShape(null, worldToScreenTransform, false);
         if (symbs == null) return;
-        for (int m = 0; m < symbs.length; m++) {
-            drawFeature(bi, feature, worldToScreenTransform, drawVertices, symbs[m], mt, shape);
+        for (Symbolizer symb : symbs) {
+            drawFeature(bi, feature, worldToScreenTransform, drawVertices, symb, mt, shape);
         }
     }
 
@@ -257,8 +255,7 @@ public class Drawer {
                 if (averageDistance > 60) pixels = 5;
                 if (pixels > 1) {
                     graphics.setColor(Color.RED);
-                    for (int i = 0; i < coords.length; i++) {
-                        Coordinate coord = coords[i];
+                    for (Coordinate coord : coords) {
                         java.awt.Point p = worldToPixel(coord, worldToScreenTransform);
                         graphics.fillRect(
                                 p.x - (pixels - 1) / 2, p.y - (pixels - 1) / 2, pixels, pixels);
@@ -368,7 +365,7 @@ public class Drawer {
 
                 g.setTransform(AffineTransform.getRotateInstance(rotation));
 
-                BufferedImage image = (BufferedImage) style.getImage();
+                BufferedImage image = style.getImage();
 
                 g.drawImage(
                         image,
@@ -423,13 +420,13 @@ public class Drawer {
         // TODO: fix the styles, the getGeometryPropertyName should probably be
         // moved into an interface...
         if (s instanceof PolygonSymbolizer) {
-            geomName = ((PolygonSymbolizer) s).getGeometryPropertyName();
+            geomName = s.getGeometryPropertyName();
         } else if (s instanceof PointSymbolizer) {
-            geomName = ((PointSymbolizer) s).getGeometryPropertyName();
+            geomName = s.getGeometryPropertyName();
         } else if (s instanceof LineSymbolizer) {
-            geomName = ((LineSymbolizer) s).getGeometryPropertyName();
+            geomName = s.getGeometryPropertyName();
         } else if (s instanceof TextSymbolizer) {
-            geomName = ((TextSymbolizer) s).getGeometryPropertyName();
+            geomName = s.getGeometryPropertyName();
         }
         return geomName;
     }
@@ -697,7 +694,7 @@ public class Drawer {
      * @param holes Holes in polygon or null.
      * @return Polygon
      */
-    public Polygon polygon(int[] xy, int[] holes[]) {
+    public Polygon polygon(int[] xy, int[][] holes) {
         if (holes == null || holes.length == 0) {
             return polygon(xy);
         }

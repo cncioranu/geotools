@@ -19,6 +19,12 @@ package org.geotools.data.geobuf;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -28,9 +34,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
 
 /**
  * GeobufFeatureType encodes and decodes SimpleFeatureTypes
@@ -38,6 +41,8 @@ import org.opengis.feature.type.GeometryDescriptor;
  * @author Jared Erickson
  */
 public class GeobufFeatureType {
+
+    private static final String defaultGeometryName = "geom";
 
     private int precision;
 
@@ -79,43 +84,92 @@ public class GeobufFeatureType {
         dataBuilder.setFeatureCollection(Geobuf.Data.FeatureCollection.newBuilder().build());
     }
 
+    private String createGeometryName(List<String> names) {
+        if (!names.contains(defaultGeometryName)) {
+            return defaultGeometryName;
+        }
+        Integer maxLen = names.stream().map(String::length).max(Integer::compareTo).orElse(0);
+        return defaultGeometryName + new String(new char[maxLen]);
+    }
+
     protected SimpleFeatureType getFeatureType(String name, Geobuf.Data data) throws IOException {
         SimpleFeatureTypeBuilder featureTypeBuilder = new SimpleFeatureTypeBuilder();
         featureTypeBuilder.setName(name);
         if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.GEOMETRY) {
-            featureTypeBuilder.setDefaultGeometry("geom");
-            featureTypeBuilder.add("geom", getGeometryType(data.getGeometry()));
+            featureTypeBuilder.setDefaultGeometry(defaultGeometryName);
+            featureTypeBuilder.add(defaultGeometryName, getGeometryType(data.getGeometry()));
         } else if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.FEATURE) {
-            featureTypeBuilder.setDefaultGeometry("geom");
-            featureTypeBuilder.add("geom", getGeometryType(data.getFeature().getGeometry()));
+            String geometryName = createGeometryName(data.getKeysList());
+            featureTypeBuilder.setDefaultGeometry(geometryName);
+            featureTypeBuilder.add(geometryName, getGeometryType(data.getFeature().getGeometry()));
             int keyCount = data.getKeysCount();
             for (int i = 0; i < keyCount; i++) {
                 String key = data.getKeys(i);
-                Class type = getType(data.getFeature().getValues(i).getValueTypeCase());
+                Class<?> type = getType(data.getFeature().getValues(i).getValueTypeCase());
                 featureTypeBuilder.add(key, type);
             }
         } else if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.FEATURE_COLLECTION) {
-            featureTypeBuilder.setDefaultGeometry("geom");
+            String geometryName = createGeometryName(data.getKeysList());
+            featureTypeBuilder.setDefaultGeometry(geometryName);
             if (data.getFeatureCollection().getFeaturesCount() == 0) {
-                featureTypeBuilder.add("geom", Geometry.class);
+                featureTypeBuilder.add(geometryName, Geometry.class);
             } else {
                 featureTypeBuilder.add(
-                        "geom",
+                        geometryName,
                         getGeometryType(data.getFeatureCollection().getFeatures(0).getGeometry()));
             }
+
             int keyCount = data.getKeysCount();
-            for (int i = 0; i < keyCount; i++) {
-                String key = data.getKeys(i);
-                Class type = String.class;
-                if (data.getFeatureCollection().getFeaturesCount() > 0
-                        && i < data.getFeatureCollection().getFeatures(0).getValuesCount()) {
-                    type =
-                            getType(
-                                    data.getFeatureCollection()
-                                            .getFeatures(0)
-                                            .getValues(i)
-                                            .getValueTypeCase());
+
+            // Infer attribute types using property values of features
+            Map<String, Class<?>> keyClass = new HashMap<>(keyCount);
+            int featuresCount = data.getFeatureCollection().getFeaturesCount();
+            for (int i = 0; i < featuresCount; i++) {
+                Geobuf.Data.Feature feature = data.getFeatureCollection().getFeatures(i);
+                int propertiesCount = feature.getPropertiesCount();
+                if ((propertiesCount & 0x01) != 0) {
+                    throw new IllegalStateException(
+                            "number of properties (pairs of key/value indexes) is odd");
                 }
+                int valueCount = propertiesCount / 2;
+                for (int j = 0; j < valueCount; j++) {
+                    int attrOffset = feature.getProperties(j * 2);
+                    int valOffset = feature.getProperties(j * 2 + 1);
+                    if (feature.getValuesCount() > valOffset) {
+                        String key = data.getKeys(attrOffset);
+                        if (!keyClass.containsKey(key)) {
+                            Class<?> type =
+                                    getType(feature.getValues(valOffset).getValueTypeCase());
+                            keyClass.put(key, type);
+                        }
+                    }
+                }
+                if (keyClass.size() >= keyCount) {
+                    break; // We've inferred types of all keys
+                }
+            }
+
+            if (keyClass.isEmpty()) {
+                // This geobuf might be generated by legacy version of gt-geobuf module, which does
+                // not generate property index list for features.
+                Geobuf.Data.Feature firstFeature = null;
+                if (featuresCount > 0) {
+                    firstFeature = data.getFeatureCollection().getFeatures(0);
+                }
+                for (int i = 0; i < keyCount; i++) {
+                    String key = data.getKeys(i);
+                    Class<?> type = String.class;
+                    if (firstFeature != null && i < firstFeature.getValuesCount()) {
+                        type = getType(firstFeature.getValues(i).getValueTypeCase());
+                    }
+                    keyClass.put(key, type);
+                }
+            }
+
+            // Build simple feature type from keyClass hashmap
+            for (int j = 0; j < keyCount; j++) {
+                String key = data.getKeys(j);
+                Class<?> type = keyClass.getOrDefault(key, String.class);
                 featureTypeBuilder.add(key, type);
             }
         } else {

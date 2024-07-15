@@ -23,9 +23,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.filter.expression.Function;
 import org.geotools.filter.FilterFactoryImpl;
 import org.junit.Test;
-import org.opengis.filter.expression.Function;
 
 public class LiterateTest {
 
@@ -49,7 +49,7 @@ public class LiterateTest {
                                 ff.function("litem", ff.property("list2"), ff.property("index"))));
         Object value = exp.evaluate(map);
         assertTrue(value instanceof List);
-        assertEquals(Arrays.asList(4.0, 6.0, 6.0, 4.0), ((List<?>) value));
+        assertEquals(Arrays.asList(4.0, 6.0, 6.0, 4.0), value);
     }
 
     @Test
@@ -66,6 +66,6 @@ public class LiterateTest {
                         ff.function("litem", ff.property("list1"), ff.property("index")));
         Object value = exp.evaluate(map);
         assertTrue(value instanceof List);
-        assertEquals(Arrays.asList(), ((List<?>) value));
+        assertEquals(Arrays.asList(), value);
     }
 }

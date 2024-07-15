@@ -19,6 +19,7 @@
  */
 package org.geotools.parameter;
 
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -26,18 +27,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.InvalidParameterNameException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.util.UnmodifiableArrayList;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.InvalidParameterNameException;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
 
 /**
  * The definition of a group of related parameters used by an operation method.
@@ -87,7 +87,7 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
      * @param parameters The {@linkplain #descriptors() parameter descriptors} for this group.
      */
     public DefaultParameterDescriptorGroup(
-            final String name, final GeneralParameterDescriptor[] parameters) {
+            final String name, final GeneralParameterDescriptor... parameters) {
         this(Collections.singletonMap(NAME_KEY, name), parameters);
     }
 
@@ -104,7 +104,7 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
     public DefaultParameterDescriptorGroup(
             final Citation authority,
             final String name,
-            final GeneralParameterDescriptor[] parameters) {
+            final GeneralParameterDescriptor... parameters) {
         this(Collections.singletonMap(NAME_KEY, new NamedIdentifier(authority, name)), parameters);
     }
 
@@ -117,7 +117,7 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
      * @param parameters The {@linkplain #descriptors() parameter descriptors} for this group.
      */
     public DefaultParameterDescriptorGroup(
-            final Map<String, ?> properties, final GeneralParameterDescriptor[] parameters) {
+            final Map<String, ?> properties, final GeneralParameterDescriptor... parameters) {
         this(properties, 1, 1, parameters);
     }
 
@@ -137,7 +137,7 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
             final Map<String, ?> properties,
             final int minimumOccurs,
             final int maximumOccurs,
-            GeneralParameterDescriptor[] parameters) {
+            GeneralParameterDescriptor... parameters) {
         super(properties, minimumOccurs, maximumOccurs);
         this.maximumOccurs = maximumOccurs;
         ensureNonNull("parameters", parameters);
@@ -155,13 +155,10 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
             for (int j = 0; j < parameters.length; j++) {
                 if (i != j) {
                     if (nameMatches(parameters[j], name)) {
+                        final Object arg0 = parameters[j].getName().getCode();
                         throw new InvalidParameterNameException(
-                                Errors.format(
-                                        ErrorKeys.PARAMETER_NAME_CLASH_$4,
-                                        parameters[j].getName().getCode(),
-                                        j,
-                                        name,
-                                        i),
+                                MessageFormat.format(
+                                        ErrorKeys.PARAMETER_NAME_CLASH_$4, arg0, j, name, i),
                                 name);
                     }
                 }
@@ -174,6 +171,7 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
      *
      * @see #getMinimumOccurs
      */
+    @Override
     public int getMaximumOccurs() {
         return maximumOccurs;
     }
@@ -181,9 +179,10 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
     /**
      * Creates a new instance of {@linkplain ParameterGroup parameter value group} initialized with
      * the {@linkplain ParameterDescriptor#getDefaultValue default values}. The {@linkplain
-     * org.opengis.parameter.ParameterValueGroup#getDescriptor parameter value descriptor} for the
-     * created group will be {@code this} object.
+     * org.geotools.api.parameter.ParameterValueGroup#getDescriptor parameter value descriptor} for
+     * the created group will be {@code this} object.
      */
+    @Override
     public ParameterValueGroup createValue() {
         return new ParameterGroup(this);
     }
@@ -201,7 +200,7 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
         private transient Set<GeneralParameterDescriptor> asSet;
 
         /** Constructs a list for the specified array. */
-        public AsList(final GeneralParameterDescriptor[] array) {
+        public AsList(final GeneralParameterDescriptor... array) {
             super(array);
         }
 
@@ -216,6 +215,7 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
     }
 
     /** Returns the parameters in this group. */
+    @Override
     @SuppressWarnings("fallthrough")
     public List<GeneralParameterDescriptor> descriptors() {
         if (asList == null) {
@@ -243,12 +243,13 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
 
     /**
      * Returns the first parameter in this group for the specified {@linkplain
-     * org.opengis.metadata.Identifier#getCode identifier code}.
+     * org.geotools.api.metadata.Identifier#getCode identifier code}.
      *
      * @param name The case insensitive identifier code of the parameter to search for.
      * @return The parameter for the given identifier code.
      * @throws ParameterNotFoundException if there is no parameter for the given identifier code.
      */
+    @Override
     public GeneralParameterDescriptor descriptor(String name) throws ParameterNotFoundException {
         ensureNonNull("name", name);
         name = name.trim();
@@ -258,7 +259,7 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
             for (final GeneralParameterDescriptor param : parameters) {
                 if (param instanceof ParameterDescriptor) {
                     if (nameMatches(param, name)) {
-                        return (ParameterDescriptor) param;
+                        return param;
                     }
                 } else if (param instanceof DefaultParameterDescriptorGroup) {
                     if (subgroups == null) {
@@ -278,7 +279,7 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
             parameters = subgroups.remove(0).descriptors();
         }
         throw new ParameterNotFoundException(
-                Errors.format(ErrorKeys.MISSING_PARAMETER_$1, name), name);
+                MessageFormat.format(ErrorKeys.MISSING_PARAMETER_$1, name), name);
     }
 
     /**
@@ -313,8 +314,8 @@ public class DefaultParameterDescriptorGroup extends AbstractParameterDescriptor
     public int hashCode() {
         int code = super.hashCode();
         // TODO: We should use Arrays.deepHashCode instead in J2SE 1.5.
-        for (int i = 0; i < parameters.length; i++) {
-            code = code * 37 + parameters[i].hashCode();
+        for (GeneralParameterDescriptor parameter : parameters) {
+            code = code * 37 + parameter.hashCode();
         }
         return code;
     }

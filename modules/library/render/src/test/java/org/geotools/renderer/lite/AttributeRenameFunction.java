@@ -6,7 +6,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.geotools.data.Query;
+import org.geotools.api.coverage.grid.GridGeometry;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
@@ -15,15 +22,6 @@ import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.filter.function.RenderingTransformation;
 import org.geotools.filter.visitor.DuplicatingFilterVisitor;
-import org.opengis.coverage.grid.GridGeometry;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.PropertyName;
 
 /**
  * A rendering transformation that renames one attribute in the input feature collection
@@ -44,6 +42,7 @@ public class AttributeRenameFunction extends FunctionExpressionImpl
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object object) {
         String source = getAttribute(object, 0, String.class, true);
         String target = getAttribute(object, 1, String.class, true);
@@ -67,14 +66,10 @@ public class AttributeRenameFunction extends FunctionExpressionImpl
         final List<SimpleFeature> features = new ArrayList<>();
         try {
             fc.accepts(
-                    new FeatureVisitor() {
-
-                        @Override
-                        public void visit(Feature feature) {
-                            fb.init((SimpleFeature) feature);
-                            SimpleFeature f = fb.buildFeature(feature.getIdentifier().getID());
-                            features.add(f);
-                        }
+                    feature -> {
+                        fb.init((SimpleFeature) feature);
+                        SimpleFeature f = fb.buildFeature(feature.getIdentifier().getID());
+                        features.add(f);
                     },
                     null);
         } catch (IOException e) {

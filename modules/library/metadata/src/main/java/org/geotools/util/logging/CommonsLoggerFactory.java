@@ -16,13 +16,18 @@
  */
 package org.geotools.util.logging;
 
+import java.net.URL;
 import java.util.logging.Logger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 /**
  * A factory for loggers that redirect all Java logging events to the Apache's <A
- * HREF="http://jakarta.apache.org/commons/logging/">Commons-logging</A> framework.
+ * HREF="https://commons.apache.org/proper/commons-logging/">Commons-logging</A> framework.
+ *
+ * <p>Out of the box commons logging delegates to the java util logging framework (using the class
+ * org.apache.commons.logging.impl.Jdk14Logger). If this factory detects Commons logging is already
+ * delegating to Jdk14Logger it will return {@code null} allowing java util logging directly.
  *
  * @since 2.4
  * @version $Id$
@@ -55,8 +60,9 @@ public class CommonsLoggerFactory extends LoggerFactory<Log> {
 
     /**
      * Returns the implementation to use for the logger of the specified name, or {@code null} if
-     * the logger would delegates to Java logging anyway.
+     * the logger would delegate to Java logging anyway.
      */
+    @Override
     protected Log getImplementation(final String name) {
         final Log log = LogFactory.getLog(name);
         if (log != null
@@ -67,6 +73,7 @@ public class CommonsLoggerFactory extends LoggerFactory<Log> {
     }
 
     /** Wraps the specified {@linkplain #getImplementation implementation} in a Java logger. */
+    @Override
     protected Logger wrap(String name, Log implementation) {
         return new CommonsLogger(name, implementation);
     }
@@ -75,10 +82,21 @@ public class CommonsLoggerFactory extends LoggerFactory<Log> {
      * Returns the {@linkplain #getImplementation implementation} wrapped by the specified logger,
      * or {@code null} if none.
      */
+    @Override
     protected Log unwrap(final Logger logger) {
         if (logger instanceof CommonsLogger) {
             return ((CommonsLogger) logger).logger;
         }
         return null;
+    }
+
+    @Override
+    public String lookupConfiguration() {
+        URL url = getClass().getClassLoader().getResource("commons-logging.properties");
+        if (url != null) {
+            return url.getFile();
+        } else {
+            return "(undetermined)";
+        }
     }
 }

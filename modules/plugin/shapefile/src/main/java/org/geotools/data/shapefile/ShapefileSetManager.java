@@ -16,13 +16,28 @@
  */
 package org.geotools.data.shapefile;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static org.geotools.data.shapefile.files.ShpFileType.CPG;
 import static org.geotools.data.shapefile.files.ShpFileType.DBF;
 import static org.geotools.data.shapefile.files.ShpFileType.PRJ;
 import static org.geotools.data.shapefile.files.ShpFileType.SHX;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import org.geotools.data.DataSourceException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.zip.GZIPInputStream;
+import org.apache.commons.io.FileUtils;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.referencing.FactoryException;
 import org.geotools.data.PrjFileReader;
+import org.geotools.data.shapefile.dbf.DbaseFileHeader;
 import org.geotools.data.shapefile.dbf.DbaseFileReader;
 import org.geotools.data.shapefile.dbf.IndexedDbaseFileReader;
 import org.geotools.data.shapefile.files.FileReader;
@@ -31,8 +46,9 @@ import org.geotools.data.shapefile.files.ShpFiles;
 import org.geotools.data.shapefile.shp.IndexFile;
 import org.geotools.data.shapefile.shp.ShapefileException;
 import org.geotools.data.shapefile.shp.ShapefileReader;
+import org.geotools.util.URLs;
+import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.referencing.FactoryException;
 
 /**
  * Provides access to the various reader/writers for the group of files making up a Shapefile
@@ -40,6 +56,8 @@ import org.opengis.referencing.FactoryException;
  * @author Andrea Aime - GeoSolutions
  */
 class ShapefileSetManager implements FileReader {
+
+    private static final Logger LOGGER = Logging.getLogger(ShapefileSetManager.class);
 
     ShpFiles shpFiles;
 
@@ -81,17 +99,75 @@ class ShapefileSetManager implements FileReader {
         if (shpFiles.isLocal() && !shpFiles.exists(DBF)) {
             return null;
         }
+        if (shpFiles.isLocal() && shpFiles.exists(DBF)) {
+            File file = URLs.urlToFile(new URL(shpFiles.get(DBF)));
+            byte[] bytes;
+            if (shpFiles.isGz()) {
+                try (GZIPInputStream in = new GZIPInputStream(new FileInputStream(file))) {
+                    bytes = in.readNBytes(4096);
+                }
+            } else {
+                bytes = FileUtils.readFileToByteArray(file);
+                int limit = 0x1c; // DBF Header must be at least this long
+                long length = file.length();
+                if (length < limit) {
+                    return null;
+                }
+            }
+            // We need to handle an "empty" dbf file that is not actually empty (lots of nulls etc)
+
+            DbaseFileHeader header = new DbaseFileHeader();
+            ByteBuffer field = ByteBuffer.wrap(bytes);
+            header.readHeader(field);
+            if (header.getHeaderLength() <= 0 || header.getNumFields() == 0) {
+                return null;
+            }
+        }
+        Charset charset = store.getCharset();
+
+        if (store.isTryCPGFile()
+                && shpFiles.get(CPG) != null
+                && (!shpFiles.isLocal() || (shpFiles.isLocal() && shpFiles.exists(CPG)))) {
+            try (BufferedReader br =
+                    new BufferedReader(
+                            new InputStreamReader(
+                                    shpFiles.getInputStream(CPG, this), ISO_8859_1))) {
+                String charsetName;
+                if ((charsetName = br.readLine()) != null) {
+                    try {
+                        charset = Charset.forName(charsetName.trim());
+                        store.setCharset(charset);
+                    } catch (Exception e) {
+                        if (LOGGER.isLoggable(Level.FINER)) {
+                            LOGGER.finer(
+                                    "Can't figure out charset from CPG file. Will use provided by the store.");
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                // could happen if cpg file does not exist remotely
+                if (LOGGER.isLoggable(Level.FINER)) {
+                    LOGGER.log(
+                            Level.FINER,
+                            "Ignoring invalid cpg file and moving on: " + e.getMessage());
+                }
+            }
+        }
 
         try {
             if (indexed) {
                 return new IndexedDbaseFileReader(
-                        shpFiles, store.isMemoryMapped(), store.getCharset(), store.getTimeZone());
+                        shpFiles, store.isMemoryMapped(), charset, store.getTimeZone());
             } else {
                 return new DbaseFileReader(
-                        shpFiles, store.isMemoryMapped(), store.getCharset(), store.getTimeZone());
+                        shpFiles, store.isMemoryMapped(), charset, store.getTimeZone());
             }
         } catch (IOException e) {
             // could happen if dbf file does not exist
+            if (LOGGER.isLoggable(Level.FINER)) {
+                LOGGER.log(
+                        Level.FINER, "Ignoring invalid dbf file and moving on: " + e.getMessage());
+            }
             return null;
         }
     }
@@ -116,6 +192,10 @@ class ShapefileSetManager implements FileReader {
             return new PrjFileReader(shpFiles.getReadChannel(PRJ, this));
         } catch (IOException e) {
             // could happen if prj file does not exist remotely
+            if (LOGGER.isLoggable(Level.FINER)) {
+                LOGGER.log(
+                        Level.FINER, "Ignoring invalid prj file and moving on: " + e.getMessage());
+            }
             return null;
         }
     }
@@ -138,6 +218,10 @@ class ShapefileSetManager implements FileReader {
             return new IndexFile(shpFiles, store.isMemoryMapped());
         } catch (IOException e) {
             // could happen if shx file does not exist remotely
+            if (LOGGER.isLoggable(Level.FINER)) {
+                LOGGER.log(
+                        Level.FINER, "Ignoring invalid shx file and moving on: " + e.getMessage());
+            }
             return null;
         }
     }

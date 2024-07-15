@@ -32,6 +32,20 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageReadParam;
 import javax.media.jai.ImageLayout;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
@@ -39,26 +53,12 @@ import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.OverviewPolicy;
-import org.geotools.data.DataSourceException;
 import org.geotools.data.PrjFileReader;
 import org.geotools.gce.imagemosaic.ImageMosaicReader;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * This reader is responsible for providing access to a pyramid of mosaics of georeferenced
@@ -159,33 +159,27 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
 
         // get the crs if able to
         final URL prjURL = URLs.changeUrlExt(sourceURL, "prj");
-        PrjFileReader crsReader = null;
-        try {
-            crsReader = new PrjFileReader(Channels.newChannel(prjURL.openStream()));
+
+        try (PrjFileReader crsReader =
+                new PrjFileReader(Channels.newChannel(prjURL.openStream()))) {
+            final Object tempCRS = hints.get(Hints.DEFAULT_COORDINATE_REFERENCE_SYSTEM);
+            if (tempCRS != null) {
+                this.crs = (CoordinateReferenceSystem) tempCRS;
+                LOGGER.log(
+                        Level.WARNING, "Using forced coordinate reference system " + crs.toWKT());
+            } else {
+                final CoordinateReferenceSystem tempcrs = crsReader.getCoordinateReferenceSystem();
+                if (tempcrs == null) {
+                    // use the default crs
+                    crs = AbstractGridFormat.getDefaultCRS();
+                    LOGGER.log(
+                            Level.WARNING,
+                            "Unable to find a CRS for this coverage, using a default one: "
+                                    + crs.toWKT());
+                } else crs = tempcrs;
+            }
         } catch (FactoryException e) {
             throw new DataSourceException(e);
-        } finally {
-            try {
-                crsReader.close();
-            } catch (Throwable e) {
-                if (LOGGER.isLoggable(Level.FINE))
-                    LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
-            }
-        }
-        final Object tempCRS = hints.get(Hints.DEFAULT_COORDINATE_REFERENCE_SYSTEM);
-        if (tempCRS != null) {
-            this.crs = (CoordinateReferenceSystem) tempCRS;
-            LOGGER.log(Level.WARNING, "Using forced coordinate reference system " + crs.toWKT());
-        } else {
-            final CoordinateReferenceSystem tempcrs = crsReader.getCoordinateReferenceSystem();
-            if (tempcrs == null) {
-                // use the default crs
-                crs = AbstractGridFormat.getDefaultCRS();
-                LOGGER.log(
-                        Level.WARNING,
-                        "Unable to find a CRS for this coverage, using a default one: "
-                                + crs.toWKT());
-            } else crs = tempcrs;
         }
 
         // Load properties file with information about levels and envelope
@@ -209,14 +203,14 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
             // load the envelope
             final String envelope = properties.getProperty("Envelope2D");
             String[] pairs = envelope.split(" ");
-            final double cornersV[][] = new double[2][2];
-            String pair[];
+            final double[][] cornersV = new double[2][2];
+            String[] pair;
             for (int i = 0; i < 2; i++) {
                 pair = pairs[i].split(",");
                 cornersV[i][0] = Double.parseDouble(pair[0]);
                 cornersV[i][1] = Double.parseDouble(pair[1]);
             }
-            this.originalEnvelope = new GeneralEnvelope(cornersV[0], cornersV[1]);
+            this.originalEnvelope = new GeneralBounds(cornersV[0], cornersV[1]);
             this.originalEnvelope.setCoordinateReferenceSystem(crs);
 
             imageLevelsMapper = new ImageLevelsMapper(properties);
@@ -263,7 +257,8 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
         this(source, null);
     }
 
-    /** @see org.opengis.coverage.grid.GridCoverageReader#getFormat() */
+    /** @see org.geotools.api.coverage.grid.GridCoverageReader#getFormat() */
+    @Override
     public Format getFormat() {
         return new ImagePyramidFormat();
     }
@@ -286,7 +281,7 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
     }
 
     @Override
-    public GeneralEnvelope getOriginalEnvelope(String coverageName) {
+    public GeneralBounds getOriginalEnvelope(String coverageName) {
         return getFirstLevelReader(coverageName, false)
                 .getOriginalEnvelope(getReaderCoverageName(coverageName));
     }
@@ -325,7 +320,7 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
     public GridCoverage2D read(final String coverageName, GeneralParameterValue[] params)
             throws IOException {
 
-        GeneralEnvelope requestedEnvelope = null;
+        GeneralBounds requestedEnvelope = null;
         Rectangle dim = null;
         OverviewPolicy overviewPolicy = null;
         // /////////////////////////////////////////////////////////////////////
@@ -334,16 +329,15 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
         //
         // /////////////////////////////////////////////////////////////////////
         if (params != null) {
-            for (int i = 0; i < params.length; i++) {
-                @SuppressWarnings("rawtypes")
-                final ParameterValue param = (ParameterValue) params[i];
+            for (GeneralParameterValue generalParameterValue : params) {
+                final ParameterValue param = (ParameterValue) generalParameterValue;
                 if (param == null) {
                     continue;
                 }
                 final String name = param.getDescriptor().getName().getCode();
                 if (name.equals(AbstractGridFormat.READ_GRIDGEOMETRY2D.getName().toString())) {
                     final GridGeometry2D gg = (GridGeometry2D) param.getValue();
-                    requestedEnvelope = new GeneralEnvelope((Envelope) gg.getEnvelope2D());
+                    requestedEnvelope = new GeneralBounds((Bounds) gg.getEnvelope2D());
                     dim = gg.getGridRange2D().getBounds();
                     continue;
                 }
@@ -368,7 +362,7 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
      */
     private GridCoverage2D loadRequestedTiles(
             final String coverageName,
-            GeneralEnvelope requestedEnvelope,
+            GeneralBounds requestedEnvelope,
             Rectangle dim,
             GeneralParameterValue[] params,
             OverviewPolicy overviewPolicy)
@@ -408,7 +402,7 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
         }
     }
 
-    /** @see org.opengis.coverage.grid.GridCoverageReader#dispose() */
+    /** @see org.geotools.api.coverage.grid.GridCoverageReader#dispose() */
     @Override
     public synchronized void dispose() {
         super.dispose();
@@ -433,6 +427,7 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
     }
 
     /** Retrieve data value for requested metadata */
+    @Override
     public String getMetadataValue(final String name) {
         return getImageMosaicMetadataValue(coverageName, name);
     }
@@ -483,6 +478,7 @@ public final class ImagePyramidReader extends AbstractGridCoverage2DReader
         return getMetadataNames();
     }
 
+    @Override
     public String[] getMetadataNames() {
         final String[] parentNames = super.getMetadataNames();
         final List<String> metadataNames = new ArrayList<>();

@@ -21,22 +21,27 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.logging.Logging;
-import org.opengis.util.InternationalString;
 
 /**
  * An implementation of international string using a {@linkplain Map map} of strings for different
  * {@linkplain Locale locales}. Strings for new locales can be {@linkplain #add(Locale,String)
  * added}, but existing strings can't be removed or modified. This behavior is a compromise between
  * making constructionss easier, and being suitable for use in immutable objects.
+ *
+ * <p>This class is mutable and not thread-safe.
  *
  * @since 2.1
  * @version $Id$
@@ -58,12 +63,6 @@ public class GrowableInternationalString extends AbstractInternationalString
      * and values are {@link String}s.
      */
     private Map<Locale, String> localMap;
-
-    /**
-     * An unmodifiable view of the entry set in {@link #localMap}. This is the set of locales
-     * defined in this international string. Will be constructed only when first requested.
-     */
-    private transient Set<Locale> localSet;
 
     /**
      * Constructs an initially empty international string. Localized strings can been added using
@@ -90,6 +89,30 @@ public class GrowableInternationalString extends AbstractInternationalString
     }
 
     /**
+     * Constructs an international string from the specified InternationalString. It avoids to add
+     * an entry for each locales in cases where {@link InternationalString#toString(Locale)} returns
+     * always the same string, by considering the result returned by {@link
+     * InternationalString#toString()} as the default value.
+     *
+     * @param internationalString the internationalString from which construct a new instance.
+     */
+    public GrowableInternationalString(InternationalString internationalString) {
+        localMap = new LinkedHashMap<>();
+        boolean isGrowable = internationalString instanceof GrowableInternationalString;
+        String defaultValue = null;
+        if (!isGrowable) defaultValue = internationalString.toString();
+        Set<Locale> locales =
+                isGrowable
+                        ? ((GrowableInternationalString) internationalString).getLocales()
+                        : Stream.of(Locale.getAvailableLocales()).collect(Collectors.toSet());
+        for (Locale locale : locales) {
+            String value = internationalString.toString(locale);
+            if (value != null && !value.equals(defaultValue)) localMap.put(locale, value);
+        }
+        if (defaultValue != null) localMap.put(Locale.getDefault(), defaultValue);
+    }
+
+    /**
      * Adds a string for the given locale.
      *
      * @param locale The locale for the {@code string} value, or {@code null}.
@@ -109,11 +132,12 @@ public class GrowableInternationalString extends AbstractInternationalString
                     }
                 case 1:
                     {
-                        localMap = new HashMap<>(localMap);
+                        localMap = new LinkedHashMap<>(localMap);
                         break;
                     }
             }
             String old = localMap.get(locale);
+
             if (old != null) {
                 if (string.equals(old)) {
                     return;
@@ -121,6 +145,7 @@ public class GrowableInternationalString extends AbstractInternationalString
                 // TODO: provide a localized message "String value already set for locale ...".
                 throw new IllegalArgumentException();
             }
+
             localMap.put(locale, string);
             defaultValue = null; // Will be recomputed when first needed.
         }
@@ -158,12 +183,12 @@ public class GrowableInternationalString extends AbstractInternationalString
         }
         int position = prefix.length();
         final int length = key.length();
-        final String[] parts = new String[] {"", "", ""};
+        final String[] parts = {"", "", ""};
         for (int i = 0; /*break condition inside*/ ; i++) {
             if (position == length) {
                 final Locale locale =
                         (i == 0)
-                                ? (Locale) null
+                                ? null
                                 : unique(
                                         new Locale(
                                                 parts[0] /* language */,
@@ -186,7 +211,7 @@ public class GrowableInternationalString extends AbstractInternationalString
             parts[i] = key.substring(position, position = next);
         }
         throw new IllegalArgumentException(
-                Errors.format(
+                MessageFormat.format(
                         ErrorKeys.ILLEGAL_ARGUMENT_$2, "locale", key.substring(prefix.length())));
     }
 
@@ -204,8 +229,7 @@ public class GrowableInternationalString extends AbstractInternationalString
         if (LOCALES.isEmpty())
             try {
                 final Field[] fields = Locale.class.getFields();
-                for (int i = 0; i < fields.length; i++) {
-                    final Field field = fields[i];
+                for (final Field field : fields) {
                     if (Modifier.isStatic(field.getModifiers())) {
                         if (Locale.class.isAssignableFrom(field.getType())) {
                             final Locale toAdd = (Locale) field.get(null);
@@ -234,13 +258,15 @@ public class GrowableInternationalString extends AbstractInternationalString
     /**
      * Returns the set of locales defined in this international string.
      *
+     * <p>The returned set may contain a {@code null} object, signifying there's a "default" value
+     * (as created wither through the {@link
+     * GrowableInternationalString#GrowableInternationalString(String) single-string} constructor,
+     * or with a {@code null} "locale" parameter to {@link #add(Locale, String)}
+     *
      * @return The set of locales.
      */
-    public synchronized Set<Locale> getLocales() {
-        if (localSet == null) {
-            localSet = Collections.unmodifiableSet(localMap.keySet());
-        }
-        return localSet;
+    public Set<Locale> getLocales() {
+        return Collections.unmodifiableSet(localMap.keySet());
     }
 
     /**
@@ -254,6 +280,7 @@ public class GrowableInternationalString extends AbstractInternationalString
      * @param locale The locale to look for, or {@code null}.
      * @return The string in the specified locale, or in a default locale.
      */
+    @Override
     public synchronized String toString(Locale locale) {
         String text;
         while (locale != null) {
@@ -378,8 +405,7 @@ public class GrowableInternationalString extends AbstractInternationalString
             localMap = Collections.singletonMap(unique(entry.getKey()), entry.getValue());
         } else {
             localMap.clear();
-            for (int i = 0; i < entries.length; i++) {
-                final Map.Entry<Locale, String> entry = entries[i];
+            for (final Map.Entry<Locale, String> entry : entries) {
                 localMap.put(unique(entry.getKey()), entry.getValue());
             }
         }

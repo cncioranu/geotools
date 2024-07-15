@@ -16,9 +16,9 @@
  */
 package org.geotools.util;
 
+import java.text.MessageFormat;
 import java.util.Date;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 
 /**
  * A central place to register transformations between an arbitrary class and a {@link Number}. For
@@ -39,6 +39,7 @@ import org.geotools.metadata.i18n.Errors;
  * @version $Id$
  * @author Martin Desruisseaux (IRD)
  */
+@SuppressWarnings("PMD.UseShortArrayInitializer")
 public abstract class ClassChanger<S extends Comparable<S>, T extends Number> {
     /** Wrapper classes sorted by their wide. */
     @SuppressWarnings("unchecked")
@@ -56,10 +57,12 @@ public abstract class ClassChanger<S extends Comparable<S>, T extends Number> {
     private static ClassChanger<?, ?>[] changers =
             new ClassChanger[] {
                 new ClassChanger<Date, Long>(Date.class, Long.class) {
+                    @Override
                     protected Long convert(final Date object) {
                         return object.getTime();
                     }
 
+                    @Override
                     protected Date inverseConvert(final Long value) {
                         return new Date(value.longValue());
                     }
@@ -169,8 +172,7 @@ public abstract class ClassChanger<S extends Comparable<S>, T extends Number> {
      */
     private static synchronized <S extends Comparable<S>> ClassChanger<S, ?> getClassChanger(
             final Class<S> source) throws ClassNotFoundException {
-        for (int i = 0; i < changers.length; i++) {
-            final ClassChanger<?, ?> candidate = changers[i];
+        for (final ClassChanger<?, ?> candidate : changers) {
             if (candidate.source.isAssignableFrom(source)) {
                 @SuppressWarnings("unchecked")
                 final ClassChanger<S, ?> c = (ClassChanger<S, ?>) candidate;
@@ -188,9 +190,9 @@ public abstract class ClassChanger<S extends Comparable<S>, T extends Number> {
      */
     public static synchronized Class<?> getTransformedClass(final Class<?> source) {
         if (source != null) {
-            for (int i = 0; i < changers.length; i++) {
-                if (changers[i].source.isAssignableFrom(source)) {
-                    return changers[i].target;
+            for (ClassChanger<?, ?> changer : changers) {
+                if (changer.source.isAssignableFrom(source)) {
+                    return changer.target;
                 }
             }
         }
@@ -214,7 +216,6 @@ public abstract class ClassChanger<S extends Comparable<S>, T extends Number> {
             if (object instanceof Number) {
                 return (K) object;
             }
-            @SuppressWarnings("rawtypes")
             ClassChanger changer = getClassChanger(object.getClass());
             return (K) changer.convert(object);
         }
@@ -232,14 +233,13 @@ public abstract class ClassChanger<S extends Comparable<S>, T extends Number> {
      * @param classe The desired classe for return value.
      * @throws ClassNotFoundException if {@code classe} is not a registered class.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public static <C extends Comparable> C toComparable(final Number value, final Class<C> classe)
             throws ClassNotFoundException {
         if (value != null) {
             if (Number.class.isAssignableFrom(classe)) {
                 return classe.cast(value);
             }
-            @SuppressWarnings("rawtypes")
             ClassChanger changer = getClassChanger(classe);
             final Comparable<?> c = changer.inverseConvert(value);
             return classe.cast(c);
@@ -371,6 +371,6 @@ public abstract class ClassChanger<S extends Comparable<S>, T extends Number> {
 
     /** Returns an exception for an unnkown type. */
     private static IllegalArgumentException unknownType(final Class<?> type) {
-        return new IllegalArgumentException(Errors.format(ErrorKeys.UNKNOW_TYPE_$1, type));
+        return new IllegalArgumentException(MessageFormat.format(ErrorKeys.UNKNOW_TYPE_$1, type));
     }
 }

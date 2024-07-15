@@ -16,6 +16,7 @@
  */
 package org.geotools.data.util;
 
+import java.math.BigDecimal;
 import org.geotools.util.Converter;
 import org.geotools.util.ConverterFactory;
 import org.geotools.util.factory.Hints;
@@ -34,11 +35,19 @@ import org.geotools.util.factory.Hints;
  *   <li>0 -> Boolean.FALSE
  * </ul>
  *
+ * <p>Supported numeric types:
+ *
+ * <ul>
+ *   <li>Integer
+ *   <li>BigDecimal
+ * </ul>
+ *
  * @author Justin Deoliveira, The Open Planning Project
  * @since 2.4
  */
 public class BooleanConverterFactory implements ConverterFactory {
 
+    @Override
     public Converter createConverter(Class source, Class target, Hints hints) {
         if (target.equals(Boolean.class)) {
 
@@ -46,6 +55,7 @@ public class BooleanConverterFactory implements ConverterFactory {
             if (source.equals(String.class)) {
                 return new Converter() {
 
+                    @Override
                     public <T> T convert(Object source, Class<T> target) throws Exception {
                         if ("true".equals(source) || "1".equals(source)) {
                             return target.cast(Boolean.TRUE);
@@ -63,11 +73,30 @@ public class BooleanConverterFactory implements ConverterFactory {
             if (source.equals(Integer.class)) {
                 return new Converter() {
 
+                    @Override
                     public <T> T convert(Object source, Class<T> target) throws Exception {
                         if (Integer.valueOf(1).equals(source)) {
                             return target.cast(Boolean.TRUE);
                         }
                         if (Integer.valueOf(0).equals(source)) {
+                            return target.cast(Boolean.FALSE);
+                        }
+
+                        return null;
+                    }
+                };
+            }
+
+            // big decimal to boolean
+            if (source.equals(BigDecimal.class)) {
+                return new Converter() {
+
+                    @Override
+                    public <T> T convert(Object source, Class<T> target) throws Exception {
+                        if (BigDecimal.ONE.equals(source)) {
+                            return target.cast(Boolean.TRUE);
+                        }
+                        if (BigDecimal.ZERO.equals(source)) {
                             return target.cast(Boolean.FALSE);
                         }
 

@@ -19,14 +19,14 @@ package org.geotools.feature.visitor;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.IllegalFilterException;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.geometry.Geometry;
+import org.locationtech.jts.geom.Geometry;
 
 /**
  * Calculates the Sum of Areas for geometric fields
@@ -80,6 +80,7 @@ public class SumAreaVisitor extends SumVisitor {
     static class SumAreaStrategy implements SumStrategy {
         Double number = null;
 
+        @Override
         public void add(Object value) {
             Number num = (Number) value;
             if (num.doubleValue() >= 0) {
@@ -90,6 +91,7 @@ public class SumAreaVisitor extends SumVisitor {
             }
         }
 
+        @Override
         public Object getResult() {
             return number == null ? null : Double.valueOf(number);
         }

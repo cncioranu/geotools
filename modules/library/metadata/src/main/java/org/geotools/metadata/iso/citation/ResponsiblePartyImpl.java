@@ -22,15 +22,15 @@ package org.geotools.metadata.iso.citation;
 import java.net.URI;
 import java.net.URISyntaxException;
 import net.opengis.ows11.ResponsiblePartySubsetType;
+import org.geotools.api.metadata.citation.Contact;
+import org.geotools.api.metadata.citation.OnLineFunction;
+import org.geotools.api.metadata.citation.OnLineResource;
+import org.geotools.api.metadata.citation.ResponsibleParty;
+import org.geotools.api.metadata.citation.Role;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.MetadataEntity;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.logging.Logging;
-import org.opengis.metadata.citation.Contact;
-import org.opengis.metadata.citation.OnLineFunction;
-import org.opengis.metadata.citation.OnLineResource;
-import org.opengis.metadata.citation.ResponsibleParty;
-import org.opengis.metadata.citation.Role;
-import org.opengis.util.InternationalString;
 
 /**
  * Identification of, and means of communication with, person(s) and organizations associated with
@@ -189,6 +189,21 @@ public class ResponsiblePartyImpl extends MetadataEntity implements ResponsibleP
     }
 
     /**
+     * The <A HREF="https://www.iau.org/">IAU</A> responsible party.
+     *
+     * @see ContactImpl#IAU
+     */
+    public static ResponsibleParty IAU;
+
+    static {
+        final ResponsiblePartyImpl r = new ResponsiblePartyImpl(Role.OWNER);
+        r.setOrganisationName(new SimpleInternationalString("IAU"));
+        r.setContactInfo(ContactImpl.IAU);
+        r.freeze();
+        IAU = r;
+    }
+
+    /**
      * The <A HREF="http://www.oracle.com">Oracle</A> responsible party.
      *
      * @see ContactImpl#ORACLE
@@ -303,6 +318,7 @@ public class ResponsiblePartyImpl extends MetadataEntity implements ResponsibleP
      * delimiter. Only one of {@code individualName}, {@link #getOrganisationName organisationName}
      * and {@link #getPositionName positionName} should be provided.
      */
+    @Override
     public String getIndividualName() {
         return individualName;
     }
@@ -322,6 +338,7 @@ public class ResponsiblePartyImpl extends MetadataEntity implements ResponsibleP
      * individualName}, </code>organisationName</code> and {@link #getPositionName positionName}
      * should be provided.
      */
+    @Override
     public InternationalString getOrganisationName() {
         return organisationName;
     }
@@ -341,6 +358,7 @@ public class ResponsiblePartyImpl extends MetadataEntity implements ResponsibleP
      * individualName}, {@link #getOrganisationName organisationName} and {@code positionName}
      * should be provided.
      */
+    @Override
     public InternationalString getPositionName() {
         return positionName;
     }
@@ -356,6 +374,7 @@ public class ResponsiblePartyImpl extends MetadataEntity implements ResponsibleP
     }
 
     /** Returns the address of the responsible party. */
+    @Override
     public Contact getContactInfo() {
         return contactInfo;
     }
@@ -367,6 +386,7 @@ public class ResponsiblePartyImpl extends MetadataEntity implements ResponsibleP
     }
 
     /** Returns the function performed by the responsible party. */
+    @Override
     public Role getRole() {
         return role;
     }

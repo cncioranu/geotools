@@ -1,13 +1,18 @@
 package org.geotools.filter.v2_0.bindings;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.temporal.MetBy;
+import org.geotools.api.temporal.Period;
 import org.geotools.filter.v2_0.FESTestSupport;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.temporal.MetBy;
-import org.opengis.temporal.Period;
+import org.junit.Test;
 
 public class MetByBindingTest extends FESTestSupport {
-
+    @Test
     public void testParse() throws Exception {
         String xml =
                 "<fes:Filter "

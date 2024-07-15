@@ -16,13 +16,13 @@
  */
 package org.geotools.geometry.jts;
 
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
 import org.locationtech.jts.geom.impl.CoordinateArraySequenceFactory;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A default implementation of {@linkplain CoordinateSequenceTransformer coordinate sequence
@@ -60,6 +60,7 @@ public class DefaultCoordinateSequenceTransformer implements CoordinateSequenceT
     }
 
     /** {@inheritDoc} */
+    @Override
     public CoordinateSequence transform(
             final CoordinateSequence sequence, final MathTransform transform)
             throws TransformException {

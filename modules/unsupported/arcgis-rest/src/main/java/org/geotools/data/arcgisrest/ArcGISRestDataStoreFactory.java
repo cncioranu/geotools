@@ -20,7 +20,6 @@ package org.geotools.data.arcgisrest;
 
 import java.awt.RenderingHints.Key;
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -28,9 +27,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.Parameter;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.logging.Logging;
 
@@ -48,7 +47,7 @@ public class ArcGISRestDataStoreFactory implements DataStoreFactorySpi {
     public static final String FACTORY_NAME = "ArcGIS ReST";
     public static final String FACTORY_DESCRIPTION = "ESRI ArcGIS ReST API data store";
 
-    private static List<Param> paramMetadata = new ArrayList<Param>(10);
+    private static final List<Param> paramMetadata = new ArrayList<>(10);
 
     public static final Param NAMESPACE_PARAM = new Param("namespace", String.class, "", true);
     public static final Param URL_PARAM =
@@ -84,13 +83,13 @@ public class ArcGISRestDataStoreFactory implements DataStoreFactorySpi {
     }
 
     @Override
-    public DataStore createNewDataStore(Map<String, Serializable> params)
+    public DataStore createNewDataStore(Map<String, ?> params)
             throws UnsupportedOperationException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DataStore createDataStore(Map<String, Serializable> params) throws IOException {
+    public DataStore createDataStore(Map<String, ?> params) throws IOException {
         return new ArcGISRestDataStore(
                 (String) params.get(NAMESPACE_PARAM.key),
                 (String) params.get(URL_PARAM.key),
@@ -115,7 +114,7 @@ public class ArcGISRestDataStoreFactory implements DataStoreFactorySpi {
     }
 
     @Override
-    public boolean canProcess(Map<String, Serializable> params) {
+    public boolean canProcess(Map<String, ?> params) {
 
         try {
             new URL((String) params.get(ArcGISRestDataStoreFactory.NAMESPACE_PARAM.key));

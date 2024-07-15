@@ -68,6 +68,9 @@ import net.opengis.wfs20.ValueReferenceType;
 import net.opengis.wfs20.WFSCapabilitiesType;
 import net.opengis.wfs20.Wfs20Factory;
 import org.eclipse.emf.ecore.EObject;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.capability.FilterCapabilities;
 import org.geotools.data.wfs.WFSDataStore;
 import org.geotools.data.wfs.WFSServiceInfo;
 import org.geotools.data.wfs.internal.AbstractWFSStrategy;
@@ -96,9 +99,6 @@ import org.geotools.util.factory.Hints;
 import org.geotools.util.factory.Hints.ConfigurationMetadataKey;
 import org.geotools.wfs.v2_0.WFS;
 import org.geotools.xsd.Configuration;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.capability.FilterCapabilities;
 
 /** */
 public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
@@ -158,7 +158,6 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
         typeInfos.clear();
         FeatureTypeListType featureTypeList = this.capabilities.getFeatureTypeList();
 
-        @SuppressWarnings("unchecked")
         List<FeatureTypeType> featureTypes = featureTypeList.getFeatureType();
 
         for (FeatureTypeType typeInfo : featureTypes) {
@@ -183,15 +182,6 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
             default:
                 return false;
         }
-    }
-
-    @Override
-    /**
-     * Currently the wfs-ng client is unable to handle max features and filters. Setting canLimit to
-     * false is inefficient but gives correct results.
-     */
-    public boolean canLimit() {
-        return false;
     }
 
     @Override
@@ -243,6 +233,7 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
             Filter originalFilter = query.getFilter();
 
             query.setUnsupportedFilter(originalFilter);
+            updatePropertyNames(query, originalFilter);
 
             Map<String, String> viewParams = null;
             if (query.getRequestHints() != null) {
@@ -308,7 +299,6 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
         }
 
         QName typeName = request.getTypeName();
-        @SuppressWarnings("unchecked")
         List<QName> typeNames = dft.getTypeName();
         typeNames.add(typeName);
 
@@ -317,7 +307,7 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
 
     @Override
     @SuppressWarnings("CollectionIncompatibleType")
-    protected EObject createGetFeatureRequestPost(GetFeatureRequest query) throws IOException {
+    protected EObject createGetFeatureRequestPost(GetFeatureRequest query) {
         final QName typeName = query.getTypeName();
         final FeatureTypeInfoImpl featureTypeInfo =
                 (FeatureTypeInfoImpl) getFeatureTypeInfo(typeName);
@@ -335,7 +325,11 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
 
         Integer maxFeatures = query.getMaxFeatures();
         if (maxFeatures != null) {
-            getFeature.setCount(BigInteger.valueOf(maxFeatures.intValue()));
+            getFeature.setCount(BigInteger.valueOf(maxFeatures));
+        }
+        Integer startIndex = query.getStartIndex();
+        if (startIndex != null) {
+            getFeature.setStartIndex(BigInteger.valueOf(startIndex));
         }
 
         ResultType resultType = query.getResultType();
@@ -352,6 +346,7 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
 
             // The query filter must be processed locally in full
             query.setUnsupportedFilter(query.getFilter());
+            updatePropertyNames(query, query.getFilter());
 
             Map<String, String> viewParams = null;
             StoredQueryConfiguration config = null;
@@ -388,6 +383,7 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
             }
 
             query.setUnsupportedFilter(unsupportedFilter);
+            updatePropertyNames(query, unsupportedFilter);
 
             if (!Filter.INCLUDE.equals(supportedFilter)) {
                 wfsQuery.setFilter(supportedFilter);
@@ -468,7 +464,6 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
             return tx;
         }
 
-        @SuppressWarnings("unchecked")
         List<AbstractTransactionActionType> actions = tx.getAbstractTransactionAction();
 
         try {
@@ -483,10 +478,8 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
                 }
                 actions.add(action);
             }
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
-        } catch (RuntimeException re) {
-            throw re;
         } catch (Exception other) {
             throw new RuntimeException(other);
         }
@@ -562,8 +555,10 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
 
         final OperationType operationMetadata = getOperationMetadata(operation);
 
-        Set<String> serverSupportedFormats;
-        serverSupportedFormats = findParameters(operationMetadata, parameterName);
+        Set<String> serverSupportedFormats = findParameters(operationMetadata, parameterName);
+        if (serverSupportedFormats.isEmpty()) {
+            serverSupportedFormats = findParameters(parameterName);
+        }
         return serverSupportedFormats;
     }
 
@@ -586,8 +581,8 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
 
     @Override
     public List<String> getClientSupportedOutputFormats(WFSOperationType operation) {
-        List<WFSResponseFactory> operationResponseFactories;
-        operationResponseFactories = WFSExtensions.findResponseFactories(operation);
+        List<WFSResponseFactory> operationResponseFactories =
+                WFSExtensions.findResponseFactories(operation);
 
         List<String> outputFormats = new LinkedList<>();
         for (WFSResponseFactory factory : operationResponseFactories) {
@@ -665,10 +660,27 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
         return ftypeCrss;
     }
 
+    /** Returns parameters defined in OperationsMetadata */
+    @SuppressWarnings("unchecked")
+    private Set<String> findParameters(final String parameterName) {
+        final OperationsMetadataType operationsMetadata = capabilities.getOperationsMetadata();
+
+        List<DomainType> parameters = operationsMetadata.getParameter();
+        for (DomainType parameter : parameters) {
+            if (parameterName.equals(parameter.getName())) {
+                Set<String> foundValues = new HashSet<>();
+                for (ValueType value : (List<ValueType>) parameter.getAllowedValues().getValue()) {
+                    foundValues.add(value.getValue());
+                }
+                return foundValues;
+            }
+        }
+        return Collections.emptySet();
+    }
+
     @SuppressWarnings("unchecked")
     protected Set<String> findParameters(
             final OperationType operationMetadata, final String parameterName) {
-        Set<String> outputFormats = new HashSet<>();
 
         List<DomainType> parameters = operationMetadata.getParameter();
         for (DomainType param : parameters) {
@@ -676,13 +688,15 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
             String paramName = param.getName();
 
             if (parameterName.equals(paramName)) {
+                Set<String> foundValues = new HashSet<>();
 
                 for (ValueType value : (List<ValueType>) param.getAllowedValues().getValue()) {
-                    outputFormats.add(value.getValue());
+                    foundValues.add(value.getValue());
                 }
+                return foundValues;
             }
         }
-        return outputFormats;
+        return Collections.emptySet();
     }
 
     protected AbstractTransactionActionType createInsert(Wfs20Factory factory, Insert elem)
@@ -723,7 +737,6 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
         Filter filter = elem.getFilter();
         update.setFilter(filter);
 
-        @SuppressWarnings("unchecked")
         List<PropertyType> properties = update.getProperty();
 
         for (int i = 0; i < propertyNames.size(); i++) {
@@ -751,5 +764,10 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
         delete.setFilter(filter);
 
         return delete;
+    }
+
+    @Override
+    public boolean canOffset() {
+        return true;
     }
 }

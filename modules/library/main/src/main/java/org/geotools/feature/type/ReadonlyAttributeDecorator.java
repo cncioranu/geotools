@@ -17,11 +17,11 @@
 package org.geotools.feature.type;
 
 import java.util.Map;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.identity.Identifier;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.identity.Identifier;
 
 /**
  * Readonly wrapper around the provided Attribute.
@@ -36,38 +36,47 @@ public final class ReadonlyAttributeDecorator implements Attribute {
         this.delegate = delegate;
     }
 
+    @Override
     public AttributeType getType() {
         return delegate.getType();
     }
 
+    @Override
     public Identifier getIdentifier() {
         return delegate.getIdentifier();
     }
 
+    @Override
     public Object getValue() {
         return delegate.getValue();
     }
 
+    @Override
     public void setValue(Object newValue) throws IllegalArgumentException {
         throw new UnsupportedOperationException("Modification is not supported");
     }
 
+    @Override
     public AttributeDescriptor getDescriptor() {
         return delegate.getDescriptor();
     }
 
+    @Override
     public Name getName() {
         return delegate.getName();
     }
 
+    @Override
     public Map<Object, Object> getUserData() {
         return delegate.getUserData();
     }
 
+    @Override
     public boolean isNillable() {
         return delegate.isNillable();
     }
 
+    @Override
     public void validate() {
         delegate.validate();
     }

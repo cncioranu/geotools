@@ -20,22 +20,21 @@
 package org.geotools.referencing.factory;
 
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.AuthorityFactory;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.util.GenericName;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.CRS;
 import org.geotools.util.logging.Logging;
-import org.opengis.metadata.Identifier;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.AuthorityFactory;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.util.GenericName;
 
 /**
  * Looks up an object from an {@linkplain AuthorityFactory authority factory} which is {@linkplain
@@ -230,8 +229,8 @@ public class IdentifiedObjectFinder {
             throws FactoryException {
         final Citation authority = getProxy().getAuthorityFactory().getAuthority();
         final boolean isAll = ReferencingFactory.ALL.equals(authority);
-        for (final Iterator it = object.getIdentifiers().iterator(); it.hasNext(); ) {
-            final Identifier id = (Identifier) it.next();
+        for (ReferenceIdentifier referenceIdentifier : object.getIdentifiers()) {
+            final Identifier id = (Identifier) referenceIdentifier;
             if (!isAll && !Citations.identifierMatches(authority, id.getAuthority())) {
                 // The identifier is not for this authority. Looks the other ones.
                 continue;
@@ -283,8 +282,7 @@ public class IdentifiedObjectFinder {
              *       name found, etc.).
              */
         }
-        for (final Iterator it = object.getAlias().iterator(); it.hasNext(); ) {
-            final GenericName id = (GenericName) it.next();
+        for (final GenericName id : object.getAlias()) {
             try {
                 candidate = getProxy().create(id.toString());
             } catch (FactoryException e) {
@@ -324,8 +322,7 @@ public class IdentifiedObjectFinder {
         @SuppressWarnings("unchecked")
         final Set<String> codes =
                 specific ? getSpecificCodeCandidates(object) : getCodeCandidates(object);
-        for (final Iterator it = codes.iterator(); it.hasNext(); ) {
-            final String code = (String) it.next();
+        for (final String code : codes) {
             IdentifiedObject candidate;
             try {
                 candidate = getProxy().create(code);

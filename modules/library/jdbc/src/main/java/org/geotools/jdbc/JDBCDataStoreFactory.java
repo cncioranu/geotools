@@ -24,10 +24,10 @@ import java.util.Map;
 import java.util.function.Predicate;
 import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.Parameter;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Parameter;
 import org.geotools.data.jdbc.datasource.DBCPDataSource;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.type.FeatureTypeFactoryImpl;
@@ -44,8 +44,6 @@ import org.locationtech.jts.geom.GeometryFactory;
  *
  * @author Justin Deoliveira, The Open Planning Project
  */
-// temporary work around, the factory parameters map will be fixed separately
-@SuppressWarnings("unchecked")
 public abstract class JDBCDataStoreFactory implements DataStoreFactorySpi {
 
     /** parameter for database type */
@@ -266,6 +264,7 @@ public abstract class JDBCDataStoreFactory implements DataStoreFactorySpi {
      *
      * @return true if params is in agreement with getParametersInfo and checkDBType
      */
+    @Override
     public boolean canProcess(Map<String, ?> params) {
         if (!DataUtilities.canProcess(params, getParametersInfo())) {
             return false;
@@ -293,6 +292,7 @@ public abstract class JDBCDataStoreFactory implements DataStoreFactorySpi {
         }
     }
 
+    @Override
     public final JDBCDataStore createDataStore(Map<String, ?> params) throws IOException {
         JDBCDataStore dataStore = new JDBCDataStore();
 
@@ -412,15 +412,17 @@ public abstract class JDBCDataStoreFactory implements DataStoreFactorySpi {
         return dataStore;
     }
 
+    @Override
     public DataStore createNewDataStore(Map<String, ?> params) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public final Param[] getParametersInfo() {
         Map<String, Object> map = new LinkedHashMap<>();
         setupParameters(map);
 
-        return (Param[]) map.values().toArray(new Param[map.size()]);
+        return map.values().toArray(new Param[map.size()]);
     }
 
     /**
@@ -484,6 +486,7 @@ public abstract class JDBCDataStoreFactory implements DataStoreFactorySpi {
      * <p>Subclasses may with to override or extend this method. This implementation checks whether
      * the jdbc driver class (provided by {@link #getDriverClassName()} can be loaded.
      */
+    @Override
     public boolean isAvailable() {
         try {
             Class.forName(getDriverClassName());
@@ -499,6 +502,7 @@ public abstract class JDBCDataStoreFactory implements DataStoreFactorySpi {
      *
      * <p>Subclasses may override, this implementation returns <code>null</code>.
      */
+    @Override
     public Map<java.awt.RenderingHints.Key, ?> getImplementationHints() {
         return null;
     }

@@ -27,14 +27,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.util.Converters;
 import org.geotools.util.SoftValueHashMap;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Vocabulary translation; using an external lookup table.
@@ -70,26 +70,32 @@ public class VocabFunction implements Function {
         this.fallback = fallback;
     }
 
+    @Override
     public String getName() {
         return NAME.getName();
     }
 
+    @Override
     public FunctionName getFunctionName() {
         return NAME;
     }
 
+    @Override
     public List<Expression> getParameters() {
         return Collections.unmodifiableList(parameters);
     }
 
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public Object evaluate(Object object) {
         return evaluate(object, Object.class);
     }
 
+    @Override
     public <T> T evaluate(Object object, Class<T> context) {
         final Expression expr = parameters.get(0);
         Expression vocab = parameters.get(1);
@@ -122,22 +128,12 @@ public class VocabFunction implements Function {
         properties = new Properties();
         File file = new File(urn);
         if (file.exists()) {
-            InputStream input = null;
-            try {
-                input = new BufferedInputStream(new FileInputStream(file));
+            try (InputStream input = new BufferedInputStream(new FileInputStream(file))) {
                 properties.load(input);
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("Could not find file for lookup table " + urn);
             } catch (IOException e) {
                 throw new RuntimeException("Difficulty parsing lookup table " + urn);
-            } finally {
-                if (input != null) {
-                    try {
-                        input.close();
-                    } catch (IOException e) {
-                        // we tried;
-                    }
-                }
             }
         } else {
             cache.put(urn, null); // don't check again and waste our time
@@ -146,6 +142,7 @@ public class VocabFunction implements Function {
         return properties;
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallback;
     }

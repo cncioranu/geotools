@@ -30,21 +30,21 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.BinaryLogicOperator;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Intersects;
 import org.geotools.filter.FilterHandler;
 import org.geotools.filter.LogicFilterImpl;
 import org.geotools.gml.GMLFilterDocument;
 import org.geotools.gml.GMLFilterGeometry;
 import org.geotools.util.logging.Logging;
 import org.junit.Test;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.BinaryLogicOperator;
-import org.opengis.filter.Filter;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Intersects;
 import org.xml.sax.InputSource;
 import org.xml.sax.helpers.ParserAdapter;
 import org.xml.sax.helpers.XMLFilterImpl;
@@ -338,15 +338,13 @@ public class FilterFilterTest {
         adapter.parse(requestSource);
 
         assertEquals(1, contentHandler.filters.size());
-        Filter f = (Filter) contentHandler.filters.get(0);
+        Filter f = contentHandler.filters.get(0);
         assertTrue(f instanceof BinaryLogicOperator);
         assertThat(f, instanceOf(Or.class));
 
         int i = 0;
-        for (Iterator<org.opengis.filter.Filter> filters =
-                        ((BinaryLogicOperator) f).getChildren().iterator();
-                filters.hasNext();
-                i++) {
+        Iterator<Filter> filters = ((BinaryLogicOperator) f).getChildren().iterator();
+        while (filters.hasNext()) {
             BinaryComparisonOperator subFilter = (BinaryComparisonOperator) filters.next();
             StringBuffer attName = new StringBuffer();
             for (int repCount = 0; repCount <= i; repCount++) {
@@ -355,15 +353,17 @@ public class FilterFilterTest {
             String parsedName = ((PropertyName) subFilter.getExpression1()).getPropertyName();
             assertEquals("at index " + i, attName.toString(), parsedName);
             assertEquals("literal-" + i, ((Literal) subFilter.getExpression2()).getValue());
+            i++;
         }
         assertEquals(filterCount, i);
     }
 
     static class MyHandler extends XMLFilterImpl implements FilterHandler {
 
-        public List<org.opengis.filter.Filter> filters = new ArrayList<>();
+        public List<org.geotools.api.filter.Filter> filters = new ArrayList<>();
 
-        public void filter(org.opengis.filter.Filter filter) {
+        @Override
+        public void filter(org.geotools.api.filter.Filter filter) {
             filters.add(filter);
         }
     }

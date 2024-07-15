@@ -24,23 +24,22 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
-import org.geotools.data.DataAccess;
-import org.geotools.data.DataAccessFactory;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.DataAccess;
+import org.geotools.api.data.DataAccessFactory;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.FeatureType;
 import org.geotools.data.complex.config.AppSchemaDataAccessConfigurator;
 import org.geotools.data.complex.config.AppSchemaDataAccessDTO;
 import org.geotools.data.complex.config.DataAccessMap;
 import org.geotools.data.complex.config.XMLConfigDigester;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
 
 /**
  * DataStoreFactory for ComplexDataStore.
@@ -75,14 +74,18 @@ public class AppSchemaDataAccessFactory implements DataAccessFactory {
                     "URL to an application schema datastore XML configuration file",
                     true);
 
+    // marks whether data store is based on an XML include, need to handle duplicates
+    public static final String IS_INCLUDE = "isInclude";
+
     public AppSchemaDataAccessFactory() {}
 
+    @Override
     public DataAccess<FeatureType, Feature> createDataStore(Map<String, ?> params)
             throws IOException {
-        final Set<AppSchemaDataAccess> registeredAppSchemaStores =
-                new HashSet<AppSchemaDataAccess>();
+        final Set<AppSchemaDataAccess> registeredAppSchemaStores = new HashSet<>();
         try {
-            return createDataStore(params, false, new DataAccessMap(), registeredAppSchemaStores);
+            return createDataStore(
+                    params, false, new DataAccessMap(), registeredAppSchemaStores, null);
         } catch (Exception ex) {
             // dispose every already registered included datasource
             for (AppSchemaDataAccess appSchemaDataAccess : registeredAppSchemaStores) {
@@ -96,10 +99,9 @@ public class AppSchemaDataAccessFactory implements DataAccessFactory {
             Map<String, ?> params,
             boolean hidden,
             DataAccessMap sourceDataStoreMap,
-            final Set<AppSchemaDataAccess> registeredAppSchemaStores)
+            final Set<AppSchemaDataAccess> registeredAppSchemaStores,
+            URL parentUrl)
             throws IOException {
-        Set<FeatureTypeMapping> mappings;
-        AppSchemaDataAccess dataStore;
 
         URL configFileUrl = (URL) AppSchemaDataAccessFactory.URL.lookUp(params);
         XMLConfigDigester configReader = new XMLConfigDigester();
@@ -110,20 +112,33 @@ public class AppSchemaDataAccessFactory implements DataAccessFactory {
         // on getCapabilities, and getFeature also shouldn't return anything etc.
         List<String> includes = config.getIncludes();
         Map<String, Object> extendedParams = new HashMap<>(params);
-        for (Iterator<String> it = includes.iterator(); it.hasNext(); ) {
-            extendedParams.put("url", buildIncludeUrl(configFileUrl, it.next()));
+        for (String include : includes) {
+            // mark this as an include, so that the DataAccess can handle it properly
+            extendedParams.put(IS_INCLUDE, true);
+            extendedParams.put("url", buildIncludeUrl(configFileUrl, include));
             // this will register the related data access, to enable feature chaining;
             // sourceDataStoreMap is passed on to keep track of the already created source data
             // stores
             // and avoid creating the same data store twice (this enables feature iterators sharing
             // the same transaction to re-use the connection instead of opening a new one for each
             // joined type)
-            createDataStore(extendedParams, true, sourceDataStoreMap, registeredAppSchemaStores);
+            createDataStore(
+                    extendedParams,
+                    true,
+                    sourceDataStoreMap,
+                    registeredAppSchemaStores,
+                    parentUrl == null ? configFileUrl : parentUrl);
         }
 
-        mappings = AppSchemaDataAccessConfigurator.buildMappings(config, sourceDataStoreMap);
+        boolean isInclude = Boolean.TRUE.equals(params.get(IS_INCLUDE));
 
-        dataStore = new AppSchemaDataAccess(mappings, hidden);
+        Set<FeatureTypeMapping> mappings =
+                AppSchemaDataAccessConfigurator.buildMappings(
+                        config, sourceDataStoreMap, isInclude);
+
+        AppSchemaDataAccess dataStore = new AppSchemaDataAccess(mappings, hidden);
+        dataStore.url = configFileUrl;
+        dataStore.parentUrl = parentUrl;
         registeredAppSchemaStores.add(dataStore);
         return dataStore;
     }
@@ -161,20 +176,24 @@ public class AppSchemaDataAccessFactory implements DataAccessFactory {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public String getDisplayName() {
         return "Application Schema DataAccess";
     }
 
+    @Override
     public String getDescription() {
         return "Application Schema DataStore allows mapping of FeatureTypes to externally defined Output Schemas";
     }
 
+    @Override
     public DataStoreFactorySpi.Param[] getParametersInfo() {
         return new DataStoreFactorySpi.Param[] {
-            AppSchemaDataAccessFactory.DBTYPE, AppSchemaDataAccessFactory.URL
+            AppSchemaDataAccessFactory.DBTYPE, AppSchemaDataAccessFactory.URL,
         };
     }
 
+    @Override
     public boolean canProcess(Map<String, ?> params) {
         try {
             Object dbType = AppSchemaDataAccessFactory.DBTYPE.lookUp(params);
@@ -186,10 +205,12 @@ public class AppSchemaDataAccessFactory implements DataAccessFactory {
         return false;
     }
 
+    @Override
     public boolean isAvailable() {
         return true;
     }
 
+    @Override
     public Map<RenderingHints.Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }

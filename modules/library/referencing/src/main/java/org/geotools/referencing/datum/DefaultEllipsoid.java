@@ -17,6 +17,7 @@
 package org.geotools.referencing.datum;
 
 import java.awt.geom.Point2D;
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.Map;
 import javax.measure.Unit;
@@ -25,12 +26,11 @@ import javax.measure.quantity.Length;
 import net.sf.geographiclib.Geodesic;
 import net.sf.geographiclib.GeodesicData;
 import net.sf.geographiclib.GeodesicMask;
+import org.geotools.api.referencing.datum.Ellipsoid;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Utilities;
-import org.opengis.referencing.datum.Ellipsoid;
 import si.uom.SI;
 
 /**
@@ -305,7 +305,7 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject implements Ellips
             return value;
         }
         throw new IllegalArgumentException(
-                Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, name, value));
+                MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, name, value));
     }
 
     /**
@@ -314,6 +314,7 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject implements Ellips
      *
      * @return The axis linear unit.
      */
+    @Override
     public Unit<Length> getAxisUnit() {
         return unit;
     }
@@ -324,6 +325,7 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject implements Ellips
      *
      * @return Length of semi-major axis.
      */
+    @Override
     public double getSemiMajorAxis() {
         return semiMajorAxis;
     }
@@ -334,6 +336,7 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject implements Ellips
      *
      * @return Length of semi-minor axis.
      */
+    @Override
     public double getSemiMinorAxis() {
         return semiMinorAxis;
     }
@@ -362,6 +365,7 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject implements Ellips
      *
      * @return The inverse flattening value.
      */
+    @Override
     public double getInverseFlattening() {
         return inverseFlattening;
     }
@@ -376,6 +380,7 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject implements Ellips
      *     definitive, or {@code false} if the {@linkplain #getSemiMinorAxis polar radius} is
      *     definitive.
      */
+    @Override
     public boolean isIvfDefinitive() {
         return ivfDefinitive;
     }
@@ -387,6 +392,7 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject implements Ellips
      *
      * @return {@code true} if the ellipsoid is degenerate and is actually a sphere.
      */
+    @Override
     public boolean isSphere() {
         return semiMajorAxis == semiMinorAxis;
     }

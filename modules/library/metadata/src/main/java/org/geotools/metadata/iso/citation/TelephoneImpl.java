@@ -22,8 +22,8 @@ package org.geotools.metadata.iso.citation;
 import java.util.Collection;
 import java.util.Collections;
 import net.opengis.ows11.TelephoneType;
+import org.geotools.api.metadata.citation.Telephone;
 import org.geotools.metadata.iso.MetadataEntity;
-import org.opengis.metadata.citation.Telephone;
 
 /**
  * Telephone numbers for contacting the responsible individual or organization.
@@ -69,6 +69,7 @@ public class TelephoneImpl extends MetadataEntity implements Telephone {
      *
      * @since 2.4
      */
+    @Override
     public Collection<String> getVoices() {
         return (voices = nonNullCollection(voices, String.class));
     }
@@ -89,6 +90,7 @@ public class TelephoneImpl extends MetadataEntity implements Telephone {
      *
      * @since 2.4
      */
+    @Override
     public Collection<String> getFacsimiles() {
         return (facsimiles = nonNullCollection(facsimiles, String.class));
     }

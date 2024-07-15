@@ -22,16 +22,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.Filter;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.collection.DecoratingSimpleFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
 
 /**
  * FeatureCollection that remaps attribute names using a given map.
@@ -107,6 +107,7 @@ class RemappingFeatureCollection extends DecoratingSimpleFeatureCollection {
         this.attributesMapping = attributesMapping;
     }
 
+    @Override
     public SimpleFeatureType getSchema() {
         return remapSchema(delegate.getSchema());
     }
@@ -145,6 +146,7 @@ class RemappingFeatureCollection extends DecoratingSimpleFeatureCollection {
         return builder.buildFeatureType();
     }
 
+    @Override
     public SimpleFeatureIterator features() {
         return new RemappingIterator(delegate.features(), attributesMapping, getSchema());
     }
@@ -189,10 +191,12 @@ class RemappingFeatureCollection extends DecoratingSimpleFeatureCollection {
             this.builder = new SimpleFeatureBuilder(schema);
         }
 
+        @Override
         public boolean hasNext() {
             return delegate.hasNext();
         }
 
+        @Override
         public SimpleFeature next() {
             return RemappingFeatureCollection.remap(delegate.next(), attributesMapping, builder);
         }

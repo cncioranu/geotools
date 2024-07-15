@@ -49,13 +49,19 @@ import javax.media.jai.JAI;
 import javax.media.jai.OpImage;
 import javax.media.jai.ParameterBlockJAI;
 import javax.media.jai.operator.MosaicDescriptor;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.geopkg.GeoPackage;
 import org.geotools.geopkg.Tile;
@@ -69,12 +75,6 @@ import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Envelope;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * GeoPackage Grid Reader (supports the GP mosaic datastore).
@@ -133,13 +133,13 @@ public class GeoPackageReader extends AbstractGridCoverage2DReader {
     }
 
     @Override
-    public GeneralEnvelope getOriginalEnvelope(String coverageName) {
+    public GeneralBounds getOriginalEnvelope(String coverageName) {
         if (!checkName(coverageName)) {
             throw new IllegalArgumentException(
                     "The specified coverageName " + coverageName + "is not supported");
         }
 
-        return new GeneralEnvelope(tiles.get(coverageName).getTileMatrixSetBounds());
+        return new GeneralBounds(tiles.get(coverageName).getTileMatrixSetBounds());
     }
 
     @Override
@@ -207,8 +207,8 @@ public class GeoPackageReader extends AbstractGridCoverage2DReader {
         Rectangle dim = null;
 
         if (parameters != null) {
-            for (int i = 0; i < parameters.length; i++) {
-                final ParameterValue param = (ParameterValue) parameters[i];
+            for (GeneralParameterValue parameter : parameters) {
+                final ParameterValue param = (ParameterValue) parameter;
                 final ReferenceIdentifier name = param.getDescriptor().getName();
                 if (name.equals(AbstractGridFormat.READ_GRIDGEOMETRY2D.getName())) {
                     final GridGeometry2D gg = (GridGeometry2D) param.getValue();
@@ -375,6 +375,7 @@ public class GeoPackageReader extends AbstractGridCoverage2DReader {
      * Fast lane mosaicker, basically builds an OpImage that returns translated versions of the
      * source images, without actually copying pixels around
      */
+    @SuppressWarnings("PMD.UseArrayListInsteadOfVector") // old API asking for Vector
     private OpImage mosaicUniformImages(List<ImageInTile> sources) {
         // compute bounds
         int minx = sources.stream().mapToInt(it -> it.posx).min().getAsInt();
@@ -439,7 +440,7 @@ public class GeoPackageReader extends AbstractGridCoverage2DReader {
             }
 
             @Override
-            @SuppressWarnings("unchecked")
+            @SuppressWarnings({"unchecked", "PMD.ReplaceVectorWithList"})
             public Vector<RenderedImage> getSources() {
                 return super.getSources();
             }
@@ -449,7 +450,6 @@ public class GeoPackageReader extends AbstractGridCoverage2DReader {
     private RenderedImage mosaicHeterogeneousImages(List<ImageInTile> sources) {
         // at the time of writing, only JAI-EXT mosaic can handle a mix of different
         // color models, we need to use it explicitly
-        RenderedImage image;
         final ParameterBlockJAI pb =
                 new ParameterBlockJAI(new it.geosolutions.jaiext.mosaic.MosaicDescriptor());
         for (ImageInTile it : sources) {
@@ -472,7 +472,7 @@ public class GeoPackageReader extends AbstractGridCoverage2DReader {
 
         RenderingHints hints = new Hints(JAI.getDefaultInstance().getRenderingHints());
         hints.putAll(GeoTools.getDefaultHints());
-        image = new MosaicRIF().create(pb, hints);
+        RenderedImage image = new MosaicRIF().create(pb, hints);
         return image;
     }
 
@@ -571,7 +571,7 @@ public class GeoPackageReader extends AbstractGridCoverage2DReader {
         final int numSources = sources.size();
 
         // get first image as reference
-        RenderedImage first = (RenderedImage) sources.get(0);
+        RenderedImage first = sources.get(0);
         ColorModel firstColorModel = first.getColorModel();
         SampleModel firstSampleModel = first.getSampleModel();
 
@@ -596,7 +596,7 @@ public class GeoPackageReader extends AbstractGridCoverage2DReader {
         boolean hasUnsupportedTypes = false;
         int maxBands = firstBands;
         for (int i = 1; i < numSources; i++) {
-            RenderedImage source = (RenderedImage) sources.get(i);
+            RenderedImage source = sources.get(i);
             SampleModel sourceSampleModel = source.getSampleModel();
             ColorModel sourceColorModel = source.getColorModel();
             int sourceBands = sourceSampleModel.getNumBands();

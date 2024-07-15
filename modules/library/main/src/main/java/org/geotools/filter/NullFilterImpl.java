@@ -17,9 +17,9 @@
 package org.geotools.filter;
 
 import java.util.Objects;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.Expression;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.expression.Expression;
 
 /**
  * Defines a null filter, which checks to see if an attribute is null.
@@ -29,13 +29,14 @@ import org.opengis.filter.expression.Expression;
  */
 public class NullFilterImpl extends AbstractFilter implements PropertyIsNull {
     /** The null check value, which must be an attribute expression. */
-    private org.opengis.filter.expression.Expression nullCheck = null;
+    private org.geotools.api.filter.expression.Expression nullCheck = null;
 
-    protected NullFilterImpl(org.opengis.filter.expression.Expression expresion) {
+    protected NullFilterImpl(org.geotools.api.filter.expression.Expression expresion) {
         setExpression(expresion);
     }
 
     /** Returns the expression which represents the null check. */
+    @Override
     public Expression getExpression() {
         return nullCheck;
     }
@@ -55,6 +56,7 @@ public class NullFilterImpl extends AbstractFilter implements PropertyIsNull {
      * @param feature Specified feature to examine.
      * @return Flag confirming whether or not this feature is inside the filter.
      */
+    @Override
     public boolean evaluate(Object feature) {
         if (nullCheck == null) {
             return false;
@@ -68,6 +70,7 @@ public class NullFilterImpl extends AbstractFilter implements PropertyIsNull {
      *
      * @return String representation of the null filter.
      */
+    @Override
     public String toString() {
         return "[ " + nullCheck.toString() + " is null ]";
     }
@@ -93,6 +96,7 @@ public class NullFilterImpl extends AbstractFilter implements PropertyIsNull {
      *
      * @return a hash code value for this geometry filter.
      */
+    @Override
     public int hashCode() {
         int result = 17;
         result = (37 * result) + ((nullCheck == null) ? 0 : nullCheck.hashCode());
@@ -109,6 +113,7 @@ public class NullFilterImpl extends AbstractFilter implements PropertyIsNull {
      * @param visitor The visitor which requires access to this filter, the method must call
      *     visitor.visit(this);
      */
+    @Override
     public Object accept(FilterVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }

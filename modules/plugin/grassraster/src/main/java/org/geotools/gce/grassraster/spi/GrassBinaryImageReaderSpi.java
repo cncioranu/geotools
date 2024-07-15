@@ -33,7 +33,6 @@ import org.geotools.gce.grassraster.GrassBinaryImageWriter;
  * @see GrassBinaryImageWriter
  * @see GrassBinaryImageReaderSpi
  */
-@SuppressWarnings("nls")
 public class GrassBinaryImageReaderSpi extends ImageReaderSpi {
 
     private static final String vendorName = "www.hydrologis.com";
@@ -49,7 +48,7 @@ public class GrassBinaryImageReaderSpi extends ImageReaderSpi {
             "eu.hydrologis.jgrass.grassbinary.imageio.io.GrassBinaryImageReader";
 
     /** the inputTypes that are accepted by the {@link GrassBinaryImageReader}. */
-    private static final Class<?>[] inputTypes = new Class[] {File.class, ImageInputStream.class};
+    private static final Class<?>[] inputTypes = {File.class, ImageInputStream.class};
 
     /** the writerSpiName */
     private static final String[] wSN = {
@@ -97,10 +96,12 @@ public class GrassBinaryImageReaderSpi extends ImageReaderSpi {
                 extraImageMetadataFormatClassNames);
     }
 
+    @Override
     public String getDescription(Locale locale) {
         return "GRASS binary raster image reader service provider interface, version " + version;
     }
 
+    @Override
     public boolean canDecodeInput(Object source) throws IOException {
         if (source instanceof File) {
             return true;
@@ -108,6 +109,7 @@ public class GrassBinaryImageReaderSpi extends ImageReaderSpi {
         return false;
     }
 
+    @Override
     public GrassBinaryImageReader createReaderInstance(Object extension) throws IOException {
         return new GrassBinaryImageReader(this);
     }

@@ -3,6 +3,10 @@ package org.geotools.filter.visitor;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.temporal.Instant;
+import org.geotools.api.temporal.Period;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.temporal.TemporalFilterTestSupport;
 import org.junit.Test;
@@ -11,14 +15,10 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.temporal.Instant;
-import org.opengis.temporal.Period;
 
 public class ExtractBoundsFilterVisitorTest extends TemporalFilterTestSupport {
 
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+    FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
     ExtractBoundsFilterVisitor visitor = new ExtractBoundsFilterVisitor();
 
@@ -71,8 +71,15 @@ public class ExtractBoundsFilterVisitorTest extends TemporalFilterTestSupport {
     }
 
     @Test
+    public void testEnvelopeIntersects() {
+        Filter f = ff.intersects(ff.property("geom"), ff.literal(new Envelope(-10, 10, -10, 10)));
+        Envelope env = (Envelope) f.accept(visitor, null);
+        assertEquals(new Envelope(-10, 10, -10, 10), env);
+    }
+
+    @Test
     public void testTouches() {
-        Coordinate[] coords = new Coordinate[] {new Coordinate(0, 0), new Coordinate(10, 10)};
+        Coordinate[] coords = {new Coordinate(0, 0), new Coordinate(10, 10)};
         LineString lineString = new GeometryFactory().createLineString(coords);
         Filter filter = ff.touches(ff.property("name"), ff.literal(lineString));
         Envelope env = (Envelope) filter.accept(visitor, null);
@@ -81,7 +88,7 @@ public class ExtractBoundsFilterVisitorTest extends TemporalFilterTestSupport {
 
     @Test
     public void testBeyond() {
-        Coordinate[] coords = new Coordinate[] {new Coordinate(0, 0), new Coordinate(10, 10)};
+        Coordinate[] coords = {new Coordinate(0, 0), new Coordinate(10, 10)};
         LineString lineString = new GeometryFactory().createLineString(coords);
         Filter filter = ff.beyond(ff.property("name"), ff.literal(lineString), 100, "m");
         Envelope env = (Envelope) filter.accept(visitor, null);
@@ -90,7 +97,7 @@ public class ExtractBoundsFilterVisitorTest extends TemporalFilterTestSupport {
 
     @Test
     public void testNotBeyond() {
-        Coordinate[] coords = new Coordinate[] {new Coordinate(0, 0), new Coordinate(10, 10)};
+        Coordinate[] coords = {new Coordinate(0, 0), new Coordinate(10, 10)};
         LineString lineString = new GeometryFactory().createLineString(coords);
         Filter filter = ff.beyond(ff.property("name"), ff.literal(lineString), 100, "m");
         Envelope env = (Envelope) filter.accept(visitor, null);
@@ -127,7 +134,7 @@ public class ExtractBoundsFilterVisitorTest extends TemporalFilterTestSupport {
 
     @Test
     public void testDisjoint() {
-        Coordinate[] coords = new Coordinate[] {new Coordinate(0, 0), new Coordinate(10, 10)};
+        Coordinate[] coords = {new Coordinate(0, 0), new Coordinate(10, 10)};
         LineString lineString = new GeometryFactory().createLineString(coords);
         Filter filter = ff.disjoint(ff.property("name"), ff.literal(lineString));
         Envelope env = (Envelope) filter.accept(visitor, null);
@@ -137,7 +144,7 @@ public class ExtractBoundsFilterVisitorTest extends TemporalFilterTestSupport {
 
     @Test
     public void testAndDisjoint() {
-        Coordinate[] coords = new Coordinate[] {new Coordinate(0, 0), new Coordinate(10, 10)};
+        Coordinate[] coords = {new Coordinate(0, 0), new Coordinate(10, 10)};
         LineString lineString = new GeometryFactory().createLineString(coords);
         Filter filter = ff.disjoint(ff.property("name"), ff.literal(lineString));
         filter = ff.and(filter, ff.bbox(ff.property("geom"), 50, 50, 150, 150, null));

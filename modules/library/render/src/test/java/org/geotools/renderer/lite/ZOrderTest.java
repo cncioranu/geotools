@@ -26,24 +26,31 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Style;
 import org.geotools.data.property.PropertyDataStore;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.test.ImageAssert;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
 import org.geotools.renderer.RenderListener;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Style;
 import org.geotools.test.TestData;
+import org.geotools.util.factory.Hints;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /**
  * Z-order rendering test making use of FeatureTypeStyle sortBy to refine query used for styling.
  */
+@RunWith(Parameterized.class)
 public class ZOrderTest {
     private static final long TIME = 40000;
 
@@ -57,6 +64,15 @@ public class ZOrderTest {
 
     SimpleFeatureSource zbuildings;
 
+    @Parameterized.Parameters
+    public static Collection<Integer> maxMemorySortValues() {
+        return Arrays.asList(new Integer[] {1000, 2});
+    }
+
+    public ZOrderTest(Integer maxMemorySort) {
+        Hints.putSystemDefault(Hints.MAX_MEMORY_SORT, maxMemorySort);
+    }
+
     @Before
     public void setUp() throws Exception {
         File property = new File(TestData.getResource(this, "zorder/zsquares.properties").toURI());
@@ -68,7 +84,11 @@ public class ZOrderTest {
         bounds.expandBy(0.2, 0.2);
 
         // System.setProperty("org.geotools.test.interactive", "true");
+    }
 
+    @After
+    public void tearDown() throws Exception {
+        Hints.removeSystemDefault(Hints.MAX_MEMORY_SORT);
     }
 
     @Test
@@ -191,7 +211,7 @@ public class ZOrderTest {
     private void forceSortBy(Style style, String sortBy) {
         if (sortBy != null) {
             for (FeatureTypeStyle fts : style.featureTypeStyles()) {
-                fts.getOptions().put(FeatureTypeStyle.SORT_BY, sortBy);
+                fts.getOptions().put(org.geotools.api.style.FeatureTypeStyle.SORT_BY, sortBy);
             }
         }
     }
@@ -199,7 +219,8 @@ public class ZOrderTest {
     private void forceSortByGroup(Style style, String sortByGroup) {
         if (sortByGroup != null) {
             for (FeatureTypeStyle fts : style.featureTypeStyles()) {
-                fts.getOptions().put(FeatureTypeStyle.SORT_BY_GROUP, sortByGroup);
+                fts.getOptions()
+                        .put(org.geotools.api.style.FeatureTypeStyle.SORT_BY_GROUP, sortByGroup);
             }
         }
     }
@@ -404,8 +425,8 @@ public class ZOrderTest {
         forceSortBy(roadsStyle, "z");
         forceSortByGroup(roadsStyle, "theGroup");
         FeatureTypeStyle fts = roadsStyle.featureTypeStyles().get(0);
-        fts.getOptions().put(FeatureTypeStyle.COMPOSITE_BASE, "true");
-        fts.getOptions().put(FeatureTypeStyle.COMPOSITE, "destination-in");
+        fts.getOptions().put(org.geotools.api.style.FeatureTypeStyle.COMPOSITE_BASE, "true");
+        fts.getOptions().put(org.geotools.api.style.FeatureTypeStyle.COMPOSITE, "destination-in");
 
         Style buildingsStyle = RendererBaseTest.loadStyle(this, "zorder/zbuildings.sld");
 

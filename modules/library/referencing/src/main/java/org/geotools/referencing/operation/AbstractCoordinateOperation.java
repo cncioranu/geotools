@@ -19,38 +19,37 @@
  */
 package org.geotools.referencing.operation;
 
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import javax.measure.Unit;
 import javax.measure.quantity.Length;
+import org.geotools.api.metadata.extent.Extent;
+import org.geotools.api.metadata.quality.PositionalAccuracy;
+import org.geotools.api.metadata.quality.QuantitativeResult;
+import org.geotools.api.metadata.quality.Result;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.ConcatenatedOperation;
+import org.geotools.api.referencing.operation.ConicProjection;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.CylindricalProjection;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.Operation;
+import org.geotools.api.referencing.operation.PlanarProjection;
+import org.geotools.api.referencing.operation.Projection;
+import org.geotools.api.referencing.operation.Transformation;
+import org.geotools.api.util.InternationalString;
+import org.geotools.api.util.Record;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.iso.quality.PositionalAccuracyImpl;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.crs.AbstractDerivedCRS;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Utilities;
-import org.opengis.metadata.extent.Extent;
-import org.opengis.metadata.quality.PositionalAccuracy;
-import org.opengis.metadata.quality.QuantitativeResult;
-import org.opengis.metadata.quality.Result;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.ConcatenatedOperation;
-import org.opengis.referencing.operation.ConicProjection;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.CylindricalProjection;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.Operation;
-import org.opengis.referencing.operation.PlanarProjection;
-import org.opengis.referencing.operation.Projection;
-import org.opengis.referencing.operation.Transformation;
-import org.opengis.util.InternationalString;
-import org.opengis.util.Record;
 import si.uom.SI;
 
 /**
@@ -164,22 +163,22 @@ public class AbstractCoordinateOperation extends AbstractIdentifiedObject
      *     <th nowrap>Value given to</th>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.operation.CoordinateOperation#OPERATION_VERSION_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.operation.CoordinateOperation#OPERATION_VERSION_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link String}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link #getOperationVersion}</td>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.operation.CoordinateOperation#COORDINATE_OPERATION_ACCURACY_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.operation.CoordinateOperation#COORDINATE_OPERATION_ACCURACY_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;<code>{@linkplain PositionalAccuracy}[]</code>&nbsp;</td>
      *     <td nowrap>&nbsp;{@link #getCoordinateOperationAccuracy}</td>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.operation.CoordinateOperation#DOMAIN_OF_VALIDITY_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.operation.CoordinateOperation#DOMAIN_OF_VALIDITY_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link Extent}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link #getDomainOfValidity}</td>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.operation.CoordinateOperation#SCOPE_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.operation.CoordinateOperation#SCOPE_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link String} or {@link InternationalString}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link #getScope}</td>
      *   </tr>
@@ -210,11 +209,10 @@ public class AbstractCoordinateOperation extends AbstractIdentifiedObject
             final CoordinateReferenceSystem targetCRS,
             final MathTransform transform) {
         super(properties, subProperties, LOCALIZABLES);
-        PositionalAccuracy[] positionalAccuracy;
         domainOfValidity = (Extent) subProperties.get(DOMAIN_OF_VALIDITY_KEY);
         scope = (InternationalString) subProperties.get(SCOPE_KEY);
         operationVersion = (String) subProperties.get(OPERATION_VERSION_KEY);
-        positionalAccuracy =
+        PositionalAccuracy[] positionalAccuracy =
                 (PositionalAccuracy[]) subProperties.get(COORDINATE_OPERATION_ACCURACY_KEY);
         if (positionalAccuracy == null || positionalAccuracy.length == 0) {
             positionalAccuracy = null;
@@ -266,16 +264,19 @@ public class AbstractCoordinateOperation extends AbstractIdentifiedObject
         final int actual = crs.getCoordinateSystem().getDimension();
         if (actual != expected) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.MISMATCHED_DIMENSION_$3, name, actual, expected));
+                    MessageFormat.format(
+                            ErrorKeys.MISMATCHED_DIMENSION_$3, name, actual, expected));
         }
     }
 
     /** Returns the source CRS. */
+    @Override
     public CoordinateReferenceSystem getSourceCRS() {
         return sourceCRS;
     }
 
     /** Returns the target CRS. */
+    @Override
     public CoordinateReferenceSystem getTargetCRS() {
         return targetCRS;
     }
@@ -287,6 +288,7 @@ public class AbstractCoordinateOperation extends AbstractIdentifiedObject
      *
      * @return The coordinate operation version, or {@code null} in none.
      */
+    @Override
     public String getOperationVersion() {
         return operationVersion;
     }
@@ -300,6 +302,7 @@ public class AbstractCoordinateOperation extends AbstractIdentifiedObject
      * @see #getAccuracy()
      * @since 2.4
      */
+    @Override
     public Collection<PositionalAccuracy> getCoordinateOperationAccuracy() {
         if (coordinateOperationAccuracy == null) {
             return Collections.emptySet();
@@ -415,8 +418,8 @@ public class AbstractCoordinateOperation extends AbstractIdentifiedObject
         double accuracy = Double.NaN;
         if (operation instanceof ConcatenatedOperation) {
             final Collection components = ((ConcatenatedOperation) operation).getOperations();
-            for (final Iterator it = components.iterator(); it.hasNext(); ) {
-                final double candidate = Math.abs(getAccuracy((CoordinateOperation) it.next()));
+            for (Object component : components) {
+                final double candidate = Math.abs(getAccuracy((CoordinateOperation) component));
                 if (!Double.isNaN(candidate)) {
                     if (Double.isNaN(accuracy)) {
                         accuracy = candidate;
@@ -435,6 +438,7 @@ public class AbstractCoordinateOperation extends AbstractIdentifiedObject
      *
      * @since 2.4
      */
+    @Override
     public Extent getDomainOfValidity() {
         return domainOfValidity;
     }
@@ -442,6 +446,7 @@ public class AbstractCoordinateOperation extends AbstractIdentifiedObject
     /**
      * Description of domain of usage, or limitations of usage, for which this operation is valid.
      */
+    @Override
     public InternationalString getScope() {
         return scope;
     }
@@ -451,6 +456,7 @@ public class AbstractCoordinateOperation extends AbstractIdentifiedObject
      * #getSourceCRS source coordinate reference system} into positions in the {@linkplain
      * #getTargetCRS target coordinate reference system}.
      */
+    @Override
     public MathTransform getMathTransform() {
         return transform;
     }

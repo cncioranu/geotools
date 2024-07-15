@@ -25,12 +25,12 @@ import java.util.Scanner;
 import java.util.logging.Logger;
 import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.util.Cloneable;
 import org.geotools.feature.type.Types;
 import org.geotools.util.CheckedArrayList;
 import org.geotools.util.SuppressFBWarnings;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.util.Cloneable;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -63,10 +63,11 @@ public class XPathUtil {
             addAll(steps);
         }
 
+        @Override
         public String toString() {
             StringBuffer sb = new StringBuffer();
             for (Iterator<Step> it = iterator(); it.hasNext(); ) {
-                Step s = (Step) it.next();
+                Step s = it.next();
                 sb.append(s.toString());
                 if (it.hasNext()) {
                     sb.append("/");
@@ -76,8 +77,8 @@ public class XPathUtil {
         }
 
         public boolean containsPredicate() {
-            for (int i = 0; i < size(); i++) {
-                if (get(i).getPredicate() != null) {
+            for (Step step : this) {
+                if (step.getPredicate() != null) {
                     return true;
                 }
             }
@@ -101,6 +102,7 @@ public class XPathUtil {
             return true;
         }
 
+        @Override
         public StepList subList(int fromIndex, int toIndex) {
             if (fromIndex < 0) throw new IndexOutOfBoundsException("fromIndex = " + fromIndex);
             if (toIndex > size()) throw new IndexOutOfBoundsException("toIndex = " + toIndex);
@@ -114,10 +116,11 @@ public class XPathUtil {
             return subList;
         }
 
+        @Override
         public StepList clone() {
             StepList copy = new StepList();
             for (Step step : this) {
-                copy.add((Step) step.clone());
+                copy.add(step.clone());
             }
             return copy;
         }
@@ -283,6 +286,7 @@ public class XPathUtil {
             return attributeName;
         }
 
+        @Override
         @SuppressFBWarnings("ES_COMPARING_STRINGS_WITH_EQ")
         public String toString() {
             StringBuffer sb = new StringBuffer(isXmlAttribute ? "@" : "");
@@ -302,6 +306,7 @@ public class XPathUtil {
             return sb.toString();
         }
 
+        @Override
         public boolean equals(Object o) {
             if (!(o instanceof Step)) {
                 return false;
@@ -313,10 +318,12 @@ public class XPathUtil {
                     && Objects.equals(predicate, s.predicate);
         }
 
+        @Override
         public int hashCode() {
             return 17 * attributeName.hashCode() + 37 * index;
         }
 
+        @Override
         public Step clone() {
             return predicate == null
                     ? new Step(this.attributeName, this.index, this.isXmlAttribute, this.isIndexed)
@@ -434,7 +441,7 @@ public class XPathUtil {
 
         final List<String> partialSteps = splitPath(expression);
 
-        if (partialSteps.size() == 0) {
+        if (partialSteps.isEmpty()) {
             throw new IllegalArgumentException("no steps provided");
         }
 
@@ -502,7 +509,7 @@ public class XPathUtil {
         // root
         // node as it is redundant
         if (root != null && steps.size() > 1) {
-            Step step = (Step) steps.get(0);
+            Step step = steps.get(0);
             Name rootName = root.getName();
             QName stepName = step.getName();
             if (Types.equals(rootName, stepName)) {
@@ -522,8 +529,6 @@ public class XPathUtil {
         if (prefixedName == null) {
             throw new NullPointerException("prefixedName");
         }
-
-        QName name = null;
 
         String prefix;
         final String namespaceUri;
@@ -572,7 +577,7 @@ public class XPathUtil {
             namespaceUri = namespaces.getURI(prefix);
         }
 
-        name = new QName(namespaceUri, localName, prefix);
+        QName name = new QName(namespaceUri, localName, prefix);
 
         return name;
     }

@@ -34,14 +34,15 @@ import javax.media.jai.BorderExtender;
 import javax.media.jai.Interpolation;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.ROIShape;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.geometry.Bounds;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.util.factory.Hints;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.geometry.Envelope;
 
 /**
  * Tests the {@link Interpolator2D} implementation.
@@ -89,8 +90,7 @@ public final class InterpolatorTest extends GridCoverageTestBase {
         GridCoverage2D coverage = getRandomCoverage();
         final double PIXEL_SIZE =
                 XAffineTransform.getScale(
-                        (AffineTransform)
-                                ((GridGeometry2D) coverage.getGridGeometry()).getGridToCRS());
+                        (AffineTransform) coverage.getGridGeometry().getGridToCRS());
         final Interpolation interpolation =
                 Interpolation.getInstance(Interpolation.INTERP_BILINEAR);
         coverage = Interpolator2D.create(coverage, new Interpolation[] {interpolation});
@@ -108,7 +108,7 @@ public final class InterpolatorTest extends GridCoverageTestBase {
         final Raster data =
                 PlanarImage.wrapRenderedImage(coverage.getRenderedImage())
                         .getExtendedData(rectangle, be);
-        final Envelope envelope = coverage.getEnvelope();
+        final Bounds envelope = coverage.getEnvelope();
         final GridEnvelope range = coverage.getGridGeometry().getGridRange();
         final double left = envelope.getMinimum(0);
         final double upper = envelope.getMaximum(1);
@@ -166,8 +166,7 @@ public final class InterpolatorTest extends GridCoverageTestBase {
                         properties);
         final double PIXEL_SIZE =
                 XAffineTransform.getScale(
-                        (AffineTransform)
-                                ((GridGeometry2D) coverage.getGridGeometry()).getGridToCRS());
+                        (AffineTransform) coverage.getGridGeometry().getGridToCRS());
         final Interpolation interpolation = Interpolation.getInstance(Interpolation.INTERP_NEAREST);
         coverage = Interpolator2D.create(coverage, new Interpolation[] {interpolation});
         final int band = 0; // Band to test.
@@ -184,7 +183,7 @@ public final class InterpolatorTest extends GridCoverageTestBase {
         final Raster data =
                 PlanarImage.wrapRenderedImage(coverage.getRenderedImage())
                         .getExtendedData(rectangle, be);
-        final Envelope envelope = coverage.getEnvelope();
+        final Bounds envelope = coverage.getEnvelope();
         final GridEnvelope range = coverage.getGridGeometry().getGridRange();
         final double left = envelope.getMinimum(0);
         final double upper = envelope.getMaximum(1);
@@ -224,6 +223,8 @@ public final class InterpolatorTest extends GridCoverageTestBase {
      */
     @Test
     public void testSerialization() throws IOException, ClassNotFoundException {
+        // will fail on GitHub linux build, due to TCP port opening by SerializableRenderedImage
+        Assume.assumeFalse(Boolean.getBoolean("linux-github-build"));
         if (hostnameDefined) {
             GridCoverage2D coverage = EXAMPLES.get(0);
             coverage = Interpolator2D.create(coverage, interpolations);

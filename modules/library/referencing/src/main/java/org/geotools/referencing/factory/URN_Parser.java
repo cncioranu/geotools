@@ -17,11 +17,11 @@
 
 package org.geotools.referencing.factory;
 
+import java.text.MessageFormat;
 import org.apache.commons.lang3.StringUtils;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.Version;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 
 /**
  * Split a URN into its {@link #type} and {@link #version} parts for {@link URN_AuthorityFactory}.
@@ -39,7 +39,7 @@ final class URN_Parser extends URI_Parser {
      * to, but do not include, the type part ({@code "crs"}, {@code "cs"}, {@code "datum"},
      * <cite>etc.</cite>). They must include a trailing (@value #URN_SEPARATOR} character.
      */
-    private static final String[] URN_BASES = new String[] {"urn:ogc:def:", "urn:x-ogc:def:"};
+    private static final String[] URN_BASES = {"urn:ogc:def:", "urn:x-ogc:def:"};
 
     /** The parts separator in the URN. */
     private static final char URN_SEPARATOR = ':';
@@ -70,8 +70,7 @@ final class URN_Parser extends URI_Parser {
     public static URN_Parser buildParser(final String urn) throws NoSuchAuthorityCodeException {
         final String code = urn.trim();
         String type = urn; // To be really assigned later.
-        for (int i = 0; i < URN_BASES.length; i++) {
-            final String urnBase = URN_BASES[i];
+        for (final String urnBase : URN_BASES) {
             final int typeStart = urnBase.length();
             if (code.regionMatches(true, 0, urnBase, 0, typeStart)) {
                 final int typeEnd = code.indexOf(URN_SEPARATOR, typeStart);
@@ -120,6 +119,6 @@ final class URN_Parser extends URI_Parser {
             }
         }
         throw new NoSuchAuthorityCodeException(
-                Errors.format(ErrorKeys.ILLEGAL_IDENTIFIER_$1, type), "urn:ogc:def", type);
+                MessageFormat.format(ErrorKeys.ILLEGAL_IDENTIFIER_$1, type), "urn:ogc:def", type);
     }
 }

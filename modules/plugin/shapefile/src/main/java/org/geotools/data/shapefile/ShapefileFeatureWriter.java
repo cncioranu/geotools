@@ -26,8 +26,11 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureWriter;
 import org.geotools.data.shapefile.dbf.DbaseFileHeader;
 import org.geotools.data.shapefile.dbf.DbaseFileWriter;
 import org.geotools.data.shapefile.files.ShpFileType;
@@ -41,9 +44,6 @@ import org.geotools.data.shapefile.shp.ShapefileWriter;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
 
 /**
  * A FeatureWriter for ShapefileDataStore. Uses a write and annotate technique to avoid buffering
@@ -200,6 +200,7 @@ class ShapefileFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleF
     }
 
     /** In case someone doesn't close me. */
+    @Override
     @SuppressWarnings("deprecation") // finalize is deprecated in Java 9
     protected void finalize() throws Throwable {
         if (featureReader != null) {
@@ -213,10 +214,17 @@ class ShapefileFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleF
 
     /** Clean up our temporary write if there was one */
     protected void clean() throws IOException {
-        StorageFile.replaceOriginals(storageFiles.values().toArray(new StorageFile[0]));
+        try {
+            StorageFile.replaceOriginals(storageFiles.values().toArray(new StorageFile[0]));
+        } catch (IOException e) {
+            throw new IOException(
+                    "An error occured while replacing the original shapefiles. You're changes may have been lost.",
+                    e);
+        }
     }
 
     /** Release resources and flush the header information. */
+    @Override
     public void close() throws IOException {
         if (featureReader == null) {
             // already closed
@@ -267,6 +275,7 @@ class ShapefileFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleF
         }
     }
 
+    @SuppressWarnings("PMD.UseTryWithResources") // resources not created here
     protected void doClose() throws IOException {
         // close reader, flush headers, and copy temp files, if any
         try {
@@ -285,10 +294,12 @@ class ShapefileFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleF
         }
     }
 
+    @Override
     public SimpleFeatureType getFeatureType() {
         return featureType;
     }
 
+    @Override
     public boolean hasNext() throws IOException {
         if (featureReader == null) {
             return false; // writer has been closed
@@ -297,6 +308,7 @@ class ShapefileFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleF
         return featureReader.hasNext();
     }
 
+    @Override
     public SimpleFeature next() throws IOException {
         // closed already, error!
         if (featureReader == null) {
@@ -328,6 +340,7 @@ class ShapefileFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleF
         return getFeatureType().getTypeName() + "." + (records + 1);
     }
 
+    @Override
     public void remove() throws IOException {
         if (featureReader == null) {
             throw new IOException("Writer closed");
@@ -342,6 +355,7 @@ class ShapefileFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleF
         currentFeature = null;
     }
 
+    @Override
     public void write() throws IOException {
         if (currentFeature == null) {
             throw new IOException("Current feature is null");

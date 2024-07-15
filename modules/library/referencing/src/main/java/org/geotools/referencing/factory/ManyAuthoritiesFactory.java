@@ -16,6 +16,7 @@
  */
 package org.geotools.referencing.factory;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,30 +25,30 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import org.geotools.geometry.GeometryFactoryFinder;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.AuthorityFactory;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.cs.CSAuthorityFactory;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.datum.Datum;
+import org.geotools.api.referencing.datum.DatumAuthorityFactory;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
+import org.geotools.metadata.iso.citation.CitationImpl;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.util.GenericName;
 import org.geotools.util.factory.Factory;
 import org.geotools.util.factory.FactoryRegistryException;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.AuthorityFactory;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.CSAuthorityFactory;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.datum.Datum;
-import org.opengis.referencing.datum.DatumAuthorityFactory;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.CoordinateOperationAuthorityFactory;
-import org.opengis.util.InternationalString;
 
 /**
  * An authority factory that delegates the object creation to an other factory determined from the
@@ -80,7 +81,7 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
      * consistent with the types expected by the {@link
      * AllAuthoritiesFactory#fromFactoryRegistry(String, Class)} method.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "PMD.UseShortArrayInitializer"})
     private static final Class<? extends AuthorityFactory>[] FACTORY_TYPES =
             new Class[] {
                 CRSAuthorityFactory.class,
@@ -93,7 +94,7 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
      * The types created by {@link #FACTORY_TYPES}. For each type {@code OBJECT_TYPES[i]}, the
      * factory to be used must be {@code FACTORY_TYPES[i]}.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "PMD.UseShortArrayInitializer"})
     private static final Class<? extends IdentifiedObject>[] OBJECT_TYPES =
             new Class[] {
                 CoordinateReferenceSystem.class,
@@ -122,8 +123,7 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
      * fallbacks}, to be tried in iteration order only if the first acceptable factory failed to
      * create the requested object.
      *
-     * @param factories A set of user-specified factories to try before to delegate to {@link
-     *     GeometryFactoryFinder}.
+     * @param factories A set of user-specified factories to try
      */
     public ManyAuthoritiesFactory(final Collection<? extends AuthorityFactory> factories) {
         super(NORMAL_PRIORITY);
@@ -166,33 +166,45 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
          * the collection of factories for each authority.
          */
         int authorityCount = 0;
-        final Citation[] authorities = new Citation[factories.size()];
-        @SuppressWarnings("unchecked")
-        final List<AuthorityFactory>[] factoriesByAuthority = new List[authorities.length];
+        final List<Citation> authorities = new ArrayList<>(factories.size());
+        final List<List<AuthorityFactory>> factoriesByAuthority = new ArrayList<>(factories.size());
         for (final AuthorityFactory factory : factories) {
             /*
-             * Check if the authority has already been meet previously. If the authority is found
+             * Check if the authority has already been met previously. If the authority is found
              * then 'authorityIndex' is set to its index. Otherwise the new authority is added to
              * the 'authorities' list.
+             * Some authorities are registered with more than one identifiers. Those must be treated
+             * for each identifier separately.
              */
             Citation authority = factory.getAuthority();
-            int authorityIndex;
-            for (authorityIndex = 0; authorityIndex < authorityCount; authorityIndex++) {
-                final Citation candidate = authorities[authorityIndex];
-                if (Citations.identifierMatches(candidate, authority)) {
-                    authority = candidate;
-                    break;
+            boolean multipleIdentifiers = authority.getIdentifiers().size() > 1;
+
+            for (Identifier identifier : authority.getIdentifiers()) {
+                Citation singularCitation =
+                        multipleIdentifiers
+                                ? createSingularCitation(authority, identifier)
+                                : authority;
+
+                int authorityIndex;
+                for (authorityIndex = 0; authorityIndex < authorityCount; authorityIndex++) {
+                    final Citation candidate = authorities.get(authorityIndex);
+                    if (Citations.identifierMatches(candidate, singularCitation)) {
+                        singularCitation = candidate;
+                        break;
+                    }
                 }
-            }
-            final List<AuthorityFactory> list;
-            if (authorityIndex == authorityCount) {
-                authorities[authorityCount++] = authority;
-                factoriesByAuthority[authorityIndex] = list = new ArrayList<>(4);
-            } else {
-                list = factoriesByAuthority[authorityIndex];
-            }
-            if (!list.contains(factory)) {
-                list.add(factory);
+                final List<AuthorityFactory> list;
+                if (authorityIndex == authorityCount) {
+                    authorityCount += 1;
+                    authorities.add(singularCitation);
+                    list = new ArrayList<>(4);
+                    factoriesByAuthority.add(list);
+                } else {
+                    list = factoriesByAuthority.get(authorityIndex);
+                }
+                if (!list.contains(factory)) {
+                    list.add(factory);
+                }
             }
         }
         /*
@@ -201,7 +213,7 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
         final ArrayList<AuthorityFactory> result = new ArrayList<>();
         final List<AuthorityFactory> buffer = new ArrayList<>(4);
         for (int i = 0; i < authorityCount; i++) {
-            final Collection<AuthorityFactory> list = factoriesByAuthority[i];
+            final Collection<AuthorityFactory> list = factoriesByAuthority.get(i);
             while (!list.isEmpty()) {
                 AuthorityFactory primary = null;
                 boolean needOtherChains = false;
@@ -224,6 +236,12 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
         }
         result.trimToSize();
         return result;
+    }
+
+    private static Citation createSingularCitation(Citation original, Identifier identifier) {
+        CitationImpl newCitation = new CitationImpl(original);
+        newCitation.setIdentifiers(Collections.singleton(identifier));
+        return newCitation;
     }
 
     /**
@@ -410,9 +428,8 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
     }
 
     /**
-     * Searchs for a factory of the given type. This method first search in user-supplied factories.
-     * If no user factory is found, then this method request for a factory using {@link
-     * GeometryFactoryFinder}. The authority name is inferred from the specified code.
+     * Searches for a factory of the given type. This method will search in user-supplied factories.
+     * The authority name is inferred from the specified code.
      *
      * @param type The interface to be implemented.
      * @param code The code of the object to create.
@@ -486,14 +503,23 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
         final String message;
         if (authority == null) {
             authority = Vocabulary.format(VocabularyKeys.UNKNOWN);
-            message = Errors.format(ErrorKeys.MISSING_AUTHORITY_$1, code);
+            message = MessageFormat.format(ErrorKeys.MISSING_AUTHORITY_$1, code);
         } else {
-            message = Errors.format(ErrorKeys.UNKNOW_AUTHORITY_$1, authority);
+            message = MessageFormat.format(ErrorKeys.UNKNOW_AUTHORITY_$1, authority);
         }
-        final NoSuchAuthorityCodeException exception;
-        exception = new NoSuchAuthorityCodeException(message, authority, code);
+        final NoSuchAuthorityCodeException exception =
+                new NoSuchAuthorityCodeException(message, authority, code);
         exception.initCause(cause);
         return exception;
+    }
+
+    @Override
+    protected void notifySuccess(
+            final String method,
+            final String code,
+            final CRSAuthorityFactory factory,
+            final CoordinateReferenceSystem crs) {
+        // Shouldn't notify
     }
 
     /**
@@ -679,7 +705,7 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
         final Set<AuthorityFactory> done = new HashSet<>();
         done.add(this); // Safety for avoiding recursive calls.
         FactoryException failure = null;
-        for (int type = 0; type < FACTORY_TYPES.length; type++) {
+        for (Class<? extends AuthorityFactory> factoryType : FACTORY_TYPES) {
             /*
              * Try all factories, starting with the CRS factory because it is the only one most
              * users care about. If the CRS factory doesn't know about the specified object, then
@@ -687,7 +713,7 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
              */
             final AuthorityFactory factory;
             try {
-                factory = getAuthorityFactory(FACTORY_TYPES[type], code);
+                factory = getAuthorityFactory(factoryType, code);
             } catch (NoSuchAuthorityCodeException exception) {
                 if (failure == null) {
                     failure = exception;
@@ -699,9 +725,12 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
                     return factory.getDescriptionText(code);
                 } catch (FactoryException exception) {
                     /*
-                     * Failed to creates an object using the current factory.  We will retain only the
-                     * first exception and discart all other ones, except if the first exceptions were
-                     * due to unknown authority (we will prefer exception due to unknown code instead).
+                     * Failed to creates an object using the current factory.  We will retain
+                     * only the
+                     * first exception and discart all other ones, except if the first exceptions
+                     *  were
+                     * due to unknown authority (we will prefer exception due to unknown code
+                     * instead).
                      * The first exception is usually thrown by the CRS factory, which is the only
                      * factory most users care about.
                      */
@@ -729,7 +758,7 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
         final Set<AuthorityFactory> done = new HashSet<>();
         done.add(this); // Safety for avoiding recursive calls.
         FactoryException failure = null;
-        for (int type = 0; type < FACTORY_TYPES.length; type++) {
+        for (Class<? extends AuthorityFactory> factoryType : FACTORY_TYPES) {
             /*
              * Try all factories, starting with the CRS factory because it is the only one most
              * users care about. If the CRS factory doesn't know about the specified object, then
@@ -737,7 +766,7 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
              */
             final AuthorityFactory factory;
             try {
-                factory = getAuthorityFactory(FACTORY_TYPES[type], code);
+                factory = getAuthorityFactory(factoryType, code);
             } catch (NoSuchAuthorityCodeException exception) {
                 if (failure == null) {
                     failure = exception;
@@ -749,9 +778,12 @@ public class ManyAuthoritiesFactory extends AuthorityFactoryAdapter
                     return factory.createObject(code);
                 } catch (FactoryException exception) {
                     /*
-                     * Failed to creates an object using the current factory.  We will retain only the
-                     * first exception and discart all other ones, except if the first exceptions were
-                     * due to unknown authority (we will prefer exception due to unknown code instead).
+                     * Failed to creates an object using the current factory.  We will retain
+                     * only the
+                     * first exception and discart all other ones, except if the first exceptions
+                     *  were
+                     * due to unknown authority (we will prefer exception due to unknown code
+                     * instead).
                      * The first exception is usually thrown by the CRS factory, which is the only
                      * factory most users care about.
                      */

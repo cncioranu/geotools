@@ -27,15 +27,15 @@ import net.opengis.wfs20.ActionResultsType;
 import net.opengis.wfs20.CreatedOrModifiedFeatureType;
 import net.opengis.wfs20.TransactionResponseType;
 import net.opengis.wfs20.TransactionSummaryType;
-import org.geotools.data.ows.HTTPResponse;
+import org.geotools.api.filter.identity.FeatureId;
 import org.geotools.data.wfs.internal.TransactionResponse;
 import org.geotools.data.wfs.internal.WFSRequest;
 import org.geotools.data.wfs.internal.WFSResponse;
 import org.geotools.data.wfs.internal.WFSStrategy;
+import org.geotools.http.HTTPResponse;
 import org.geotools.ows.ServiceException;
 import org.geotools.xsd.Configuration;
 import org.geotools.xsd.Parser;
-import org.opengis.filter.identity.FeatureId;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.SAXException;
 
@@ -67,9 +67,7 @@ public class TransactionResponseImpl extends WFSResponse implements TransactionR
                 parser.setEntityResolver(resolver);
             }
             parsed = parser.parse(in);
-        } catch (SAXException e) {
-            throw new IOException(e);
-        } catch (ParserConfigurationException e) {
+        } catch (SAXException | ParserConfigurationException e) {
             throw new IOException(e);
         } finally {
             response.dispose();
@@ -79,10 +77,8 @@ public class TransactionResponseImpl extends WFSResponse implements TransactionR
             TransactionResponseType tr = (TransactionResponseType) parsed;
             ActionResultsType insertResults = tr.getInsertResults();
             if (insertResults != null) {
-                @SuppressWarnings("unchecked")
                 List<CreatedOrModifiedFeatureType> inserted = insertResults.getFeature();
                 for (CreatedOrModifiedFeatureType i : inserted) {
-                    @SuppressWarnings("unchecked")
                     List<FeatureId> featureIds = i.getResourceId();
                     if (null != featureIds) {
                         this.inserted.addAll(featureIds);

@@ -36,7 +36,7 @@ import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.geotools.gce.imagemosaic.ImageMosaicFormat;
 import org.geotools.gce.imagemosaic.ImageMosaicReader;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
@@ -233,7 +233,7 @@ class Utils {
         }
 
         // do we have at least one level?
-        if (mosaics.size() == 0) {
+        if (mosaics.isEmpty()) {
             return null;
         }
 
@@ -272,7 +272,7 @@ class Utils {
         }
         properties.put("LevelsDirs", sbDirNames.toString());
         properties.put("Levels", sbLevels.toString().trim());
-        GeneralEnvelope envelope = mosaics.get(0).getEnvelope();
+        GeneralBounds envelope = mosaics.get(0).getEnvelope();
         properties.put(
                 "Envelope2D",
                 envelope.getMinimum(0)
@@ -296,9 +296,7 @@ class Utils {
         // build the .prj file if possible
         if (envelope.getCoordinateReferenceSystem() != null) {
             File prjFile = new File(directory, directory.getName() + ".prj");
-            PrintWriter pw = null;
-            try {
-                pw = new PrintWriter(new FileOutputStream(prjFile));
+            try (PrintWriter pw = new PrintWriter(new FileOutputStream(prjFile))) {
                 pw.print(envelope.getCoordinateReferenceSystem().toString());
             } catch (IOException e) {
                 LOGGER.log(
@@ -306,8 +304,6 @@ class Utils {
                         "We could not write out the projection file " + prjFile.getPath(),
                         e);
                 return null;
-            } finally {
-                if (pw != null) pw.close();
             }
         }
 
@@ -348,7 +344,7 @@ class Utils {
                         resolutionLevels = reader.getResolutionLevels(coverageName);
                         continue;
                     }
-                    double compareLevels[][] = reader.getResolutionLevels(coverageName);
+                    double[][] compareLevels = reader.getResolutionLevels(coverageName);
                     boolean homogeneous =
                             org.geotools.gce.imagemosaic.Utils.homogeneousCheck(
                                     resolutionLevels.length, resolutionLevels, compareLevels);
@@ -408,7 +404,7 @@ class Utils {
 
         String coverageName;
 
-        GeneralEnvelope envelope;
+        GeneralBounds envelope;
 
         String coverageNames = null;
 
@@ -449,10 +445,11 @@ class Utils {
             return directory.getName();
         }
 
-        GeneralEnvelope getEnvelope() {
+        GeneralBounds getEnvelope() {
             return envelope;
         }
 
+        @Override
         public int compareTo(MosaicInfo other) {
             // we make an easy comparison against the x resolution, we'll do a sanity
             // check about the y resolution later
@@ -467,6 +464,7 @@ class Utils {
      */
     static class NumericDirectoryFilter implements FileFilter {
 
+        @Override
         public boolean accept(File pathname) {
             if (!pathname.isDirectory()) return false;
             try {

@@ -17,6 +17,10 @@
 package org.geotools.filter.v1_0;
 
 import javax.xml.namespace.QName;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.gml2.GML;
@@ -25,10 +29,6 @@ import org.geotools.xsd.AbstractComplexBinding;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
 import org.locationtech.jts.geom.Envelope;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Binding object for the type http://www.opengis.net/ogc:BBOXType.
@@ -54,7 +54,7 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  * @generated
  */
 public class OGCBBOXTypeBinding extends AbstractComplexBinding {
-    private FilterFactory2 factory;
+    private FilterFactory factory;
     private CoordinateReferenceSystem crs;
 
     public OGCBBOXTypeBinding() {
@@ -63,10 +63,11 @@ public class OGCBBOXTypeBinding extends AbstractComplexBinding {
         // And since we support setter injection of a crs we just fall back on
         // common factory finder... since there is actually only one filter factory
         // impl not a huge deal, but it woul dbe nice to be consistent
-        factory = CommonFactoryFinder.getFilterFactory2(null);
+        factory = CommonFactoryFinder.getFilterFactory(null);
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return OGC.BBOXType;
     }
@@ -88,6 +89,7 @@ public class OGCBBOXTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return BBOX.class;
     }
@@ -99,10 +101,11 @@ public class OGCBBOXTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         // TODO: crs
-        PropertyName propertyName = (PropertyName) node.getChildValue(PropertyName.class);
-        Envelope box = (Envelope) node.getChildValue(Envelope.class);
+        PropertyName propertyName = node.getChildValue(PropertyName.class);
+        Envelope box = node.getChildValue(Envelope.class);
 
         if (box instanceof ReferencedEnvelope) {
             return factory.bbox(
@@ -133,6 +136,7 @@ public class OGCBBOXTypeBinding extends AbstractComplexBinding {
         }
     }
 
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         BBOX box = (BBOX) object;
 

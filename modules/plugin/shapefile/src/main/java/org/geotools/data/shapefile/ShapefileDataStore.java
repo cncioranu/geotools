@@ -34,12 +34,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.logging.Level;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.FileDataStore;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.FileDataStore;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.shapefile.dbf.DbaseFileException;
 import org.geotools.data.shapefile.dbf.DbaseFileHeader;
 import org.geotools.data.shapefile.files.ShpFileType;
@@ -61,12 +67,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class ShapefileDataStore extends ContentDataStore implements FileDataStore {
 
@@ -117,8 +117,14 @@ public class ShapefileDataStore extends ContentDataStore implements FileDataStor
 
     long maxDbfSize = ShapefileFeatureWriter.DEFAULT_MAX_DBF_SIZE;
 
+    private boolean tryCPGFile = false;
+
     public ShapefileDataStore(URL url) {
-        shpFiles = new ShpFiles(url);
+        this(url, ShpFiles.DEFAULT_SKIP_SCAN);
+    }
+
+    public ShapefileDataStore(URL url, boolean skipScan) {
+        shpFiles = new ShpFiles(url, skipScan);
         if (TRACE_ENABLED) {
             trace = new Exception();
             trace.fillInStackTrace();
@@ -145,6 +151,7 @@ public class ShapefileDataStore extends ContentDataStore implements FileDataStor
         return getFeatureSource();
     }
 
+    @Override
     public ContentFeatureSource getFeatureSource() throws IOException {
         ContentEntry entry = ensureEntry(getTypeName());
         if (shpFiles.isWritable()) {
@@ -218,10 +225,25 @@ public class ShapefileDataStore extends ContentDataStore implements FileDataStor
         this.maxDbfSize = maxDbfSize;
     }
 
+    /** Returns true, if the store tries to guess DBF file charset from CPG file */
+    public boolean isTryCPGFile() {
+        return tryCPGFile;
+    }
+
+    /**
+     * Makes the store try to figure out DBF file charset from CPG file. If succeeds, the {@link
+     * #charset} property will be rewritten by guessed value.
+     */
+    public void setTryCPGFile(boolean tryCPGFile) {
+        this.tryCPGFile = tryCPGFile;
+    }
+
+    @Override
     public SimpleFeatureType getSchema() throws IOException {
         return getSchema(getTypeName());
     }
 
+    @Override
     public FeatureReader<SimpleFeatureType, SimpleFeature> getFeatureReader() throws IOException {
         return super.getFeatureReader(
                 new Query(getTypeName().getLocalPart()), Transaction.AUTO_COMMIT);
@@ -238,9 +260,11 @@ public class ShapefileDataStore extends ContentDataStore implements FileDataStor
      * @param featureType The desired FeatureType.
      * @throws IOException If the DataStore is remote.
      */
+    @Override
     public void createSchema(SimpleFeatureType featureType) throws IOException {
-        if (!shpFiles.isLocal()) {
-            throw new IOException("Cannot create FeatureType on remote or in-classpath shapefile");
+        if (!shpFiles.isLocal() || shpFiles.isGz()) {
+            throw new IOException(
+                    "Cannot create FeatureType on remote or in-classpath or gzipped shapefile");
         }
 
         shpFiles.delete();
@@ -288,11 +312,8 @@ public class ShapefileDataStore extends ContentDataStore implements FileDataStor
         if (crs != null) {
             String s = toSingleLineWKT(crs);
 
-            FileWriter prjWriter = new FileWriter(prjStoragefile.getFile());
-            try {
+            try (FileWriter prjWriter = new FileWriter(prjStoragefile.getFile())) {
                 prjWriter.write(s);
-            } finally {
-                prjWriter.close();
             }
         } else {
             LOGGER.fine("PRJ file not generated for null CoordinateReferenceSystem");
@@ -397,12 +418,9 @@ public class ShapefileDataStore extends ContentDataStore implements FileDataStor
 
         String s = toSingleLineWKT(crs);
         StorageFile storageFile = shpFiles.getStorageFile(PRJ);
-        FileWriter out = new FileWriter(storageFile.getFile());
 
-        try {
+        try (FileWriter out = new FileWriter(storageFile.getFile())) {
             out.write(s);
-        } finally {
-            out.close();
         }
         storageFile.replaceOriginal();
         entries.clear();
@@ -505,14 +523,7 @@ public class ShapefileDataStore extends ContentDataStore implements FileDataStor
     public void removeSchema(Name typeName) throws IOException {
         // check file
         ContentEntry entry = ensureEntry(typeName);
-        org.geotools.data.shapefile.files.FileWriter writer =
-                new org.geotools.data.shapefile.files.FileWriter() {
-
-                    @Override
-                    public String id() {
-                        return "TheShapefileRemover";
-                    }
-                };
+        org.geotools.data.shapefile.files.FileWriter writer = () -> "TheShapefileRemover";
         for (ShpFileType type : ShpFileType.values()) {
             File file = shpFiles.acquireWriteFile(type, writer);
             try {

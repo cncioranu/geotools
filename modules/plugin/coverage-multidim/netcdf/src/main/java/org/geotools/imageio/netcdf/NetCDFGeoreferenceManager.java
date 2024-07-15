@@ -26,6 +26,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.io.netcdf.crs.NetCDFProjection;
 import org.geotools.coverage.io.netcdf.crs.ProjectionBuilder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -34,8 +36,6 @@ import org.geotools.imageio.netcdf.utilities.NetCDFCRSUtilities;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import ucar.nc2.Attribute;
 import ucar.nc2.Variable;
 import ucar.nc2.constants.AxisType;
@@ -200,9 +200,9 @@ class NetCDFGeoreferenceManager {
             public ReferencedEnvelope computeEnvelope(
                     String coordinates, CoordinateReferenceSystem crs) {
                 Utilities.ensureNonNull("coordinates", coordinates);
-                String coords[] = coordinates.split(" ");
-                double xLon[] = null;
-                double yLat[] = null;
+                String[] coords = coordinates.split(" ");
+                double[] xLon = null;
+                double[] yLat = null;
                 // Get the previously computed coordinates
                 for (String coord : coords) {
                     if (xLonCoords.containsKey(coord)) {
@@ -329,7 +329,7 @@ class NetCDFGeoreferenceManager {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.fine("The variable refers to gridMapping: " + gridMappingName);
                 }
-                Variable mapping = dataset.findVariable(null, gridMappingName);
+                Variable mapping = dataset.findVariable(gridMappingName);
                 if (mapping != null) {
                     CoordinateReferenceSystem localCrs = NetCDFProjection.parseProjection(mapping);
                     if (localCrs != null) {
@@ -531,7 +531,7 @@ class NetCDFGeoreferenceManager {
     }
 
     private String getCoordinatesForVariable(String shortName) {
-        Variable var = dataset.findVariable(null, shortName);
+        Variable var = dataset.findVariable(shortName);
         if (var != null) {
             // Getting the coordinates attribute
             Attribute attribute = var.findAttribute(NetCDFUtilities.COORDINATES);
@@ -549,7 +549,7 @@ class NetCDFGeoreferenceManager {
             return coordinatesVariables.values();
         } else {
             String coordinates = getCoordinatesForVariable(shortName);
-            String coords[] = coordinates.split(" ");
+            String[] coords = coordinates.split(" ");
             List<CoordinateVariable<?>> coordVar = new ArrayList<>();
             for (String coord : coords) {
                 coordVar.add(coordinatesVariables.get(coord));
@@ -571,10 +571,8 @@ class NetCDFGeoreferenceManager {
         initCoordinates();
         try {
             initBBox();
-        } catch (IOException ioe) {
+        } catch (IOException | FactoryException ioe) {
             throw new RuntimeException(ioe);
-        } catch (FactoryException fe) {
-            throw new RuntimeException(fe);
         }
     }
 
@@ -582,6 +580,7 @@ class NetCDFGeoreferenceManager {
      * Parse the CoordinateAxes of the dataset and setup proper {@link CoordinateVariable} instances
      * on top of it and proper mapping between NetCDF dimensions and related coordinate variables.
      */
+    @SuppressWarnings("deprecation") // We need to modify the axisType of the dataset axis.
     private void initCoordinates() {
         // get the coordinate variables
         Map<String, CoordinateVariable<?>> coordinates = new HashMap<>();

@@ -31,14 +31,24 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureSource;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.Association;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.FilteringFeatureReader;
 import org.geotools.data.MaxFeatureReader;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
 import org.geotools.data.ReTypeFeatureReader;
-import org.geotools.data.Transaction;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.AttributeTypeBuilder;
@@ -54,20 +64,11 @@ import org.geotools.util.factory.Hints;
 import org.geotools.util.factory.Hints.Key;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.Association;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class JDBCFeatureSource extends ContentFeatureSource {
 
     private static final Logger LOGGER = Logging.getLogger(JDBCFeatureSource.class);
+    private static final String REMARKS = "REMARKS";
 
     /** primary key of the table */
     PrimaryKey primaryKey;
@@ -108,11 +109,13 @@ public class JDBCFeatureSource extends ContentFeatureSource {
     }
 
     /** Type narrow to {@link JDBCDataStore}. */
+    @Override
     public JDBCDataStore getDataStore() {
         return (JDBCDataStore) super.getDataStore();
     }
 
     /** Type narrow to {@link JDBCState}. */
+    @Override
     public JDBCState getState() {
         return (JDBCState) super.getState();
     }
@@ -143,6 +146,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
     }
 
     /** Builds the feature type from database metadata. */
+    @Override
     protected SimpleFeatureType buildFeatureType() throws IOException {
         // grab the primary key
         PrimaryKey pkey = getDataStore().getPrimaryKey(entry);
@@ -180,6 +184,9 @@ public class JDBCFeatureSource extends ContentFeatureSource {
 
         // grab the dialect
         SQLDialect dialect = getDataStore().getSQLDialect();
+
+        // logger
+        final Logger storeLogger = getDataStore().getLogger();
 
         // get metadata about columns from database
         try {
@@ -225,7 +232,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
                         relationships = ((PreparedStatement) st).executeQuery();
                     } else {
                         String sql = getDataStore().selectRelationshipSQL(tableName, name);
-                        getDataStore().getLogger().fine(sql);
+                        storeLogger.fine(sql);
 
                         st = cx.createStatement();
                         relationships = st.executeQuery(sql);
@@ -259,12 +266,10 @@ public class JDBCFeatureSource extends ContentFeatureSource {
 
                 // if still not found, ignore the column we don't know about
                 if (binding == null) {
-                    getDataStore()
-                            .getLogger()
-                            .warning(
-                                    "Could not find mapping for '"
-                                            + name
-                                            + "', ignoring the column and setting the feature type read only");
+                    storeLogger.warning(
+                            "Could not find mapping for '"
+                                    + name
+                                    + "', ignoring the column and setting the feature type read only");
                     readOnly = true;
                     continue;
                 }
@@ -281,6 +286,9 @@ public class JDBCFeatureSource extends ContentFeatureSource {
                 if (column.restriction != null) {
                     ab.addRestriction(column.restriction);
                 }
+                if (column.getRemarks() != null && !column.getRemarks().isEmpty()) {
+                    ab.setDescription(column.getRemarks());
+                }
 
                 AttributeDescriptor att = null;
 
@@ -296,10 +304,22 @@ public class JDBCFeatureSource extends ContentFeatureSource {
                         } else {
                             srid = dialect.getGeometrySRID(databaseSchema, tableName, name, cx);
                         }
-                        if (srid != null) crs = dialect.createCRS(srid, cx);
+                        if (srid != null) {
+                            crs = dialect.createCRS(srid, cx);
+                            if (crs == null) {
+                                storeLogger.warning(
+                                        "Couldn't determine CRS of table "
+                                                + tableName
+                                                + " with srid: "
+                                                + srid
+                                                + ".");
+                            }
+                        } else {
+                            storeLogger.info("No srid returned of database table:" + tableName);
+                        }
                     } catch (Exception e) {
                         String msg = "Error occured determing srid for " + tableName + "." + name;
-                        getDataStore().getLogger().log(Level.WARNING, msg, e);
+                        storeLogger.log(Level.WARNING, msg, e);
                     }
 
                     // compute the dimension too
@@ -315,7 +335,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
                     } catch (Exception e) {
                         String msg =
                                 "Error occured determing dimension for " + tableName + "." + name;
-                        getDataStore().getLogger().log(Level.WARNING, msg, e);
+                        storeLogger.log(Level.WARNING, msg, e);
                     }
 
                     ab.setBinding(binding);
@@ -363,7 +383,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
     }
 
     /** Helper method for splitting a filter. */
-    Filter[] splitFilter(Filter original) {
+    protected Filter[] splitFilter(Filter original) {
         return splitFilter(original, this);
     }
 
@@ -394,6 +414,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
         return split;
     }
 
+    @Override
     protected int getCountInternal(Query query) throws IOException {
         JDBCDataStore store = getDataStore();
 
@@ -459,6 +480,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
         }
     }
 
+    @Override
     protected ReferencedEnvelope getBoundsInternal(Query query) throws IOException {
         JDBCDataStore dataStore = getDataStore();
 
@@ -470,10 +492,10 @@ public class JDBCFeatureSource extends ContentFeatureSource {
         try {
 
             if ((postFilter != null) && (postFilter != Filter.INCLUDE)
-                    || (query.getMaxFeatures() < Integer.MAX_VALUE && !canLimit())
+                    || (query.getMaxFeatures() < Integer.MAX_VALUE && !canLimit(query))
                     || (query.getStartIndex() != null
                             && query.getStartIndex() > 0
-                            && !canOffset())) {
+                            && !canOffset(query))) {
                 // calculate manually, don't use datastore optimization
                 getDataStore().getLogger().fine("Calculating bounds manually");
 
@@ -485,8 +507,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
                 // grab a reader
                 Query q = new Query(query);
                 q.setFilter(postFilter);
-                FeatureReader<SimpleFeatureType, SimpleFeature> i = getReader(q);
-                try {
+                try (FeatureReader<SimpleFeatureType, SimpleFeature> i = getReader(q)) {
                     if (i.hasNext()) {
                         SimpleFeature f = i.next();
                         bounds.init(f.getBounds());
@@ -496,8 +517,6 @@ public class JDBCFeatureSource extends ContentFeatureSource {
                             bounds.include(f.getBounds());
                         }
                     }
-                } finally {
-                    i.close();
                 }
 
                 return bounds;
@@ -518,25 +537,28 @@ public class JDBCFeatureSource extends ContentFeatureSource {
         }
     }
 
-    protected boolean canFilter() {
-        return true;
-    }
-
-    protected boolean canSort() {
-        return true;
-    }
-
-    protected boolean canRetype() {
+    @Override
+    protected boolean canFilter(Query query) {
         return true;
     }
 
     @Override
-    protected boolean canLimit() {
+    protected boolean canSort(Query query) {
+        return true;
+    }
+
+    @Override
+    protected boolean canRetype(Query query) {
+        return true;
+    }
+
+    @Override
+    protected boolean canLimit(Query query) {
         return getDataStore().getSQLDialect().isLimitOffsetSupported();
     }
 
     @Override
-    protected boolean canOffset() {
+    protected boolean canOffset(Query query) {
         return getDataStore().getSQLDialect().isLimitOffsetSupported();
     }
 
@@ -545,6 +567,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
         return true;
     }
 
+    @Override
     @SuppressWarnings("PMD.CloseResource") // the cx is passed to the reader which will close it
     protected FeatureReader<SimpleFeatureType, SimpleFeature> getReaderInternal(Query query)
             throws IOException {
@@ -805,6 +828,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
                 column.nullable = "YES".equalsIgnoreCase(columns.getString("IS_NULLABLE"));
                 column.binding = dialect.getMapping(columns, cx);
                 column.restriction = dialect.getRestrictions(columns, cx);
+                column.setRemarks(columns.getString(REMARKS));
 
                 // support for user defined types, allow the dialect to handle them
                 if (column.sqlType == Types.DISTINCT) {
@@ -829,7 +853,6 @@ public class JDBCFeatureSource extends ContentFeatureSource {
         Statement st = null;
         ResultSet rs = null;
         try {
-            String sql;
             // avoid actually running the query as it might be very expensive
             // and just grab the metadata instead
             StringBuffer sb = new StringBuffer();
@@ -839,7 +862,7 @@ public class JDBCFeatureSource extends ContentFeatureSource {
             dialect.encodeTableAlias("vtable", sb);
             // state we don't want rows, we just want to gather the results metadata
             sb.append(" where 1 = 0");
-            sql = sb.toString();
+            String sql = sb.toString();
 
             st = cx.createStatement();
 

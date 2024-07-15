@@ -21,9 +21,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
-import org.opengis.feature.simple.SimpleFeatureType;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 
 /**
  * A factory for VPFFileStore. The file store is a singleton and the factory acts as the container.
@@ -41,8 +41,9 @@ public class VPFFileFactory implements DataStoreFactorySpi {
     private VPFFileFactory() {}
     /*
      *  (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#createDataStore(java.util.Map)
+     * @see org.geotools.api.data.DataStoreFactorySpi#createDataStore(java.util.Map)
      */
+    @Override
     public DataStore createDataStore(Map<String, ?> params) throws IOException {
         File file = (File) FILE_PARAM.lookUp(params);
         this.store = new VPFFileStore(file.getPath());
@@ -50,7 +51,7 @@ public class VPFFileFactory implements DataStoreFactorySpi {
     }
 
     /* (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#createMetadata(java.util.Map)
+     * @see org.geotools.api.data.DataStoreFactorySpi#createMetadata(java.util.Map)
      */
     //    public DataSourceMetadataEnity createMetadata(Map params)
     //        throws IOException {
@@ -59,23 +60,26 @@ public class VPFFileFactory implements DataStoreFactorySpi {
     //    }
 
     /* (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#createNewDataStore(java.util.Map)
+     * @see org.geotools.api.data.DataStoreFactorySpi#createNewDataStore(java.util.Map)
      */
+    @Override
     public DataStore createNewDataStore(Map<String, ?> params) throws IOException {
         throw new UnsupportedOperationException("Only existing data stores may be created.");
     }
 
     /* (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#getDisplayName()
+     * @see org.geotools.api.data.DataStoreFactorySpi#getDisplayName()
      */
+    @Override
     public String getDisplayName() {
         // TODO Auto-generated method stub
         return null;
     }
 
     /* (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#getDescription()
+     * @see org.geotools.api.data.DataStoreFactorySpi#getDescription()
      */
+    @Override
     public String getDescription() {
         // TODO Auto-generated method stub
         return null;
@@ -90,15 +94,17 @@ public class VPFFileFactory implements DataStoreFactorySpi {
                     );
 
     /* (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#getParametersInfo()
+     * @see org.geotools.api.data.DataStoreFactorySpi#getParametersInfo()
      */
+    @Override
     public Param[] getParametersInfo() {
         return new Param[] {FILE_PARAM};
     }
 
     /* (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#canProcess(java.util.Map)
+     * @see org.geotools.api.data.DataStoreFactorySpi#canProcess(java.util.Map)
      */
+    @Override
     public boolean canProcess(Map<String, ?> params) {
         try {
             String filePath = (String) FILE_PARAM.lookUp(params);
@@ -112,8 +118,9 @@ public class VPFFileFactory implements DataStoreFactorySpi {
     }
 
     /* (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#isAvailable()
+     * @see org.geotools.api.data.DataStoreFactorySpi#isAvailable()
      */
+    @Override
     public boolean isAvailable() {
         return true;
     }
@@ -141,6 +148,7 @@ public class VPFFileFactory implements DataStoreFactorySpi {
     }
 
     /** Returns the implementation hints. The default implementation returns en empty map. */
+    @Override
     public Map<RenderingHints.Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }

@@ -17,13 +17,14 @@
 package org.geotools.filter.expression;
 
 import java.util.regex.Pattern;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
 
 /**
  * Creates a property accessor for simple features.
@@ -39,12 +40,20 @@ import org.opengis.feature.type.GeometryDescriptor;
  */
 public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFactory {
 
-    /** Single instnace is fine - we are not stateful */
-    static PropertyAccessor ATTRIBUTE_ACCESS = new SimpleFeaturePropertyAccessor();
+    /** Single instance is fine - we are not stateful */
+    public static final PropertyAccessor ATTRIBUTE_ACCESS = new SimpleFeaturePropertyAccessor();
 
-    static PropertyAccessor DEFAULT_GEOMETRY_ACCESS =
+    public static final PropertyAccessor DEFAULT_GEOMETRY_ACCESS =
             new DefaultGeometrySimpleFeaturePropertyAccessor();
-    static PropertyAccessor FID_ACCESS = new FidSimpleFeaturePropertyAccessor();
+    public static final PropertyAccessor FID_ACCESS = new FidSimpleFeaturePropertyAccessor();
+
+    /**
+     * Conventional property name used to indicate the "efault gedometry" of a feature, that is, the
+     * one returned by {@link Feature#getDefaultGeometryProperty()} or {@link
+     * SimpleFeature.getDefaultGeometry()}.
+     */
+    public static final String DEFAULT_GEOMETRY_NAME = "";
+
     static Pattern idPattern = Pattern.compile("@(\\w+:)?id");
 
     private static final String NAME_START_CHAR =
@@ -79,6 +88,7 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
     static final Pattern propertyPattern =
             Pattern.compile("^(?!@)([" + NAME_START_CHAR + "][" + NAME_CHAR + "]*)(\\[1])?$");
 
+    @Override
     public PropertyAccessor createPropertyAccessor(
             Class type, String xpath, Class target, Hints hints) {
 
@@ -88,8 +98,7 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
                 && !SimpleFeatureType.class.isAssignableFrom(type))
             return null; // we only work with simple feature
 
-        // if ("".equals(xpath) && target == Geometry.class)
-        if ("".equals(xpath)) return DEFAULT_GEOMETRY_ACCESS;
+        if (DEFAULT_GEOMETRY_NAME.equals(xpath)) return DEFAULT_GEOMETRY_ACCESS;
 
         // check for fid access
         if (idPattern.matcher(xpath).matches()) return FID_ACCESS;
@@ -129,11 +138,13 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
      * @author Jody Garnett, Refractions Research Inc.
      */
     static class FidSimpleFeaturePropertyAccessor implements PropertyAccessor {
+        @Override
         public boolean canHandle(Object object, String xpath, Class target) {
             // we only work against feature, not feature type
             return object instanceof SimpleFeature && xpath.matches("@(\\w+:)?id");
         }
 
+        @Override
         @SuppressWarnings("unchecked") // target can be null
         public <T> T get(Object object, String xpath, Class<T> target)
                 throws IllegalArgumentException {
@@ -141,6 +152,7 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
             return (T) feature.getID();
         }
 
+        @Override
         public void set(Object object, String xpath, Object value, Class target)
                 throws IllegalAttributeException {
             throw new IllegalAttributeException("feature id is immutable");
@@ -149,8 +161,9 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
 
     static class DefaultGeometrySimpleFeaturePropertyAccessor implements PropertyAccessor {
 
+        @Override
         public boolean canHandle(Object object, String xpath, Class target) {
-            if (!"".equals(xpath)) return false;
+            if (!DEFAULT_GEOMETRY_NAME.equals(xpath)) return false;
 
             //        	if ( target != Geometry.class )
             //        		return false;
@@ -162,6 +175,7 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
             return true;
         }
 
+        @Override
         @SuppressWarnings("unchecked") // target can be null, cannot use target.cast
         public <T> T get(Object object, String xpath, Class<T> target)
                 throws IllegalArgumentException {
@@ -201,11 +215,12 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
             return null;
         }
 
+        @Override
         public void set(Object object, String xpath, Object value, Class target)
                 throws IllegalAttributeException {
 
             if (object instanceof SimpleFeature) {
-                ((SimpleFeature) object).setDefaultGeometry((Geometry) value);
+                ((SimpleFeature) object).setDefaultGeometry(value);
             }
             if (object instanceof SimpleFeatureType) {
                 throw new IllegalAttributeException("feature type is immutable");
@@ -214,6 +229,7 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
     }
 
     static class SimpleFeaturePropertyAccessor implements PropertyAccessor {
+        @Override
         public boolean canHandle(Object object, String xpath, Class target) {
             String stripped = stripPrefixIndex(xpath);
 
@@ -230,6 +246,7 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
             return false;
         }
 
+        @Override
         @SuppressWarnings("unchecked") // target can be null, cannot use target.cast
         public <T> T get(Object object, String xpath, Class<T> target)
                 throws IllegalArgumentException {
@@ -256,6 +273,7 @@ public class SimpleFeaturePropertyAccessorFactory implements PropertyAccessorFac
             return null;
         }
 
+        @Override
         public void set(Object object, String xpath, Object value, Class target)
                 throws IllegalAttributeException {
             xpath = stripPrefixIndex(xpath);

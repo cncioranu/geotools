@@ -35,10 +35,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.DataAccessFactory.Param;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
-import org.geotools.data.DataStoreFinder;
+import org.geotools.api.data.DataAccessFactory.Param;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.DataStoreFinder;
+import org.geotools.api.data.FileStoreFactory;
+import org.geotools.api.data.FilteringFileStoreFactory;
 import org.geotools.util.logging.Logging;
 
 /**
@@ -207,7 +209,12 @@ class DirectoryTypeCache {
         }
 
         // grab all the candidate files
-        File[] files = directory.listFiles();
+        FileFilter filter = null;
+        if (factory instanceof FilteringFileStoreFactory) {
+            filter = ((FilteringFileStoreFactory) factory).getFilter();
+        }
+
+        File[] files = directory.listFiles(filter);
         if (files != null) {
             for (File file : files) {
                 // skip over directories, we don't recurse
@@ -334,6 +341,7 @@ class DirectoryTypeCache {
      */
     class DirectoryFilter implements FileFilter {
 
+        @Override
         public boolean accept(File pathname) {
             return !pathname.isDirectory();
         }

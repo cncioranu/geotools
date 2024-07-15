@@ -21,11 +21,17 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
-import org.geotools.data.Parameter;
-import org.geotools.data.Transaction;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.sql.DataSource;
+import org.apache.commons.dbcp.BasicDataSource;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.data.Transaction;
+import org.geotools.data.jdbc.datasource.DBCPDataSource;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCDataStoreFactory;
 import org.geotools.jdbc.SQLDialect;
+import org.geotools.util.logging.Logging;
 
 /**
  * Oracle data store factory.
@@ -94,6 +100,47 @@ public class OracleNGDataStoreFactory extends JDBCDataStoreFactory {
                     false,
                     Boolean.FALSE);
 
+    /** parameter for specify the login timeout. */
+    public static final Param LOGIN_TIMEOUT =
+            new Param(
+                    "Login Timeout (s)",
+                    Integer.class,
+                    "Specifies the timeout for opening an Oracle JDBC connection (seconds)",
+                    false);
+
+    /** Specifies the socket connection timeout to the database. */
+    public static final Param CONNECTION_TIMEOUT =
+            new Param(
+                    "Socket connection timeout (ms)",
+                    Integer.class,
+                    "Specifies the timeout when connecting a socket to the database listener (milliseconds)",
+                    false);
+
+    /** Specifies the timeout when negotiating a session with the database. */
+    public static final Param OUTBOUND_CONNECTION_TIMEOUT =
+            new Param(
+                    "Outbound connection timeout (ms)",
+                    Integer.class,
+                    "Specifies the timeout when negotiating a session with the database listener (milliseconds)",
+                    false);
+
+    /** Specifies whether REMARKS metadata will be returned. */
+    public static final Param GET_REMARKS =
+            new Param(
+                    "Get remarks",
+                    Boolean.class,
+                    "Indicates whether REMARKS are fetched from database",
+                    false,
+                    Boolean.FALSE);
+
+    static final String LOGIN_TIMEOUT_NAME = "oracle.jdbc.loginTimeout";
+
+    static final String CONN_TIMEOUT_NAME = "oracle.net.CONNECT_TIMEOUT";
+
+    static final String OUTBOUND_TIMEOUT_NAME = "oracle.net.OUTBOUND_CONNECT_TIMEOUT";
+
+    static final Logger LOGGER = Logging.getLogger(OracleNGDataStoreFactory.class);
+
     @Override
     protected SQLDialect createSQLDialect(JDBCDataStore dataStore) {
         return new OracleDialect(dataStore);
@@ -109,6 +156,7 @@ public class OracleNGDataStoreFactory extends JDBCDataStoreFactory {
         return "Oracle NG";
     }
 
+    @Override
     public String getDescription() {
         return "Oracle Database";
     }
@@ -137,6 +185,7 @@ public class OracleNGDataStoreFactory extends JDBCDataStoreFactory {
         }
     }
 
+    @Override
     protected JDBCDataStore createDataStoreInternal(JDBCDataStore dataStore, Map<String, ?> params)
             throws IOException {
 
@@ -162,6 +211,25 @@ public class OracleNGDataStoreFactory extends JDBCDataStoreFactory {
         Boolean metadateBbox = (Boolean) METADATA_BBOX.lookUp(params);
         dialect.setMetadataBboxEnabled(Boolean.TRUE.equals(metadateBbox));
 
+        // check the get column remarks option
+        Boolean getColumnRemarks = (Boolean) GET_REMARKS.lookUp(params);
+        dialect.setGetColumnRemarksEnabled(Boolean.TRUE.equals(getColumnRemarks));
+
+        DataSource source = getDataSource(dataStore);
+        if (source instanceof BasicDataSource) {
+            Integer loginTimeout = (Integer) LOGIN_TIMEOUT.lookUp(params);
+            Integer connectionTimeout = (Integer) CONNECTION_TIMEOUT.lookUp(params);
+            Integer outboundConnTimeout = (Integer) OUTBOUND_CONNECTION_TIMEOUT.lookUp(params);
+            BasicDataSource basicSource = (BasicDataSource) source;
+            if (loginTimeout != null)
+                basicSource.addConnectionProperty(LOGIN_TIMEOUT_NAME, loginTimeout.toString());
+            if (connectionTimeout != null)
+                basicSource.addConnectionProperty(CONN_TIMEOUT_NAME, connectionTimeout.toString());
+            if (outboundConnTimeout != null)
+                basicSource.addConnectionProperty(
+                        OUTBOUND_TIMEOUT_NAME, outboundConnTimeout.toString());
+        }
+
         if (dataStore.getFetchSize() <= 0) {
             // Oracle is dead slow with the fetch size at 0, let's have a sane default
             dataStore.setFetchSize(200);
@@ -180,6 +248,21 @@ public class OracleNGDataStoreFactory extends JDBCDataStoreFactory {
             dataStore.closeSafe(cx);
         }
         return dataStore;
+    }
+
+    private DataSource getDataSource(JDBCDataStore dataStore) {
+        DataSource source = dataStore.getDataSource();
+        if (source instanceof DBCPDataSource) {
+            try {
+                source = source.unwrap(BasicDataSource.class);
+            } catch (SQLException e) {
+                LOGGER.log(
+                        Level.SEVERE,
+                        "Error while unwrapping the DataSource before setting connection timeout properties. ",
+                        e);
+            }
+        }
+        return source;
     }
 
     @Override
@@ -218,6 +301,10 @@ public class OracleNGDataStoreFactory extends JDBCDataStoreFactory {
         parameters.put(DBTYPE.key, DBTYPE);
         parameters.put(GEOMETRY_METADATA_TABLE.key, GEOMETRY_METADATA_TABLE);
         parameters.put(METADATA_BBOX.key, METADATA_BBOX);
+        parameters.put(LOGIN_TIMEOUT.key, LOGIN_TIMEOUT);
+        parameters.put(CONNECTION_TIMEOUT.key, CONNECTION_TIMEOUT);
+        parameters.put(OUTBOUND_CONNECTION_TIMEOUT.key, OUTBOUND_CONNECTION_TIMEOUT);
+        parameters.put(GET_REMARKS.key, GET_REMARKS);
     }
 
     @Override

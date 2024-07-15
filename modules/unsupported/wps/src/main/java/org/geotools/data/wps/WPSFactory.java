@@ -21,11 +21,11 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 import net.opengis.wps10.ProcessDescriptionType;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.util.InternationalString;
 import org.geotools.process.Process;
 import org.geotools.process.impl.SingleProcessFactory;
 import org.geotools.text.Text;
-import org.opengis.util.InternationalString;
 
 /**
  * This class acts as a ProcessFactory for any process. It handles converting related bean
@@ -50,9 +50,9 @@ public class WPSFactory extends SingleProcessFactory {
 
     private String description;
 
-    private Map<String, Parameter<?>> parameterInfo = new TreeMap<String, Parameter<?>>();
+    private Map<String, Parameter<?>> parameterInfo = new TreeMap<>();
 
-    private Map<String, Parameter<?>> resultInfo = new TreeMap<String, Parameter<?>>();
+    private Map<String, Parameter<?>> resultInfo = new TreeMap<>();
 
     public WPSFactory(ProcessDescriptionType pdt, URL serverUrl) {
         this.pdt = pdt;
@@ -74,23 +74,28 @@ public class WPSFactory extends SingleProcessFactory {
     }
 
     /** Create a representation of a process */
+    @Override
     public Process create() {
         return new WPSProcess(this);
     }
 
+    @Override
     public InternationalString getDescription() {
         return Text.text(description);
     }
 
+    @Override
     public Map<String, Parameter<?>> getParameterInfo() {
         return Collections.unmodifiableMap(parameterInfo);
     }
 
+    @Override
     public Map<String, Parameter<?>> getResultInfo(Map<String, Object> parameters)
             throws IllegalArgumentException {
         return Collections.unmodifiableMap(resultInfo);
     }
 
+    @Override
     public InternationalString getTitle() {
         return Text.text(title);
     }
@@ -99,10 +104,12 @@ public class WPSFactory extends SingleProcessFactory {
         return identifier;
     }
 
+    @Override
     public String getVersion() {
         return version;
     }
 
+    @Override
     public boolean supportsProgress() {
         // unknown, so return false
         return false;

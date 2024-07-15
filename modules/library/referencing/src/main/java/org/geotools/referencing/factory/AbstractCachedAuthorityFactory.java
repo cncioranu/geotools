@@ -21,51 +21,51 @@ package org.geotools.referencing.factory;
 
 import java.util.Set;
 import javax.measure.Unit;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.AuthorityFactory;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CompoundCRS;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.DerivedCRS;
+import org.geotools.api.referencing.crs.EngineeringCRS;
+import org.geotools.api.referencing.crs.GeocentricCRS;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.ImageCRS;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.referencing.crs.TemporalCRS;
+import org.geotools.api.referencing.crs.VerticalCRS;
+import org.geotools.api.referencing.cs.CSAuthorityFactory;
+import org.geotools.api.referencing.cs.CartesianCS;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.CylindricalCS;
+import org.geotools.api.referencing.cs.EllipsoidalCS;
+import org.geotools.api.referencing.cs.PolarCS;
+import org.geotools.api.referencing.cs.SphericalCS;
+import org.geotools.api.referencing.cs.TimeCS;
+import org.geotools.api.referencing.cs.VerticalCS;
+import org.geotools.api.referencing.datum.Datum;
+import org.geotools.api.referencing.datum.DatumAuthorityFactory;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.datum.EngineeringDatum;
+import org.geotools.api.referencing.datum.GeodeticDatum;
+import org.geotools.api.referencing.datum.ImageDatum;
+import org.geotools.api.referencing.datum.PrimeMeridian;
+import org.geotools.api.referencing.datum.TemporalDatum;
+import org.geotools.api.referencing.datum.VerticalDatum;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory;
+import org.geotools.api.util.GenericName;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.util.NameFactory;
 import org.geotools.util.ObjectCache;
 import org.geotools.util.ObjectCaches;
 import org.geotools.util.factory.BufferedFactory;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.AuthorityFactory;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CompoundCRS;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.DerivedCRS;
-import org.opengis.referencing.crs.EngineeringCRS;
-import org.opengis.referencing.crs.GeocentricCRS;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.ImageCRS;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.referencing.crs.TemporalCRS;
-import org.opengis.referencing.crs.VerticalCRS;
-import org.opengis.referencing.cs.CSAuthorityFactory;
-import org.opengis.referencing.cs.CartesianCS;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.CylindricalCS;
-import org.opengis.referencing.cs.EllipsoidalCS;
-import org.opengis.referencing.cs.PolarCS;
-import org.opengis.referencing.cs.SphericalCS;
-import org.opengis.referencing.cs.TimeCS;
-import org.opengis.referencing.cs.VerticalCS;
-import org.opengis.referencing.datum.Datum;
-import org.opengis.referencing.datum.DatumAuthorityFactory;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.datum.EngineeringDatum;
-import org.opengis.referencing.datum.GeodeticDatum;
-import org.opengis.referencing.datum.ImageDatum;
-import org.opengis.referencing.datum.PrimeMeridian;
-import org.opengis.referencing.datum.TemporalDatum;
-import org.opengis.referencing.datum.VerticalDatum;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.CoordinateOperationAuthorityFactory;
-import org.opengis.util.GenericName;
-import org.opengis.util.InternationalString;
 
 /**
  * An authority factory that consults (a possibly shared) cache before generating content itself.
@@ -175,6 +175,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
      * @param code The code to trim.
      * @return The code without the authority scope.
      */
+    @Override
     protected String trimAuthority(String code) {
         /*
          * IMPLEMENTATION NOTE: This method is overridden in
@@ -212,8 +213,10 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
     //
     // AuthorityFactory
     //
+    @Override
     public abstract Citation getAuthority();
 
+    @Override
     public Set<String> getAuthorityCodes(Class type) throws FactoryException {
         @SuppressWarnings("unchecked")
         Set<String> codes = (Set) cache.get(type);
@@ -236,8 +239,10 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
 
     protected abstract Set<String> generateAuthorityCodes(Class type) throws FactoryException;
 
+    @Override
     public abstract InternationalString getDescriptionText(String code) throws FactoryException;
 
+    @Override
     public IdentifiedObject createObject(String code) throws FactoryException {
         final String key = toKey(code);
         IdentifiedObject obj = (IdentifiedObject) cache.get(key);
@@ -268,6 +273,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
      * @throws NoSuchAuthorityCodeException if the specified {@code code} was not found.
      * @throws FactoryException if the object creation failed for some other reason.
      */
+    @Override
     public CompoundCRS createCompoundCRS(final String code) throws FactoryException {
         final CoordinateReferenceSystem crs = createCoordinateReferenceSystem(code);
         try {
@@ -277,6 +283,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public CoordinateReferenceSystem createCoordinateReferenceSystem(String code)
             throws FactoryException {
         final String key = toKey(code);
@@ -299,6 +306,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
     protected abstract CoordinateReferenceSystem generateCoordinateReferenceSystem(String code)
             throws FactoryException;
 
+    @Override
     public DerivedCRS createDerivedCRS(final String code) throws FactoryException {
         final CoordinateReferenceSystem crs = createCoordinateReferenceSystem(code);
         try {
@@ -308,6 +316,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public EngineeringCRS createEngineeringCRS(final String code) throws FactoryException {
         final CoordinateReferenceSystem crs = createCoordinateReferenceSystem(code);
         try {
@@ -317,6 +326,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public GeocentricCRS createGeocentricCRS(final String code) throws FactoryException {
         final CoordinateReferenceSystem crs = createCoordinateReferenceSystem(code);
         try {
@@ -326,6 +336,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public GeographicCRS createGeographicCRS(final String code) throws FactoryException {
         final CoordinateReferenceSystem crs = createCoordinateReferenceSystem(code);
         try {
@@ -335,6 +346,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public ImageCRS createImageCRS(final String code) throws FactoryException {
         final CoordinateReferenceSystem crs = createCoordinateReferenceSystem(code);
         try {
@@ -344,6 +356,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public ProjectedCRS createProjectedCRS(final String code) throws FactoryException {
         final CoordinateReferenceSystem crs = createCoordinateReferenceSystem(code);
         try {
@@ -353,6 +366,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public TemporalCRS createTemporalCRS(final String code) throws FactoryException {
         final CoordinateReferenceSystem crs = createCoordinateReferenceSystem(code);
         try {
@@ -362,6 +376,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public VerticalCRS createVerticalCRS(final String code) throws FactoryException {
         final CoordinateReferenceSystem crs = createCoordinateReferenceSystem(code);
         try {
@@ -382,6 +397,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
      * @throws NoSuchAuthorityCodeException if the specified {@code code} was not found.
      * @throws FactoryException if the object creation failed for some other reason.
      */
+    @Override
     public CartesianCS createCartesianCS(final String code) throws FactoryException {
         final CoordinateSystem cs = createCoordinateSystem(code);
         try {
@@ -391,6 +407,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public CoordinateSystem createCoordinateSystem(String code) throws FactoryException {
         final String key = toKey(code);
         CoordinateSystem cs = (CoordinateSystem) cache.get(key);
@@ -413,6 +430,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
             throws FactoryException;
 
     // sample implemenation with get/test
+    @Override
     public CoordinateSystemAxis createCoordinateSystemAxis(String code) throws FactoryException {
         final String key = toKey(code);
         CoordinateSystemAxis axis = (CoordinateSystemAxis) cache.get(key);
@@ -442,6 +460,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
      * @throws NoSuchAuthorityCodeException if the specified {@code code} was not found.
      * @throws FactoryException if the object creation failed for some other reason.
      */
+    @Override
     public CylindricalCS createCylindricalCS(final String code) throws FactoryException {
         final CoordinateSystem cs = createCoordinateSystem(code);
         try {
@@ -451,6 +470,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public EllipsoidalCS createEllipsoidalCS(final String code) throws FactoryException {
         final CoordinateSystem cs = createCoordinateSystem(code);
         try {
@@ -460,6 +480,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public PolarCS createPolarCS(final String code) throws FactoryException {
         final CoordinateSystem cs = createCoordinateSystem(code);
         try {
@@ -469,6 +490,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public SphericalCS createSphericalCS(final String code) throws FactoryException {
         final CoordinateSystem cs = createCoordinateSystem(code);
         try {
@@ -478,6 +500,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public TimeCS createTimeCS(final String code) throws FactoryException {
         final CoordinateSystem cs = createCoordinateSystem(code);
         try {
@@ -487,6 +510,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public Unit<?> createUnit(String code) throws FactoryException {
         final String key = toKey(code);
         Unit<?> unit = (Unit) cache.get(key);
@@ -507,6 +531,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
 
     protected abstract Unit<?> generateUnit(String code) throws FactoryException;
 
+    @Override
     public VerticalCS createVerticalCS(final String code) throws FactoryException {
         final CoordinateSystem cs = createCoordinateSystem(code);
         try {
@@ -519,6 +544,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
     //
     // DatumAuthorityFactory
     //
+    @Override
     public Datum createDatum(String code) throws FactoryException {
         final String key = toKey(code);
         Datum datum = (Datum) cache.get(key);
@@ -539,6 +565,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
 
     protected abstract Datum generateDatum(String code) throws FactoryException;
 
+    @Override
     public Ellipsoid createEllipsoid(String code) throws FactoryException {
         final String key = toKey(code);
         Ellipsoid ellipsoid = (Ellipsoid) cache.get(key);
@@ -559,6 +586,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
 
     protected abstract Ellipsoid generateEllipsoid(String code) throws FactoryException;
 
+    @Override
     public EngineeringDatum createEngineeringDatum(final String code) throws FactoryException {
         final Datum datum = createDatum(code);
         try {
@@ -568,6 +596,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public GeodeticDatum createGeodeticDatum(final String code) throws FactoryException {
         final Datum datum = createDatum(code);
         try {
@@ -577,6 +606,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public ImageDatum createImageDatum(final String code) throws FactoryException {
         final Datum datum = createDatum(code);
         try {
@@ -586,6 +616,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public PrimeMeridian createPrimeMeridian(String code) throws FactoryException {
         final String key = toKey(code);
         PrimeMeridian datum = (PrimeMeridian) cache.get(key);
@@ -606,6 +637,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
 
     protected abstract PrimeMeridian generatePrimeMeridian(String code) throws FactoryException;
 
+    @Override
     public TemporalDatum createTemporalDatum(final String code) throws FactoryException {
         final Datum datum = createDatum(code);
         try {
@@ -615,6 +647,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public VerticalDatum createVerticalDatum(final String code) throws FactoryException {
         final Datum datum = createDatum(code);
         try {
@@ -624,6 +657,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         }
     }
 
+    @Override
     public CoordinateOperation createCoordinateOperation(String code) throws FactoryException {
         final String key = toKey(code);
         CoordinateOperation operation = (CoordinateOperation) cache.get(key);
@@ -645,6 +679,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
     protected abstract CoordinateOperation generateCoordinateOperation(String code)
             throws FactoryException;
 
+    @Override
     @SuppressWarnings("unchecked")
     public synchronized Set<CoordinateOperation> createFromCoordinateReferenceSystemCodes(
             final String sourceCode, final String targetCode) throws FactoryException {
@@ -673,6 +708,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
             String sourceCode, String targetCode) throws FactoryException;
 
     /** We will clear out our cache and factories reference */
+    @Override
     public void dispose() throws FactoryException {
         this.cache = null;
         this.factories = null;
@@ -716,9 +752,8 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
          */
         @Override
         public IdentifiedObject find(final IdentifiedObject object) throws FactoryException {
-            IdentifiedObject candidate;
 
-            candidate = (IdentifiedObject) findCache.get(object);
+            IdentifiedObject candidate = (IdentifiedObject) findCache.get(object);
             if (candidate != null) {
                 return candidate;
             }
@@ -743,8 +778,7 @@ public abstract class AbstractCachedAuthorityFactory extends AbstractAuthorityFa
         /** Returns the identifier for the specified object. */
         @Override
         public String findIdentifier(final IdentifiedObject object) throws FactoryException {
-            IdentifiedObject candidate;
-            candidate = (IdentifiedObject) findCache.get(object);
+            IdentifiedObject candidate = (IdentifiedObject) findCache.get(object);
             if (candidate != null) {
                 return getIdentifier(candidate);
             }

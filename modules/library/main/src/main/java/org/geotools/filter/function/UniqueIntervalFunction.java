@@ -21,12 +21,14 @@ import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.feature.FeatureCollection;
@@ -35,9 +37,6 @@ import org.geotools.feature.visitor.CalcResult;
 import org.geotools.feature.visitor.GroupByVisitor;
 import org.geotools.feature.visitor.UniqueVisitor;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Clone of EqualIntervalFunction for unique values
@@ -74,21 +73,19 @@ public class UniqueIntervalFunction extends ClassificationFunction {
             // sort the results and put them in an array
             Collections.sort(
                     result,
-                    new Comparator() {
-                        public int compare(Object o1, Object o2) {
-                            if (o1 == null) {
-                                if (o2 == null) {
-                                    return 0; // equal
-                                }
-                                return -1; // less than
-                            } else if (o2 == null) {
-                                return 1;
+                    (o1, o2) -> {
+                        if (o1 == null) {
+                            if (o2 == null) {
+                                return 0; // equal
                             }
-                            if (o1 instanceof String && o2 instanceof String) {
-                                return ((String) o1).compareTo((String) o2);
-                            }
-                            return 0;
+                            return -1; // less than
+                        } else if (o2 == null) {
+                            return 1;
                         }
+                        if (o1 instanceof String && o2 instanceof String) {
+                            return ((String) o1).compareTo((String) o2);
+                        }
+                        return 0;
                     });
             Object[] results = result.toArray();
             // put the results into their respective slots/bins/buckets
@@ -97,8 +94,7 @@ public class UniqueIntervalFunction extends ClassificationFunction {
                 // resize values array
                 values = new Set[classNum];
                 // calculate number of items to put in each of the larger bins
-                int binPop =
-                        Double.valueOf(Math.ceil((double) results.length / classNum)).intValue();
+                int binPop = (int) Math.ceil((double) results.length / classNum);
                 // determine index of bin where the next bin has one less item
                 int lastBigBin = results.length % classNum;
                 if (lastBigBin == 0) lastBigBin = classNum;
@@ -146,6 +142,7 @@ public class UniqueIntervalFunction extends ClassificationFunction {
         }
     }
 
+    @Override
     public Object evaluate(Object feature) {
         if (!(feature instanceof FeatureCollection)) {
             return null;
@@ -153,7 +150,8 @@ public class UniqueIntervalFunction extends ClassificationFunction {
         return calculate((SimpleFeatureCollection) feature);
     }
 
-    private double[] getPercentages(FeatureCollection collection, Set[] values) throws IOException {
+    private double[] getPercentages(FeatureCollection collection, Set... values)
+            throws IOException {
         Expression prop = getParameters().get(0);
         GroupByVisitor groupBy =
                 new GroupByVisitor(Aggregate.COUNT, prop, Arrays.asList(prop), null);
@@ -164,7 +162,7 @@ public class UniqueIntervalFunction extends ClassificationFunction {
     }
 
     private double[] computePercentages(
-            Map<List, Integer> queryResult, int totalSize, Set[] values) {
+            Map<List, Integer> queryResult, int totalSize, Set... values) {
         double[] percentages = new double[values.length];
         for (int i = 0; i < values.length; i++) {
             Set s = values[i];

@@ -20,13 +20,12 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.measure.Unit;
 import javax.measure.quantity.Length;
-import org.geotools.styling.Font;
-import org.geotools.styling.LabelPlacement;
-import org.geotools.styling.LinePlacement;
-import org.geotools.styling.PointPlacement;
-import org.geotools.styling.TextSymbolizer;
-import org.geotools.styling.TextSymbolizer2;
-import org.opengis.filter.expression.Expression;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.Font;
+import org.geotools.api.style.LabelPlacement;
+import org.geotools.api.style.LinePlacement;
+import org.geotools.api.style.PointPlacement;
+import org.geotools.api.style.TextSymbolizer;
 
 public class TextSymbolizerBuilder extends SymbolizerBuilder<TextSymbolizer> {
     FillBuilder fill = new FillBuilder(this).unset();
@@ -35,7 +34,7 @@ public class TextSymbolizerBuilder extends SymbolizerBuilder<TextSymbolizer> {
 
     FontBuilder font;
 
-    HaloBuilder halo = new HaloBuilder(this).unset();
+    HaloBuilder halo = (HaloBuilder) new HaloBuilder(this).unset();
 
     Expression label;
 
@@ -43,7 +42,7 @@ public class TextSymbolizerBuilder extends SymbolizerBuilder<TextSymbolizer> {
 
     Unit<Length> uom;
 
-    GraphicBuilder shield = new GraphicBuilder(this).unset();
+    GraphicBuilder shield = (GraphicBuilder) new GraphicBuilder(this).unset();
 
     Builder<? extends LabelPlacement> placement = new PointPlacementBuilder(this).unset();
 
@@ -111,6 +110,7 @@ public class TextSymbolizerBuilder extends SymbolizerBuilder<TextSymbolizer> {
         return shield;
     }
 
+    @Override
     public TextSymbolizer build() {
         if (unset) {
             return null;
@@ -131,20 +131,21 @@ public class TextSymbolizerBuilder extends SymbolizerBuilder<TextSymbolizer> {
         }
         ts.getOptions().putAll(options);
         ts.setPriority(priority);
-        if (ts instanceof TextSymbolizer2) {
-            TextSymbolizer2 ts2 = (TextSymbolizer2) ts;
-            if (!shield.isUnset()) {
-                ts2.setGraphic(shield.build());
-            }
+
+        if (!shield.isUnset()) {
+            ts.setGraphic(shield.build());
         }
+
         reset();
         return ts;
     }
 
+    @Override
     public TextSymbolizerBuilder unset() {
         return (TextSymbolizerBuilder) super.unset();
     }
 
+    @Override
     public TextSymbolizerBuilder reset() {
         fill.reset(); // TODO: default fill for text?
         halo.unset(); // no default halo
@@ -159,6 +160,7 @@ public class TextSymbolizerBuilder extends SymbolizerBuilder<TextSymbolizer> {
         return this;
     }
 
+    @Override
     public TextSymbolizerBuilder reset(TextSymbolizer symbolizer) {
         fill.reset(symbolizer.getFill());
         halo.reset(symbolizer.getHalo());
@@ -201,6 +203,7 @@ public class TextSymbolizerBuilder extends SymbolizerBuilder<TextSymbolizer> {
         return label(literal(text));
     }
 
+    @Override
     protected void buildStyleInternal(StyleBuilder sb) {
         sb.featureTypeStyle().rule().text().init(this);
     }

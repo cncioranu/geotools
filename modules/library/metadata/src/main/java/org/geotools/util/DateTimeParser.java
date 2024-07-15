@@ -24,11 +24,11 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.TreeSet;
@@ -88,47 +88,45 @@ public class DateTimeParser {
 
     private static final String SIMPLIFIED_FORMAT_YEAR = "yyyy";
 
-    public static final String[] LENIENT_FORMATS_MILLISECOND =
-            new String[] {
-                "yyyyMMdd'T'HHmmssSSS'Z'",
-                "yyyy-MM-dd'T'HHmmssSSS'Z'",
-                "yyyy-MM-dd'T'HHmmssSSS",
-                "yyyy-MM-dd'T'HH:mm:ss.SSS",
-                "yyyyMMdd'T'HH:mm:ss.SSS'Z'",
-                "yyyyMMdd'T'HH:mm:ss.SSS",
-                SIMPLIFIED_FORMAT_MILLISECOND
-            };
+    public static final String[] LENIENT_FORMATS_MILLISECOND = {
+        "yyyyMMdd'T'HHmmssSSS'Z'",
+        "yyyy-MM-dd'T'HHmmssSSS'Z'",
+        "yyyy-MM-dd'T'HHmmssSSS",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyyMMdd'T'HH:mm:ss.SSS'Z'",
+        "yyyyMMdd'T'HH:mm:ss.SSS",
+        SIMPLIFIED_FORMAT_MILLISECOND
+    };
 
-    public static final String[] LENIENT_FORMATS_SECOND =
-            new String[] {
-                "yyyy-MM-dd'T'HH:mm:ss",
-                "yyyy-MM-dd'T'HHmmss'Z'",
-                "yyyyMMdd'T'HH:mm:ss'Z'",
-                "yyyyMMdd'T'HHmmss'Z'",
-                "yyyyMMdd'T'HH:mm:ss",
-                "yyyy-MM-dd'T'HHmmss",
-                SIMPLIFIED_FORMAT_SECOND
-            };
+    public static final String[] LENIENT_FORMATS_SECOND = {
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd'T'HHmmss'Z'",
+        "yyyyMMdd'T'HH:mm:ss'Z'",
+        "yyyyMMdd'T'HHmmss'Z'",
+        "yyyyMMdd'T'HH:mm:ss",
+        "yyyy-MM-dd'T'HHmmss",
+        SIMPLIFIED_FORMAT_SECOND
+    };
 
-    public static final String[] LENIENT_FORMATS_MINUTE =
-            new String[] {
-                "yyyy-MM-dd'T'HH:mm",
-                "yyyy-MM-dd'T'HHmm'Z'",
-                "yyyyMMdd'T'HH:mm'Z'",
-                "yyyyMMdd'T'HHmm'Z'",
-                "yyyy-MM-dd'T'HHmm",
-                "yyyyMMdd'T'HH:mm",
-                SIMPLIFIED_FORMAT_MINUTE
-            };
+    public static final String[] LENIENT_FORMATS_MINUTE = {
+        "yyyy-MM-dd'T'HH:mm",
+        "yyyy-MM-dd'T'HHmm'Z'",
+        "yyyyMMdd'T'HH:mm'Z'",
+        "yyyyMMdd'T'HHmm'Z'",
+        "yyyy-MM-dd'T'HHmm",
+        "yyyyMMdd'T'HH:mm",
+        SIMPLIFIED_FORMAT_MINUTE
+    };
 
-    public static final String[] LENIENT_FORMATS_HOUR =
-            new String[] {"yyyyMMdd'T'HH'Z'", "yyyy-MM-dd'T'HH", SIMPLIFIED_FORMAT_HOUR};
+    public static final String[] LENIENT_FORMATS_HOUR = {
+        "yyyyMMdd'T'HH'Z'", "yyyy-MM-dd'T'HH", SIMPLIFIED_FORMAT_HOUR
+    };
 
-    public static final String[] LENIENT_FORMATS_DAY = new String[] {SIMPLIFIED_FORMAT_DAY};
+    public static final String[] LENIENT_FORMATS_DAY = {SIMPLIFIED_FORMAT_DAY};
 
-    public static final String[] LENIENT_FORMATS_MONTH = new String[] {SIMPLIFIED_FORMAT_MONTH};
+    public static final String[] LENIENT_FORMATS_MONTH = {SIMPLIFIED_FORMAT_MONTH};
 
-    public static final String[] LENIENT_FORMATS_YEAR = new String[] {}; // Intentionally empty
+    public static final String[] LENIENT_FORMATS_YEAR = {}; // Intentionally empty
 
     private static final String ISO8601_CHARS_REGEX =
             "([^(yyyy)|^(MM)|^(dd)|^(HH)|^(mm)|^(ss)|^(SSS)|^('T')])|('Z')";
@@ -147,14 +145,14 @@ public class DateTimeParser {
         public final int precision;
         public final String[] lenientFormats;
 
-        FormatAndPrecision(final String format, int precision, final String[] lenientFormats) {
+        FormatAndPrecision(final String format, int precision, final String... lenientFormats) {
             this.format = format;
             this.precision = precision;
             this.lenientFormats = lenientFormats;
         }
 
         public SimpleDateFormat getFormat() {
-            SimpleDateFormat sdf = new SimpleDateFormat(format);
+            SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.ROOT);
             sdf.setTimeZone(UTC_TZ);
             return sdf;
         }
@@ -258,7 +256,7 @@ public class DateTimeParser {
      * @return A list of dates, or an empty list of the {@code value} string is null or empty.
      * @throws ParseException if the string can not be parsed.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public Collection parse(String value) throws ParseException {
         if (value == null) {
             return Collections.emptyList();
@@ -270,36 +268,33 @@ public class DateTimeParser {
 
         final Set result =
                 new TreeSet(
-                        new Comparator() {
+                        (o1, o2) -> {
+                            final boolean o1Date = o1 instanceof Date;
+                            final boolean o2Date = o2 instanceof Date;
 
-                            public int compare(Object o1, Object o2) {
-                                final boolean o1Date = o1 instanceof Date;
-                                final boolean o2Date = o2 instanceof Date;
+                            if (o1 == o2) {
+                                return 0;
+                            }
 
-                                if (o1 == o2) {
-                                    return 0;
-                                }
-
-                                // o1 date
-                                if (o1Date) {
-                                    final Date dateLeft = (Date) o1;
-                                    if (o2Date) {
-                                        // o2 date
-                                        return dateLeft.compareTo((Date) o2);
-                                    }
-                                    // o2 daterange
-                                    return dateLeft.compareTo(((DateRange) o2).getMinValue());
-                                }
-
-                                // o1 date range
-                                final DateRange left = (DateRange) o1;
+                            // o1 date
+                            if (o1Date) {
+                                final Date dateLeft = (Date) o1;
                                 if (o2Date) {
                                     // o2 date
-                                    return left.getMinValue().compareTo(((Date) o2));
+                                    return dateLeft.compareTo((Date) o2);
                                 }
                                 // o2 daterange
-                                return left.getMinValue().compareTo(((DateRange) o2).getMinValue());
+                                return dateLeft.compareTo(((DateRange) o2).getMinValue());
                             }
+
+                            // o1 date range
+                            final DateRange left = (DateRange) o1;
+                            if (o2Date) {
+                                // o2 date
+                                return left.getMinValue().compareTo(((Date) o2));
+                            }
+                            // o2 daterange
+                            return left.getMinValue().compareTo(((DateRange) o2).getMinValue());
                         });
         String[] listDates = value.split(",");
         int maxValues = maxTimes;
@@ -337,7 +332,13 @@ public class DateTimeParser {
                     while ((time = j * millisIncrement + startTime) <= endTime) {
                         final Calendar calendar = new GregorianCalendar(UTC_TZ);
                         calendar.setTimeInMillis(time);
-                        addDate(result, calendar.getTime());
+                        if (!addDate(result, calendar.getTime()) && j >= maxValues) {
+                            // prevent infinite loops
+                            throw new RuntimeException(
+                                    "Exceeded "
+                                            + maxValues
+                                            + " iterations parsing times, bailing out.");
+                        }
                         j++;
                         checkMaxTimes(result, maxValues);
                     }
@@ -370,7 +371,7 @@ public class DateTimeParser {
         }
     }
 
-    private Date[] parseTimeDuration(final String[] period) throws ParseException {
+    private Date[] parseTimeDuration(final String... period) throws ParseException {
         Date[] range = null;
 
         if (period.length == 2 || period.length == 3) {
@@ -468,16 +469,15 @@ public class DateTimeParser {
         result.add(newRange);
     }
 
-    private static void addDate(Collection<Object> result, Date newDate) {
-        for (Iterator<?> it = result.iterator(); it.hasNext(); ) {
-            final Object element = it.next();
+    private static boolean addDate(Collection<Object> result, Date newDate) {
+        for (final Object element : result) {
             if (element instanceof Date) {
-                if (newDate.equals(element)) return;
+                if (newDate.equals(element)) return false;
             } else if (((DateRange) element).contains(newDate)) {
-                return;
+                return false;
             }
         }
-        result.add(newDate);
+        return result.add(newDate);
     }
 
     /**
@@ -600,7 +600,7 @@ public class DateTimeParser {
         if (parsed == null && isFlagSet(FLAG_IS_LENIENT)) {
             for (String lenientFormat : f.getLenientFormats()) {
                 // rebuild formats at each parse since date formats are not thread safe
-                final SimpleDateFormat format = new SimpleDateFormat(lenientFormat);
+                final SimpleDateFormat format = new SimpleDateFormat(lenientFormat, Locale.ROOT);
                 format.setTimeZone(UTC_TZ);
                 // The lenientFormat is already somehow a lenient version of the
                 // official format. no need to have it lenient too.

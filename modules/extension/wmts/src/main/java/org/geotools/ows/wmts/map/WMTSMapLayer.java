@@ -17,19 +17,20 @@
 package org.geotools.ows.wmts.map;
 
 import java.util.logging.Logger;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.GridReaderLayer;
 import org.geotools.ows.wms.Layer;
 import org.geotools.ows.wmts.WebMapTileServer;
-import org.geotools.ows.wmts.request.GetTileRequest;
-import org.geotools.referencing.CRS;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.RasterSymbolizer;
-import org.geotools.styling.Rule;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.parameter.DefaultParameterDescriptor;
+import org.geotools.parameter.Parameter;
 
 /**
  * Wraps a WMTS layer into a {@link Layer} for interactive rendering usage.
@@ -45,6 +46,10 @@ public class WMTSMapLayer extends GridReaderLayer {
 
     public static final Logger LOGGER =
             org.geotools.util.logging.Logging.getLogger(WMTSMapLayer.class);
+
+    public static final DefaultParameterDescriptor<CoordinateReferenceSystem> SOURCE_CRS =
+            new DefaultParameterDescriptor<>(
+                    "SourceCRS", CoordinateReferenceSystem.class, null, null);
 
     private static Style createStyle() {
         StyleFactory factory = CommonFactoryFinder.getStyleFactory(null);
@@ -68,11 +73,22 @@ public class WMTSMapLayer extends GridReaderLayer {
     public WMTSMapLayer(WebMapTileServer wmts, Layer layer) {
         super(new WMTSCoverageReader(wmts, layer), createStyle());
     }
+    /** Builds a new WMTS map layer */
+    public WMTSMapLayer(WebMapTileServer wmts, Layer layer, CoordinateReferenceSystem sourceCRS) {
+        super(new WMTSCoverageReader(wmts, layer), createStyle());
+        GeneralParameterValue[] generalParameterValues = new GeneralParameterValue[1];
+        Parameter<CoordinateReferenceSystem> parameter =
+                new Parameter<>(WMTSMapLayer.SOURCE_CRS, sourceCRS);
+        generalParameterValues[0] = parameter;
+        this.params = generalParameterValues;
+    }
 
+    @Override
     public WMTSCoverageReader getReader() {
         return (WMTSCoverageReader) this.reader;
     }
 
+    @Override
     public synchronized ReferencedEnvelope getBounds() {
         WMTSCoverageReader wmtsReader = getReader();
         if (wmtsReader != null) {
@@ -81,19 +97,9 @@ public class WMTSMapLayer extends GridReaderLayer {
         return super.getBounds();
     }
 
-    /** Returns the {@link WebMapTileServer} used by this layer */
-    public WebMapTileServer getWebMapServer() {
-        return getReader().wmts;
-    }
-
     /** Returns the CRS used to make requests to the remote WMTS */
     public CoordinateReferenceSystem getCoordinateReferenceSystem() {
         return reader.getCoordinateReferenceSystem();
-    }
-
-    /** Returns last GetMap request performed by this layer */
-    public GetTileRequest getLastGetMap() {
-        return getReader().getTileRequest();
     }
 
     /**
@@ -103,18 +109,14 @@ public class WMTSMapLayer extends GridReaderLayer {
      * reprojection is necessary, the tiles coming from the WMTS server will be used as-is
      */
     public boolean isNativelySupported(CoordinateReferenceSystem crs) {
-        try {
-            String code = CRS.lookupIdentifier(crs, false);
-            return code != null && getReader().validSRS.contains(code);
-        } catch (Exception t) {
-            return false;
-        }
+        return getReader().isNativelySupported(crs);
     }
 
     public String getRawTime() {
         return rawTime;
     }
 
+    /** Set request Time the way the server wants it */
     public void setRawTime(String rawTime) {
         this.rawTime = rawTime;
         getReader().setRequestedTime(rawTime);

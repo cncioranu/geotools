@@ -19,7 +19,7 @@ package org.geotools.process.feature;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.process.ProcessFactory;
 import org.geotools.process.impl.SingleProcessFactory;
@@ -33,7 +33,7 @@ import org.geotools.text.Text;
  *
  * <ul>
  *   <li>{@link ProcessFactory#getTitle()}
- *   <li>{@link ProcessFactory#getDescription()}
+ *   <li>{@link ProcessFactory#getDescription(Name)}
  *   <li>{@link #addParameters(Map)}
  *   <li>
  * </ul>
@@ -51,6 +51,7 @@ public abstract class AbstractFeatureCollectionProcessFactory extends SingleProc
                     Text.text("Features to process"));
 
     /** Adds the {@link #FEATURES} parameter and then delegates to {@link #addParameters(Map)}. */
+    @Override
     public final Map<String, Parameter<?>> getParameterInfo() {
         HashMap<String, Parameter<?>> parameterInfo = new LinkedHashMap<>();
         parameterInfo.put(FEATURES.key, FEATURES);
@@ -65,7 +66,7 @@ public abstract class AbstractFeatureCollectionProcessFactory extends SingleProc
      * the case class. Example implementation for a simple buffer example:
      *
      * <pre>
-     * protected void addParameters(Map<String, Parameter<?>> parameters) {
+     * protected void addParameters(Map&lt;String, Parameter&lt;?&gt;&gt; parameters) {
      *    parameters.put(BUFFER.key, BUFFER);
      * }
      * </pre>

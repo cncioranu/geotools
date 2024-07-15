@@ -16,10 +16,10 @@
  */
 package org.geotools.filter.v1_0;
 
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.filter.FilterFactoryImpl;
 import org.geotools.gml2.GMLConfiguration;
 import org.geotools.xsd.Configuration;
-import org.opengis.filter.FilterFactory;
 import org.picocontainer.MutablePicoContainer;
 
 /**
@@ -34,6 +34,7 @@ public class OGCConfiguration extends Configuration {
         addDependency(new GMLConfiguration());
     }
 
+    @Override
     protected void registerBindings(MutablePicoContainer container) {
         // expr.xsd
         container.registerComponentImplementation(OGC.Add, OGCAddBinding.class);
@@ -113,6 +114,7 @@ public class OGCConfiguration extends Configuration {
      *   <li>{@link FilterFactoryImpl} under {@link FilterFactory}
      * </ul>
      */
+    @Override
     public void configureContext(MutablePicoContainer container) {
         super.configureContext(container);
 

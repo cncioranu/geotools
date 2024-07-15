@@ -17,24 +17,23 @@
 package org.geotools.referencing.factory.wms;
 
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.citation.CitationImpl;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.factory.DirectAuthorityFactory;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.util.InternationalString;
 
 /**
  * The factory for {@linkplain ProjectedCRS projected CRS} in the {@code AUTO} and {@code AUTO2}
@@ -84,6 +83,7 @@ public class AutoCRSFactory extends DirectAuthorityFactory implements CRSAuthori
         add(Auto97001.DEFAULT);
         add(Auto97002.DEFAULT);
         add(Auto97003.DEFAULT);
+        add(Auto97004.DEFAULT);
     }
 
     /** Add the specified factlet. */
@@ -113,6 +113,7 @@ public class AutoCRSFactory extends DirectAuthorityFactory implements CRSAuthori
     }
 
     /** Returns the authority for this factory. */
+    @Override
     public Citation getAuthority() {
         return AUTHORITY;
     }
@@ -129,12 +130,12 @@ public class AutoCRSFactory extends DirectAuthorityFactory implements CRSAuthori
      * org.geotools.referencing.factory.AllAuthoritiesFactory#getAuthorityCodes all authorities
      * factory}.
      */
+    @Override
     public Set<String> getAuthorityCodes(final Class<? extends IdentifiedObject> type)
             throws FactoryException {
         if (type.isAssignableFrom(ProjectedCRS.class)) {
             final Set<String> set = new LinkedHashSet<>();
-            for (final Iterator<Integer> it = factlets.keySet().iterator(); it.hasNext(); ) {
-                Integer code = it.next();
+            for (Integer code : factlets.keySet()) {
                 set.add(String.valueOf(code));
             }
             return set;
@@ -144,6 +145,7 @@ public class AutoCRSFactory extends DirectAuthorityFactory implements CRSAuthori
     }
 
     /** Returns the CRS name for the given code. */
+    @Override
     public InternationalString getDescriptionText(final String code) throws FactoryException {
         final Code c = new Code(code, ProjectedCRS.class);
         return new SimpleInternationalString(findFactlet(c).getName());
@@ -153,6 +155,7 @@ public class AutoCRSFactory extends DirectAuthorityFactory implements CRSAuthori
      * Creates an object from the specified code. The default implementation delegates to <code>
      * {@linkplain #createCoordinateReferenceSystem createCoordinateReferenceSystem}(code)</code>.
      */
+    @Override
     public IdentifiedObject createObject(final String code) throws FactoryException {
         return createCoordinateReferenceSystem(code);
     }
@@ -161,12 +164,14 @@ public class AutoCRSFactory extends DirectAuthorityFactory implements CRSAuthori
      * Creates a coordinate reference system from the specified code. The default implementation
      * delegates to <code>{@linkplain #createProjectedCRS createProjectedCRS}(code)</code>.
      */
+    @Override
     public CoordinateReferenceSystem createCoordinateReferenceSystem(final String code)
             throws FactoryException {
         return createProjectedCRS(code);
     }
 
     /** Creates a projected coordinate reference system from the specified code. */
+    @Override
     public ProjectedCRS createProjectedCRS(final String code) throws FactoryException {
         final Code c = new Code(code, ProjectedCRS.class);
         return findFactlet(c).create(c, factories);

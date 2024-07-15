@@ -17,6 +17,7 @@
 package org.geotools.filter.expression;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -26,6 +27,15 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.FeatureTypeFactory;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
 import org.geotools.data.complex.expression.FeaturePropertyAccessorFactory;
 import org.geotools.data.complex.feature.type.UniqueNameFeatureTypeFactoryImpl;
 import org.geotools.feature.AttributeImpl;
@@ -40,15 +50,6 @@ import org.geotools.filter.AttributeExpressionImpl;
 import org.geotools.filter.identity.FeatureIdImpl;
 import org.geotools.util.factory.Hints;
 import org.junit.Test;
-import org.opengis.feature.Feature;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.FeatureTypeFactory;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.NamespaceSupport;
 
@@ -214,7 +215,7 @@ public class FeaturePropertyAccessorTest {
                 new AttributeExpressionImpl(
                         "eg:complexAttribute/eg:rootAttribute[3]/eg:multiLeafAttribute",
                         new Hints(FeaturePropertyAccessorFactory.NAMESPACE_CONTEXT, NAMESPACES));
-        assertEquals(null, ex.evaluate(feature));
+        assertNull(ex.evaluate(feature));
 
         // deeper nesting
         ex =
@@ -228,13 +229,13 @@ public class FeaturePropertyAccessorTest {
                 new AttributeExpressionImpl(
                         "eg:complexAttribute/eg:rootAttribute[2]/eg:multiLeafAttribute[2]",
                         new Hints(FeaturePropertyAccessorFactory.NAMESPACE_CONTEXT, NAMESPACES));
-        assertEquals(null, ex.evaluate(feature));
+        assertNull(ex.evaluate(feature));
 
         // expect an exception when object supplied is not a complex attribute
         boolean exceptionThrown = false;
         try {
             ex.setLenient(false); // NC -added, only exception if lenient off
-            assertEquals(null, ex.evaluate(singleLeaf));
+            assertNull(ex.evaluate(singleLeaf));
         } catch (Exception e) {
             exceptionThrown = true;
         }
@@ -247,8 +248,8 @@ public class FeaturePropertyAccessorTest {
                 new AttributeExpressionImpl(
                         "randomAttribute",
                         new Hints(FeaturePropertyAccessorFactory.NAMESPACE_CONTEXT, NAMESPACES));
-        assertEquals(null, ex.evaluate(feature));
-        assertEquals(null, ex.evaluate(fType));
+        assertNull(ex.evaluate(feature));
+        assertNull(ex.evaluate(fType));
 
         // NC - test xml attribute
         ex =
@@ -289,6 +290,20 @@ public class FeaturePropertyAccessorTest {
                         "eg:complexAttribute/eg:rootAttribute/eg:multiLeafAttribute",
                         new Hints(FeaturePropertyAccessorFactory.NAMESPACE_CONTEXT, NAMESPACES));
         assertEquals(multiLeafDesc, ex.evaluate(fType));
+
+        // test that executing Java methods is blocked
+        ex =
+                new AttributeExpressionImpl(
+                        "java.lang.Thread.sleep(30000)",
+                        new Hints(FeaturePropertyAccessorFactory.NAMESPACE_CONTEXT, NAMESPACES));
+        long start = System.currentTimeMillis();
+        assertNull(ex.evaluate(feature));
+        long runtime = System.currentTimeMillis() - start;
+        assertTrue("java.lang.Thread.sleep(30000) was executed", runtime < 30000);
+        start = System.currentTimeMillis();
+        assertNull(ex.evaluate(fType));
+        runtime = System.currentTimeMillis() - start;
+        assertTrue("java.lang.Thread.sleep(30000) was executed", runtime < 30000);
     }
 
     public static FeatureType createFeatureType() {

@@ -30,8 +30,8 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.StringReader;
 import java.io.StringWriter;
+import org.geotools.api.style.StyledLayerDescriptor;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.styling.StyledLayerDescriptor;
 import org.geotools.xml.styling.SLDParser;
 import org.geotools.ysld.UomMapper;
 import org.geotools.ysld.YamlMap;
@@ -617,6 +617,46 @@ public class YsldEncodeCookbookTest {
                         .map("text");
 
         assertEquals(-45, text.integer("rotation").intValue());
+    }
+
+    @Test
+    public void testPointWithRuleVendorOption() throws Exception {
+        // <UserStyle>
+        //   <Title>Simple Point With Rule Vendor Option</Title>
+        //   <FeatureTypeStyle>
+        //     <Rule>
+        //       <PointSymbolizer>
+        //         <Graphic>
+        //           <Mark>
+        //             <WellKnownName>circle</WellKnownName>
+        //             <Fill>
+        //               <CssParameter name="fill">#FF0000</CssParameter>
+        //             </Fill>
+        //           </Mark>
+        //           <Size>6</Size>
+        //         </Graphic>
+        //       </PointSymbolizer>
+        //       <VendorOption name="inclusion">mapOnly</VendorOption>
+        //     </Rule>
+        //     <Rule>
+        //       <PointSymbolizer>
+        //         <Graphic>
+        //           <ExternalGraphic>
+        //              <OnlineResource xlink:type="simple" xlink:href="smileyface.png" />
+        //             <Format>image/png</Format>
+        //           </ExternalGraphic>
+        //           <Size>20</Size>
+        //         </Graphic>
+        //       </PointSymbolizer>
+        //       <VendorOption name="inclusion">legendOnly</VendorOption>
+        //     </Rule>
+        //   </FeatureTypeStyle>
+        // </UserStyle>
+        YamlMap style = encode("point", "rule-option.sld");
+        YamlMap rule1 = style.seq("feature-styles").map(0).seq("rules").map(0);
+        assertEquals("mapOnly", rule1.str("x-inclusion"));
+        YamlMap rule2 = style.seq("feature-styles").map(0).seq("rules").map(1);
+        assertEquals("legendOnly", rule2.str("x-inclusion"));
     }
 
     @Test
@@ -2173,6 +2213,24 @@ public class YsldEncodeCookbookTest {
                                 lexEqualTo(""),
                                 numEqualTo(256),
                                 lexEqualTo(""))));
+    }
+
+    @Test
+    public void testRasterWithBandSelectionExpression() throws Exception {
+        YamlMap obj = encode("raster", "band-selection-expression.sld");
+        String name =
+                obj.seq("feature-styles")
+                        .map(0)
+                        .seq("rules")
+                        .map(0)
+                        .seq("symbolizers")
+                        .map(0)
+                        .map("raster")
+                        .map("channels")
+                        .map("gray")
+                        .str("name")
+                        .trim();
+        assertEquals("${env('B1','1')}", name);
     }
 
     YamlMap encode(String dirname, String filename) throws Exception {

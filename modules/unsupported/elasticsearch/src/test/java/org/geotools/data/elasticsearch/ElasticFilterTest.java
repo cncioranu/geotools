@@ -16,17 +16,19 @@
  */
 package org.geotools.data.elasticsearch;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIn.isOneOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.bedatadriven.jackson.datatype.jts.JtsModule;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -36,12 +38,48 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.ExcludeFilter;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.IncludeFilter;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsGreaterThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNotEqualTo;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.expression.NilExpression;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.DWithin;
+import org.geotools.api.filter.spatial.Disjoint;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.filter.temporal.After;
+import org.geotools.api.filter.temporal.Begins;
+import org.geotools.api.filter.temporal.BegunBy;
+import org.geotools.api.filter.temporal.During;
+import org.geotools.api.filter.temporal.EndedBy;
+import org.geotools.api.filter.temporal.Ends;
+import org.geotools.api.filter.temporal.TContains;
+import org.geotools.api.filter.temporal.TEquals;
+import org.geotools.api.temporal.Instant;
+import org.geotools.api.temporal.Period;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.AttributeTypeBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.filter.text.ecql.ECQL;
+import org.geotools.process.elasticsearch.ElasticBucketVisitor;
 import org.geotools.temporal.object.DefaultInstant;
 import org.geotools.temporal.object.DefaultPeriod;
 import org.geotools.temporal.object.DefaultPosition;
@@ -49,51 +87,17 @@ import org.geotools.util.factory.Hints;
 import org.junit.Before;
 import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.And;
-import org.opengis.filter.ExcludeFilter;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.Id;
-import org.opengis.filter.IncludeFilter;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNotEqualTo;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.NilExpression;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.DWithin;
-import org.opengis.filter.spatial.Disjoint;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.filter.temporal.After;
-import org.opengis.filter.temporal.Begins;
-import org.opengis.filter.temporal.BegunBy;
-import org.opengis.filter.temporal.During;
-import org.opengis.filter.temporal.EndedBy;
-import org.opengis.filter.temporal.Ends;
-import org.opengis.filter.temporal.TContains;
-import org.opengis.filter.temporal.TEquals;
-import org.opengis.temporal.Instant;
-import org.opengis.temporal.Period;
 
 public class ElasticFilterTest {
 
     private FilterToElastic builder;
 
-    private FilterFactory2 ff;
+    private FilterFactory ff;
 
     private GeometryFactory gf;
 
@@ -107,7 +111,7 @@ public class ElasticFilterTest {
 
     @Before
     public void setUp() {
-        ff = CommonFactoryFinder.getFilterFactory2();
+        ff = CommonFactoryFinder.getFilterFactory();
 
         SimpleFeatureTypeBuilder typeBuilder = new SimpleFeatureTypeBuilder();
         typeBuilder.setName("test");
@@ -119,11 +123,10 @@ public class ElasticFilterTest {
         typeBuilder.add("floatAttr", Float.class);
         typeBuilder.add("dateAttr", Date.class);
 
-        AttributeDescriptor geoPointAtt;
         AttributeTypeBuilder geoPointAttBuilder = new AttributeTypeBuilder();
         geoPointAttBuilder.setName("geo_point");
         geoPointAttBuilder.setBinding(Point.class);
-        geoPointAtt =
+        AttributeDescriptor geoPointAtt =
                 geoPointAttBuilder.buildDescriptor("geo_point", geoPointAttBuilder.buildType());
         geoPointAtt
                 .getUserData()
@@ -132,11 +135,11 @@ public class ElasticFilterTest {
                         ElasticAttribute.ElasticGeometryType.GEO_POINT);
         typeBuilder.add(geoPointAtt);
 
-        AttributeDescriptor geoShapeAtt;
         AttributeTypeBuilder geoShapeAttBuilder = new AttributeTypeBuilder();
         geoShapeAttBuilder.setName("geom");
         geoShapeAttBuilder.setBinding(Geometry.class);
-        geoShapeAtt = geoShapeAttBuilder.buildDescriptor("geom", geoShapeAttBuilder.buildType());
+        AttributeDescriptor geoShapeAtt =
+                geoShapeAttBuilder.buildDescriptor("geom", geoShapeAttBuilder.buildType());
         geoShapeAtt
                 .getUserData()
                 .put(
@@ -144,29 +147,27 @@ public class ElasticFilterTest {
                         ElasticAttribute.ElasticGeometryType.GEO_SHAPE);
         typeBuilder.add(geoShapeAtt);
 
-        AttributeDescriptor analyzedAtt;
         AttributeTypeBuilder analyzedAttBuilder = new AttributeTypeBuilder();
         analyzedAttBuilder.setName("analyzed");
         analyzedAttBuilder.setBinding(String.class);
-        analyzedAtt =
+        AttributeDescriptor analyzedAtt =
                 analyzedAttBuilder.buildDescriptor("analyzed", analyzedAttBuilder.buildType());
         analyzedAtt.getUserData().put(ElasticConstants.ANALYZED, true);
         typeBuilder.add(analyzedAtt);
 
-        AttributeDescriptor netsedAtt;
         AttributeTypeBuilder nestedAttBuilder = new AttributeTypeBuilder();
         nestedAttBuilder.setName("nested.hej");
         nestedAttBuilder.setBinding(String.class);
-        netsedAtt = nestedAttBuilder.buildDescriptor("nested.hej", nestedAttBuilder.buildType());
+        AttributeDescriptor netsedAtt =
+                nestedAttBuilder.buildDescriptor("nested.hej", nestedAttBuilder.buildType());
         netsedAtt.getUserData().put(ElasticConstants.NESTED, true);
         netsedAtt.getUserData().put(ElasticConstants.ANALYZED, true);
         typeBuilder.add(netsedAtt);
 
-        AttributeDescriptor netsedDateAtt;
         AttributeTypeBuilder nestedDateAttBuilder = new AttributeTypeBuilder();
         nestedDateAttBuilder.setName("nested.datehej");
         nestedDateAttBuilder.setBinding(Date.class);
-        netsedDateAtt =
+        AttributeDescriptor netsedDateAtt =
                 nestedDateAttBuilder.buildDescriptor(
                         "nested.datehej", nestedDateAttBuilder.buildType());
         netsedDateAtt.getUserData().put(ElasticConstants.NESTED, true);
@@ -177,7 +178,7 @@ public class ElasticFilterTest {
 
         parameters = new HashMap<>();
         final Hints hints = new Hints();
-        hints.put(Hints.VIRTUAL_TABLE_PARAMETERS, parameters);
+        hints.put(ElasticBucketVisitor.ES_AGGREGATE_BUCKET, parameters);
         query = new Query();
         query.setHints(hints);
 
@@ -196,12 +197,12 @@ public class ElasticFilterTest {
         SimpleFeatureTypeBuilder typeBuilder = new SimpleFeatureTypeBuilder();
         typeBuilder.init(featureType);
 
-        AttributeDescriptor dateAtt;
         AttributeTypeBuilder dateAttBuilder = new AttributeTypeBuilder();
         dateAttBuilder.setName("dateAttrWithFormat");
         dateAttBuilder.setBinding(Date.class);
-        dateAtt = dateAttBuilder.buildDescriptor("dateAttrWithFormat", dateAttBuilder.buildType());
-        List<String> validFormats = new ArrayList<String>();
+        AttributeDescriptor dateAtt =
+                dateAttBuilder.buildDescriptor("dateAttrWithFormat", dateAttBuilder.buildType());
+        List<String> validFormats = new ArrayList<>();
         validFormats.add(format);
         dateAtt.getUserData().put(ElasticConstants.DATE_FORMAT, validFormats);
         typeBuilder.add(dateAtt);
@@ -651,17 +652,19 @@ public class ElasticFilterTest {
 
     @Test
     public void testGeoShapeBboxFilter() {
-        BBOX filter = ff.bbox("geom", 0., 0., 1.1, 1.1, "EPSG:4326");
-        List<List<Double>> coords = new ArrayList<>();
-        coords.add(ImmutableList.of(0., 0.));
-        coords.add(ImmutableList.of(0., 1.1));
+        BBOX filter = ff.bbox("geom", 0, 0, 1.1, 1.1, "EPSG:4326");
+        List<List<Number>> coords = new ArrayList<>();
+        coords.add(ImmutableList.of(0, 0));
+        coords.add(ImmutableList.of(0, 1.1));
         coords.add(ImmutableList.of(1.1, 1.1));
-        coords.add(ImmutableList.of(1.1, 0.));
-        coords.add(ImmutableList.of(0., 0.));
+        coords.add(ImmutableList.of(1.1, 0));
+        coords.add(ImmutableList.of(0, 0));
         // vertices in reverse order
-        final List<List<Double>> reverseCoords =
+        final List<List<Number>> reverseCoords =
                 ImmutableList.of(
                         coords.get(0), coords.get(3), coords.get(2), coords.get(1), coords.get(4));
+        ImmutableMap<String, Serializable> geo =
+                ImmutableMap.of("coordinates", ImmutableList.of(coords), "type", "Polygon");
         Map<String, Object> expected =
                 ImmutableMap.of(
                         "bool",
@@ -674,14 +677,7 @@ public class ElasticFilterTest {
                                         ImmutableMap.of(
                                                 "geom",
                                                 ImmutableMap.of(
-                                                        "shape",
-                                                        ImmutableMap.of(
-                                                                "coordinates",
-                                                                ImmutableList.of(coords),
-                                                                "type",
-                                                                "Polygon"),
-                                                        "relation",
-                                                        "INTERSECTS")))));
+                                                        "shape", geo, "relation", "INTERSECTS")))));
 
         builder.visit(filter, null);
         assertTrue(builder.createCapabilities().fullySupports(filter));
@@ -696,9 +692,11 @@ public class ElasticFilterTest {
     public void testGeoShapeIntersectsFilter() throws CQLException {
         Intersects filter =
                 (Intersects) ECQL.toFilter("INTERSECTS(\"geom\", LINESTRING(0 0,1.1 1.1))");
-        List<List<Double>> coords = new ArrayList<>();
-        coords.add(ImmutableList.of(0., 0.));
+        List<List<Number>> coords = new ArrayList<>();
+        coords.add(ImmutableList.of(0, 0));
         coords.add(ImmutableList.of(1.1, 1.1));
+        ImmutableMap<String, Object> shape =
+                ImmutableMap.of("coordinates", coords, "type", "LineString");
         Map<String, Object> expected =
                 ImmutableMap.of(
                         "bool",
@@ -712,11 +710,7 @@ public class ElasticFilterTest {
                                                 "geom",
                                                 ImmutableMap.of(
                                                         "shape",
-                                                        ImmutableMap.of(
-                                                                "coordinates",
-                                                                coords,
-                                                                "type",
-                                                                "LineString"),
+                                                        shape,
                                                         "relation",
                                                         "INTERSECTS")))));
 
@@ -753,9 +747,11 @@ public class ElasticFilterTest {
     public void testGeoShapeIntersectsFilterReversed() throws CQLException {
         Intersects filter =
                 (Intersects) ECQL.toFilter("INTERSECTS(LINESTRING(0 0,1.1 1.1), \"geom\")");
-        List<List<Double>> coords = new ArrayList<>();
-        coords.add(ImmutableList.of(0., 0.));
+        List<List<Number>> coords = new ArrayList<>();
+        coords.add(ImmutableList.of(0, 0));
         coords.add(ImmutableList.of(1.1, 1.1));
+        ImmutableMap<String, Object> shape =
+                ImmutableMap.of("coordinates", coords, "type", "LineString");
         Map<String, Object> expected =
                 ImmutableMap.of(
                         "bool",
@@ -769,11 +765,7 @@ public class ElasticFilterTest {
                                                 "geom",
                                                 ImmutableMap.of(
                                                         "shape",
-                                                        ImmutableMap.of(
-                                                                "coordinates",
-                                                                coords,
-                                                                "type",
-                                                                "LineString"),
+                                                        shape,
                                                         "relation",
                                                         "INTERSECTS")))));
 
@@ -785,17 +777,31 @@ public class ElasticFilterTest {
     @Test
     public void testAndWithBbox() {
         And filter =
-                ff.and(ff.id(ff.featureId("id1")), ff.bbox("geom", 0., 0., 1.1, 1.1, "EPSG:4326"));
-        List<List<Double>> coords = new ArrayList<>();
-        coords.add(ImmutableList.of(0., 0.));
-        coords.add(ImmutableList.of(0., 1.1));
+                ff.and(ff.id(ff.featureId("id1")), ff.bbox("geom", 0, 0, 1.1, 1.1, "EPSG:4326"));
+        List<List<Number>> coords = new ArrayList<>();
+        coords.add(ImmutableList.of(0, 0));
+        coords.add(ImmutableList.of(0, 1.1));
         coords.add(ImmutableList.of(1.1, 1.1));
-        coords.add(ImmutableList.of(1.1, 0.));
-        coords.add(ImmutableList.of(0., 0.));
+        coords.add(ImmutableList.of(1.1, 0));
+        coords.add(ImmutableList.of(0, 0));
         // vertices in reverse order
-        List<List<Double>> reverseCoords =
+        List<List<Number>> reverseCoords =
                 ImmutableList.of(
                         coords.get(0), coords.get(3), coords.get(2), coords.get(1), coords.get(4));
+        Map<String, Object> geoShape =
+                ImmutableMap.of(
+                        "geo_shape",
+                        ImmutableMap.of(
+                                "geom",
+                                ImmutableMap.of(
+                                        "shape",
+                                        ImmutableMap.of(
+                                                "coordinates",
+                                                ImmutableList.of(coords),
+                                                "type",
+                                                "Polygon"),
+                                        "relation",
+                                        "INTERSECTS")));
         Map<String, Object> expected =
                 ImmutableMap.of(
                         "bool",
@@ -811,21 +817,7 @@ public class ElasticFilterTest {
                                                         "must",
                                                         ElasticConstants.MATCH_ALL,
                                                         "filter",
-                                                        ImmutableMap.of(
-                                                                "geo_shape",
-                                                                ImmutableMap.of(
-                                                                        "geom",
-                                                                        ImmutableMap.of(
-                                                                                "shape",
-                                                                                ImmutableMap.of(
-                                                                                        "coordinates",
-                                                                                        ImmutableList
-                                                                                                .of(
-                                                                                                        coords),
-                                                                                        "type",
-                                                                                        "Polygon"),
-                                                                                "relation",
-                                                                                "INTERSECTS"))))))));
+                                                        geoShape)))));
 
         builder.visit(filter, null);
         assertTrue(builder.createCapabilities().fullySupports(filter));
@@ -944,6 +936,11 @@ public class ElasticFilterTest {
     @Test
     public void testDBeyondFilter() throws CQLException {
         Beyond filter = (Beyond) ECQL.toFilter("BEYOND(\"geo_point\", POINT(0 1.1), 1.0, meters)");
+        Map<String, Object> filterBit =
+                ImmutableMap.of(
+                        "geo_distance",
+                        ImmutableMap.of(
+                                "distance", "1.0m", "geo_point", ImmutableList.of(0., 1.1)));
         Map<String, Object> expected =
                 ImmutableMap.of(
                         "bool",
@@ -955,13 +952,7 @@ public class ElasticFilterTest {
                                                 "must",
                                                 ElasticConstants.MATCH_ALL,
                                                 "filter",
-                                                ImmutableMap.of(
-                                                        "geo_distance",
-                                                        ImmutableMap.of(
-                                                                "distance",
-                                                                "1.0m",
-                                                                "geo_point",
-                                                                ImmutableList.of(0., 1.1)))))));
+                                                filterBit))));
 
         builder.visit(filter, null);
         assertTrue(builder.createCapabilities().fullySupports(filter));
@@ -988,9 +979,20 @@ public class ElasticFilterTest {
         Filter filter =
                 ECQL.toFilter(
                         "time > \"1970-01-01\" and INTERSECTS(\"geom\", LINESTRING(0 0,1.1 1.1))");
-        List<List<Double>> coords = new ArrayList<>();
-        coords.add(ImmutableList.of(0., 0.));
+        List<List<Number>> coords = new ArrayList<>();
+        coords.add(ImmutableList.of(0, 0));
         coords.add(ImmutableList.of(1.1, 1.1));
+        Map<String, Object> geoShape =
+                ImmutableMap.of(
+                        "geo_shape",
+                        ImmutableMap.of(
+                                "geom",
+                                ImmutableMap.of(
+                                        "shape",
+                                        ImmutableMap.of(
+                                                "coordinates", coords, "type", "LineString"),
+                                        "relation",
+                                        "INTERSECTS")));
         Map<String, Object> expected =
                 ImmutableMap.of(
                         "bool",
@@ -1008,19 +1010,7 @@ public class ElasticFilterTest {
                                                         "must",
                                                         ElasticConstants.MATCH_ALL,
                                                         "filter",
-                                                        ImmutableMap.of(
-                                                                "geo_shape",
-                                                                ImmutableMap.of(
-                                                                        "geom",
-                                                                        ImmutableMap.of(
-                                                                                "shape",
-                                                                                ImmutableMap.of(
-                                                                                        "coordinates",
-                                                                                        coords,
-                                                                                        "type",
-                                                                                        "LineString"),
-                                                                                "relation",
-                                                                                "INTERSECTS"))))))));
+                                                        geoShape)))));
 
         builder.encode(filter);
         assertTrue(builder.createCapabilities().fullySupports(filter));
@@ -1134,8 +1124,7 @@ public class ElasticFilterTest {
         Map<String, Object> expected =
                 ImmutableMap.of(
                         "range",
-                        ImmutableMap.of(
-                                "dateAttr", ImmutableMap.of("gt", "1970-01-01T00:00:00.000Z")));
+                        ImmutableMap.of("dateAttr", ImmutableMap.of("gt", "1970-01-01T00:00:00Z")));
 
         builder.visit(filter, null);
         assertTrue(builder.createCapabilities().fullySupports(filter));
@@ -1145,13 +1134,13 @@ public class ElasticFilterTest {
     @Test
     public void testNestedTemporalStringLiteral() {
         After filter =
-                ff.after(ff.property("nested.datehej"), ff.literal("1970-01-01T00:00:00.000Z"));
+                ff.after(ff.property("nested.datehej"), ff.literal("1970-01-01T00:00:00.123Z"));
         Map<String, Object> expectedFilter =
                 ImmutableMap.of(
                         "range",
                         ImmutableMap.of(
                                 "nested.datehej",
-                                ImmutableMap.of("gt", "1970-01-01T00:00:00.000Z")));
+                                ImmutableMap.of("gt", "1970-01-01T00:00:00.123Z")));
         Map<String, Object> expected =
                 ImmutableMap.of(
                         "nested", ImmutableMap.of("path", "nested", "query", expectedFilter));
@@ -1171,8 +1160,7 @@ public class ElasticFilterTest {
         Map<String, Object> expected =
                 ImmutableMap.of(
                         "range",
-                        ImmutableMap.of(
-                                "dateAttr", ImmutableMap.of("gt", "1970-07-19T00:00:00.000Z")));
+                        ImmutableMap.of("dateAttr", ImmutableMap.of("gt", "1970-07-19T00:00:00Z")));
 
         builder.visit(filter, null);
         assertTrue(builder.createCapabilities().fullySupports(filter));
@@ -1295,7 +1283,7 @@ public class ElasticFilterTest {
     public void testBeforeFilter() throws ParseException {
         Date date1 = dateFormat.parse("1970-07-19T01:02:03.456Z");
         Instant temporalInstant = new DefaultInstant(new DefaultPosition(date1));
-        org.opengis.filter.temporal.Before filter =
+        org.geotools.api.filter.temporal.Before filter =
                 ff.before(ff.property("dateAttr"), ff.literal(temporalInstant));
         Map<String, Object> expected =
                 ImmutableMap.of(
@@ -1316,7 +1304,7 @@ public class ElasticFilterTest {
         Instant temporalInstant2 = new DefaultInstant(new DefaultPosition(date2));
         Period period = new DefaultPeriod(temporalInstant, temporalInstant2);
 
-        org.opengis.filter.temporal.Before filter =
+        org.geotools.api.filter.temporal.Before filter =
                 ff.before(ff.property("dateAttr"), ff.literal(period));
         Map<String, Object> expected =
                 ImmutableMap.of(
@@ -1337,7 +1325,7 @@ public class ElasticFilterTest {
         Instant temporalInstant2 = new DefaultInstant(new DefaultPosition(date2));
         Period period = new DefaultPeriod(temporalInstant, temporalInstant2);
 
-        org.opengis.filter.temporal.Before filter =
+        org.geotools.api.filter.temporal.Before filter =
                 ff.before(ff.literal(period), ff.property("dateAttr"));
         Map<String, Object> expected =
                 ImmutableMap.of(
@@ -1587,5 +1575,31 @@ public class ElasticFilterTest {
     @Test(expected = UnsupportedOperationException.class)
     public void testUnsupportedLiteralTimePeriod() {
         builder.visitLiteralTimePeriod();
+    }
+
+    @Test
+    public void testGetMaxDecimalsForEnvelope() {
+        Envelope bigEnv = new Envelope(-180, 180, -90, 90);
+        assertEquals(
+                JtsModule.DEFAULT_MAX_DECIMALS, FilterToElastic.getMaxDecimalsForEnvelope(bigEnv));
+
+        Envelope superBigEnv = new Envelope(-18000, 18000, -9000, 9000);
+        assertEquals(
+                JtsModule.DEFAULT_MAX_DECIMALS,
+                FilterToElastic.getMaxDecimalsForEnvelope(superBigEnv));
+
+        Envelope bigEnvWithDec2 = new Envelope(-18000, 18999.1, -9000, 9999.1);
+        assertEquals(
+                JtsModule.DEFAULT_MAX_DECIMALS,
+                FilterToElastic.getMaxDecimalsForEnvelope(bigEnvWithDec2));
+
+        Envelope smallEnv = new Envelope(-180, -179.9999999, -90, -89.9999999);
+        assertEquals(7, FilterToElastic.getMaxDecimalsForEnvelope(smallEnv));
+
+        Envelope smallEnv2 = new Envelope(-180, -179.9999999999, -90, -89.9999999999);
+        assertEquals(10, FilterToElastic.getMaxDecimalsForEnvelope(smallEnv2));
+
+        Envelope smallestEnv = new Envelope(0, 0.00000000000000001, 0, 0.00000000000000001);
+        assertEquals(16, FilterToElastic.getMaxDecimalsForEnvelope(smallestEnv));
     }
 }

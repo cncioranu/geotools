@@ -19,28 +19,28 @@
  */
 package org.geotools.referencing.cs;
 
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.measure.Unit;
 import javax.measure.UnitConverter;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.operation.Matrix;
+import org.geotools.api.util.InternationalString;
 import org.geotools.measure.Measure;
 import org.geotools.measure.Units;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.operation.matrix.GeneralMatrix;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Classes;
 import org.geotools.util.Utilities;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.operation.Matrix;
-import org.opengis.util.InternationalString;
 import si.uom.NonSI;
 import si.uom.SI;
 
@@ -119,7 +119,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
      * @param name The coordinate system name.
      * @param axis The set of axis.
      */
-    public AbstractCS(final String name, final CoordinateSystemAxis[] axis) {
+    public AbstractCS(final String name, final CoordinateSystemAxis... axis) {
         this(Collections.singletonMap(NAME_KEY, name), axis);
     }
 
@@ -131,7 +131,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
      * @param properties Set of properties. Should contains at least {@code "name"}.
      * @param axis The set of axis.
      */
-    public AbstractCS(final Map<String, ?> properties, final CoordinateSystemAxis[] axis) {
+    public AbstractCS(final Map<String, ?> properties, final CoordinateSystemAxis... axis) {
         super(properties);
         ensureNonNull("axis", axis);
         this.axis = axis.clone();
@@ -147,7 +147,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
             if (!isCompatibleDirection(direction)) {
                 // TOOD: localize name()
                 throw new IllegalArgumentException(
-                        Errors.format(
+                        MessageFormat.format(
                                 ErrorKeys.ILLEGAL_AXIS_ORIENTATION_$2,
                                 direction.name(),
                                 getClass()));
@@ -156,7 +156,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
             ensureNonNull("unit", unit);
             if (!isCompatibleUnit(direction, unit)) {
                 throw new IllegalArgumentException(
-                        Errors.format(ErrorKeys.INCOMPATIBLE_UNIT_$1, unit));
+                        MessageFormat.format(ErrorKeys.INCOMPATIBLE_UNIT_$1, unit));
             }
             /*
              * Ensures there is no axis along the same direction
@@ -170,7 +170,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
                         final String nameI = axis[i].getDirection().name();
                         final String nameJ = axis[j].getDirection().name();
                         throw new IllegalArgumentException(
-                                Errors.format(ErrorKeys.COLINEAR_AXIS_$2, nameI, nameJ));
+                                MessageFormat.format(ErrorKeys.COLINEAR_AXIS_$2, nameI, nameJ));
                     }
                 }
             }
@@ -181,8 +181,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
              * may have a "South along 180 deg" direction.
              */
             final String name = axis[i].getName().getCode();
-            for (int j = 0; j < DIRECTION_CHECKS.length; j++) {
-                final DefaultCoordinateSystemAxis candidate = DIRECTION_CHECKS[j];
+            for (final DefaultCoordinateSystemAxis candidate : DIRECTION_CHECKS) {
                 if (candidate.nameMatches(name)) {
                     final AxisDirection expected = candidate.getDirection();
                     if (!direction.equals(expected)) {
@@ -198,7 +197,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
                          */
                         if (m == null) {
                             throw new IllegalArgumentException(
-                                    Errors.format(
+                                    MessageFormat.format(
                                             ErrorKeys.INCONSISTENT_AXIS_ORIENTATION_$2,
                                             name,
                                             direction.name()));
@@ -256,6 +255,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
     }
 
     /** Returns the dimension of the coordinate system. This is the number of axis. */
+    @Override
     public int getDimension() {
         return axis.length;
     }
@@ -267,6 +267,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
      * @return The axis at the specified dimension.
      * @throws IndexOutOfBoundsException if {@code dimension} is out of bounds.
      */
+    @Override
     public CoordinateSystemAxis getAxis(final int dimension) throws IndexOutOfBoundsException {
         return axis[dimension];
     }
@@ -314,8 +315,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
             throws IllegalArgumentException {
         if (!Classes.sameInterfaces(
                 sourceCS.getClass(), targetCS.getClass(), CoordinateSystem.class)) {
-            throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.INCOMPATIBLE_COORDINATE_SYSTEM_TYPE));
+            throw new IllegalArgumentException(ErrorKeys.INCOMPATIBLE_COORDINATE_SYSTEM_TYPE);
         }
         final AxisDirection[] sourceAxis = getAxisDirections(sourceCS);
         final AxisDirection[] targetAxis = getAxisDirections(targetCS);
@@ -358,7 +358,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
                 UnitConverter converter = Units.getConverterToAny(sourceUnit, targetUnit);
                 if (!converter.isLinear()) {
                     throw new IllegalArgumentException(
-                            Errors.format(
+                            MessageFormat.format(
                                     ErrorKeys.NON_LINEAR_UNIT_CONVERSION_$2,
                                     sourceUnit,
                                     targetUnit));
@@ -377,14 +377,14 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
      * method returns one of the predefined constants with axis in
      * (<var>longitude</var>,<var>latitude</var>) or (<var>X</var>,<var>Y</var>) order, and units in
      * degrees or metres. In some particular cases like {@linkplain
-     * org.opengis.referencing.cs.CartesianCS Cartesian CS}, this method may create a new instance
-     * on the fly. In every cases this method attempts to return a <A
+     * org.geotools.api.referencing.cs.CartesianCS Cartesian CS}, this method may create a new
+     * instance on the fly. In every cases this method attempts to return a <A
      * HREF="http://en.wikipedia.org/wiki/Right_hand_rule">right-handed</A> coordinate system, but
      * this is not garanteed.
      *
      * <p>This method is typically used together with {@link #swapAndScaleAxis swapAndScaleAxis} for
      * the creation of a transformation step before some {@linkplain
-     * org.opengis.referencing.operation.MathTransform math transform}. Example:
+     * org.geotools.api.referencing.operation.MathTransform math transform}. Example:
      *
      * <blockquote>
      *
@@ -423,8 +423,8 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
     final Unit<?> getDistanceUnit() {
         Unit<?> unit = distanceUnit; // Avoid the need for synchronization.
         if (unit == null) {
-            for (int i = 0; i < axis.length; i++) {
-                final Unit<?> candidate = axis[i].getUnit();
+            for (CoordinateSystemAxis axi : axis) {
+                final Unit<?> candidate = axi.getUnit();
                 if (candidate != null && !candidate.isCompatible(SI.RADIAN)) {
                     // TODO: checks the unit scale type (keeps RATIO only).
                     if (unit != null) {
@@ -460,7 +460,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
             throws MismatchedDimensionException {
         if (coordinates.length != axis.length) {
             throw new MismatchedDimensionException(
-                    Errors.format(
+                    MessageFormat.format(
                             ErrorKeys.MISMATCHED_DIMENSION_$3,
                             name,
                             coordinates.length,
@@ -564,8 +564,7 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
         final DefaultCoordinateSystemAxis[] axis0 = getDefaultAxis(this);
         final DefaultCoordinateSystemAxis[] axis1 = getDefaultAxis(userCS);
         next:
-        for (int i = 0; i < axis0.length; i++) {
-            final DefaultCoordinateSystemAxis direct = axis0[i];
+        for (final DefaultCoordinateSystemAxis direct : axis0) {
             final DefaultCoordinateSystemAxis opposite = direct.getOpposite();
             for (int j = 0; j < axis1.length; j++) {
                 final DefaultCoordinateSystemAxis candidate = axis1[j];
@@ -593,8 +592,8 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
             checks[i] = userCS.getAxis(i).getDirection().absolute();
         }
         next:
-        for (int i = 0; i < axis.length; i++) {
-            final AxisDirection direction = axis[i].getDirection().absolute();
+        for (CoordinateSystemAxis axi : axis) {
+            final AxisDirection direction = axi.getDirection().absolute();
             for (int j = 0; j < checks.length; j++) {
                 final AxisDirection candidate = checks[j];
                 if (candidate != null && candidate.equals(direction)) {
@@ -637,8 +636,8 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
     @SuppressWarnings("PMD.OverrideBothEqualsAndHashcode")
     public int hashCode() {
         int code = (int) serialVersionUID;
-        for (int i = 0; i < axis.length; i++) {
-            code = code * 37 + axis[i].hashCode();
+        for (CoordinateSystemAxis axi : axis) {
+            code = code * 37 + axi.hashCode();
         }
         return code;
     }
@@ -654,8 +653,8 @@ public class AbstractCS extends AbstractIdentifiedObject implements CoordinateSy
      */
     @Override
     protected String formatWKT(final Formatter formatter) {
-        for (int i = 0; i < axis.length; i++) {
-            formatter.append(axis[i]);
+        for (CoordinateSystemAxis axi : axis) {
+            formatter.append(axi);
         }
         formatter.setInvalidWKT(CoordinateSystem.class);
         return super.formatWKT(formatter);

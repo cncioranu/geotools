@@ -35,6 +35,18 @@ import javax.media.jai.RenderedOp;
 import javax.media.jai.operator.ExtremaDescriptor;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.SuffixFileFilter;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.StyledLayerDescriptor;
+import org.geotools.api.style.UserLayer;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.footprint.FootprintBehavior;
@@ -44,24 +56,12 @@ import org.geotools.gce.imagemosaic.ImageMosaicFormatFactory;
 import org.geotools.gce.imagemosaic.ImageMosaicReader;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.referencing.CRS;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.RasterSymbolizer;
-import org.geotools.styling.Rule;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.StyledLayerDescriptor;
-import org.geotools.styling.UserLayer;
 import org.geotools.test.TestData;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.xml.styling.SLDParser;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 
 /**
  * A Testing class involving footprint and transparency settings together with SLD, making sure that
@@ -88,8 +88,7 @@ public class TransparencyStyledTest {
                 AbstractGridFormat.INPUT_TRANSPARENT_COLOR.createValue();
         inputTransparentColor.setValue(transparentColor);
 
-        GeneralParameterValue[] readParams =
-                new GeneralParameterValue[] {footprintBehaviorParam, inputTransparentColor};
+        GeneralParameterValue[] readParams = {footprintBehaviorParam, inputTransparentColor};
         GridCoverage2D coverage = reader.read(readParams);
 
         reader.dispose();
@@ -229,7 +228,7 @@ public class TransparencyStyledTest {
 
         // Assert the alpha band has been preserved, even with a ChannelSelect SLD in place
         assertHasAlpha(ri);
-        disposeCoverage((GridCoverage2D) output);
+        disposeCoverage(output);
     }
 
     /**
@@ -246,7 +245,7 @@ public class TransparencyStyledTest {
 
         // Assert the alpha band has been preserved, even with a ChannelSelect SLD in place
         assertHasAlpha(ri);
-        disposeCoverage((GridCoverage2D) output);
+        disposeCoverage(output);
     }
 
     /**
@@ -264,7 +263,7 @@ public class TransparencyStyledTest {
 
         // Assert the alpha band has been preserved, even with a ChannelSelect SLD in place
         assertHasAlpha(ri);
-        disposeCoverage((GridCoverage2D) output);
+        disposeCoverage(output);
     }
 
     /**
@@ -289,7 +288,7 @@ public class TransparencyStyledTest {
         Raster rasterPixel = ri.getData(new Rectangle(0, 0, 1, 1));
         assertEquals(0, rasterPixel.getSample(0, 0, 1));
 
-        disposeCoverage((GridCoverage2D) output);
+        disposeCoverage(output);
     }
 
     private File prepareDirectory(String subDirectory) throws IOException {

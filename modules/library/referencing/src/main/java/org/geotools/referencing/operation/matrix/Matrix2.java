@@ -17,9 +17,8 @@
 package org.geotools.referencing.operation.matrix;
 
 import java.io.Serializable;
+import org.geotools.api.referencing.operation.Matrix;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
-import org.opengis.referencing.operation.Matrix;
 
 /**
  * A matrix of fixed {@value #SIZE}&times;{@value #SIZE} size.
@@ -67,7 +66,7 @@ public class Matrix2 implements XMatrix, Serializable {
      */
     public Matrix2(final Matrix matrix) {
         if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         m00 = matrix.getElement(0, 0);
         m01 = matrix.getElement(0, 1);
@@ -81,7 +80,7 @@ public class Matrix2 implements XMatrix, Serializable {
             return (Matrix2) matrix;
         } else {
             if (matrix.getNumRow() != SIZE || matrix.getNumCol() != SIZE) {
-                throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+                throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
             }
             return new Matrix2(matrix);
         }
@@ -91,6 +90,7 @@ public class Matrix2 implements XMatrix, Serializable {
      * Returns the number of rows in this matrix, which is always {@value #SIZE} in this
      * implementation.
      */
+    @Override
     public final int getNumRow() {
         return SIZE;
     }
@@ -99,11 +99,13 @@ public class Matrix2 implements XMatrix, Serializable {
      * Returns the number of colmuns in this matrix, which is always {@value #SIZE} in this
      * implementation.
      */
+    @Override
     public final int getNumCol() {
         return SIZE;
     }
 
     /** {@inheritDoc} */
+    @Override
     public final double getElement(final int row, final int col) {
         switch (row) {
             case 0:
@@ -131,6 +133,7 @@ public class Matrix2 implements XMatrix, Serializable {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void setElement(final int row, final int col, final double value) {
         switch (row) {
             case 0:
@@ -162,11 +165,13 @@ public class Matrix2 implements XMatrix, Serializable {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void setZero() {
         m00 = m01 = m10 = m11 = 0;
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void setIdentity() {
         m01 = m10 = 0;
         m00 = m11 = 1;
@@ -174,21 +179,25 @@ public class Matrix2 implements XMatrix, Serializable {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final boolean isIdentity() {
         return m01 == 0 && m10 == 0 && m00 == 1 && m11 == 1;
     }
 
     /** {@inheritDoc} */
+    @Override
     public final boolean isIdentity(double tolerance) {
         return GeneralMatrix.isIdentity(this, tolerance);
     }
 
     /** {@inheritDoc} */
+    @Override
     public final boolean isAffine() {
         return m10 == 0 && m11 == 1;
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void negate() {
         m00 = -m00;
         m01 = -m01;
@@ -206,6 +215,7 @@ public class Matrix2 implements XMatrix, Serializable {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void transpose() {
         final double swap = m10;
         m10 = m01;
@@ -222,6 +232,7 @@ public class Matrix2 implements XMatrix, Serializable {
     }
 
     /** Inverts this matrix in place. */
+    @Override
     public final void invert() {
         final double det = m00 * m11 - m01 * m10;
         if (det == 0) {
@@ -247,11 +258,13 @@ public class Matrix2 implements XMatrix, Serializable {
         m01 = -k.m01 / det;
     }
 
+    @Override
     public final void multiply(final Matrix matrix) {
         mul(matrix);
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean equals(final Matrix matrix, final double tolerance) {
         return GeneralMatrix.epsilonEquals(this, matrix, tolerance);
     }
@@ -447,9 +460,8 @@ public class Matrix2 implements XMatrix, Serializable {
     @Override
     public void mul(Matrix matrix) {
         final Matrix2 k = internal(matrix);
-        double m0, m1;
-        m0 = m00;
-        m1 = m01;
+        double m0 = m00;
+        double m1 = m01;
         m00 = m0 * k.m00 + m1 * k.m10;
         m01 = m0 * k.m01 + m1 * k.m11;
         m0 = m10;

@@ -28,7 +28,15 @@ import java.util.Set;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
 import org.eclipse.xsd.XSDElementDeclaration;
-import org.geotools.data.DataSourceException;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
@@ -46,14 +54,6 @@ import org.geotools.xsd.impl.BindingLoader;
 import org.geotools.xsd.impl.BindingWalkerFactoryImpl;
 import org.geotools.xsd.impl.NamespaceSupportWrapper;
 import org.geotools.xsd.impl.ParserHandler;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.picocontainer.MutablePicoContainer;
 import org.picocontainer.defaults.DefaultPicoContainer;
 import org.xml.sax.helpers.NamespaceSupport;
@@ -124,9 +124,8 @@ public class EmfAppSchemaParser {
      */
     public static SimpleFeatureType toSimpleFeatureType(final FeatureType realType)
             throws DataSourceException {
-        List<PropertyDescriptor> attributes;
         Collection<PropertyDescriptor> descriptors = realType.getDescriptors();
-        attributes = new ArrayList<>(descriptors);
+        List<PropertyDescriptor> attributes = new ArrayList<>(descriptors);
         List<String> simpleProperties = new ArrayList<>();
 
         // HACK HACK!! the parser sets no namespace to the properties so we're
@@ -208,7 +207,9 @@ public class EmfAppSchemaParser {
             final CoordinateReferenceSystem crs,
             final Map<QName, Class<?>> mappedBindings)
             throws IOException {
-        XSDElementDeclaration elementDecl = parseFeatureType(featureName, schemaLocation);
+        ApplicationSchemaConfiguration configuration =
+                getConfiguration(featureName, schemaLocation);
+        XSDElementDeclaration elementDecl = parseFeatureType(featureName, configuration);
 
         Map<QName, Object> bindings = wfsConfiguration.setupBindings();
         if (mappedBindings != null) {
@@ -271,18 +272,15 @@ public class EmfAppSchemaParser {
                             + " from "
                             + schemaLocation.toExternalForm();
             throw (IOException) new IOException(msg).initCause(e);
+        } finally {
+            configuration.getXSD().dispose();
         }
     }
 
     /** TODO: add connectionfactory parameter to handle authentication, gzip, etc */
     private static XSDElementDeclaration parseFeatureType(
-            final QName featureTypeName, final URL schemaLocation) throws DataSourceException {
-        ApplicationSchemaConfiguration configuration;
-        {
-            String namespaceURI = featureTypeName.getNamespaceURI();
-            String uri = schemaLocation.toExternalForm();
-            configuration = new ApplicationSchemaConfiguration(namespaceURI, uri);
-        }
+            final QName featureTypeName, ApplicationSchemaConfiguration configuration)
+            throws DataSourceException {
         SchemaIndex schemaIndex;
         try {
             schemaIndex = Schemas.findSchemas(configuration);
@@ -290,13 +288,24 @@ public class EmfAppSchemaParser {
             throw new DataSourceException("Error parsing feature type for " + featureTypeName, e);
         }
 
-        XSDElementDeclaration elementDeclaration;
-        elementDeclaration = schemaIndex.getElementDeclaration(featureTypeName);
+        XSDElementDeclaration elementDeclaration =
+                schemaIndex.getElementDeclaration(featureTypeName);
         schemaIndex.destroy();
         if (elementDeclaration == null) {
             throw new DataSourceException("No XSDElementDeclaration found for " + featureTypeName);
         }
         return elementDeclaration;
+    }
+
+    private static ApplicationSchemaConfiguration getConfiguration(
+            final QName featureTypeName, final URL schemaLocation) {
+        ApplicationSchemaConfiguration configuration;
+        {
+            String namespaceURI = featureTypeName.getNamespaceURI();
+            String uri = schemaLocation.toExternalForm();
+            configuration = new ApplicationSchemaConfiguration(namespaceURI, uri);
+        }
+        return configuration;
     }
 
     public static SimpleFeatureType parseSimpleFeatureType(

@@ -19,6 +19,7 @@ package org.geotools.geometry.jts;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -133,16 +134,14 @@ public class WKTReader2Test {
     public void curvePolygon() throws Exception {
         // perfect circle!
         WKTReader reader = new WKTReader2();
-        String WKT;
-        Polygon polygon;
-        Geometry geometry;
 
-        WKT =
-                "CURVEPOLYGON(CIRCULARSTRING(143.62025166838282 -30.037497356076827, 142.92857147299705 -32.75101196874403, 143.62025166838282 -30.037497356076827))";
-        geometry = reader.read(WKT);
+        String WKT =
+                "CURVEPOLYGON(CIRCULARSTRING(143.62025166838282 -30.037497356076827, 142"
+                        + ".92857147299705 -32.75101196874403, 143.62025166838282 -30.037497356076827))";
+        Geometry geometry = reader.read(WKT);
         assertNotNull("read curvepolygon", geometry);
         assertTrue(geometry instanceof Polygon);
-        polygon = (Polygon) geometry;
+        Polygon polygon = (Polygon) geometry;
         assertTrue(polygon.getExteriorRing() instanceof CircularRing);
         assertTrue("ring", polygon.getExteriorRing().isClosed());
         assertEquals("segmented ring", 51, polygon.getExteriorRing().getNumPoints());
@@ -184,14 +183,14 @@ public class WKTReader2Test {
         WKT = "MULTICURVE((0 0, 5 5),CIRCULARSTRING(4 0, 4 4, 8 4))";
         ml = (MultiLineString) reader.read(WKT);
         assertEquals(2, ml.getNumGeometries());
-        assertTrue(ml.getGeometryN(0).getClass() == LineString.class);
+        assertSame(ml.getGeometryN(0).getClass(), LineString.class);
         assertTrue(ml.getGeometryN(1) instanceof CircularString);
 
         WKT =
                 "MULTICURVE((100 100, 120 120), COMPOUNDCURVE(CIRCULARSTRING(0 0, 2 0, 2 1, 2 3, 4 3),(4 3, 4 5, 1 4, 0 0)))";
         ml = (MultiLineString) reader.read(WKT);
         assertEquals(2, ml.getNumGeometries());
-        assertTrue(ml.getGeometryN(0).getClass() == LineString.class);
+        assertSame(ml.getGeometryN(0).getClass(), LineString.class);
         assertTrue(ml.getGeometryN(1) instanceof CompoundRing);
     }
 
@@ -240,5 +239,56 @@ public class WKTReader2Test {
         assertFalse(ms.getGeometryN(0) instanceof CurvePolygon);
         assertTrue(ms.getGeometryN(1) instanceof CurvePolygon);
         assertFalse(ms.getGeometryN(2) instanceof CurvePolygon);
+    }
+
+    @Test
+    public void testEmptyPoint() throws Exception {
+        WKTReader2 wktReader2 = new WKTReader2();
+        String wkt = "POINT EMPTY";
+        Geometry geom = wktReader2.read(wkt);
+        assertNotNull(geom);
+        assertTrue(geom.isEmpty());
+        wkt = "MULTIPOINT EMPTY";
+        geom = wktReader2.read(wkt);
+        assertNotNull(geom);
+        assertTrue(geom.isEmpty());
+        wkt = "MULTIPOINT (EMPTY)";
+        geom = wktReader2.read(wkt);
+        assertNotNull(geom);
+        assertTrue(geom.isEmpty());
+    }
+
+    @Test
+    public void testEmptyLineString() throws Exception {
+        WKTReader2 wktReader2 = new WKTReader2();
+        String wkt = "LINESTRING EMPTY";
+        Geometry geom = wktReader2.read(wkt);
+        assertNotNull(geom);
+        assertTrue(geom.isEmpty());
+        wkt = "MULTILINESTRING EMPTY";
+        geom = wktReader2.read(wkt);
+        assertNotNull(geom);
+        assertTrue(geom.isEmpty());
+        wkt = "MULTILINESTRING (EMPTY)";
+        geom = wktReader2.read(wkt);
+        assertNotNull(geom);
+        assertTrue(geom.isEmpty());
+    }
+
+    @Test
+    public void testEmptyPolygon() throws Exception {
+        WKTReader2 wktReader2 = new WKTReader2();
+        String wkt = "POLYGON EMPTY";
+        Geometry geom = wktReader2.read(wkt);
+        assertNotNull(geom);
+        assertTrue(geom.isEmpty());
+        wkt = "MULTIPOLYGON EMPTY";
+        geom = wktReader2.read(wkt);
+        assertNotNull(geom);
+        assertTrue(geom.isEmpty());
+        wkt = "MULTIPOLYGON (EMPTY)";
+        geom = wktReader2.read(wkt);
+        assertNotNull(geom);
+        assertTrue(geom.isEmpty());
     }
 }

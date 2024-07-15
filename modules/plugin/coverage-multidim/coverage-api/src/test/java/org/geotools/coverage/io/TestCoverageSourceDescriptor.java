@@ -24,6 +24,13 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.TemporalCRS;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.grid.io.DimensionDescriptor;
 import org.geotools.coverage.io.CoverageSource.AdditionalDomain;
 import org.geotools.coverage.io.CoverageSource.SpatialDomain;
@@ -33,14 +40,6 @@ import org.geotools.feature.NameImpl;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultTemporalCRS;
 import org.geotools.util.DateRange;
-import org.opengis.feature.type.Name;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.TemporalCRS;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.util.ProgressListener;
 
 public class TestCoverageSourceDescriptor extends CoverageSourceDescriptor {
 
@@ -52,8 +51,6 @@ public class TestCoverageSourceDescriptor extends CoverageSourceDescriptor {
     static {
         try {
             WGS84 = CRS.decode("EPSG:4326", true);
-        } catch (NoSuchAuthorityCodeException e) {
-            LOGGER.log(Level.FINER, e.getMessage(), e);
         } catch (FactoryException e) {
             LOGGER.log(Level.FINER, e.getMessage(), e);
         }

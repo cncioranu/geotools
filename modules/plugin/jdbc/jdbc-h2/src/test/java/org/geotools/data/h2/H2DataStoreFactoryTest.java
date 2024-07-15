@@ -16,6 +16,7 @@
  */
 package org.geotools.data.h2;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -27,11 +28,12 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
-import org.geotools.data.DataStore;
+import org.geotools.api.data.DataStore;
 import org.geotools.data.jdbc.datasource.ManageableDataSource;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCDataStoreFactory;
 import org.h2.tools.Server;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -94,6 +96,9 @@ public class H2DataStoreFactoryTest {
 
     @Test
     public void testTCP() throws Exception {
+        // will fail on GitHub linux build, due to TCP port opening
+        Assume.assumeFalse(Boolean.getBoolean("linux-github-build"));
+
         Map<String, Object> params = new HashMap<>();
         params.put(H2DataStoreFactory.HOST.key, "localhost");
         params.put(H2DataStoreFactory.DATABASE.key, "geotools");
@@ -141,7 +146,7 @@ public class H2DataStoreFactoryTest {
             assertNull(params.get(H2DataStoreFactory.FETCHSIZE.key));
             ds = factory.createDataStore(params);
             assertNotNull(ds);
-            assertTrue(ds.getFetchSize() == 1000);
+            assertEquals(1000, ds.getFetchSize());
         } finally {
             if (ds != null) {
                 ds.dispose();

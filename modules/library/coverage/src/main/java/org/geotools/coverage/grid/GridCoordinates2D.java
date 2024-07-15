@@ -17,9 +17,9 @@
 package org.geotools.coverage.grid;
 
 import java.awt.Point;
+import java.text.MessageFormat;
+import org.geotools.api.coverage.grid.GridCoordinates;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
-import org.opengis.coverage.grid.GridCoordinates;
 
 /**
  * Holds the set of two-dimensional grid coordinates that specifies the location of the {@linkplain
@@ -60,6 +60,7 @@ public class GridCoordinates2D extends Point implements GridCoordinates {
     }
 
     /** Returns the number of dimensions, which is always 2. */
+    @Override
     public final int getDimension() {
         return 2;
     }
@@ -68,6 +69,7 @@ public class GridCoordinates2D extends Point implements GridCoordinates {
      * Returns one integer value for each dimension of the grid. This method returns ({@linkplain #x
      * x},{@linkplain #y y}) in an array of length 2.
      */
+    @Override
     public int[] getCoordinateValues() {
         return new int[] {x, y};
     }
@@ -80,6 +82,7 @@ public class GridCoordinates2D extends Point implements GridCoordinates {
      * @return The value at the requested dimension.
      * @throws IndexOutOfBoundsException if the specified dimension is out of bounds.
      */
+    @Override
     public int getCoordinateValue(final int dimension) throws IndexOutOfBoundsException {
         switch (dimension) {
             case 0:
@@ -99,6 +102,7 @@ public class GridCoordinates2D extends Point implements GridCoordinates {
      * @throws IndexOutOfBoundsException if the specified dimension is out of bounds.
      * @throws UnsupportedOperationException if this grid coordinates is not modifiable.
      */
+    @Override
     public void setCoordinateValue(final int dimension, final int value)
             throws IndexOutOfBoundsException, UnsupportedOperationException {
         switch (dimension) {
@@ -115,7 +119,7 @@ public class GridCoordinates2D extends Point implements GridCoordinates {
 
     /** Formats a message for an index out of 2D bounds. */
     static String indexOutOfBounds(final int dimension) {
-        return Errors.format(ErrorKeys.INDEX_OUT_OF_BOUNDS_$1, dimension);
+        return MessageFormat.format(ErrorKeys.INDEX_OUT_OF_BOUNDS_$1, dimension);
     }
 
     /** Returns a string representation of this grid coordinates. */
@@ -148,7 +152,8 @@ public class GridCoordinates2D extends Point implements GridCoordinates {
     static void ensureNonNull(final String name, final Object object)
             throws IllegalArgumentException {
         if (object == null) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, name));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, name));
         }
     }
 }

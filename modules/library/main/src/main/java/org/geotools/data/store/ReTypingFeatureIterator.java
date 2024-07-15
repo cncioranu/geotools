@@ -16,12 +16,12 @@
  */
 package org.geotools.data.store;
 
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
 
 /**
  * FeatureIterator wrapper which re-types features on the fly based on a target feature type.
@@ -53,17 +53,19 @@ public class ReTypingFeatureIterator implements SimpleFeatureIterator {
         return delegate;
     }
 
+    @Override
     public boolean hasNext() {
         return delegate.hasNext();
     }
 
+    @Override
     public SimpleFeature next() {
         SimpleFeature next = delegate.next();
         String id = next.getID();
 
         try {
-            for (int i = 0; i < types.length; i++) {
-                final String xpath = types[i].getLocalName();
+            for (AttributeDescriptor type : types) {
+                final String xpath = type.getLocalName();
                 builder.add(next.getAttribute(xpath));
             }
             builder.featureUserData(next);

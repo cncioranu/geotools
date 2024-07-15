@@ -16,6 +16,7 @@
  */
 package org.geotools.util;
 
+import java.io.Console;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -25,10 +26,10 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 
@@ -86,7 +87,7 @@ public class Arguments {
      *     be automatically parsed.
      */
     @SuppressWarnings("PMD.CloseResource") // we don't close System.out
-    public Arguments(final String[] args) {
+    public Arguments(final String... args) {
         this.arguments = args.clone();
         this.locale = getLocale(getOptionalString("-locale"));
         this.encoding = getOptionalString("-encoding");
@@ -128,7 +129,7 @@ public class Arguments {
                 default:
                     illegalArgument(
                             new IllegalArgumentException(
-                                    Errors.format(ErrorKeys.BAD_LOCALE_$1, locale)));
+                                    MessageFormat.format(ErrorKeys.BAD_LOCALE_$1, locale)));
             }
         }
         return Locale.getDefault();
@@ -179,8 +180,8 @@ public class Arguments {
                     }
                     illegalArgument(
                             new IllegalArgumentException(
-                                    Errors.getResources(locale)
-                                            .getString(ErrorKeys.MISSING_PARAMETER_VALUE_$1, arg)));
+                                    MessageFormat.format(
+                                            ErrorKeys.MISSING_PARAMETER_VALUE_$1, arg)));
                     return null;
                 }
             }
@@ -201,8 +202,7 @@ public class Arguments {
         if (value == null) {
             illegalArgument(
                     new IllegalArgumentException(
-                            Errors.getResources(locale)
-                                    .getString(ErrorKeys.MISSING_PARAMETER_$1, name)));
+                            MessageFormat.format(ErrorKeys.MISSING_PARAMETER_$1, name)));
         }
         return value;
     }
@@ -351,9 +351,9 @@ public class Arguments {
      */
     public static Reader getReader(final InputStream in) {
         if (in == System.in) {
-            final Reader candidate = Java6.consoleReader();
+            final Console candidate = System.console();
             if (candidate != null) {
-                return candidate;
+                return candidate.reader();
             }
         }
         return new InputStreamReader(in);
@@ -367,9 +367,9 @@ public class Arguments {
      */
     public static Writer getWriter(final OutputStream out) {
         if (out == System.out || out == System.err) {
-            final PrintWriter candidate = Java6.consoleWriter();
+            final Console candidate = System.console();
             if (candidate != null) {
-                return candidate;
+                return candidate.writer();
             }
         }
         return new OutputStreamWriter(out);
@@ -383,9 +383,9 @@ public class Arguments {
      */
     public static PrintWriter getPrintWriter(final PrintStream out) {
         if (out == System.out || out == System.err) {
-            final PrintWriter candidate = Java6.consoleWriter();
+            final Console candidate = System.console();
             if (candidate != null) {
-                return candidate;
+                return candidate.writer();
             }
         }
         return new PrintWriter(out, true);
@@ -401,16 +401,12 @@ public class Arguments {
     public String[] getRemainingArguments(final int max) {
         int count = 0;
         final String[] left = new String[Math.min(max, arguments.length)];
-        for (int i = 0; i < arguments.length; i++) {
-            final String arg = arguments[i];
+        for (final String arg : arguments) {
             if (arg != null) {
                 if (count >= max) {
                     illegalArgument(
                             new IllegalArgumentException(
-                                    Errors.getResources(locale)
-                                            .getString(
-                                                    ErrorKeys.UNEXPECTED_PARAMETER_$1,
-                                                    arguments[i])));
+                                    MessageFormat.format(ErrorKeys.UNEXPECTED_PARAMETER_$1, arg)));
                 }
                 left[count++] = arg;
             }
@@ -432,17 +428,16 @@ public class Arguments {
      */
     public String[] getRemainingArguments(final int max, final char forbiddenPrefix) {
         final String[] arguments = getRemainingArguments(max);
-        for (int i = 0; i < arguments.length; i++) {
-            String argument = arguments[i];
+        for (String s : arguments) {
+            String argument = s;
             if (argument != null) {
                 argument = argument.trim();
                 if (argument.length() != 0) {
                     if (argument.charAt(0) == forbiddenPrefix) {
                         illegalArgument(
                                 new IllegalArgumentException(
-                                        Errors.getResources(locale)
-                                                .getString(
-                                                        ErrorKeys.UNKNOW_PARAMETER_$1, argument)));
+                                        MessageFormat.format(
+                                                ErrorKeys.UNKNOW_PARAMETER_$1, argument)));
                     }
                 }
             }

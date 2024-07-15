@@ -21,6 +21,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
@@ -30,10 +34,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.capability.FunctionName;
 
 /** @author Tobias Warneke */
 public class FilterFunction_listMultiplyTest {
@@ -102,7 +102,7 @@ public class FilterFunction_listMultiplyTest {
     public void testEvaluateNull() {
         FilterFunction_listMultiply func =
                 (FilterFunction_listMultiply)
-                        ff.function("listMultiply", ff.literal(2.5), ff.literal((String) null));
+                        ff.function("listMultiply", ff.literal(2.5), ff.literal(null));
         Object evaluate = func.evaluate(null);
         assertNull(evaluate);
     }

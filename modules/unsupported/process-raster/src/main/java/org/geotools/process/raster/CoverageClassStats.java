@@ -22,6 +22,7 @@ import it.geosolutions.jaiext.classbreaks.Classification;
 import java.awt.image.RenderedImage;
 import java.awt.image.renderable.ParameterBlock;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.Set;
 import javax.media.jai.JAI;
 import javax.media.jai.ParameterBlockJAI;
 import javax.media.jai.operator.BandSelectDescriptor;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.metadata.i18n.ErrorKeys;
 import org.geotools.process.ProcessException;
@@ -37,13 +39,11 @@ import org.geotools.process.classify.ClassificationStats;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
-import org.geotools.renderer.i18n.Errors;
 import org.jaitools.media.jai.zonalstats.Result;
 import org.jaitools.media.jai.zonalstats.ZonalStats;
 import org.jaitools.media.jai.zonalstats.ZonalStatsDescriptor;
 import org.jaitools.numeric.Range;
 import org.jaitools.numeric.Statistic;
-import org.opengis.util.ProgressListener;
 
 /**
  * Process that classifies vector data into "classes" using one of the following methods:
@@ -55,9 +55,9 @@ import org.opengis.util.ProgressListener;
  * </ul>
  */
 @DescribeProcess(
-    title = "coverageClassStats",
-    description = "Calculates statistics from coverage" + " values classified into bins/classes."
-)
+        title = "coverageClassStats",
+        description =
+                "Calculates statistics from coverage" + " values classified into bins/classes.")
 public class CoverageClassStats implements RasterProcess {
 
     @DescribeResult(name = "results", description = "The classified results")
@@ -65,31 +65,27 @@ public class CoverageClassStats implements RasterProcess {
             @DescribeParameter(name = "coverage", description = "The coverage to analyze")
                     GridCoverage2D coverage,
             @DescribeParameter(
-                        name = "stats",
-                        description = "The statistics to calculate for each class",
-                        collectionType = Statistic.class,
-                        min = 0
-                    )
+                            name = "stats",
+                            description = "The statistics to calculate for each class",
+                            collectionType = Statistic.class,
+                            min = 0)
                     Set<Statistic> stats,
             @DescribeParameter(
-                        name = "band",
-                        description = "The band to calculate breaks/statistics for",
-                        min = 0
-                    )
+                            name = "band",
+                            description = "The band to calculate breaks/statistics for",
+                            min = 0)
                     Integer band,
             @DescribeParameter(
-                        name = "classes",
-                        description = "The number of breaks/classes",
-                        min = 0
-                    )
+                            name = "classes",
+                            description = "The number of breaks/classes",
+                            min = 0)
                     Integer classes,
             @DescribeParameter(name = "method", description = "The classification method", min = 0)
                     ClassificationMethod method,
             @DescribeParameter(
-                        name = "noData",
-                        description = "The pixel value to be ommitted from any calculation",
-                        min = 0
-                    )
+                            name = "noData",
+                            description = "The pixel value to be ommitted from any calculation",
+                            min = 0)
                     Double noData,
             ProgressListener progressListener)
             throws ProcessException, IOException {
@@ -98,7 +94,8 @@ public class CoverageClassStats implements RasterProcess {
         // initial checks/defaults
         //
         if (coverage == null) {
-            throw new ProcessException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "coverage"));
+            throw new ProcessException(
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "coverage"));
         }
 
         if (classes == null) {
@@ -107,7 +104,7 @@ public class CoverageClassStats implements RasterProcess {
 
         if (classes < 1) {
             throw new ProcessException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "classes", classes));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "classes", classes));
         }
 
         RenderedImage sourceImage = coverage.getRenderedImage();
@@ -119,7 +116,8 @@ public class CoverageClassStats implements RasterProcess {
 
         final int numBands = sourceImage.getSampleModel().getNumBands();
         if (band < 0 || band >= numBands) {
-            throw new ProcessException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "band", band));
+            throw new ProcessException(
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "band", band));
         }
 
         if (numBands > 1) {
@@ -214,22 +212,27 @@ public class CoverageClassStats implements RasterProcess {
             ranges = zonalStats.statistic(firstStat).results();
         }
 
+        @Override
         public int size() {
             return ranges.size();
         }
 
+        @Override
         public Set<Statistic> getStats() {
             return stats;
         }
 
+        @Override
         public Range range(int i) {
             return ranges.get(i).getRanges().iterator().next();
         }
 
+        @Override
         public Double value(int i, Statistic stat) {
             return zonalStats.statistic(stat).results().get(i).getValue();
         }
 
+        @Override
         public Long count(int i) {
             return zonalStats.statistic(firstStat).results().get(i).getNumAccepted();
         }

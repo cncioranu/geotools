@@ -19,10 +19,10 @@ package org.geotools.data.store;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
-import org.geotools.data.FeatureEvent;
-import org.geotools.data.FeatureListener;
-import org.geotools.data.Transaction;
-import org.opengis.feature.type.Name;
+import org.geotools.api.data.FeatureEvent;
+import org.geotools.api.data.FeatureListener;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.type.Name;
 
 /**
  * An entry for a type or feature source provided by a DataStore.
@@ -110,7 +110,7 @@ public class ContentEntry {
             return state.get(transaction);
         } else {
             ContentState auto = state.get(Transaction.AUTO_COMMIT);
-            ContentState copy = (ContentState) auto.copy();
+            ContentState copy = auto.copy();
             Transaction t = (transaction != null ? transaction : Transaction.AUTO_COMMIT);
             copy.setTransaction(t);
             state.put(t, copy);
@@ -157,6 +157,7 @@ public class ContentEntry {
         }
     }
 
+    @Override
     public String toString() {
         return "ContentEntry " + getTypeName();
     }

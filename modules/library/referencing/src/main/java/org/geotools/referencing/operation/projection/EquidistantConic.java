@@ -29,22 +29,22 @@ import static java.lang.Math.sin;
 import static java.lang.Math.toDegrees;
 
 import java.awt.geom.Point2D;
+import java.text.MessageFormat;
 import java.util.Collection;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.PlanarProjection;
 import org.geotools.measure.Latitude;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.PlanarProjection;
 
 /**
  * Equidistant Conic Projection.
@@ -111,11 +111,10 @@ public class EquidistantConic extends MapProjection {
 
         // Compute Constants
         if (abs(phi1 + phi2) < EPSILON) {
+            final Object arg0 = new Latitude(toDegrees(phi1));
+            final Object arg1 = new Latitude(toDegrees(phi2));
             throw new IllegalArgumentException(
-                    Errors.format(
-                            ErrorKeys.ANTIPODE_LATITUDES_$2,
-                            new Latitude(toDegrees(phi1)),
-                            new Latitude(toDegrees(phi2))));
+                    MessageFormat.format(ErrorKeys.ANTIPODE_LATITUDES_$2, arg0, arg1));
         }
 
         double sinphi = n = sin(phi1);
@@ -130,10 +129,9 @@ public class EquidistantConic extends MapProjection {
             rho0 = c - latitudeOfOrigin;
             en0 = en1 = en2 = en3 = en4 = 0.0;
         } else {
-            double ml1, m1;
-            m1 = msfn(sinphi, cosphi);
+            double m1 = msfn(sinphi, cosphi);
 
-            ml1 = mlfn(phi1, sinphi, cosphi);
+            double ml1 = mlfn(phi1, sinphi, cosphi);
             if (secant) {
                 sinphi = sin(phi2);
                 cosphi = cos(phi2);
@@ -146,6 +144,7 @@ public class EquidistantConic extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -165,6 +164,7 @@ public class EquidistantConic extends MapProjection {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double x, double y, final Point2D ptDst)
             throws ProjectionException {
         final double cosphi = cos(y);
@@ -185,6 +185,7 @@ public class EquidistantConic extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, final Point2D ptDst)
             throws ProjectionException {
         double rho = hypot(x, (y = this.rho0 - y));
@@ -270,6 +271,7 @@ public class EquidistantConic extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException, FactoryException {
             return new EquidistantConic(parameters);

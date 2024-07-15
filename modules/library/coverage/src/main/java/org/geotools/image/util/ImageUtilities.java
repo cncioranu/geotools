@@ -47,6 +47,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -70,18 +71,17 @@ import javax.media.jai.RasterFactory;
 import javax.media.jai.RenderedImageAdapter;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.WritableRenderedImageAdapter;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.metadata.extent.GeographicBoundingBox;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.ImageWorker;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.Classes;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.metadata.extent.GeographicBoundingBox;
 
 /**
  * A set of static methods working on images. Some of those methods are useful, but not really
@@ -111,13 +111,12 @@ public final class ImageUtilities {
     static {
 
         // do we wrappers at hand?
-        boolean mediaLib = false;
         Class<?> mediaLibImage = null;
         try {
             mediaLibImage = Class.forName("com.sun.medialib.mlib.Image");
         } catch (ClassNotFoundException e) {
         }
-        mediaLib = (mediaLibImage != null);
+        boolean mediaLib = (mediaLibImage != null);
 
         // npw check if we either wanted to disable explicitly and if we installed the native libs
         if (mediaLib) {
@@ -129,29 +128,23 @@ public final class ImageUtilities {
                 // native libs installed
                 if (mediaLib) {
                     final Class<?> mImage = mediaLibImage;
-                    mediaLib =
-                            AccessController.doPrivileged(
-                                    new PrivilegedAction<Boolean>() {
-                                        public Boolean run() {
-                                            try {
-                                                // get the method
-                                                final Class<?>[] params = {};
-                                                Method method =
-                                                        mImage.getDeclaredMethod(
-                                                                "isAvailable", params);
+                    PrivilegedAction<Boolean> action =
+                            () -> {
+                                try {
+                                    // get the method
+                                    final Class<?>[] params = {};
+                                    Method method = mImage.getDeclaredMethod("isAvailable", params);
 
-                                                // invoke
-                                                final Object[] paramsObj = {};
+                                    // invoke
+                                    final Object[] paramsObj = {};
 
-                                                final Object o =
-                                                        mImage.getDeclaredConstructor()
-                                                                .newInstance();
-                                                return (Boolean) method.invoke(o, paramsObj);
-                                            } catch (Throwable e) {
-                                                return false;
-                                            }
-                                        }
-                                    });
+                                    final Object o = mImage.getDeclaredConstructor().newInstance();
+                                    return (Boolean) method.invoke(o, paramsObj);
+                                } catch (Throwable e) {
+                                    return false;
+                                }
+                            };
+                    mediaLib = AccessController.doPrivileged(action);
                 }
             } catch (Throwable e) {
                 // Because the property com.sun.media.jai.disableMediaLib isn't
@@ -354,10 +347,8 @@ public final class ImageUtilities {
             if (defaultSize == null) {
                 defaultSize = GEOTOOLS_DEFAULT_TILE_SIZE;
             }
-            int sw;
-            int sh;
-            sw = toTileSize(image.getWidth(), defaultSize.width);
-            sh = toTileSize(image.getHeight(), defaultSize.height);
+            int sw = toTileSize(image.getWidth(), defaultSize.width);
+            int sh = toTileSize(image.getHeight(), defaultSize.height);
             boolean smallTileWidth = image.getTileWidth() <= STRIPE_SIZE;
             boolean smallTileHeight = image.getTileHeight() < STRIPE_SIZE;
             if (sw != 0 || sh != 0 || smallTileHeight || smallTileWidth) {
@@ -537,8 +528,8 @@ public final class ImageUtilities {
             int minYL = result.getMinY(source);
             int maxXL = result.getWidth(source) + minXL;
             int maxYL = result.getHeight(source) + minYL;
-            for (int i = 0; i < n; i++) {
-                source = sources.get(i);
+            for (RenderedImage renderedImage : sources) {
+                source = renderedImage;
                 final int minX = source.getMinX();
                 final int minY = source.getMinY();
                 final int maxX = source.getWidth() + minX;
@@ -600,7 +591,8 @@ public final class ImageUtilities {
                 }
             }
         }
-        throw new IllegalArgumentException(Errors.format(ErrorKeys.UNKNOW_INTERPOLATION_$1, type));
+        throw new IllegalArgumentException(
+                MessageFormat.format(ErrorKeys.UNKNOW_INTERPOLATION_$1, type));
     }
 
     /**
@@ -771,7 +763,7 @@ public final class ImageUtilities {
                 Arrays.fill(data.getData(i), offset, offset + size, n);
             }
         } else {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.UNSUPPORTED_DATA_TYPE));
+            throw new IllegalArgumentException(ErrorKeys.UNSUPPORTED_DATA_TYPE);
         }
     }
 
@@ -956,27 +948,25 @@ public final class ImageUtilities {
         int h = source.getHeight();
 
         // Variables to store the calculated destination upper left coordinate
-        long dx0Num, dx0Denom, dy0Num, dy0Denom;
 
         // Variables to store the calculated destination bottom right
         // coordinate
-        long dx1Num, dx1Denom, dy1Num, dy1Denom;
 
         // Start calculations for destination
 
-        dx0Num = x0;
-        dx0Denom = 1;
+        long dx0Num = x0;
+        long dx0Denom = 1;
 
-        dy0Num = y0;
-        dy0Denom = 1;
+        long dy0Num = y0;
+        long dy0Denom = 1;
 
         // Formula requires srcMaxX + 1 = (x0 + w - 1) + 1 = x0 + w
-        dx1Num = x0 + w;
-        dx1Denom = 1;
+        long dx1Num = x0 + w;
+        long dx1Denom = 1;
 
         // Formula requires srcMaxY + 1 = (y0 + h - 1) + 1 = y0 + h
-        dy1Num = y0 + h;
-        dy1Denom = 1;
+        long dy1Num = y0 + h;
+        long dy1Denom = 1;
 
         dx0Num *= scaleXRationalNum;
         dx0Denom *= scaleXRationalDenom;
@@ -1023,13 +1013,12 @@ public final class ImageUtilities {
         dy1Denom *= transYRationalDenom;
 
         // Get the integral coordinates
-        int l_x0, l_y0, l_x1, l_y1;
 
-        l_x0 = Rational.ceil(dx0Num, dx0Denom);
-        l_y0 = Rational.ceil(dy0Num, dy0Denom);
+        int l_x0 = Rational.ceil(dx0Num, dx0Denom);
+        int l_y0 = Rational.ceil(dy0Num, dy0Denom);
 
-        l_x1 = Rational.ceil(dx1Num, dx1Denom);
-        l_y1 = Rational.ceil(dy1Num, dy1Denom);
+        int l_x1 = Rational.ceil(dx1Num, dx1Denom);
+        int l_y1 = Rational.ceil(dy1Num, dy1Denom);
 
         // Set the top left coordinate of the destination
         final Rectangle2D retValue = new Rectangle2D.Double();
@@ -1057,14 +1046,14 @@ public final class ImageUtilities {
     }
 
     /**
-     * Builds a {@link ReferencedEnvelope} in WGS84 from a {@link GeneralEnvelope}.
+     * Builds a {@link ReferencedEnvelope} in WGS84 from a {@link GeneralBounds}.
      *
-     * @param coverageEnvelope the {@link GeneralEnvelope} to convert.
+     * @param coverageEnvelope the {@link GeneralBounds} to convert.
      * @return an instance of {@link ReferencedEnvelope} in WGS84 or <code>null</code> in case a
      *     problem during the conversion occurs.
      */
     public static ReferencedEnvelope getWGS84ReferencedEnvelope(
-            final GeneralEnvelope coverageEnvelope) {
+            final GeneralBounds coverageEnvelope) {
         Utilities.ensureNonNull("coverageEnvelope", coverageEnvelope);
         final ReferencedEnvelope refEnv = new ReferencedEnvelope(coverageEnvelope);
         try {
@@ -1096,7 +1085,7 @@ public final class ImageUtilities {
         Utilities.ensureNonNull("reader", reader);
         if (imageIndex < 0)
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.INDEX_OUT_OF_BOUNDS_$1, imageIndex));
+                    MessageFormat.format(ErrorKeys.INDEX_OUT_OF_BOUNDS_$1, imageIndex));
         inStream.reset();
         reader.setInput(inStream);
         return new Rectangle(0, 0, reader.getWidth(imageIndex), reader.getHeight(imageIndex));
@@ -1164,7 +1153,7 @@ public final class ImageUtilities {
                 break;
             case DataBuffer.TYPE_INT:
                 values = new Integer[numBands];
-                if (backgroundValues == null) Arrays.fill(values, Integer.valueOf((int) 0));
+                if (backgroundValues == null) Arrays.fill(values, Integer.valueOf(0));
                 else {
                     // we have background values available
                     for (int i = 0; i < values.length; i++)
@@ -1194,13 +1183,14 @@ public final class ImageUtilities {
                     for (int i = 0; i < values.length; i++)
                         values[i] =
                                 i >= backgroundValues.length
-                                        ? Double.valueOf((Double) backgroundValues[0])
-                                        : Double.valueOf((Double) backgroundValues[i]);
+                                        ? Double.valueOf(backgroundValues[0])
+                                        : Double.valueOf(backgroundValues[i]);
                 }
                 break;
         }
         return values;
     }
+
     /**
      * Allow to dispose this image, as well as the related image sources, readers, stream, ROI.
      *
@@ -1436,5 +1426,39 @@ public final class ImageUtilities {
         }
 
         return result;
+    }
+
+    /**
+     * Shared method to compute suitable subsampling factors on the provided <code>readParameters
+     * </code>, based on requested resolution, selected resolution, and raster width and height
+     */
+    public static void setSubsamplingFactors(
+            ImageReadParam readParameters,
+            double[] requestedRes,
+            double[] selectedRes,
+            int rasterWidth,
+            int rasterHeight) {
+        // DECIMATION ON READING
+        // Setting subsampling factors with some checks
+        // 1) the subsampling factors cannot be zero
+        // 2) the subsampling factors cannot be such that the w or h are zero
+        // Note: using "round" instead of floor to go for the closest subsampling factory
+        // improves quality
+        // /////////////////////////////////////////////////////////////////////
+        int subSamplingFactorX = (int) Math.round(requestedRes[0] / selectedRes[0]);
+        subSamplingFactorX = subSamplingFactorX == 0 ? 1 : subSamplingFactorX;
+
+        while (subSamplingFactorX > 0 && rasterWidth / subSamplingFactorX <= 0)
+            subSamplingFactorX--;
+        subSamplingFactorX = subSamplingFactorX <= 0 ? 1 : subSamplingFactorX;
+
+        int subSamplingFactorY = (int) Math.round(requestedRes[1] / selectedRes[1]);
+        subSamplingFactorY = subSamplingFactorY == 0 ? 1 : subSamplingFactorY;
+
+        while (subSamplingFactorY > 0 && rasterHeight / subSamplingFactorY <= 0)
+            subSamplingFactorY--;
+        subSamplingFactorY = subSamplingFactorY <= 0 ? 1 : subSamplingFactorY;
+
+        readParameters.setSourceSubsampling(subSamplingFactorX, subSamplingFactorY, 0, 0);
     }
 }

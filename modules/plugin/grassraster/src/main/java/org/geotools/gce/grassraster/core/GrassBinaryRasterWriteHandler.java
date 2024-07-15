@@ -28,6 +28,9 @@ import java.io.OutputStreamWriter;
 import java.util.Date;
 import javax.imageio.ImageIO;
 import javax.imageio.stream.ImageOutputStream;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.gce.grassraster.DummyProgressListener;
 import org.geotools.gce.grassraster.GrassBinaryImageReader;
 import org.geotools.gce.grassraster.JGrassConstants;
@@ -35,9 +38,6 @@ import org.geotools.gce.grassraster.JGrassMapEnvironment;
 import org.geotools.gce.grassraster.JGrassRegion;
 import org.geotools.gce.grassraster.metadata.GrassBinaryImageMetadata;
 import org.geotools.referencing.CRS;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.util.ProgressListener;
 
 /**
  * Grass binary data input/ouput handler.
@@ -74,8 +74,7 @@ public class GrassBinaryRasterWriteHandler implements Closeable {
     private long pointerInFilePosition = 0l;
 
     /** the range of the raster map as an array of minimum value and maximum value. */
-    private final double[] range =
-            new double[] {Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+    private final double[] range = {Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
 
     /**
      * the data type for the output map.
@@ -187,6 +186,7 @@ public class GrassBinaryRasterWriteHandler implements Closeable {
     }
 
     /** Closes the I/O streams. */
+    @Override
     public void close() throws IOException {
         if (imageOS != null) {
             imageOS.close();
@@ -205,12 +205,11 @@ public class GrassBinaryRasterWriteHandler implements Closeable {
      * @return true is the structure is ok.
      */
     private boolean checkStructure() {
-        File ds;
 
         File mapset = writerGrassEnv.getMAPSET();
         String name = writerGrassEnv.getCELL().getName();
         String mapsetPath = mapset.getAbsolutePath();
-        ds = new File(mapsetPath + File.separator + JGrassConstants.CATS + File.separator);
+        File ds = new File(mapsetPath + File.separator + JGrassConstants.CATS + File.separator);
         if (!ds.exists()) if (!ds.mkdir()) return false;
         ds = new File(mapsetPath + File.separator + JGrassConstants.CELL + File.separator);
         if (!ds.exists()) if (!ds.mkdir()) return false;
@@ -358,7 +357,6 @@ public class GrassBinaryRasterWriteHandler implements Closeable {
      * @param chformat the map type.
      * @param chcompressed the compression type.
      */
-    @SuppressWarnings("nls")
     private void createCellhd(
             int chproj,
             int chzone,
@@ -439,8 +437,7 @@ public class GrassBinaryRasterWriteHandler implements Closeable {
     public CoordinateReferenceSystem getCrs() throws IOException {
         String locationPath = writerGrassEnv.getLOCATION().getAbsolutePath();
         CoordinateReferenceSystem readCrs = null;
-        String projWtkFilePath;
-        projWtkFilePath =
+        String projWtkFilePath =
                 locationPath
                         + File.separator
                         + JGrassConstants.PERMANENT_MAPSET
@@ -449,15 +446,12 @@ public class GrassBinaryRasterWriteHandler implements Closeable {
         File projWtkFile = new File(projWtkFilePath);
         if (projWtkFile.exists()) {
 
-            BufferedReader crsReader = new BufferedReader(new FileReader(projWtkFile));
             StringBuffer wtkString = new StringBuffer();
-            try {
+            try (BufferedReader crsReader = new BufferedReader(new FileReader(projWtkFile))) {
                 String line = null;
                 while ((line = crsReader.readLine()) != null) {
                     wtkString.append(line.trim());
                 }
-            } finally {
-                crsReader.close();
             }
             try {
                 readCrs = CRS.parseWKT(wtkString.toString());

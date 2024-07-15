@@ -17,20 +17,19 @@
 package org.geotools.map;
 
 import java.io.IOException;
+import org.geotools.api.data.FeatureListener;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.style.Style;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureEvent;
-import org.geotools.data.FeatureListener;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.Query;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
-import org.geotools.styling.Style;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.geometry.Envelope;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Layer responsible for rendering vector information provided by a FeatureSource.
@@ -66,40 +65,37 @@ public class FeatureLayer extends StyleLayer {
      * @param featureSource the data source for this layer
      * @param style the style used to represent this layer
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public FeatureLayer(FeatureSource featureSource, Style style) {
         super(style);
         this.featureSource = featureSource;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public FeatureLayer(FeatureSource featureSource, Style style, String title) {
         super(style, title);
         this.featureSource = featureSource;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public FeatureLayer(FeatureCollection collection, Style style) {
         super(style);
         this.featureSource = DataUtilities.source(collection);
         this.style = style;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     public FeatureLayer(FeatureCollection collection, Style style, String title) {
         super(style, title);
         this.featureSource = DataUtilities.source(collection);
     }
 
     /** Used to connect/disconnect a FeatureListener if any map layer listeners are registered. */
+    @Override
     protected synchronized void connectDataListener(boolean listen) {
         if (sourceListener == null) {
             sourceListener =
-                    new FeatureListener() {
-                        public void changed(FeatureEvent featureEvent) {
-                            fireMapLayerListenerLayerChanged(MapLayerEvent.DATA_CHANGED);
-                        }
-                    };
+                    featureEvent -> fireMapLayerListenerLayerChanged(MapLayerEvent.DATA_CHANGED);
         }
         if (listen) {
             featureSource.addFeatureListener(sourceListener);
@@ -151,6 +147,7 @@ public class FeatureLayer extends StyleLayer {
      * @return Query used to process content prior to display, or Query.ALL to indicate all content
      *     is used
      */
+    @Override
     public Query getQuery() {
         if (query == null) {
             return Query.ALL;
@@ -225,7 +222,7 @@ public class FeatureLayer extends StyleLayer {
         CoordinateReferenceSystem crs = featureSource.getSchema().getCoordinateReferenceSystem();
         if (crs != null) {
             // returns the envelope based on the CoordinateReferenceSystem
-            Envelope envelope = CRS.getEnvelope(crs);
+            Bounds envelope = CRS.getEnvelope(crs);
             if (envelope != null) {
                 return new ReferencedEnvelope(envelope); // nice!
             } else {

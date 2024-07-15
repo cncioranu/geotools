@@ -22,10 +22,10 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.referencing.crs.DefaultEngineeringCRS;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * Collects type of properties, by name. When a property is given multiple types, a common ancestor
@@ -37,15 +37,10 @@ class TypeAggregator {
     Map<String, Class> types = new LinkedHashMap<>();
 
     static final List<Class<?>> INTEGRAL_NUMBER_TYPES =
-            Arrays.asList(
-                    (Class<?>) Byte.class,
-                    Short.class,
-                    Integer.class,
-                    Long.class,
-                    BigInteger.class);
+            Arrays.asList(Byte.class, Short.class, Integer.class, Long.class, BigInteger.class);
 
     static final List<Class<?>> FLOAT_NUMBER_TYPES =
-            Arrays.asList((Class<?>) Float.class, Double.class, BigDecimal.class);
+            Arrays.asList(Float.class, Double.class, BigDecimal.class);
 
     /** Adds/merges a property and its type */
     public void addType(String name, Class<?> binding) {

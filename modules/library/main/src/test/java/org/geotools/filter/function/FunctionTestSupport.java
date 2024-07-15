@@ -18,44 +18,40 @@
  */
 package org.geotools.filter.function;
 
-import junit.framework.TestCase;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
+import org.junit.Before;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory2;
 
 /** @author James */
-public abstract class FunctionTestSupport extends TestCase {
+public abstract class FunctionTestSupport {
 
     protected SimpleFeatureCollection featureCollection,
             jenksCollection,
             constantCollection,
             stddevCollection;
 
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+    FilterFactory ff = CommonFactoryFinder.getFilterFactory();
 
     protected SimpleFeatureType dataType;
 
     protected SimpleFeature[] testFeatures;
 
-    /** Creates a new instance of FunctionTestSupport */
-    public FunctionTestSupport(String testName) {
-        super(testName);
-    }
-
-    protected void setUp() throws java.lang.Exception {
+    @Before
+    public void setUp() throws java.lang.Exception {
         dataType =
                 DataUtilities.createType(
                         "classification.test1", "id:0,foo:int,bar:double,geom:Point,group:String");
 
-        int iVal[] = new int[] {4, 90, 20, 43, 29, 61, 8, 12};
-        double dVal[] = new double[] {2.5, 80.433, 24.5, 9.75, 18, 53, 43.2, 16};
+        int[] iVal = {4, 90, 20, 43, 29, 61, 8, 12};
+        double[] dVal = {2.5, 80.433, 24.5, 9.75, 18, 53, 43.2, 16};
         testFeatures = new SimpleFeature[iVal.length];
 
         featureCollection = new ListFeatureCollection(dataType);
@@ -114,7 +110,7 @@ public abstract class FunctionTestSupport extends TestCase {
                 DataUtilities.createType(
                         "classification.stddev", "id:0,foo:int,geom:Point,group:String");
 
-        int iVal2[] = new int[] {4, 39, 20, 43, 29, 200, 8, 12, 500, -500};
+        int[] iVal2 = {4, 39, 20, 43, 29, 200, 8, 12, 500, -500};
 
         stddevCollection = new ListFeatureCollection(stddevType);
 

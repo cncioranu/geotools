@@ -16,26 +16,34 @@
  */
 package org.geotools.data.postgis;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.util.function.Predicate;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.jdbc.JDBC3DOnlineTest;
 import org.geotools.jdbc.JDBC3DTestSetup;
 import org.geotools.util.factory.Hints;
+import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
 
 public class PostGIS3DOnlineTest extends JDBC3DOnlineTest {
+
+    public PostGIS3DOnlineTest() {
+        this.forceLongitudeFirst = true;
+    }
 
     @Override
     protected JDBC3DTestSetup createTestSetup() {
         return new PostGIS3DTestSetup(new PostGISTestSetup());
     }
 
+    @Test
     public void testForce2DHint() throws Exception {
 
         Query q = new Query(tname(getLine3d()));
@@ -53,15 +61,15 @@ public class PostGIS3DOnlineTest extends JDBC3DOnlineTest {
             Query q, ContentFeatureSource fs, Predicate<Coordinate> testCondition)
             throws IOException {
         SimpleFeatureCollection fc = fs.getFeatures(q);
-        FeatureIterator<SimpleFeature> fi = fc.features();
-        while (fi.hasNext()) {
-            SimpleFeature f = fi.next();
-            Geometry geom = (Geometry) f.getDefaultGeometry();
-            Coordinate[] coors = geom.getCoordinates();
-            for (Coordinate c : coors) {
-                assertTrue(testCondition.test(c));
+        try (FeatureIterator<SimpleFeature> fi = fc.features()) {
+            while (fi.hasNext()) {
+                SimpleFeature f = fi.next();
+                Geometry geom = (Geometry) f.getDefaultGeometry();
+                Coordinate[] coors = geom.getCoordinates();
+                for (Coordinate c : coors) {
+                    assertTrue(testCondition.test(c));
+                }
             }
         }
-        fi.close();
     }
 }

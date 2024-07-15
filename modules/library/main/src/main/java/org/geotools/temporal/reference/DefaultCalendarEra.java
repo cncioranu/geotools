@@ -17,13 +17,13 @@
 package org.geotools.temporal.reference;
 
 import java.util.Collection;
+import org.geotools.api.temporal.Calendar;
+import org.geotools.api.temporal.CalendarDate;
+import org.geotools.api.temporal.CalendarEra;
+import org.geotools.api.temporal.JulianDate;
+import org.geotools.api.temporal.Period;
+import org.geotools.api.util.InternationalString;
 import org.geotools.util.Utilities;
-import org.opengis.temporal.Calendar;
-import org.opengis.temporal.CalendarDate;
-import org.opengis.temporal.CalendarEra;
-import org.opengis.temporal.JulianDate;
-import org.opengis.temporal.Period;
-import org.opengis.util.InternationalString;
 
 /** @author Mehdi Sidhoum (Geomatys) */
 public class DefaultCalendarEra implements CalendarEra {
@@ -62,22 +62,27 @@ public class DefaultCalendarEra implements CalendarEra {
         this.epochOfUse = epochOfUse;
     }
 
+    @Override
     public InternationalString getName() {
         return name;
     }
 
+    @Override
     public InternationalString getReferenceEvent() {
         return referenceEvent;
     }
 
+    @Override
     public CalendarDate getReferenceDate() {
         return referenceDate;
     }
 
+    @Override
     public JulianDate getJulianReference() {
         return julianReference;
     }
 
+    @Override
     public Period getEpochOfUse() {
         return epochOfUse;
     }

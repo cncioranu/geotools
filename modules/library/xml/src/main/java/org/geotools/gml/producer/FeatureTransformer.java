@@ -25,8 +25,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.logging.Logger;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureReader;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.FeatureCollection;
@@ -42,16 +52,6 @@ import org.geotools.xml.transform.TransformerBase;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -277,6 +277,7 @@ public class FeatureTransformer extends TransformerBase {
         this.collectionBounding = collectionBounding;
     }
 
+    @Override
     public org.geotools.xml.transform.Translator createTranslator(ContentHandler handler) {
         FeatureTranslator t =
                 createTranslator(
@@ -337,7 +338,7 @@ public class FeatureTransformer extends TransformerBase {
         }
 
         public String findPrefix(FeatureType type) {
-            String pre = (String) lookup.get(type);
+            String pre = lookup.get(type);
 
             if (pre == null) {
                 pre = defaultPrefix;
@@ -346,6 +347,7 @@ public class FeatureTransformer extends TransformerBase {
             return pre;
         }
 
+        @Override
         public String toString() {
             return "FeatureTypeNamespaces[Default: "
                     + defaultPrefix
@@ -539,6 +541,8 @@ public class FeatureTransformer extends TransformerBase {
             return types;
         }
 
+        @Override
+        @SuppressWarnings("unchecked")
         public void encode(Object o) throws IllegalArgumentException {
             try {
                 if (o instanceof FeatureCollection) {
@@ -551,8 +555,8 @@ public class FeatureTransformer extends TransformerBase {
                     startFeatureCollection();
                     if (collectionBounding) {
                         ReferencedEnvelope bounds = null;
-                        for (int i = 0; i < results.length; i++) {
-                            ReferencedEnvelope more = results[i].getBounds();
+                        for (FeatureCollection result : results) {
+                            ReferencedEnvelope more = result.getBounds();
                             if (bounds == null) {
                                 bounds = new ReferencedEnvelope(more);
                             } else {
@@ -564,9 +568,7 @@ public class FeatureTransformer extends TransformerBase {
                         writeNullBounds();
                     }
 
-                    for (int i = 0; i < results.length; i++) {
-                        @SuppressWarnings("unchecked")
-                        FeatureCollection<SimpleFeatureType, SimpleFeature> result = results[i];
+                    for (FeatureCollection<SimpleFeatureType, SimpleFeature> result : results) {
                         handleFeatureIterator(DataUtilities.simple(result).features());
                     }
                     endFeatureCollection();
@@ -693,6 +695,7 @@ public class FeatureTransformer extends TransformerBase {
          *
          * @param collection FeatureCollection being encoded
          */
+        @Override
         public void handleFeatureCollection(FeatureCollection<?, ?> collection) {
             startFeatureCollection();
             if (collectionBounding) writeBounds(collection.getBounds());
@@ -749,6 +752,7 @@ public class FeatureTransformer extends TransformerBase {
          *
          * @param collection Feature collection we have just finished encoding
          */
+        @Override
         public void endFeatureCollection(FeatureCollection<?, ?> collection) {
             endFeatureCollection();
         }
@@ -760,6 +764,7 @@ public class FeatureTransformer extends TransformerBase {
          * @throws RuntimeException if something goes wrong during encode it is wrapped up as a
          *     generic runtime exception
          */
+        @Override
         public void endFeature(Feature f) {
             try {
                 Name typeName = f.getType().getName();
@@ -782,6 +787,7 @@ public class FeatureTransformer extends TransformerBase {
          * @param value Value being encoded for this property
          * @throws RuntimeException Any problems are bundled up in a generic runtime exception
          */
+        @Override
         public void handleAttribute(PropertyDescriptor descriptor, Object value) {
             try {
                 if (value != null) {
@@ -857,7 +863,7 @@ public class FeatureTransformer extends TransformerBase {
                 // but OGC people are fine with just leaving it out.
             } catch (Exception e) {
                 throw new IllegalStateException(
-                        "Could not transform " + descriptor.getName() + ":" + e, e);
+                        "Could not transform '" + descriptor.getName() + "': " + e, e);
             }
         }
 
@@ -923,6 +929,7 @@ public class FeatureTransformer extends TransformerBase {
          * @param f Feature being encoded
          * @throws RuntimeException Used to report any troubles during encoding
          */
+        @Override
         public void handleFeature(Feature f) {
             try {
                 contentHandler.startElement("", "", memberString, NULL_ATTS);

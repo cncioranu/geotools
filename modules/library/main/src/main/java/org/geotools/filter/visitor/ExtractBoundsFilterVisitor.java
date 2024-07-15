@@ -17,60 +17,60 @@
 package org.geotools.filter.visitor;
 
 import java.util.logging.Logger;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.ExcludeFilter;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.IncludeFilter;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsGreaterThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNil;
+import org.geotools.api.filter.PropertyIsNotEqualTo;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.Divide;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.Multiply;
+import org.geotools.api.filter.expression.NilExpression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.Subtract;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.Contains;
+import org.geotools.api.filter.spatial.Crosses;
+import org.geotools.api.filter.spatial.DWithin;
+import org.geotools.api.filter.spatial.Disjoint;
+import org.geotools.api.filter.spatial.Equals;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.filter.spatial.Overlaps;
+import org.geotools.api.filter.spatial.Touches;
+import org.geotools.api.filter.spatial.Within;
+import org.geotools.api.filter.temporal.After;
+import org.geotools.api.filter.temporal.AnyInteracts;
+import org.geotools.api.filter.temporal.Before;
+import org.geotools.api.filter.temporal.Begins;
+import org.geotools.api.filter.temporal.BegunBy;
+import org.geotools.api.filter.temporal.During;
+import org.geotools.api.filter.temporal.EndedBy;
+import org.geotools.api.filter.temporal.Ends;
+import org.geotools.api.filter.temporal.Meets;
+import org.geotools.api.filter.temporal.MetBy;
+import org.geotools.api.filter.temporal.OverlappedBy;
+import org.geotools.api.filter.temporal.TContains;
+import org.geotools.api.filter.temporal.TEquals;
+import org.geotools.api.filter.temporal.TOverlaps;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.filter.And;
-import org.opengis.filter.ExcludeFilter;
-import org.opengis.filter.Filter;
-import org.opengis.filter.Id;
-import org.opengis.filter.IncludeFilter;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNil;
-import org.opengis.filter.PropertyIsNotEqualTo;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.Divide;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.Multiply;
-import org.opengis.filter.expression.NilExpression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Subtract;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.Contains;
-import org.opengis.filter.spatial.Crosses;
-import org.opengis.filter.spatial.DWithin;
-import org.opengis.filter.spatial.Disjoint;
-import org.opengis.filter.spatial.Equals;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.filter.spatial.Overlaps;
-import org.opengis.filter.spatial.Touches;
-import org.opengis.filter.spatial.Within;
-import org.opengis.filter.temporal.After;
-import org.opengis.filter.temporal.AnyInteracts;
-import org.opengis.filter.temporal.Before;
-import org.opengis.filter.temporal.Begins;
-import org.opengis.filter.temporal.BegunBy;
-import org.opengis.filter.temporal.During;
-import org.opengis.filter.temporal.EndedBy;
-import org.opengis.filter.temporal.Ends;
-import org.opengis.filter.temporal.Meets;
-import org.opengis.filter.temporal.MetBy;
-import org.opengis.filter.temporal.OverlappedBy;
-import org.opengis.filter.temporal.TContains;
-import org.opengis.filter.temporal.TEquals;
-import org.opengis.filter.temporal.TOverlaps;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Extract a maximal envelope from the provided Filter.
@@ -137,10 +137,12 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
         throw new ClassCastException("Could not cast data to ReferencedEnvelope");
     }
 
+    @Override
     public Object visit(ExcludeFilter filter, Object data) {
         return new Envelope();
     }
 
+    @Override
     public Object visit(IncludeFilter filter, Object data) {
         return infinity();
     }
@@ -153,6 +155,7 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
                 Double.POSITIVE_INFINITY);
     }
 
+    @Override
     public Object visit(BBOX filter, Object data) {
         ReferencedEnvelope bbox = bbox(data);
 
@@ -172,6 +175,7 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
      * @param data Incoming BoundingBox (or Envelope or CRS)
      * @return ReferencedEnvelope updated to reflect literal
      */
+    @Override
     public Object visit(Literal expression, Object data) {
         ReferencedEnvelope bbox = bbox(data);
 
@@ -187,7 +191,17 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
             } else {
                 return bbox(bounds);
             }
+        } else if (value instanceof Envelope) {
+            Envelope bounds = (Envelope) value;
+            if (bbox != null) {
+                bbox.expandToInclude(bounds);
+                return bbox;
+            } else {
+                return bbox(bounds);
+            }
+
         } else {
+
             LOGGER.finer("LiteralExpression ignored!");
         }
         return bbox;
@@ -203,6 +217,7 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
         return mixed;
     }
 
+    @Override
     public Object visit(Not filter, Object data) {
         // no matter what we have to return an infinite envelope
         // rationale
@@ -224,29 +239,34 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
         return mixed;
     }
 
+    @Override
     public Object visit(Beyond filter, Object data) {
         // beyond a certain distance from a finite object, no way to limit it
         return infinity();
     }
 
+    @Override
     public Object visit(Contains filter, Object data) {
         data = filter.getExpression1().accept(this, data);
         data = filter.getExpression2().accept(this, data);
         return data;
     }
 
+    @Override
     public Object visit(Crosses filter, Object data) {
         data = filter.getExpression1().accept(this, data);
         data = filter.getExpression2().accept(this, data);
         return data;
     }
 
+    @Override
     public Object visit(Disjoint filter, Object data) {
         // disjoint does not define a rectangle, but a hole in the
         // Cartesian plane, no way to limit it
         return infinity();
     }
 
+    @Override
     public Object visit(DWithin filter, Object data) {
         ReferencedEnvelope bbox = bbox(data);
 
@@ -284,12 +304,14 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
         }
     }
 
+    @Override
     public Object visit(Equals filter, Object data) {
         data = filter.getExpression1().accept(this, data);
         data = filter.getExpression2().accept(this, data);
         return data;
     }
 
+    @Override
     public Object visit(Intersects filter, Object data) {
         data = filter.getExpression1().accept(this, data);
         data = filter.getExpression2().accept(this, data);
@@ -297,6 +319,7 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
         return data;
     }
 
+    @Override
     public Object visit(Overlaps filter, Object data) {
         data = filter.getExpression1().accept(this, data);
         data = filter.getExpression2().accept(this, data);
@@ -304,6 +327,7 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
         return data;
     }
 
+    @Override
     public Object visit(Touches filter, Object data) {
         data = filter.getExpression1().accept(this, data);
         data = filter.getExpression2().accept(this, data);
@@ -311,6 +335,7 @@ public class ExtractBoundsFilterVisitor extends NullFilterVisitor {
         return data;
     }
 
+    @Override
     public Object visit(Within filter, Object data) {
         data = filter.getExpression1().accept(this, data);
         data = filter.getExpression2().accept(this, data);

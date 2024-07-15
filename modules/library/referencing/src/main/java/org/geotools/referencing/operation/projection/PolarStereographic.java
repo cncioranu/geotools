@@ -33,15 +33,15 @@ import static java.lang.Math.sqrt;
 
 import java.awt.geom.Point2D;
 import java.util.Collection;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.i18n.ErrorKeys;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform;
 import si.uom.NonSI;
 
 /**
@@ -177,6 +177,7 @@ public class PolarStereographic extends Stereographic {
      * @param x The longitude of the coordinate, in <strong>radians</strong>.
      * @param y The latitude of the coordinate, in <strong>radians</strong>.
      */
+    @Override
     protected Point2D transformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         final double sinlat = sin(y);
@@ -202,6 +203,7 @@ public class PolarStereographic extends Stereographic {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates (units in radians) and
      * stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         final double rho = hypot(x, y);

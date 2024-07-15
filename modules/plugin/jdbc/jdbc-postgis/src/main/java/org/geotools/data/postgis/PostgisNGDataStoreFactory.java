@@ -28,7 +28,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.data.Transaction;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCDataStoreFactory;
 import org.geotools.jdbc.SQLDialect;
@@ -36,8 +37,6 @@ import org.geotools.util.KVP;
 import org.geotools.util.logging.Logging;
 import org.postgresql.jdbc.SslMode;
 
-// temporary work around, the factory parameters map will be fixed separately
-@SuppressWarnings("unchecked")
 public class PostgisNGDataStoreFactory extends JDBCDataStoreFactory {
 
     static final Logger LOGGER = Logging.getLogger(PostgisNGDataStoreFactory.class);
@@ -185,6 +184,7 @@ public class PostgisNGDataStoreFactory extends JDBCDataStoreFactory {
         return "PostGIS";
     }
 
+    @Override
     public String getDescription() {
         return "PostGIS Database";
     }
@@ -213,6 +213,7 @@ public class PostgisNGDataStoreFactory extends JDBCDataStoreFactory {
         }
     }
 
+    @Override
     protected JDBCDataStore createDataStoreInternal(JDBCDataStore dataStore, Map<String, ?> params)
             throws IOException {
 
@@ -259,6 +260,15 @@ public class PostgisNGDataStoreFactory extends JDBCDataStoreFactory {
         }
         dialect.setEncodeBBOXFilterAsEnvelope(Boolean.TRUE.equals(encodeBBOXAsEnvelope));
 
+        Connection cx = dataStore.getConnection(Transaction.AUTO_COMMIT);
+        try {
+            // creating a new connection will internally call
+            // org.geotools.data.postgis.PostGISDialect.initializeConnection(Connection)
+            // the following line is really just to prevent empty try block PMD violation
+            LOGGER.finest("escaping backslashes: " + dialect.isEscapeBackslash());
+        } finally {
+            dataStore.closeSafe(cx);
+        }
         return dataStore;
     }
 
@@ -301,6 +311,7 @@ public class PostgisNGDataStoreFactory extends JDBCDataStoreFactory {
         return url;
     }
 
+    @Override
     protected DataSource createDataSource(Map<String, ?> params, SQLDialect dialect)
             throws IOException {
         DataSource ds = super.createDataSource(params, dialect);

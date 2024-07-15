@@ -24,14 +24,14 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.logging.Logger;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.identity.Identifier;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.expression.PropertyAccessor;
 import org.geotools.filter.expression.SimpleFeaturePropertyAccessorFactory;
 import org.geotools.filter.identity.FeatureIdImpl;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.Id;
-import org.opengis.filter.identity.Identifier;
 
 /**
  * Defines a ID filter, which holds a list of IDs ( usually feature id;s ). This filter stores a
@@ -55,11 +55,10 @@ public class FidFilterImpl extends AbstractFilter implements Id {
 
     private Set<String> ids = new LinkedHashSet<>();
 
-    /** Constructor which takes {@link org.opengis.filter.identity.Identifier}, not String. */
+    /** Constructor which takes {@link org.geotools.api.filter.identity.Identifier}, not String. */
     protected FidFilterImpl(Set<? extends Identifier> fids) {
         // check these are really identifiers
-        for (Iterator it = fids.iterator(); it.hasNext(); ) {
-            Object next = it.next();
+        for (Object next : fids) {
             if (!(next instanceof Identifier))
                 throw new ClassCastException(
                         "Fids must implement Identifier, " + next.getClass() + " does not");
@@ -70,17 +69,19 @@ public class FidFilterImpl extends AbstractFilter implements Id {
         }
     }
 
-    /** @see org.opengis.filter.Id#getIDs() */
+    /** @see org.geotools.api.filter.Id#getIDs() */
+    @Override
     public Set<Object> getIDs() {
         return new HashSet<>(getFidsSet());
     }
 
-    /** @see org.opengis.filter.Id#getIdentifiers() */
+    /** @see org.geotools.api.filter.Id#getIdentifiers() */
+    @Override
     public Set<Identifier> getIdentifiers() {
         return fids;
     }
 
-    /** @see org.opengis.filter.identity.FeatureId#setIDs(Set) */
+    /** @see org.geotools.api.filter.identity.FeatureId#setIDs(Set) */
     public void setIDs(Set ids) {
         fids = new HashSet<>();
         addAllFids(ids);
@@ -119,8 +120,8 @@ public class FidFilterImpl extends AbstractFilter implements Id {
     public void addAllFids(Collection fidsToAdd) {
         if (fidsToAdd == null) return;
 
-        for (Iterator i = fidsToAdd.iterator(); i.hasNext(); ) {
-            String fid = (String) i.next();
+        for (Object o : fidsToAdd) {
+            String fid = (String) o;
             addFid(fid);
         }
     }
@@ -152,8 +153,8 @@ public class FidFilterImpl extends AbstractFilter implements Id {
     public void removeAllFids(Collection fidsToRemove) {
         if (fidsToRemove == null) return;
 
-        for (Iterator f = fidsToRemove.iterator(); f.hasNext(); ) {
-            String fid = (String) f.next();
+        for (Object o : fidsToRemove) {
+            String fid = (String) o;
             removeFid(fid);
         }
     }
@@ -169,6 +170,7 @@ public class FidFilterImpl extends AbstractFilter implements Id {
      *     otherwise.
      * @see SimpleFeaturePropertyAccessorFactory
      */
+    @Override
     public boolean evaluate(Object feature) {
         if (feature == null) {
             return false;
@@ -190,6 +192,7 @@ public class FidFilterImpl extends AbstractFilter implements Id {
      *
      * @return String representation of the compare filter.
      */
+    @Override
     public String toString() {
         StringBuffer fidFilter = new StringBuffer();
 
@@ -215,6 +218,7 @@ public class FidFilterImpl extends AbstractFilter implements Id {
      * @param visitor The visitor which requires access to this filter, the method must call
      *     visitor.visit(this);
      */
+    @Override
     public Object accept(FilterVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
@@ -225,6 +229,7 @@ public class FidFilterImpl extends AbstractFilter implements Id {
      * @param filter the filter to test equality on.
      * @return String representation of the compare filter.
      */
+    @Override
     public boolean equals(Object filter) {
         LOGGER.finest("condition: " + filter);
 
@@ -241,6 +246,7 @@ public class FidFilterImpl extends AbstractFilter implements Id {
      *
      * @return a hash code value for this fid filter object.
      */
+    @Override
     public int hashCode() {
         return fids.hashCode();
     }

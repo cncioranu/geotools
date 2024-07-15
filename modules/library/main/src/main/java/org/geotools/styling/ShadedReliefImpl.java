@@ -18,12 +18,14 @@
  */
 package org.geotools.styling;
 
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.ShadedRelief;
+import org.geotools.api.style.StyleVisitor;
+import org.geotools.api.style.TraversingStyleVisitor;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.GeoTools;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.style.StyleVisitor;
 
 /**
  * Default implementation of ShadedRelief.
@@ -51,6 +53,7 @@ public class ShadedReliefImpl implements ShadedRelief {
      *
      * @return an expression which evaluates to a double.
      */
+    @Override
     public Expression getReliefFactor() {
         return reliefFactor;
     }
@@ -60,6 +63,7 @@ public class ShadedReliefImpl implements ShadedRelief {
      *
      * @return boolean brightnessOn.
      */
+    @Override
     public boolean isBrightnessOnly() {
         return brightness;
     }
@@ -69,6 +73,7 @@ public class ShadedReliefImpl implements ShadedRelief {
      *
      * @param flag boolean
      */
+    @Override
     public void setBrightnessOnly(boolean flag) {
         brightness = flag;
     }
@@ -80,15 +85,18 @@ public class ShadedReliefImpl implements ShadedRelief {
      *
      * @param reliefFactor an expression which evaluates to a double.
      */
+    @Override
     public void setReliefFactor(Expression reliefFactor) {
         this.reliefFactor = reliefFactor;
     }
 
-    public Object accept(StyleVisitor visitor, Object data) {
+    @Override
+    public Object accept(TraversingStyleVisitor visitor, Object data) {
         return visitor.visit(this, data);
     }
 
-    public void accept(org.geotools.styling.StyleVisitor visitor) {
+    @Override
+    public void accept(StyleVisitor visitor) {
         visitor.visit(this);
     }
 
@@ -122,7 +130,7 @@ public class ShadedReliefImpl implements ShadedRelief {
         return false;
     }
 
-    static ShadedReliefImpl cast(org.opengis.style.ShadedRelief shadedRelief) {
+    static ShadedReliefImpl cast(org.geotools.api.style.ShadedRelief shadedRelief) {
         if (shadedRelief == null) {
             return null;
         } else if (shadedRelief instanceof ShadedReliefImpl) {

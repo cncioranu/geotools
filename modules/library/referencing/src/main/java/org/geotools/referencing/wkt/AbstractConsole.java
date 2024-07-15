@@ -22,12 +22,12 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.text.Format;
 import java.text.ParseException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.util.Arguments;
 import org.geotools.util.Classes;
 import org.geotools.util.logging.Logging;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Base class for application performing operations on WKT objects from the command line.
@@ -228,6 +228,7 @@ public abstract class AbstractConsole implements Runnable {
      * until {@link #stop()} is invoked. Non-empty and non-comment lines are given to the {@link
      * #execute} method. Errors are catched and printed to the {@linkplain #err error stream}.
      */
+    @Override
     public void run() {
         try {
             while (!stop) {

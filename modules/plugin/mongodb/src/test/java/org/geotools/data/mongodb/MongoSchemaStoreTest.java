@@ -26,10 +26,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.FactoryException;
 import org.geotools.feature.NameImpl;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.referencing.FactoryException;
 
 /**
  * @author tkunicki@boundlessgeo.com
@@ -63,9 +63,8 @@ public abstract class MongoSchemaStoreTest<S extends MongoSchemaStore> {
             store.deleteSchema(null); // no exception expected
 
             // store, retreive then test for equality
-            List<String> typeNames;
             store.storeSchema(dummy0);
-            typeNames = store.typeNames();
+            List<String> typeNames = store.typeNames();
             assertThat(typeNames, is(equalTo(Arrays.asList("dummy0"))));
             FeatureTypeDBObjectTest.compareFeatureTypes(
                     store.retrieveSchema(new NameImpl("dummy0")), dummy0, false);

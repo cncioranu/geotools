@@ -21,16 +21,16 @@
 package org.geotools.referencing.operation.projection;
 
 import java.awt.geom.Point2D;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Cassini-Soldner Projection (EPSG code 9806). The Cassini-Soldner Projection is the ellipsoidal
@@ -64,6 +64,7 @@ public class CassiniSoldner extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -71,6 +72,7 @@ public class CassiniSoldner extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinate and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         double ph1 = inv_mlfn(ml0 + y);
@@ -95,6 +97,7 @@ public class CassiniSoldner extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinate (units in radians) and stores
      * the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double lam, double phi, Point2D ptDst)
             throws ProjectionException {
         double sinphi = Math.sin(phi);
@@ -129,6 +132,7 @@ public class CassiniSoldner extends MapProjection {
         }
 
         /** {@inheritDoc} */
+        @Override
         protected Point2D transformNormalized(double x, double y, Point2D ptDst)
                 throws ProjectionException {
             double x1 = Math.asin(Math.cos(y) * Math.sin(x));
@@ -141,6 +145,7 @@ public class CassiniSoldner extends MapProjection {
         }
 
         /** {@inheritDoc} */
+        @Override
         protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
                 throws ProjectionException {
             double dd = y + latitudeOfOrigin;
@@ -169,7 +174,7 @@ public class CassiniSoldner extends MapProjection {
     public static class Provider extends AbstractProvider {
         /** Returns a descriptor group for the specified parameters. */
         static ParameterDescriptorGroup createDescriptorGroup(
-                final ReferenceIdentifier[] identifiers) {
+                final ReferenceIdentifier... identifiers) {
             return createDescriptorGroup(
                     identifiers,
                     new ParameterDescriptor[] {
@@ -183,17 +188,15 @@ public class CassiniSoldner extends MapProjection {
         /** The parameters group. */
         static final ParameterDescriptorGroup PARAMETERS =
                 createDescriptorGroup(
-                        new NamedIdentifier[] {
-                            new NamedIdentifier(Citations.OGC, "Cassini_Soldner"),
-                            new NamedIdentifier(Citations.EPSG, "Cassini-Soldner"),
-                            new NamedIdentifier(Citations.EPSG, "9806"),
-                            new NamedIdentifier(Citations.GEOTIFF, "CT_CassiniSoldner"),
-                            new NamedIdentifier(Citations.ESRI, "Cassini"),
-                            new NamedIdentifier(
-                                    Citations.GEOTOOLS,
-                                    Vocabulary.formatInternational(
-                                            VocabularyKeys.CASSINI_SOLDNER_PROJECTION))
-                        });
+                        new NamedIdentifier(Citations.OGC, "Cassini_Soldner"),
+                        new NamedIdentifier(Citations.EPSG, "Cassini-Soldner"),
+                        new NamedIdentifier(Citations.EPSG, "9806"),
+                        new NamedIdentifier(Citations.GEOTIFF, "CT_CassiniSoldner"),
+                        new NamedIdentifier(Citations.ESRI, "Cassini"),
+                        new NamedIdentifier(
+                                Citations.GEOTOOLS,
+                                Vocabulary.formatInternational(
+                                        VocabularyKeys.CASSINI_SOLDNER_PROJECTION)));
 
         /** Constructs a new provider. */
         public Provider() {
@@ -212,6 +215,7 @@ public class CassiniSoldner extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         public MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             if (isSpherical(parameters)) {

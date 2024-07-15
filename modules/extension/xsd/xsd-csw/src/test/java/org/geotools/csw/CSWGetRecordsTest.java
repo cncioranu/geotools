@@ -2,6 +2,7 @@ package org.geotools.csw;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -18,12 +19,12 @@ import net.opengis.cat.csw20.QueryType;
 import net.opengis.cat.csw20.RecordType;
 import net.opengis.cat.csw20.ResultType;
 import org.eclipse.emf.common.util.EList;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.filter.text.cql2.CQL;
 import org.geotools.xsd.Parser;
 import org.junit.Test;
-import org.opengis.filter.Filter;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
 
 public class CSWGetRecordsTest {
 
@@ -130,6 +131,6 @@ public class CSWGetRecordsTest {
         assertNotNull(response);
         EList<AbstractRecordType> records = response.getAbstractRecord();
         assertEquals(1, records.size());
-        RecordType record = (RecordType) records.get(0);
+        assertTrue(records.get(0) instanceof RecordType);
     }
 }

@@ -33,9 +33,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /** In charge for setting/getting the primary key values for inserts. */
 abstract class KeysFetcher {
@@ -78,7 +78,7 @@ abstract class KeysFetcher {
             final PrimaryKeyColumn col = key.getColumns().get(i);
             final Object value = keyValues.get(i);
             if (value != NOT_SET_BEFORE_INSERT) {
-                dialect.setValue(value, col.getType(), ps, curFieldPos++, cx);
+                dialect.setValue(value, col.getType(), null, ps, curFieldPos++, cx);
             }
         }
 
@@ -284,8 +284,7 @@ abstract class KeysFetcher {
             if (!isPostInsert()) {
                 return;
             }
-            final ResultSet rs = ps.getGeneratedKeys();
-            try {
+            try (ResultSet rs = ps.getGeneratedKeys()) {
                 final Iterator<SimpleFeature> it = features.iterator();
                 final List<Object> keyValues = new ArrayList<>(key.getColumns().size());
                 while (rs.next()) {
@@ -302,8 +301,6 @@ abstract class KeysFetcher {
                     feature.getUserData().put("fid", fid);
                     keyValues.clear();
                 }
-            } finally {
-                rs.close();
             }
         }
 
@@ -457,10 +454,8 @@ abstract class KeysFetcher {
             sql.append(") + 1 FROM ");
             ds.encodeTableName(key.getTableName(), sql, null);
 
-            Statement st = cx.createStatement();
-            try {
-                ResultSet rs = st.executeQuery(sql.toString());
-                try {
+            try (Statement st = cx.createStatement()) {
+                try (ResultSet rs = st.executeQuery(sql.toString())) {
                     if (rs.next()) {
                         next = rs.getObject(1);
                     } else {
@@ -473,11 +468,7 @@ abstract class KeysFetcher {
                         // to insert
                         next = 1;
                     }
-                } finally {
-                    rs.close();
                 }
-            } finally {
-                st.close();
             }
         }
 

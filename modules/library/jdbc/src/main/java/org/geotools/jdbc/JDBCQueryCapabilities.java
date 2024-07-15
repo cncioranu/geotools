@@ -16,12 +16,12 @@
  */
 package org.geotools.jdbc;
 
-import org.geotools.data.QueryCapabilities;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
 
 /**
  * A default QueryCapabilities implementation for JDBCFeatureSource.
@@ -43,8 +43,7 @@ class JDBCQueryCapabilities extends QueryCapabilities {
     public boolean supportsSorting(final SortBy[] sortAttributes) {
         if (super.supportsSorting(sortAttributes)) return true;
 
-        for (int i = 0; i < sortAttributes.length; i++) {
-            SortBy sortBy = sortAttributes[i];
+        for (SortBy sortBy : sortAttributes) {
             if (SortBy.NATURAL_ORDER == sortBy || SortBy.REVERSE_ORDER == sortBy) {
                 // we do only if we have a non null primary key
                 return !(source.getPrimaryKey() instanceof NullPrimaryKey);

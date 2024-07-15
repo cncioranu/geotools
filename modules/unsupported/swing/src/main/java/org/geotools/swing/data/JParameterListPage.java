@@ -26,7 +26,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import net.miginfocom.swing.MigLayout;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
 import org.geotools.swing.wizard.JPage;
 import org.geotools.swing.wizard.ParamField;
 import org.geotools.util.Converters;
@@ -101,9 +101,8 @@ public class JParameterListPage extends JPage {
         for (Entry<Parameter<?>, ParamField> entry : fields.entrySet()) {
             Parameter<?> param = entry.getKey();
             ParamField field = entry.getValue();
-            Object value = null;
             Object object = connectionParameters.get(param.key);
-            value = Converters.convert(object, param.type);
+            Object value = Converters.convert(object, param.type);
             if (value == null) {
                 value = object;
             }

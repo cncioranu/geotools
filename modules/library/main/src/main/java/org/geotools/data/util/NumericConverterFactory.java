@@ -49,6 +49,7 @@ public class NumericConverterFactory implements ConverterFactory {
     private static final Logger LOGGER =
             org.geotools.util.logging.Logging.getLogger(NumericConverterFactory.class);
 
+    @Override
     public Converter createConverter(Class source, Class target, Hints hints) {
         // convert to non-primitive class
         source = primitiveToWrapperClass(source);
@@ -70,7 +71,7 @@ public class NumericConverterFactory implements ConverterFactory {
                 || Float.class.equals(target)
                 || Number.class.equals(target)) {
 
-            // check if teh safe conversion flag was set and if so only allow save conversions
+            // check if the safe conversion flag was set and if so only allow save conversions
             if (hints != null) {
                 Object safeConversion = hints.get(ConverterFactory.SAFE_CONVERSION);
                 if (safeConversion instanceof Boolean
@@ -86,6 +87,7 @@ public class NumericConverterFactory implements ConverterFactory {
 
     class SafeNumericConverter implements Converter {
         // target.cast won't work for both the object wrapper and the primitive class
+        @Override
         @SuppressWarnings("unchecked")
         public <T> T convert(Object source, Class<T> target) throws Exception {
             return (T) convertInternal(source, target);
@@ -191,6 +193,7 @@ public class NumericConverterFactory implements ConverterFactory {
     class NumericConverter implements Converter {
 
         // target.cast won't work for both the object wrapper and the primitive class
+        @Override
         @SuppressWarnings("unchecked")
         public <T> T convert(Object source, Class<T> target) throws Exception {
             return (T) convertInternal(source, target);
@@ -326,8 +329,6 @@ public class NumericConverterFactory implements ConverterFactory {
      * @return integral component of decimal representation
      */
     static String toIntegral(String s) {
-        // NumberFormat format = NumberFormat.getInstance();
-
         int radex = -1; // last non numeric character to account for "." vs "," seperators
         for (int i = s.length() - 1; i > 0; i--) {
             char ch = s.charAt(i);

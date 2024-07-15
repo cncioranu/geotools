@@ -16,43 +16,42 @@
  */
 package org.geotools.wfs.bindings;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import javax.xml.namespace.QName;
 import net.opengis.wfs.FeatureTypeListType;
 import net.opengis.wfs.GMLObjectTypeListType;
 import net.opengis.wfs.GMLObjectTypeType;
 import net.opengis.wfs.WFSCapabilitiesType;
+import org.geotools.api.filter.capability.ArithmeticOperators;
+import org.geotools.api.filter.capability.ComparisonOperators;
+import org.geotools.api.filter.capability.FilterCapabilities;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.capability.Functions;
+import org.geotools.api.filter.capability.GeometryOperand;
+import org.geotools.api.filter.capability.IdCapabilities;
+import org.geotools.api.filter.capability.Operator;
+import org.geotools.api.filter.capability.ScalarCapabilities;
+import org.geotools.api.filter.capability.SpatialCapabilities;
+import org.geotools.api.filter.capability.SpatialOperator;
+import org.geotools.api.filter.capability.SpatialOperators;
 import org.geotools.filter.v1_1.OGC;
 import org.geotools.gml3.GML;
 import org.geotools.wfs.WFS;
 import org.geotools.wfs.WFSTestSupport;
 import org.geotools.xsd.Binding;
-import org.opengis.filter.capability.ArithmeticOperators;
-import org.opengis.filter.capability.ComparisonOperators;
-import org.opengis.filter.capability.FilterCapabilities;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.capability.Functions;
-import org.opengis.filter.capability.GeometryOperand;
-import org.opengis.filter.capability.IdCapabilities;
-import org.opengis.filter.capability.Operator;
-import org.opengis.filter.capability.ScalarCapabilities;
-import org.opengis.filter.capability.SpatialCapabilities;
-import org.opengis.filter.capability.SpatialOperator;
-import org.opengis.filter.capability.SpatialOperators;
+import org.junit.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-/**
- * Unit test suite for {@link WFS_CapabilitiesTypeBinding}
- *
- * @author Justin Deoliveira
- * @version $Id: WFS_CapabilitiesTypeBindingTest.java 27749 2007-11-05 09:51:33Z groldan $
- * @since 2.5.x
- */
 public class WFS_CapabilitiesTypeBindingTest extends WFSTestSupport {
     public WFS_CapabilitiesTypeBindingTest() {
         super(WFS.WFS_CapabilitiesType, WFSCapabilitiesType.class, Binding.OVERRIDE);
     }
 
+    @Override
+    @Test
     public void testParse() throws Exception {
         String xml =
                 "<WFS_Capabilities version=\"1.1.0\">"
@@ -66,7 +65,9 @@ public class WFS_CapabilitiesTypeBindingTest extends WFSTestSupport {
         assertNotNull(caps.getFeatureTypeList());
     }
 
+    @Override
     @SuppressWarnings("unchecked")
+    @Test
     public void testEncode() throws Exception {
         WFSCapabilitiesType caps = factory.createWFSCapabilitiesType();
         caps.setVersion("1.1.0");
@@ -173,8 +174,8 @@ public class WFS_CapabilitiesTypeBindingTest extends WFSTestSupport {
             idCaps = filterFac.idCapabilities(eid, fid);
         }
 
-        FilterCapabilities filterCaps;
-        filterCaps = filterFac.capabilities(version, scalarCaps, spatialCaps, idCaps);
+        FilterCapabilities filterCaps =
+                filterFac.capabilities(version, scalarCaps, spatialCaps, idCaps);
         return filterCaps;
     }
 }

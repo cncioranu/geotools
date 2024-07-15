@@ -20,35 +20,48 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import org.geotools.jdbc.JDBCDelegatingTestSetup;
-import org.geotools.util.Version;
+import org.geotools.jdbc.JDBCTestSetup;
+import org.postgresql.util.PSQLException;
 
 public class PostGISJsonTestSetup extends JDBCDelegatingTestSetup {
 
     protected PostGISJsonTestSetup() {
-        super(new PostGISTestSetup());
+        this(new PostGISTestSetup());
+    }
+
+    protected PostGISJsonTestSetup(JDBCTestSetup setup) {
+        super(setup);
     }
 
     protected boolean supportJsonB = false;
 
+    protected boolean supportJsonPathExists = false;
+
     @Override
     protected void setUpData() throws Exception {
         dropTestJsonTable();
-        Connection cx = null;
-        Statement st = null;
-        ResultSet rs = null;
 
-        try {
-            cx = getConnection();
-            st = cx.createStatement();
-            rs = st.executeQuery("select Version()");
+        try (Connection cx = getConnection();
+                Statement st = cx.createStatement();
+                ResultSet rs = st.executeQuery("SELECT current_setting('server_version_num')")) {
             if (rs.next()) {
-                // JSONB has been introduced with version 9.4
-                supportJsonB = new Version(rs.getString(1)).compareTo(new Version("9.4")) >= 0;
+                try {
+                    int version = Integer.parseInt(rs.getString(1));
+                    // JSONB has been introduced with version 9.4
+                    supportJsonB = version >= 90004;
+                    // JsonPathExists has been introduced with version 12.0
+                    supportJsonPathExists = version >= 120000;
+                } catch (NumberFormatException nfe) {
+                    // unable to determine PostgreSQL version because non-integer returned
+                    supportJsonB = false;
+                    supportJsonPathExists = false;
+                }
             }
-        } finally {
-            rs.close();
-            st.close();
-            cx.close();
+        } catch (PSQLException pse) {
+            // server_version_num was added in PostgreSQL 8.2, throws this exception if the
+            // parameter is
+            // not found
+            supportJsonB = false;
         }
         createTestJsonTable();
     }
@@ -103,7 +116,9 @@ public class PostGISJsonTestSetup extends JDBCDelegatingTestSetup {
                         + (supportJsonB ? ", '{\"arrayValues\":[3,5,6]}'" : "")
                         + ");"
                         + "INSERT INTO \"jsontest\" VALUES (6, 'arrayEntry2', '{\"strVal\": \"stringValue\", \"arrayValues\":[3,6,7]}'"
-                        + (supportJsonB ? ", '{\"arrayValues\":[3,6,7]}'" : "")
+                        + (supportJsonB
+                                ? ", '{\"strVal\": \"stringValue\",\"arrayValues\":[3,6,7]}'"
+                                : "")
                         + ");"
                         + "INSERT INTO \"jsontest\" VALUES (7, 'nestedObj', '{\"nestedObj\": {\"nestedProp\":\"stringValue\", \"nestedObj2\": {\"numProp\": 3, \"strProp\": \"stringValue2\"},\"nestedAr\":[3,6,7]}}'"
                         + (supportJsonB
@@ -113,6 +128,19 @@ public class PostGISJsonTestSetup extends JDBCDelegatingTestSetup {
                         + "INSERT INTO \"jsontest\" VALUES (8, 'nestedObj', '{\"nestedObj\": {\"nestedProp\":\"stringValue\", \"nestedObj2\": {\"numProp\": 4, \"strProp\": \"stringValue2\"}, \"nestedAr\":[3,5,7]}}'"
                         + (supportJsonB
                                 ? ", '{\"nestedObj\": {\"nestedProp\":\"stringValue\", \"nestedObj2\": {\"numProp\": 4, \"strProp\": \"stringValue2\"}, \"nestedAr\":[3,5,7]}}'"
+                                : "")
+                        + ");"
+                        + "INSERT INTO \"jsontest\" VALUES (9, 'arrayEntryStr', '{\"arrayStrValues\":[\"EL1\",\"EL2\",\"EL3\"]}'"
+                        + (supportJsonB ? ", '{\"arrayStrValues\":[\"EL1\",\"EL2\",\"EL3\"]}'" : "")
+                        + ");"
+                        + "INSERT INTO \"jsontest\" VALUES (10, 'arrayEntryStr', '[{\"type\": \"MAIN\", \"version\": 1 }, {\"type\": \"OTHERS\", \"version\": 2 }]'"
+                        + (supportJsonB
+                                ? ", '[{\"type\": \"MAIN\", \"version\": 1 }, {\"type\": \"OTHERS\", \"version\": 2 }]'"
+                                : "")
+                        + ");"
+                        + "INSERT INTO \"jsontest\" VALUES (11, 'arrayEntryStr', '[{\"type\": \"DEFAULT\", \"version\": 3 }, {\"type\": \"UNKNOWN\", \"version\": 4 }]'"
+                        + (supportJsonB
+                                ? ", '[{\"type\": \"DEFAULT\", \"version\": 3 }, {\"type\": \"UNKNOWN\", \"version\": 4 }]'"
                                 : "")
                         + ");";
 

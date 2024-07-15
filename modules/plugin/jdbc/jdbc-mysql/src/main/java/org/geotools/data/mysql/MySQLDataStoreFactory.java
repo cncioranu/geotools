@@ -21,7 +21,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCDataStoreFactory;
 import org.geotools.jdbc.SQLDialect;
@@ -32,8 +32,6 @@ import org.geotools.jdbc.SQLDialect;
  * @author David Winslow, The Open Planning Project
  * @author Nikolaos Pringouris <nprigour@gmail.com> added support for MySQL versions 5.6 (and above)
  */
-// temporary work around, the factory parameters map will be fixed separately
-@SuppressWarnings("unchecked")
 public class MySQLDataStoreFactory extends JDBCDataStoreFactory {
     /** parameter for database type */
     public static final Param DBTYPE =
@@ -66,23 +64,28 @@ public class MySQLDataStoreFactory extends JDBCDataStoreFactory {
 
     protected boolean enhancedSpatialSupport = (boolean) ENHANCED_SPATIAL_SUPPORT.sample;
 
+    @Override
     protected SQLDialect createSQLDialect(JDBCDataStore dataStore) {
         // return new MySQLDialectPrepared(dataStore);
         return new MySQLDialectBasic(dataStore, enhancedSpatialSupport);
     }
 
+    @Override
     public String getDisplayName() {
         return "MySQL";
     }
 
+    @Override
     protected String getDriverClassName() {
         return "com.mysql.cj.jdbc.Driver";
     }
 
+    @Override
     protected String getDatabaseID() {
         return (String) DBTYPE.sample;
     }
 
+    @Override
     public String getDescription() {
         return "MySQL Database";
     }

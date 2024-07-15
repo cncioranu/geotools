@@ -20,11 +20,11 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.xml.namespace.QName;
 import org.eclipse.xsd.XSDElementDeclaration;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
 import org.geotools.xsd.AbstractComplexBinding;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.spatial.BinarySpatialOperator;
 import org.picocontainer.MutablePicoContainer;
 
 /**
@@ -56,6 +56,7 @@ import org.picocontainer.MutablePicoContainer;
 public class OGCBinarySpatialOpTypeBinding extends AbstractComplexBinding {
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return OGC.BinarySpatialOpType;
     }
@@ -67,6 +68,7 @@ public class OGCBinarySpatialOpTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public int getExecutionMode() {
         return AFTER;
     }
@@ -78,6 +80,7 @@ public class OGCBinarySpatialOpTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class<?> getType() {
         return BinarySpatialOperator.class;
     }
@@ -90,6 +93,7 @@ public class OGCBinarySpatialOpTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public void initialize(ElementInstance instance, Node node, MutablePicoContainer context) {}
 
     /**
@@ -99,6 +103,7 @@ public class OGCBinarySpatialOpTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         // implemented by element bindings
         return null;
@@ -144,7 +149,7 @@ public class OGCBinarySpatialOpTypeBinding extends AbstractComplexBinding {
         //        //<xsd:element name="Within" substitutionGroup="ogc:spatialOps"
         // type="ogc:BinarySpatialOpType"/>
         //        else if ("Within".equals(name)) {
-        //            //TODO: within method on FilterFactory2 needs to take two expressoins
+        //            //TODO: within method on FilterFactory needs to take two expressoins
         //            return factory.within(e1, e2);
         //        }
         //        //<xsd:element name="Overlaps" substitutionGroup="ogc:spatialOps"
@@ -171,6 +176,7 @@ public class OGCBinarySpatialOpTypeBinding extends AbstractComplexBinding {
         //        }
     }
 
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         BinarySpatialOperator operator = (BinarySpatialOperator) object;
 

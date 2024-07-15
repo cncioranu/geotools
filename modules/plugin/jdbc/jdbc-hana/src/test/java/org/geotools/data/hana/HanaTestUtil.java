@@ -24,13 +24,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import org.geotools.data.hana.metadata.MetadataDdl;
 import org.geotools.data.hana.metadata.Srs;
 
 /** @author Stefan Uhrig, SAP SE */
 public class HanaTestUtil {
-
-    private static final String SCHEMA = "geotools";
 
     private static final String HANA_UUID = "8E468249703240F0ACDE78162124A62F";
 
@@ -53,8 +52,8 @@ public class HanaTestUtil {
 
     public static StringBuilder encodeIdentifiers(StringBuilder sb, String... ids) {
         boolean first = true;
-        for (int i = 0; i < ids.length; ++i) {
-            if (ids[i] == null) {
+        for (String id : ids) {
+            if (id == null) {
                 continue;
             }
             if (first) {
@@ -62,7 +61,7 @@ public class HanaTestUtil {
             } else {
                 sb.append('.');
             }
-            sb.append(HanaUtil.encodeIdentifier(ids[i]));
+            sb.append(HanaUtil.encodeIdentifier(id));
         }
         return sb;
     }
@@ -87,29 +86,27 @@ public class HanaTestUtil {
         }
     }
 
-    public HanaTestUtil(Connection conn) {
+    public HanaTestUtil(Connection conn, Properties fixture) {
         this.conn = conn;
+        this.fixture = fixture;
     }
 
     private Connection conn;
 
+    private Properties fixture;
+
     public boolean srsExists(int srid) throws SQLException {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            ps =
-                    conn.prepareStatement(
-                            "SELECT COUNT(*) FROM PUBLIC.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID = ?");
+        try (PreparedStatement ps =
+                conn.prepareStatement(
+                        "SELECT COUNT(*) FROM PUBLIC.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID = ?")) {
             ps.setInt(1, srid);
-            rs = ps.executeQuery();
-            if (!rs.next()) {
-                throw new AssertionError();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new AssertionError();
+                }
+                int count = rs.getInt(1);
+                return (count == 1);
             }
-            int count = rs.getInt(1);
-            return (count == 1);
-        } finally {
-            safeClose(rs);
-            safeClose(ps);
         }
     }
 
@@ -125,20 +122,17 @@ public class HanaTestUtil {
         if (schemaName == null) {
             return true;
         }
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            ps = conn.prepareStatement("SELECT COUNT(*) FROM PUBLIC.SCHEMAS WHERE SCHEMA_NAME = ?");
+        try (PreparedStatement ps =
+                conn.prepareStatement(
+                        "SELECT COUNT(*) FROM PUBLIC.SCHEMAS WHERE SCHEMA_NAME = ?")) {
             ps.setString(1, schemaName);
-            rs = ps.executeQuery();
-            if (!rs.next()) {
-                throw new AssertionError();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new AssertionError();
+                }
+                int count = rs.getInt(1);
+                return (count == 1);
             }
-            int count = rs.getInt(1);
-            return (count == 1);
-        } finally {
-            safeClose(rs);
-            safeClose(ps);
         }
     }
 
@@ -152,54 +146,46 @@ public class HanaTestUtil {
         execute(sql.toString());
     }
 
+    public String getTestSchema() {
+        return fixture.getProperty("schema", "geotools");
+    }
+
     public void createTestSchema() throws SQLException {
-        createSchema(SCHEMA);
+        createSchema(getTestSchema());
     }
 
     public String resolveSchema(String schemaName) throws SQLException {
         if (schemaName == null) {
-            Statement stmt = null;
-            ResultSet rs = null;
-            try {
-                stmt = conn.createStatement();
-                rs = stmt.executeQuery("SELECT CURRENT_SCHEMA FROM DUMMY");
+            try (Statement stmt = conn.createStatement();
+                    ResultSet rs = stmt.executeQuery("SELECT CURRENT_SCHEMA FROM DUMMY")) {
                 if (!rs.next()) {
                     throw new AssertionError();
                 }
                 schemaName = rs.getString(1);
-            } finally {
-                safeClose(rs);
-                safeClose(stmt);
             }
         }
         return schemaName;
     }
 
     public boolean tableExists(String schemaName, String tableName) throws SQLException {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
+        String sql =
+                (schemaName == null)
+                        ? "SELECT COUNT(*) FROM PUBLIC.TABLES WHERE SCHEMA_NAME = CURRENT_SCHEMA AND TABLE_NAME = ?"
+                        : "SELECT COUNT(*) FROM PUBLIC.TABLES WHERE SCHEMA_NAME = ? AND TABLE_NAME = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             if (schemaName == null) {
-                ps =
-                        conn.prepareStatement(
-                                "SELECT COUNT(*) FROM PUBLIC.TABLES WHERE SCHEMA_NAME = CURRENT_SCHEMA AND TABLE_NAME = ?");
                 ps.setString(1, tableName);
             } else {
-                ps =
-                        conn.prepareStatement(
-                                "SELECT COUNT(*) FROM PUBLIC.TABLES WHERE SCHEMA_NAME = ? AND TABLE_NAME = ?");
                 ps.setString(1, schemaName);
                 ps.setString(2, tableName);
             }
-            rs = ps.executeQuery();
-            if (!rs.next()) {
-                throw new AssertionError();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new AssertionError();
+                }
+                int count = rs.getInt(1);
+                return (count == 1);
             }
-            int count = rs.getInt(1);
-            return (count == 1);
-        } finally {
-            safeClose(rs);
-            safeClose(ps);
         }
     }
 
@@ -210,7 +196,7 @@ public class HanaTestUtil {
     }
 
     public void createRegisteredTestTable(String tableName, String[]... cols) throws SQLException {
-        createRegisteredTable(SCHEMA, tableName, cols);
+        createRegisteredTable(getTestSchema(), tableName, cols);
     }
 
     public void createTable(String schemaName, String tableName, String[]... cols)
@@ -236,7 +222,7 @@ public class HanaTestUtil {
     }
 
     public void createTestTable(String tableName, String[]... cols) throws SQLException {
-        createTable(SCHEMA, tableName, cols);
+        createTable(getTestSchema(), tableName, cols);
     }
 
     public List<String> getPrimaryKeyColumnsOfTable(String schemaName, String tableName)
@@ -299,7 +285,7 @@ public class HanaTestUtil {
     }
 
     public void dropTestTableCascade(String tableName) throws SQLException {
-        dropTableCascade(SCHEMA, tableName);
+        dropTableCascade(getTestSchema(), tableName);
     }
 
     public void dropTable(String schemaName, String tableName) throws SQLException {
@@ -322,12 +308,9 @@ public class HanaTestUtil {
         encodeIdentifiers(sql, schemaName, METADATA_TABLE_NAME);
         sql.append(" WHERE TABLE_NAME = ?");
 
-        PreparedStatement ps = conn.prepareStatement(sql.toString());
-        try {
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
             ps.setString(1, tableName);
             ps.executeUpdate();
-        } finally {
-            safeClose(ps);
         }
     }
 
@@ -349,30 +332,24 @@ public class HanaTestUtil {
     }
 
     public boolean viewExists(String schemaName, String viewName) throws SQLException {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
+        String sql =
+                (schemaName == null)
+                        ? "SELECT COUNT(*) FROM PUBLIC.VIEWS WHERE SCHEMA_NAME = CURRENT_SCHEMA AND VIEW_NAME = ?"
+                        : "SELECT COUNT(*) FROM PUBLIC.VIEWS WHERE SCHEMA_NAME = ? AND VIEW_NAME = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             if (schemaName == null) {
-                ps =
-                        conn.prepareStatement(
-                                "SELECT COUNT(*) FROM PUBLIC.VIEWS WHERE SCHEMA_NAME = CURRENT_SCHEMA AND VIEW_NAME = ?");
                 ps.setString(1, viewName);
             } else {
-                ps =
-                        conn.prepareStatement(
-                                "SELECT COUNT(*) FROM PUBLIC.VIEWS WHERE SCHEMA_NAME = ? AND VIEW_NAME = ?");
                 ps.setString(1, schemaName);
                 ps.setString(2, viewName);
             }
-            rs = ps.executeQuery();
-            if (!rs.next()) {
-                throw new AssertionError();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new AssertionError();
+                }
+                int count = rs.getInt(1);
+                return (count == 1);
             }
-            int count = rs.getInt(1);
-            return (count == 1);
-        } finally {
-            safeClose(rs);
-            safeClose(ps);
         }
     }
 
@@ -400,7 +377,7 @@ public class HanaTestUtil {
 
     public void createTestView(String viewName, String sourceTableName, String... selectedFields)
             throws SQLException {
-        createView(SCHEMA, viewName, sourceTableName, selectedFields);
+        createView(getTestSchema(), viewName, sourceTableName, selectedFields);
     }
 
     public void dropView(String schemaName, String viewName) throws SQLException {
@@ -414,34 +391,28 @@ public class HanaTestUtil {
     }
 
     public void dropTestView(String viewName) throws SQLException {
-        dropView(SCHEMA, viewName);
+        dropView(getTestSchema(), viewName);
     }
 
     public boolean sequenceExists(String schemaName, String sequenceName) throws SQLException {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
+        String sql =
+                (schemaName == null)
+                        ? "SELECT COUNT(*) FROM PUBLIC.SEQUENCES WHERE SCHEMA_NAME = CURRENT_SCHEMA AND SEQUENCE_NAME = ?"
+                        : "SELECT COUNT(*) FROM PUBLIC.SEQUENCES WHERE SCHEMA_NAME = ? AND SEQUENCE_NAME = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             if (schemaName == null) {
-                ps =
-                        conn.prepareStatement(
-                                "SELECT COUNT(*) FROM PUBLIC.SEQUENCES WHERE SCHEMA_NAME = CURRENT_SCHEMA AND SEQUENCE_NAME = ?");
                 ps.setString(1, sequenceName);
             } else {
-                ps =
-                        conn.prepareStatement(
-                                "SELECT COUNT(*) FROM PUBLIC.SEQUENCES WHERE SCHEMA_NAME = ? AND SEQUENCE_NAME = ?");
                 ps.setString(1, schemaName);
                 ps.setString(2, sequenceName);
             }
-            rs = ps.executeQuery();
-            if (!rs.next()) {
-                throw new AssertionError();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new AssertionError();
+                }
+                int count = rs.getInt(1);
+                return (count == 1);
             }
-            int count = rs.getInt(1);
-            return (count == 1);
-        } finally {
-            safeClose(rs);
-            safeClose(ps);
         }
     }
 
@@ -490,7 +461,7 @@ public class HanaTestUtil {
     }
 
     public void insertIntoTestTable(String tableName, Object... values) throws SQLException {
-        insertIntoTable(SCHEMA, tableName, values);
+        insertIntoTable(getTestSchema(), tableName, values);
     }
 
     public void insertFieldsIntoTable(
@@ -526,7 +497,7 @@ public class HanaTestUtil {
 
     public Object nextTestSequenceValueForColumn(String tableName, String columnName) {
         String sequenceName = getSequenceName(tableName, columnName);
-        return new NextSequenceValue(SCHEMA, sequenceName);
+        return new NextSequenceValue(getTestSchema(), sequenceName);
     }
 
     public Object nextSequenceValue(String schemaName, String sequenceName) {
@@ -583,34 +554,26 @@ public class HanaTestUtil {
 
     private void addByteArray(StringBuilder sql, byte[] bin) {
         sql.append("x'");
-        for (int i = 0; i < bin.length; ++i) {
-            sql.append(HEX_CHARS[(bin[i] & 0xF0) >>> 4]);
-            sql.append(HEX_CHARS[bin[i] & 0x0F]);
-            ;
+        for (byte b : bin) {
+            sql.append(HEX_CHARS[(b & 0xF0) >>> 4]);
+            sql.append(HEX_CHARS[b & 0x0F]);
         }
         sql.append("'");
     }
 
     private void execute(String sql) throws SQLException {
-        Statement stmt = conn.createStatement();
-        try {
+        try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
-        } finally {
-            safeClose(stmt);
         }
     }
 
     private List<String> getPrimaryKeys(String schemaName, String tableName) throws SQLException {
         DatabaseMetaData dbmd = conn.getMetaData();
-        ResultSet rs = null;
         List<String> pkColumns = new ArrayList<>();
-        try {
-            rs = dbmd.getPrimaryKeys(null, schemaName, tableName);
+        try (ResultSet rs = dbmd.getPrimaryKeys(null, schemaName, tableName)) {
             while (rs.next()) {
                 pkColumns.add(rs.getString(4));
             }
-        } finally {
-            safeClose(rs);
         }
         return pkColumns;
     }

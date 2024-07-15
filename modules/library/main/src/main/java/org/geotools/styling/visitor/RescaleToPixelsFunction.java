@@ -21,9 +21,9 @@ import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
 import javax.measure.Unit;
 import javax.measure.quantity.Length;
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
 
 /**
  * Applies unit to pixel rescaling around expressions whose native unit cannot be determined in a
@@ -51,6 +51,7 @@ public class RescaleToPixelsFunction extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
 
         String value = getExpression(0).evaluate(feature, String.class);

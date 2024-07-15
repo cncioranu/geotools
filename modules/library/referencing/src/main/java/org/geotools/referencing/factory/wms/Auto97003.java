@@ -16,7 +16,7 @@
  */
 package org.geotools.referencing.factory.wms;
 
-import org.opengis.parameter.ParameterValueGroup;
+import org.geotools.api.parameter.ParameterValueGroup;
 
 /**
  * Auto Azimuthal Equidistant ({@code AUTO:97003}). In the notation below, "<code>${var}</code>"
@@ -60,21 +60,25 @@ final class Auto97003 extends Factlet {
     private Auto97003() {}
 
     /** {@inheritDoc} */
+    @Override
     public int code() {
         return 97003;
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getName() {
         return "WGS 84 / Auto Azimuthal Equidistant";
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getClassification() {
         return "Azimuthal Equidistant";
     }
 
     /** {@inheritDoc} */
+    @Override
     protected void setProjectionParameters(final ParameterValueGroup parameters, final Code code) {
         final double latitudeOfOrigin = code.latitude;
         final double centralMeridian = code.longitude;

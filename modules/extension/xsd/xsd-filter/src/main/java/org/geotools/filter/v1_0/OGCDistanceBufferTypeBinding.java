@@ -17,10 +17,10 @@
 package org.geotools.filter.v1_0;
 
 import javax.xml.namespace.QName;
+import org.geotools.api.filter.spatial.DistanceBufferOperator;
 import org.geotools.xsd.AbstractComplexBinding;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
-import org.opengis.filter.spatial.DistanceBufferOperator;
 import org.picocontainer.MutablePicoContainer;
 
 /**
@@ -50,6 +50,7 @@ import org.picocontainer.MutablePicoContainer;
 public class OGCDistanceBufferTypeBinding extends AbstractComplexBinding {
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return OGC.DistanceBufferType;
     }
@@ -61,6 +62,7 @@ public class OGCDistanceBufferTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return DistanceBufferOperator.class;
     }
@@ -72,8 +74,10 @@ public class OGCDistanceBufferTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public void initialize(ElementInstance instance, Node node, MutablePicoContainer context) {}
 
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         DistanceBufferOperator operator = (DistanceBufferOperator) object;
         Object property =

@@ -19,8 +19,8 @@ package org.geotools.brewer.styling.builder;
 import java.util.HashMap;
 import java.util.Map;
 import javax.measure.Unit;
-import org.geotools.styling.ExtensionSymbolizer;
-import org.opengis.filter.expression.Expression;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.ExtensionSymbolizer;
 
 public class ExtensionSymbolizerBuilder extends AbstractStyleBuilder<ExtensionSymbolizer> {
     private String name;
@@ -87,6 +87,7 @@ public class ExtensionSymbolizerBuilder extends AbstractStyleBuilder<ExtensionSy
         return this;
     }
 
+    @Override
     public ExtensionSymbolizer build() {
         if (unset) {
             return null;
@@ -101,6 +102,7 @@ public class ExtensionSymbolizerBuilder extends AbstractStyleBuilder<ExtensionSy
         return symbolizer;
     }
 
+    @Override
     public ExtensionSymbolizerBuilder reset() {
         name = null;
         geometry = null;
@@ -112,6 +114,7 @@ public class ExtensionSymbolizerBuilder extends AbstractStyleBuilder<ExtensionSy
         return this;
     }
 
+    @Override
     public ExtensionSymbolizerBuilder reset(ExtensionSymbolizer symbolizer) {
         if (symbolizer == null) {
             return unset();
@@ -127,6 +130,7 @@ public class ExtensionSymbolizerBuilder extends AbstractStyleBuilder<ExtensionSy
         return this;
     }
 
+    @Override
     public ExtensionSymbolizerBuilder unset() {
         return (ExtensionSymbolizerBuilder) super.unset();
     }

@@ -34,6 +34,7 @@ import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.imageio.stream.ImageInputStream;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.io.CoverageAccess;
 import org.geotools.coverage.io.Driver;
 import org.geotools.coverage.io.FileDriver;
@@ -41,7 +42,6 @@ import org.geotools.coverage.io.impl.DefaultFileDriver;
 import org.geotools.imageio.netcdf.NetCDFImageReaderSpi;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.util.factory.Hints;
-import org.opengis.util.ProgressListener;
 
 /** NetCDF Driver */
 public class NetCDFDriver extends DefaultFileDriver implements FileDriver, Driver {
@@ -83,6 +83,7 @@ public class NetCDFDriver extends DefaultFileDriver implements FileDriver, Drive
                 EnumSet.of(DriverCapabilities.CONNECT));
     }
 
+    @Override
     public CoverageAccess connect(
             java.net.URL source,
             Map<String, Serializable> params,
@@ -92,6 +93,7 @@ public class NetCDFDriver extends DefaultFileDriver implements FileDriver, Drive
         return new NetCDFAccess(this, source, params, hints, listener);
     }
 
+    @Override
     public CoverageAccess connect(
             Map<String, Serializable> params, Hints hints, ProgressListener listener)
             throws IOException {
@@ -105,6 +107,7 @@ public class NetCDFDriver extends DefaultFileDriver implements FileDriver, Drive
         return new NetCDFAccess(this, url, params, hints, listener);
     }
 
+    @Override
     public boolean isAvailable() {
         return checkNetCDF();
     }
@@ -127,6 +130,7 @@ public class NetCDFDriver extends DefaultFileDriver implements FileDriver, Drive
     }
 
     @Override
+    @SuppressWarnings("PMD.UseTryWithResources") // complex management in close
     protected boolean canConnect(URL url, Map<String, Serializable> params) {
 
         if (url == null) {

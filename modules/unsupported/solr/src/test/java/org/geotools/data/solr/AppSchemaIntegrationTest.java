@@ -33,9 +33,12 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.geotools.data.DataAccess;
-import org.geotools.data.DataAccessFinder;
-import org.geotools.data.FeatureSource;
+import org.geotools.api.data.DataAccess;
+import org.geotools.api.data.DataAccessFinder;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.complex.feature.type.Types;
 import org.geotools.data.solr.SolrTypeData.SolrTypes;
 import org.geotools.data.solr.StationData.Stations;
@@ -48,9 +51,6 @@ import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -86,8 +86,7 @@ public final class AppSchemaIntegrationTest extends OnlineTestCase {
     @Test
     public void testFeaturesData() throws Exception {
         FeatureSource<FeatureType, Feature> fSource =
-                (FeatureSource<FeatureType, Feature>)
-                        mappingDataStore.getFeatureSource(mappedTypeName);
+                mappingDataStore.getFeatureSource(mappedTypeName);
         List<Feature> features = toFeaturesList(fSource.getFeatures());
         // check features count
         assertEquals(2, features.size());
@@ -121,28 +120,12 @@ public final class AppSchemaIntegrationTest extends OnlineTestCase {
 
     private List<Feature> toFeaturesList(FeatureCollection<FeatureType, Feature> features) {
         List<Feature> result = new ArrayList<>();
-        FeatureIterator<Feature> i = features.features();
-        try {
+        try (FeatureIterator<Feature> i = features.features()) {
             while (i.hasNext()) {
                 result.add(i.next());
             }
-        } finally {
-            i.close();
         }
         return result;
-    }
-
-    private int size(FeatureCollection<FeatureType, Feature> features) {
-        int size = 0;
-        FeatureIterator<Feature> i = features.features();
-        try {
-            for (; i.hasNext(); i.next()) {
-                size++;
-            }
-        } finally {
-            i.close();
-        }
-        return size;
     }
 
     @Override

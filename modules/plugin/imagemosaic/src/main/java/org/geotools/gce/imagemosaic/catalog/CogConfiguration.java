@@ -17,16 +17,28 @@
 package org.geotools.gce.imagemosaic.catalog;
 
 import it.geosolutions.imageio.core.BasicAuthURI;
+import it.geosolutions.imageio.core.SourceSPIProvider;
+import it.geosolutions.imageioimpl.plugins.cog.CogImageInputStreamSpi;
+import it.geosolutions.imageioimpl.plugins.cog.CogImageReaderSpi;
+import it.geosolutions.imageioimpl.plugins.cog.CogSourceSPIProvider;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import javax.imageio.spi.ImageInputStreamSpi;
+import javax.imageio.spi.ImageReaderSpi;
 import org.apache.commons.beanutils.BeanUtils;
+import org.geotools.gce.imagemosaic.SourceSPIProviderFactory;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer;
 import org.geotools.gce.imagemosaic.catalog.index.IndexerUtils;
 import org.geotools.util.Utilities;
 
 /** Bean containing all COG related configuration properties */
-public class CogConfiguration {
+public class CogConfiguration implements SourceSPIProviderFactory {
+
+    private static final ImageReaderSpi COG_IMAGE_READER_SPI = new CogImageReaderSpi();
+
+    private static final ImageInputStreamSpi COG_IMAGE_INPUT_STREAM_SPI =
+            new CogImageInputStreamSpi();
 
     public CogConfiguration() {};
 
@@ -34,10 +46,7 @@ public class CogConfiguration {
         Utilities.ensureNonNull("CogConfiguration", that);
         try {
             BeanUtils.copyProperties(this, that);
-        } catch (IllegalAccessException e) {
-            final IllegalArgumentException iae = new IllegalArgumentException(e);
-            throw iae;
-        } catch (InvocationTargetException e) {
+        } catch (IllegalAccessException | InvocationTargetException e) {
             final IllegalArgumentException iae = new IllegalArgumentException(e);
             throw iae;
         }
@@ -108,12 +117,23 @@ public class CogConfiguration {
     }
 
     /**
-     * Create a {@link BasicAuthURI} instance on top of the provided url String optionally embedding
-     * (when provided) user/pass credentials as UserInfo component of the underlying URI.
+     * Create a {@link BasicAuthURI} instance on top of the provided source String optionally
+     * embedding (when provided) user/pass credentials as UserInfo component of the underlying URI.
      */
-    public BasicAuthURI createUri(String url) {
+    public BasicAuthURI createUri(String source) {
         // Create basic uri
-        URI uri = URI.create(url);
+        URI uri = URI.create(source);
         return new BasicAuthURI(uri, isUseCache(), getUser(), getPassword());
+    }
+
+    @Override
+    public SourceSPIProvider getSourceSPIProvider(Object sourceUrl) {
+        SourceSPIProvider readerInputObject =
+                new CogSourceSPIProvider(
+                        createUri(sourceUrl.toString()),
+                        COG_IMAGE_READER_SPI,
+                        COG_IMAGE_INPUT_STREAM_SPI,
+                        getRangeReader());
+        return readerInputObject;
     }
 }

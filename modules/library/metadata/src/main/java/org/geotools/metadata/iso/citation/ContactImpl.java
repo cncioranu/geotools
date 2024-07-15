@@ -20,13 +20,13 @@
 package org.geotools.metadata.iso.citation;
 
 import net.opengis.ows11.ContactType;
+import org.geotools.api.metadata.citation.Address;
+import org.geotools.api.metadata.citation.Contact;
+import org.geotools.api.metadata.citation.OnLineResource;
+import org.geotools.api.metadata.citation.Telephone;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.MetadataEntity;
 import org.geotools.util.SimpleInternationalString;
-import org.opengis.metadata.citation.Address;
-import org.opengis.metadata.citation.Contact;
-import org.opengis.metadata.citation.OnLineResource;
-import org.opengis.metadata.citation.Telephone;
-import org.opengis.util.InternationalString;
 
 /**
  * Information required to enable contact with the responsible person and/or organization.
@@ -106,6 +106,19 @@ public class ContactImpl extends MetadataEntity implements Contact {
         final ContactImpl c = new ContactImpl(OnLineResourceImpl.ESRI);
         c.freeze();
         ESRI = c;
+    }
+
+    /**
+     * Contact informations for <A HREF="https://www.iau.org">IAU</A>.
+     *
+     * @see OnLineResourceImpl#IAU
+     */
+    public static final Contact IAU;
+
+    static {
+        final ContactImpl c = new ContactImpl(OnLineResourceImpl.IAU);
+        c.freeze();
+        IAU = c;
     }
 
     /**
@@ -231,6 +244,7 @@ public class ContactImpl extends MetadataEntity implements Contact {
      * Returns the physical and email address at which the organization or individual may be
      * contacted. Returns {@code null} if none.
      */
+    @Override
     public Address getAddress() {
         return address;
     }
@@ -247,6 +261,7 @@ public class ContactImpl extends MetadataEntity implements Contact {
      * Returns supplemental instructions on how or when to contact the individual or organization.
      * Returns {@code null} if none.
      */
+    @Override
     public InternationalString getContactInstructions() {
         return contactInstructions;
     }
@@ -261,6 +276,7 @@ public class ContactImpl extends MetadataEntity implements Contact {
      * Return on-line information that can be used to contact the individual or organization.
      * Returns {@code null} if none.
      */
+    @Override
     public OnLineResource getOnLineResource() {
         return onLineResource;
     }
@@ -275,6 +291,7 @@ public class ContactImpl extends MetadataEntity implements Contact {
      * Returns telephone numbers at which the organization or individual may be contacted. Returns
      * {@code null} if none.
      */
+    @Override
     public Telephone getPhone() {
         return phone;
     }
@@ -289,6 +306,7 @@ public class ContactImpl extends MetadataEntity implements Contact {
      * Returns time period (including time zone) when individuals can contact the organization or
      * individual. Returns {@code null} if none.
      */
+    @Override
     public InternationalString getHoursOfService() {
         return hoursOfService;
     }

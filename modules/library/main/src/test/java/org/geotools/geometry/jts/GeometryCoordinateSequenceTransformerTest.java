@@ -20,8 +20,12 @@ package org.geotools.geometry.jts;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.referencing.operation.transform.ProjectiveTransform;
@@ -31,9 +35,6 @@ import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Tests the {@link GeometryCoordinateSequenceTransformer} implementation.
@@ -153,7 +154,7 @@ public class GeometryCoordinateSequenceTransformerTest {
         Geometry g2 = gcsTransInv.transform(gTrans);
 
         // result better be a different geometry
-        assertTrue(g != g2);
+        assertNotSame(g, g2);
         assertTrue(hasSameValuesAndStructure(g, g2));
     }
 
@@ -181,14 +182,17 @@ public class GeometryCoordinateSequenceTransformerTest {
             return firstSeqFound;
         }
 
+        @Override
         public void filter(CoordinateSequence seq, int i) {
             if (firstSeqFound == null) firstSeqFound = seq;
         }
 
+        @Override
         public boolean isDone() {
             return firstSeqFound != null;
         }
 
+        @Override
         public boolean isGeometryChanged() {
             return false;
         }
@@ -218,15 +222,18 @@ public class GeometryCoordinateSequenceTransformerTest {
             return isSame;
         }
 
+        @Override
         public void filter(CoordinateSequence seq, int i) {
             if (seq.getClass() != coordSeqClass) isSame = false;
             if (seq.getDimension() != dimension) isSame = false;
         }
 
+        @Override
         public boolean isDone() {
             return !isSame;
         }
 
+        @Override
         public boolean isGeometryChanged() {
             return false;
         }

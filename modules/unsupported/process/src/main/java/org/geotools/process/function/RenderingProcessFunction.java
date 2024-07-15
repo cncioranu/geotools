@@ -18,18 +18,18 @@ package org.geotools.process.function;
 
 import java.util.List;
 import java.util.Map;
-import org.geotools.data.Parameter;
-import org.geotools.data.Query;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.coverage.grid.GridGeometry;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.parameter.GeneralParameterValue;
 import org.geotools.filter.function.RenderingTransformation;
 import org.geotools.process.Process;
 import org.geotools.process.ProcessException;
 import org.geotools.process.RenderingProcess;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.coverage.grid.GridGeometry;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
-import org.opengis.parameter.GeneralParameterValue;
 
 /**
  * A function wrapping a {@link Process} with a single output. All inputs to the function are
@@ -47,9 +47,10 @@ class RenderingProcessFunction extends ProcessFunction implements RenderingTrans
             Map<String, Parameter<?>> parameters,
             RenderingProcess process,
             Literal fallbackValue) {
-        super(processName, inputExpressions, parameters, (Process) process, fallbackValue);
+        super(processName, inputExpressions, parameters, process, fallbackValue);
     }
 
+    @Override
     public Query invertQuery(Query targetQuery, GridGeometry gridGeometry) {
         RenderingProcess process = (RenderingProcess) this.process;
         // evaluate input expressions
@@ -63,6 +64,7 @@ class RenderingProcessFunction extends ProcessFunction implements RenderingTrans
         }
     }
 
+    @Override
     public GridGeometry invertGridGeometry(Query targetQuery, GridGeometry targetGridGeometry) {
         RenderingProcess process = (RenderingProcess) this.process;
         // evaluate input expressions

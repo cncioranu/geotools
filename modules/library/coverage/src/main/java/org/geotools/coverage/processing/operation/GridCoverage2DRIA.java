@@ -47,21 +47,23 @@ import javax.media.jai.RasterFormatTag;
 import javax.media.jai.TileCache;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.operator.ConstantDescriptor;
+import org.geotools.api.metadata.spatial.PixelOrientation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.util.CoverageUtilities;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.TransformException;
+import org.locationtech.jts.geom.Coordinate;
 
 /**
  * A RenderedImage that provides values coming from a source GridCoverage2D, with a backing grid
@@ -259,6 +261,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
                 hints);
     }
 
+    @SuppressWarnings("PMD.ReplaceVectorWithList")
     protected GridCoverage2DRIA(
             final GridCoverage2D src,
             final GridGeometry2D dst,
@@ -283,7 +286,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
 
         try {
             w2gd = g2wd.inverse();
-        } catch (org.opengis.referencing.operation.NoninvertibleTransformException e) {
+        } catch (org.geotools.api.referencing.operation.NoninvertibleTransformException e) {
             throw new IllegalArgumentException("Can't compute destination W2G", e);
         }
 
@@ -291,7 +294,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
 
         try {
             w2gs = g2ws.inverse();
-        } catch (org.opengis.referencing.operation.NoninvertibleTransformException e) {
+        } catch (org.geotools.api.referencing.operation.NoninvertibleTransformException e) {
             throw new IllegalArgumentException("Can't compute source W2G", e);
         }
 
@@ -301,9 +304,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
 
             src2dstCRSTransform = CRS.findMathTransform(sourceCRS, targetCRS, true);
             dst2srcCRSTransform = src2dstCRSTransform.inverse();
-        } catch (FactoryException e) {
-            throw new IllegalArgumentException("Can't create a transform between CRS", e);
-        } catch (NoninvertibleTransformException e) {
+        } catch (FactoryException | NoninvertibleTransformException e) {
             throw new IllegalArgumentException("Can't create a transform between CRS", e);
         }
 
@@ -339,7 +340,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
             throw new IndexOutOfBoundsException("Bad src"); // JaiI18N.getString("Generic1"));
         }
 
-        double[] coords = new double[] {srcPt.getX(), srcPt.getY()};
+        double[] coords = {srcPt.getX(), srcPt.getY()};
 
         try {
             mapSrcPoint(coords);
@@ -433,7 +434,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
             throw new IndexOutOfBoundsException("Bad src"); // JaiI18N.getString("Generic1"));
         }
 
-        double[] coords = new double[] {destPt.getX(), destPt.getY()};
+        double[] coords = {destPt.getX(), destPt.getY()};
 
         try {
             mapDestPoint(coords);
@@ -441,11 +442,17 @@ public class GridCoverage2DRIA extends GeometricOpImage {
             LOGGER.log(Level.WARNING, "Error transforming coords", e);
             return null;
         }
+        ReferencedEnvelope dstEnv = dst.getEnvelope2D();
 
         Point2D ret = ((Point2D) destPt.clone());
         ret.setLocation(coords[0], coords[1]);
-        if (dst.getEnvelope2D().contains(ret)) return ret;
-        else return null;
+
+        Coordinate coordinate = new Coordinate(coords[0], coords[1]);
+        if (dstEnv.contains(coordinate)) {
+            return ret;
+        } else {
+            return null;
+        }
     }
 
     private void mapDestPoint(double[] coords) throws TransformException {
@@ -579,7 +586,6 @@ public class GridCoverage2DRIA extends GeometricOpImage {
         // If a ROI is present, then only the part contained inside the current tile bounds is
         // taken.
         if (hasROI) {
-            Rectangle srcRectExpanded = null;
             int x = (int) destRect.getMinX();
             int y = (int) destRect.getMinY();
             int w = (int) destRect.getWidth();
@@ -600,7 +606,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
                 maxX = xi > maxX ? xi : maxX;
                 maxY = yi > maxY ? yi : maxY;
             }
-            srcRectExpanded =
+            Rectangle srcRectExpanded =
                     new Rectangle(
                             (int) minX,
                             (int) minY,
@@ -1487,6 +1493,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
          * @param name Property name.
          * @param opNode Operation node.
          */
+        @Override
         public Object getProperty(String name, Object opNode) {
             validate(name, opNode);
 
@@ -1557,12 +1564,11 @@ public class GridCoverage2DRIA extends GeometricOpImage {
                 GridCoverage2D input =
                         new GridCoverageFactory(GeoTools.getDefaultHints())
                                 .create(name, constantImage, op.src.getEnvelope());
-                PlanarImage roiImage = null;
 
                 // Creating warped roi by the same way (Warp, Interpolation, source ROI) we warped
                 // the
                 // input image.
-                roiImage = create(input, op.dst, new double[] {0d}, null, srcROI);
+                PlanarImage roiImage = create(input, op.dst, new double[] {0d}, null, srcROI);
 
                 ROI dstROI = new ROI(roiImage, 1);
 
@@ -1580,7 +1586,8 @@ public class GridCoverage2DRIA extends GeometricOpImage {
     }
 
     @Override
-    @SuppressWarnings("unchecked") // PlanarImage does not have generics, overrides this method
+    // PlanarImage does not have generics, overrides this method
+    @SuppressWarnings({"unchecked", "PMD.ReplaceVectorWithList"})
     public Vector<RenderedImage> getSources() {
         return super.getSources();
     }

@@ -17,7 +17,6 @@
 package org.geotools.s3;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Locale;
@@ -59,10 +58,13 @@ public class S3ImageInputStreamImplSpi extends ImageInputStreamSpi {
     }
 
     /** @see ImageInputStreamSpi#getDescription(Locale). */
+    @Override
     public String getDescription(Locale locale) {
         return "Service provider that wraps a file in S3";
     }
 
+    @Override
+    @SuppressWarnings("PMD.ForLoopCanBeForeach")
     public void onRegistration(ServiceRegistry registry, Class<?> category) {
         super.onRegistration(registry, category);
         Class<ImageInputStreamSpi> targetClass = ImageInputStreamSpi.class;
@@ -86,6 +88,7 @@ public class S3ImageInputStreamImplSpi extends ImageInputStreamSpi {
      * @return an ImageInputStream instance.
      * @throws IllegalArgumentException if input is not an instance of the correct class or is null.
      */
+    @Override
     public ImageInputStream createInputStreamInstance(
             Object input, boolean useCache, File cacheDir) {
         if (LOGGER.isLoggable(Level.FINE)) {
@@ -105,9 +108,6 @@ public class S3ImageInputStreamImplSpi extends ImageInputStreamSpi {
         try {
             String path = (String) input;
             return new S3ImageInputStreamImpl(path);
-        } catch (FileNotFoundException e) {
-            if (LOGGER.isLoggable(Level.FINE)) LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
-            return null;
         } catch (IOException e) {
             if (LOGGER.isLoggable(Level.FINE)) LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
             return null;

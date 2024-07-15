@@ -18,7 +18,6 @@
 
 package org.geotools.wmts.bindings;
 
-import java.net.URI;
 import java.util.List;
 import javax.xml.namespace.QName;
 import net.opengis.ows10.Ows10Factory;
@@ -82,6 +81,7 @@ public class ThemeBinding extends DescriptionTypeBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WMTS.Theme;
     }
@@ -93,6 +93,7 @@ public class ThemeBinding extends DescriptionTypeBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class<?> getType() {
         return ThemeType.class;
     }
@@ -104,6 +105,7 @@ public class ThemeBinding extends DescriptionTypeBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
 
         if (!(value instanceof ThemeType)) {
@@ -115,7 +117,7 @@ public class ThemeBinding extends DescriptionTypeBinding {
 
         ((ThemeType) value).setIdentifier((CodeType) node.getChildValue("Identifier"));
         for (Object c : node.getChildValues("LayerRef")) {
-            ((ThemeType) value).getLayerRef().add(((URI) c).toString());
+            ((ThemeType) value).getLayerRef().add(c.toString());
         }
         @SuppressWarnings("unchecked")
         List<ThemeType> themes = node.getChildValues("Theme");

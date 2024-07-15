@@ -17,9 +17,9 @@
 package org.geotools.se.v1_1.bindings;
 
 import javax.xml.namespace.QName;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.se.v1_1.SE;
 import org.geotools.sld.bindings.SLDChannelSelectionBinding;
-import org.geotools.styling.StyleFactory;
 
 /**
  * Binding object for the element http://www.opengis.net/se:ChannelSelection.
@@ -49,6 +49,7 @@ public class ChannelSelectionBinding extends SLDChannelSelectionBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return SE.ChannelSelection;
     }

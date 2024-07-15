@@ -32,10 +32,10 @@ import static java.lang.Math.sin;
 import static java.lang.Math.tan;
 
 import java.awt.geom.Point2D;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
 
 /**
  * The USGS oblique/equatorial case of the Stereographic projection. This is similar but
@@ -117,6 +117,7 @@ class StereographicUSGS extends Stereographic {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         final double chi = 2.0 * atan(ssfn(y, sin(y))) - PI / 2;
@@ -138,6 +139,7 @@ class StereographicUSGS extends Stereographic {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         final double rho = hypot(x, y);

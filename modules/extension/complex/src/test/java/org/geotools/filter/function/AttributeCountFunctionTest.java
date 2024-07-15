@@ -16,7 +16,17 @@
  */
 package org.geotools.filter.function;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.ArrayList;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.complex.expression.FeaturePropertyAccessorFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.AttributeImpl;
@@ -28,14 +38,8 @@ import org.geotools.feature.type.AttributeDescriptorImpl;
 import org.geotools.feature.type.FeatureTypeImpl;
 import org.geotools.filter.AttributeExpressionImpl;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.Feature;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.filter.FilterFactory2;
+import org.junit.Before;
+import org.junit.Test;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -47,14 +51,10 @@ public class AttributeCountFunctionTest extends FunctionTestSupport {
 
     Feature complexFeature;
 
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
-
-    /** @param testName */
-    public AttributeCountFunctionTest(String testName) {
-        super(testName);
-    }
+    FilterFactory ff = CommonFactoryFinder.getFilterFactory();
 
     @Override
+    @Before
     public void setUp() throws Exception {
         // set up simple features
         super.setUp();
@@ -107,6 +107,7 @@ public class AttributeCountFunctionTest extends FunctionTestSupport {
         complexFeature = builder.buildFeature("parentFeature");
     }
 
+    @Test
     public void testComplexFeature() {
         // have to pass on namespaceSupport to enable FeaturePropertyAccessor
         NamespaceSupport ns = new NamespaceSupport();
@@ -130,6 +131,7 @@ public class AttributeCountFunctionTest extends FunctionTestSupport {
         assertEquals(2, ff.function("attributeCount", nestedPath).evaluate(complexFeature));
     }
 
+    @Test
     public void testSimpleFeature() {
         SimpleFeature f = featureCollection.features().next();
 

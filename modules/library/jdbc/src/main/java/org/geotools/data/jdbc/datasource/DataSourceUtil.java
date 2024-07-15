@@ -19,7 +19,7 @@ package org.geotools.data.jdbc.datasource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import org.apache.commons.dbcp.BasicDataSource;
-import org.geotools.data.DataSourceException;
+import org.geotools.api.data.DataSourceException;
 
 /**
  * Utility methods to build a default connection pool
@@ -59,6 +59,7 @@ public class DataSourceUtil {
      *     or null, if no check is to be performed
      * @param cachePreparedStatements wheter to cache prepared statements or not
      */
+    @SuppressWarnings("PMD.UseTryWithResources") // just a conn. test, we want to manage closing
     public static ManageableDataSource buildDefaultDataSource(
             String url,
             String driverName,

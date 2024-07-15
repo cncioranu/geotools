@@ -22,7 +22,7 @@ import java.util.Collections;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
 import org.geotools.data.jdbc.datasource.DBCPDataSource;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCDataStoreFactory;
@@ -34,7 +34,6 @@ import org.geotools.jdbc.SQLDialect;
  * @author Justin Deoliveira, The Open Planning Project
  */
 // temporary work around, the factory parameters map will be fixed separately
-@SuppressWarnings("unchecked")
 public class H2DataStoreFactory extends JDBCDataStoreFactory {
     /** parameter for database type */
     public static final Param DBTYPE =
@@ -110,6 +109,7 @@ public class H2DataStoreFactory extends JDBCDataStoreFactory {
         return baseDirectory;
     }
 
+    @Override
     protected void setupParameters(Map<String, Object> parameters) {
         super.setupParameters(parameters);
 
@@ -134,27 +134,33 @@ public class H2DataStoreFactory extends JDBCDataStoreFactory {
         parameters.put(AUTO_SERVER.key, AUTO_SERVER);
     }
 
+    @Override
     public String getDisplayName() {
         return "H2";
     }
 
+    @Override
     public String getDescription() {
         return "H2 Embedded Database";
     }
 
+    @Override
     protected String getDatabaseID() {
         return (String) DBTYPE.sample;
     }
 
+    @Override
     protected String getDriverClassName() {
         return "org.h2.Driver";
     }
 
+    @Override
     protected SQLDialect createSQLDialect(JDBCDataStore dataStore) {
         return new H2DialectBasic(dataStore);
         // return new H2DialectPrepared(dataStore);
     }
 
+    @Override
     protected DataSource createDataSource(Map<String, ?> params, SQLDialect dialect)
             throws IOException {
         BasicDataSource dataSource = new BasicDataSource();
@@ -209,6 +215,7 @@ public class H2DataStoreFactory extends JDBCDataStoreFactory {
         }
     }
 
+    @Override
     protected JDBCDataStore createDataStoreInternal(JDBCDataStore dataStore, Map<String, ?> params)
             throws IOException {
         // check the foreign keys parameter

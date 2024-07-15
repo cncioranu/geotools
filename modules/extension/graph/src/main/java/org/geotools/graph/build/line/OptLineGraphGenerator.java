@@ -18,7 +18,6 @@ package org.geotools.graph.build.line;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.geotools.graph.build.GraphBuilder;
@@ -79,6 +78,7 @@ public class OptLineGraphGenerator implements LineGraphGenerator {
      * @return null because the actual building of the graph components is delayed until generate()
      *     is called.
      */
+    @Override
     public Graphable add(Object obj) {
         LineSegment line = (LineSegment) obj;
         Integer count;
@@ -110,6 +110,7 @@ public class OptLineGraphGenerator implements LineGraphGenerator {
      * @return Edge that represents the line.
      * @see GraphGenerator#get(Object)
      */
+    @Override
     public Graphable get(Object obj) {
         LineSegment line = (LineSegment) obj;
 
@@ -123,21 +124,25 @@ public class OptLineGraphGenerator implements LineGraphGenerator {
     }
 
     /** Unsupported operation. */
+    @Override
     public Graphable remove(Object obj) {
         throw new UnsupportedOperationException(getClass().getName() + "#remove(Object)");
     }
 
     /** @see GraphGenerator#setGraphBuilder(GraphBuilder) */
+    @Override
     public void setGraphBuilder(GraphBuilder builder) {
         m_builder = builder;
     }
 
     /** @see GraphGenerator#getGraphBuilder() */
+    @Override
     public GraphBuilder getGraphBuilder() {
         return (m_builder);
     }
 
     /** @see GraphGenerator#getGraph() */
+    @Override
     public Graph getGraph() {
         return (m_builder.getGraph());
     }
@@ -169,10 +174,8 @@ public class OptLineGraphGenerator implements LineGraphGenerator {
 
     protected void generateNodes() {
         // create nodes from coordiante counts
-        for (Iterator<Map.Entry<Coordinate, Object>> itr = m_coord2count.entrySet().iterator();
-                itr.hasNext(); ) {
-            Map.Entry<Coordinate, Object> entry = itr.next();
-            Coordinate coord = (Coordinate) entry.getKey();
+        for (Map.Entry<Coordinate, Object> entry : m_coord2count.entrySet()) {
+            Coordinate coord = entry.getKey();
             Integer count = (Integer) entry.getValue();
 
             OptXYNode node = (OptXYNode) m_builder.buildNode();
@@ -187,8 +190,7 @@ public class OptLineGraphGenerator implements LineGraphGenerator {
 
     protected void generateEdges() {
         // relate nodes
-        for (Iterator itr = m_lines.iterator(); itr.hasNext(); ) {
-            LineSegment line = (LineSegment) itr.next();
+        for (LineSegment line : m_lines) {
             generateEdge(line);
         }
     }
@@ -203,10 +205,12 @@ public class OptLineGraphGenerator implements LineGraphGenerator {
         return (edge);
     }
 
+    @Override
     public Node getNode(Coordinate c) {
         return ((Node) m_coord2count.get(c));
     }
 
+    @Override
     public Edge getEdge(Coordinate c1, Coordinate c2) {
         Node n1 = (Node) m_coord2count.get(c1);
         Node n2 = (Node) m_coord2count.get(c2);

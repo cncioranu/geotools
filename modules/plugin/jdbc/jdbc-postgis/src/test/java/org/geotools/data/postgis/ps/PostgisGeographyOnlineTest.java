@@ -16,13 +16,19 @@
  */
 package org.geotools.data.postgis.ps;
 
+import static org.junit.Assert.assertEquals;
+
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.postgis.PostgisGeographyTestSetup;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCGeographyOnlineTest;
 import org.geotools.jdbc.JDBCGeographyTestSetup;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 public class PostgisGeographyOnlineTest extends JDBCGeographyOnlineTest {
+
+    public PostgisGeographyOnlineTest() {
+        this.forceLongitudeFirst = true;
+    }
 
     @Override
     protected JDBCGeographyTestSetup createTestSetup() {

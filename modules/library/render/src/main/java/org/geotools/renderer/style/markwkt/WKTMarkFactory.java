@@ -28,12 +28,12 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.geometry.jts.LiteShape;
 import org.geotools.geometry.jts.WKTReader2;
 import org.geotools.renderer.style.MarkFactory;
 import org.geotools.util.SoftValueHashMap;
-import org.opengis.feature.Feature;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Factory to produce marks based on WKT representation of symbols. WKT geometries may be defined
@@ -93,7 +93,7 @@ public class WKTMarkFactory implements MarkFactory {
     protected String getFromCache(String urlLib, String wktName) {
         Map<String, String> library = CACHE.get(urlLib);
         if (library != null) {
-            return (String) library.get(wktName);
+            return library.get(wktName);
         }
         return null;
     }
@@ -118,7 +118,7 @@ public class WKTMarkFactory implements MarkFactory {
             @SuppressWarnings("unchecked")
             Enumeration<String> names = (Enumeration<String>) propLib.propertyNames();
             for (Enumeration<String> e = names; e.hasMoreElements(); ) {
-                String shpName = (String) (e.nextElement());
+                String shpName = e.nextElement();
                 library.put(shpName, (String) (propLib.get(shpName)));
             }
             CACHE.put(urlLib, library);
@@ -130,8 +130,9 @@ public class WKTMarkFactory implements MarkFactory {
      * WKT geometry specfied in a properties file
      *
      * @see org.geotools.renderer.style.MarkFactory#getShape(java.awt.Graphics2D,
-     *     org.opengis.filter.expression.Expression, org.opengis.feature.Feature)
+     *     org.geotools.api.filter.expression.Expression, org.geotools.api.feature.Feature)
      */
+    @Override
     public Shape getShape(Graphics2D graphics, Expression symbolUrl, Feature feature)
             throws Exception {
 
@@ -196,16 +197,10 @@ public class WKTMarkFactory implements MarkFactory {
             return properties;
         }
 
-        InputStream in = null;
-        try {
-            in = libUrl.openStream();
+        try (InputStream in = libUrl.openStream()) {
             properties.load(in);
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, e.getMessage(), e);
-        } finally {
-            if (in != null) {
-                in.close();
-            }
         }
 
         return properties;

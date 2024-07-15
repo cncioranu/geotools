@@ -52,6 +52,7 @@ public class OracleNGOCIDataStoreFactory extends OracleNGDataStoreFactory {
         return "Oracle NG (OCI)";
     }
 
+    @Override
     public String getDescription() {
         return "Oracle Database (OCI)";
     }
@@ -101,5 +102,6 @@ public class OracleNGOCIDataStoreFactory extends OracleNGDataStoreFactory {
                 OracleNGDataStoreFactory.GEOMETRY_METADATA_TABLE.key,
                 OracleNGDataStoreFactory.GEOMETRY_METADATA_TABLE);
         parameters.put(METADATA_BBOX.key, METADATA_BBOX);
+        parameters.put(GET_REMARKS.key, GET_REMARKS);
     }
 }

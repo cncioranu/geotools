@@ -26,10 +26,10 @@ import javax.imageio.stream.ImageOutputStream;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
 import javax.media.jai.iterator.RectIter;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.gce.grassraster.DummyProgressListener;
 import org.geotools.gce.grassraster.JGrassRegion;
 import org.geotools.util.SimpleInternationalString;
-import org.opengis.util.ProgressListener;
 
 /**
  * Write compressed JGrass rasters to disk
@@ -45,7 +45,7 @@ public class CompressesRasterWriter {
 
     private boolean jump = false;
 
-    private double[] range = new double[] {Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+    private double[] range = {Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
 
     private long pointerInFilePosition = 0;
 
@@ -180,7 +180,7 @@ public class CompressesRasterWriter {
                 bytearray[e] = 0;
                 for (int f = 0; f < 8; f++) {
                     if (nullbits.get(l)) {
-                        bytearray[e] += (byte) Math.pow(2.0, (double) (7 - f));
+                        bytearray[e] += (byte) Math.pow(2.0, 7 - f);
                     }
                     l++;
                 }
@@ -220,7 +220,7 @@ public class CompressesRasterWriter {
 
             rowAsByteBuffer.clear();
 
-            progress = (float) (progress + 100f * i / dataWindowRows);
+            progress = progress + 100f * i / dataWindowRows;
             monitor.progress(progress);
         }
         monitor.complete();
@@ -229,8 +229,8 @@ public class CompressesRasterWriter {
          * the header
          */
         theCreatedFile.seek(1);
-        for (int i = 0; i < rowaddresses.length; i++) {
-            theCreatedFile.writeInt((int) rowaddresses[i]);
+        for (long rowaddress : rowaddresses) {
+            theCreatedFile.writeInt((int) rowaddress);
         }
     }
 

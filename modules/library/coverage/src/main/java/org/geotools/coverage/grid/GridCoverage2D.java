@@ -41,25 +41,24 @@ import javax.media.jai.OperationNode;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.RenderedImageAdapter;
 import javax.media.jai.remote.SerializableRenderedImage;
+import org.geotools.api.coverage.CannotEvaluateException;
+import org.geotools.api.coverage.PointOutsideCoverageException;
+import org.geotools.api.coverage.SampleDimension;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
 import org.geotools.coverage.AbstractCoverage;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.geometry.Envelope2D;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.LoggingKeys;
 import org.geotools.metadata.i18n.Loggings;
 import org.geotools.util.Classes;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.CannotEvaluateException;
-import org.opengis.coverage.PointOutsideCoverageException;
-import org.opengis.coverage.SampleDimension;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.geometry.Envelope;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
 
 /**
  * Basic access to grid data values backed by a two-dimensional {@linkplain RenderedImage rendered
@@ -149,7 +148,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
 
     /**
      * Constructs a grid coverage with the specified {@linkplain GridGeometry2D grid geometry} and
-     * {@linkplain GridSampleDimension sample dimensions}. The {@linkplain Envelope envelope}
+     * {@linkplain GridSampleDimension sample dimensions}. The {@linkplain Bounds envelope}
      * (including the {@linkplain CoordinateReferenceSystem coordinate reference system}) is
      * inferred from the grid geometry.
      *
@@ -242,7 +241,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
         if (dimension <= Math.max(gridGeometry.axisDimensionX, gridGeometry.axisDimensionY)
                 || !(gridGeometry.envelope.getSpan(gridGeometry.axisDimensionX) > 0)
                 || !(gridGeometry.envelope.getSpan(gridGeometry.axisDimensionY) > 0)) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.EMPTY_ENVELOPE));
+            throw new IllegalArgumentException(ErrorKeys.EMPTY_ENVELOPE);
         }
     }
 
@@ -259,6 +258,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      * Returns information for the grid coverage geometry. Grid geometry includes the valid range of
      * grid coordinates and the georeferencing.
      */
+    @Override
     public GridGeometry2D getGridGeometry() {
         final String error = GridGeometry2D.checkConsistency(image, gridGeometry);
         if (error != null) {
@@ -273,7 +273,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      * coverage has some extent in other dimensions (for example a depth, or a start and end time).
      */
     @Override
-    public Envelope getEnvelope() {
+    public Bounds getEnvelope() {
         return gridGeometry.getEnvelope();
     }
 
@@ -284,7 +284,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      *
      * @return The two-dimensional bounding box.
      */
-    public Envelope2D getEnvelope2D() {
+    public ReferencedEnvelope getEnvelope2D() {
         return gridGeometry.getEnvelope2D();
     }
 
@@ -303,6 +303,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
     }
 
     /** Returns the number of bands in the grid coverage. */
+    @Override
     public int getNumSampleDimensions() {
         return sampleDimensions.length;
     }
@@ -314,6 +315,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      * values and a color table if one is associated with the dimension. A coverage must have at
      * least one sample dimension.
      */
+    @Override
     public GridSampleDimension getSampleDimension(final int index) {
         return sampleDimensions[index];
     }
@@ -341,7 +343,8 @@ public class GridCoverage2D extends AbstractGridCoverage {
      * Returns the value vector for a given location (world coordinates). A value for each sample
      * dimension is included in the vector.
      */
-    public Object evaluate(final DirectPosition point) throws CannotEvaluateException {
+    @Override
+    public Object evaluate(final Position point) throws CannotEvaluateException {
         final int dataType = image.getSampleModel().getDataType();
         switch (dataType) {
             case DataBuffer.TYPE_BYTE:
@@ -370,7 +373,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      *     failed because the input point has invalid coordinates.
      */
     @Override
-    public byte[] evaluate(final DirectPosition coord, byte[] dest) throws CannotEvaluateException {
+    public byte[] evaluate(final Position coord, byte[] dest) throws CannotEvaluateException {
         final int[] array = evaluate(coord, (int[]) null);
         if (dest == null) {
             dest = new byte[array.length];
@@ -392,8 +395,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      *     failed because the input point has invalid coordinates.
      */
     @Override
-    public int[] evaluate(final DirectPosition coord, final int[] dest)
-            throws CannotEvaluateException {
+    public int[] evaluate(final Position coord, final int[] dest) throws CannotEvaluateException {
         return evaluate(gridGeometry.toPoint2D(coord), dest);
     }
 
@@ -408,7 +410,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      *     failed because the input point has invalid coordinates.
      */
     @Override
-    public float[] evaluate(final DirectPosition coord, final float[] dest)
+    public float[] evaluate(final Position coord, final float[] dest)
             throws CannotEvaluateException {
         return evaluate(gridGeometry.toPoint2D(coord), dest);
     }
@@ -424,7 +426,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      *     failed because the input point has invalid coordinates.
      */
     @Override
-    public double[] evaluate(final DirectPosition coord, final double[] dest)
+    public double[] evaluate(final Position coord, final double[] dest)
             throws CannotEvaluateException {
         return evaluate(gridGeometry.toPoint2D(coord), dest);
     }
@@ -587,7 +589,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      * @return A string with pixel coordinates and pixel values at the specified location, or {@code
      *     null} if {@code coord} is outside coverage.
      */
-    public synchronized String getDebugString(final DirectPosition coord) {
+    public synchronized String getDebugString(final Position coord) {
         Point2D pixel = gridGeometry.toPoint2D(coord);
         pixel = gridGeometry.inverseTransform(pixel);
         final int x = (int) Math.round(pixel.getX());
@@ -628,6 +630,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      * Returns the optimal size to use for each dimension when accessing grid values. The default
      * implementation returns the image's tiles size.
      */
+    @Override
     public int[] getOptimalDataBlockSizes() {
         final int[] size = new int[getDimension()];
         Arrays.fill(size, 1);
@@ -641,6 +644,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
      *
      * @return The grid data as a rendered image.
      */
+    @Override
     public RenderedImage getRenderedImage() {
         return image;
     }
@@ -772,7 +776,7 @@ public class GridCoverage2D extends AbstractGridCoverage {
                 source = ((RenderedImageAdapter) source).getWrappedImage();
             }
             if (source instanceof SerializableRenderedImage) {
-                serializedImage = (SerializableRenderedImage) source;
+                serializedImage = source;
             } else {
                 if (tileEncoding == null) {
                     tileEncoding = "gzip";

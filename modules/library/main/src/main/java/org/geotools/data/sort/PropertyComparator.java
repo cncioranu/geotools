@@ -16,7 +16,7 @@
  */
 package org.geotools.data.sort;
 
-import org.opengis.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeature;
 
 /**
  * Compares two feature based on an attribute value
@@ -38,7 +38,7 @@ class PropertyComparator extends AbstractPropertyComparator {
         this.propertyName = propertyName;
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
     protected int compareAscending(SimpleFeature f1, SimpleFeature f2) {
         Comparable o1 = (Comparable) f1.getAttribute(propertyName);
         Comparable o2 = (Comparable) f2.getAttribute(propertyName);

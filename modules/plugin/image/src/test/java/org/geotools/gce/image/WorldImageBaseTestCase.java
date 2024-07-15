@@ -22,12 +22,8 @@ import java.io.FilenameFilter;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-import junit.framework.TestCase;
 
-public abstract class WorldImageBaseTestCase extends TestCase {
-    public WorldImageBaseTestCase(String name) {
-        super(name);
-    }
+public abstract class WorldImageBaseTestCase {
 
     /**
      * Helper class used to filter files basing the decision on the file extensions. It is not so
@@ -39,8 +35,7 @@ public abstract class WorldImageBaseTestCase extends TestCase {
         private Set<String> extensions = new HashSet<>();
 
         public MyFileFilter() {
-            String[] extensions =
-                    new String[] {".gif", ".jpg", ".jpeg", ".tif", ".tiff", ".png", ".bmp"};
+            String[] extensions = {".gif", ".jpg", ".jpeg", ".tif", ".tiff", ".png", ".bmp"};
             this.setExtensions(extensions);
         }
 
@@ -53,7 +48,7 @@ public abstract class WorldImageBaseTestCase extends TestCase {
             if (extensions != null) {
                 this.extensions.clear();
 
-                for (int i = 0; i < extensions.length; i++) this.extensions.add(extensions[i]);
+                for (String extension : extensions) this.extensions.add(extension);
             }
         }
 
@@ -61,8 +56,9 @@ public abstract class WorldImageBaseTestCase extends TestCase {
          * Checks whether or not a file is acceptable following the conditions stated by the given
          * extensions.
          */
+        @Override
         public boolean accept(File file, String name) {
-            if (this.extensions.size() > 0) {
+            if (!this.extensions.isEmpty()) {
                 Iterator it = this.extensions.iterator();
 
                 while (it.hasNext())

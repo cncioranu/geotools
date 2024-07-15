@@ -106,6 +106,7 @@ public class TileMatrixBinding extends DescriptionTypeBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WMTS.TileMatrix;
     }
@@ -117,6 +118,7 @@ public class TileMatrixBinding extends DescriptionTypeBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class<?> getType() {
         return TileMatrixType.class;
     }
@@ -128,12 +130,13 @@ public class TileMatrixBinding extends DescriptionTypeBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         if (node.getChildren().isEmpty()) {
             // we are in a
             // Contents/Layer/TileMatrixSetLink/TileMatrixSetLimits/TileMatrixLimits/TileMatrix
             // (simple) element
-            return (String) value;
+            return value;
         }
 
         if (!(value instanceof TileMatrixType)) {

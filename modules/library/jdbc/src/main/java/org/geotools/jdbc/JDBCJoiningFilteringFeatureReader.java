@@ -19,11 +19,11 @@ package org.geotools.jdbc;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import org.geotools.data.DelegatingFeatureReader;
-import org.geotools.data.FeatureReader;
+import org.geotools.api.data.DelegatingFeatureReader;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.jdbc.JoinInfo.JoinPart;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * Feature reader that wraps multiple feature readers in a joining / post filtered query.
@@ -43,14 +43,17 @@ public class JDBCJoiningFilteringFeatureReader
         this.join = join;
     }
 
+    @Override
     public FeatureReader<SimpleFeatureType, SimpleFeature> getDelegate() {
         return delegate;
     }
 
+    @Override
     public SimpleFeatureType getFeatureType() {
         return delegate.getFeatureType();
     }
 
+    @Override
     public boolean hasNext() throws IOException {
         if (next != null) {
             return true;
@@ -80,6 +83,7 @@ public class JDBCJoiningFilteringFeatureReader
         return next != null;
     }
 
+    @Override
     public SimpleFeature next()
             throws IOException, IllegalArgumentException, NoSuchElementException {
         if (!hasNext()) {
@@ -91,6 +95,7 @@ public class JDBCJoiningFilteringFeatureReader
         return f;
     }
 
+    @Override
     public void close() throws IOException {
         delegate.close();
     }

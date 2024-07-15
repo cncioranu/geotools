@@ -21,6 +21,7 @@ package org.geotools.referencing;
 
 import java.io.ObjectStreamException;
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,8 +35,14 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.measure.Unit;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.parameter.InvalidParameterValueException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.util.GenericName;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.LoggingKeys;
 import org.geotools.metadata.i18n.Loggings;
 import org.geotools.metadata.iso.citation.Citations;
@@ -45,22 +52,15 @@ import org.geotools.util.NameFactory;
 import org.geotools.util.SuppressFBWarnings;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
-import org.opengis.metadata.Identifier;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.parameter.InvalidParameterValueException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.util.GenericName;
-import org.opengis.util.InternationalString;
 import si.uom.SI;
 import tech.units.indriya.AbstractUnit;
 
 /**
  * A base class for metadata applicable to reference system objects. When {@link
- * org.opengis.referencing.AuthorityFactory} is used to create an object, the {@linkplain
+ * org.geotools.api.referencing.AuthorityFactory} is used to create an object, the {@linkplain
  * ReferenceIdentifier#getAuthority authority} and {@linkplain ReferenceIdentifier#getCode authority
  * code} values are set to the authority name of the factory object, and the authority code supplied
- * by the client, respectively. When {@link org.opengis.referencing.ObjectFactory} creates an
+ * by the client, respectively. When {@link org.geotools.api.referencing.ObjectFactory} creates an
  * object, the {@linkplain #getName() name} is set to the value supplied by the client and all of
  * the other metadata items are left empty.
  *
@@ -123,6 +123,7 @@ public class AbstractIdentifiedObject extends Formattable
         private static final long serialVersionUID = -6605097017814062198L;
 
         /** Compares the given identified objects for order. */
+        @Override
         public int compare(final IdentifiedObject o1, final IdentifiedObject o2) {
             return doCompare(o1.getName().getCode(), o2.getName().getCode());
         }
@@ -147,6 +148,7 @@ public class AbstractIdentifiedObject extends Formattable
         private static final long serialVersionUID = -7315726806679993522L;
 
         /** Compares the given identified objects for order. */
+        @Override
         @SuppressFBWarnings("NS_DANGEROUS_NON_SHORT_CIRCUIT")
         public int compare(final IdentifiedObject o1, final IdentifiedObject o2) {
             Collection<ReferenceIdentifier> a1 = o1.getIdentifiers();
@@ -186,6 +188,7 @@ public class AbstractIdentifiedObject extends Formattable
         private static final long serialVersionUID = -6675419613224162715L;
 
         /** Compares the given identified objects for order. */
+        @Override
         public int compare(final IdentifiedObject o1, final IdentifiedObject o2) {
             return doCompare(o1.getRemarks(), o2.getRemarks());
         }
@@ -241,38 +244,38 @@ public class AbstractIdentifiedObject extends Formattable
      *     <th nowrap>Value given to</th>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.IdentifiedObject#NAME_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.IdentifiedObject#NAME_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link String} or {@link ReferenceIdentifier}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link #getName()}</td>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.IdentifiedObject#ALIAS_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.IdentifiedObject#ALIAS_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link String}, <code>{@linkplain String}[]</code>,
      *     {@link GenericName} or <code>{@linkplain GenericName}[]</code>&nbsp;</td>
      *     <td nowrap>&nbsp;{@link #getAlias}</td>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.metadata.Identifier#AUTHORITY_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.metadata.Identifier#AUTHORITY_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link String} or {@link Citation}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link ReferenceIdentifier#getAuthority} on the {@linkplain #getName() name}</td>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.ReferenceIdentifier#CODESPACE_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.ReferenceIdentifier#CODESPACE_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link String}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link ReferenceIdentifier#getCodeSpace} on the {@linkplain #getName() name}</td>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.ReferenceIdentifier#VERSION_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.ReferenceIdentifier#VERSION_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link String}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link ReferenceIdentifier#getVersion} on the {@linkplain #getName() name}</td>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.IdentifiedObject#IDENTIFIERS_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.IdentifiedObject#IDENTIFIERS_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link ReferenceIdentifier} or <code>{@linkplain ReferenceIdentifier}[]</code>&nbsp;</td>
      *     <td nowrap>&nbsp;{@link #getIdentifiers}</td>
      *   </tr>
      *   <tr>
-     *     <td nowrap>&nbsp;{@value org.opengis.referencing.IdentifiedObject#REMARKS_KEY}&nbsp;</td>
+     *     <td nowrap>&nbsp;{@value org.geotools.api.referencing.IdentifiedObject#REMARKS_KEY}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link String} or {@link InternationalString}&nbsp;</td>
      *     <td nowrap>&nbsp;{@link #getRemarks}</td>
      *   </tr>
@@ -316,7 +319,7 @@ public class AbstractIdentifiedObject extends Formattable
     protected AbstractIdentifiedObject(
             final Map<String, ?> properties,
             final Map<String, Object> subProperties,
-            final String[] localizables)
+            final String... localizables)
             throws IllegalArgumentException {
         ensureNonNull("properties", properties);
         Object name = null;
@@ -545,7 +548,9 @@ public class AbstractIdentifiedObject extends Formattable
         } catch (ClassCastException exception) {
             InvalidParameterValueException e =
                     new InvalidParameterValueException(
-                            Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, key, value), key, value);
+                            MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, key, value),
+                            key,
+                            value);
             e.initCause(exception);
             throw e;
         }
@@ -558,6 +563,7 @@ public class AbstractIdentifiedObject extends Formattable
      *
      * @see #getName(Citation)
      */
+    @Override
     public ReferenceIdentifier getName() {
         return name;
     }
@@ -568,6 +574,7 @@ public class AbstractIdentifiedObject extends Formattable
      * @return The aliases, or an empty array if there is none.
      * @see #getName(Citation)
      */
+    @Override
     public Collection<GenericName> getAlias() {
         if (alias == null) {
             return Collections.emptySet();
@@ -582,6 +589,7 @@ public class AbstractIdentifiedObject extends Formattable
      * @return This object identifiers, or an empty array if there is none.
      * @see #getIdentifier(Citation)
      */
+    @Override
     public Set<ReferenceIdentifier> getIdentifiers() {
         if (identifiers == null) {
             return Collections.emptySet();
@@ -590,6 +598,7 @@ public class AbstractIdentifiedObject extends Formattable
     }
 
     /** Comments on or information about this object, including data source information. */
+    @Override
     public InternationalString getRemarks() {
         return remarks;
     }
@@ -796,8 +805,8 @@ public class AbstractIdentifiedObject extends Formattable
      *
      * <ul>
      *   <li>The {@linkplain #getName() primary name} of this object
-     *   <li>The {@linkplain org.opengis.util.ScopedName fully qualified name} of an alias
-     *   <li>The {@linkplain org.opengis.util.LocalName local name} of an alias
+     *   <li>The {@linkplain org.geotools.api.util.ScopedName fully qualified name} of an alias
+     *   <li>The {@linkplain org.geotools.api.util.LocalName local name} of an alias
      * </ul>
      *
      * @param name The name to compare.
@@ -1061,7 +1070,8 @@ public class AbstractIdentifiedObject extends Formattable
      * @param array The array to copy in a set. May be {@code null}.
      * @return A set containing the array elements, or {@code null} if none or empty.
      */
-    protected static <E> Set<E> asSet(final E[] array) {
+    @SafeVarargs
+    protected static <E> Set<E> asSet(final E... array) {
         if (array == null) {
             return null;
         }
@@ -1087,7 +1097,7 @@ public class AbstractIdentifiedObject extends Formattable
             throws InvalidParameterValueException {
         if (object == null) {
             throw new InvalidParameterValueException(
-                    Errors.format(ErrorKeys.NULL_ARGUMENT_$1, name), name, object);
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, name), name, object);
         }
     }
 
@@ -1104,7 +1114,7 @@ public class AbstractIdentifiedObject extends Formattable
             throws InvalidParameterValueException {
         if (array[index] == null) {
             throw new InvalidParameterValueException(
-                    Errors.format(ErrorKeys.NULL_ARGUMENT_$1, name + '[' + index + ']'),
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, name + '[' + index + ']'),
                     name,
                     array);
         }
@@ -1119,7 +1129,8 @@ public class AbstractIdentifiedObject extends Formattable
      */
     protected static void ensureTimeUnit(final Unit<?> unit) throws IllegalArgumentException {
         if (!SI.SECOND.isCompatible(unit)) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NON_TEMPORAL_UNIT_$1, unit));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NON_TEMPORAL_UNIT_$1, unit));
         }
     }
 
@@ -1132,7 +1143,8 @@ public class AbstractIdentifiedObject extends Formattable
      */
     protected static void ensureLinearUnit(final Unit<?> unit) throws IllegalArgumentException {
         if (!SI.METRE.isCompatible(unit)) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NON_LINEAR_UNIT_$1, unit));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NON_LINEAR_UNIT_$1, unit));
         }
     }
 
@@ -1145,7 +1157,8 @@ public class AbstractIdentifiedObject extends Formattable
      */
     protected static void ensureAngularUnit(final Unit<?> unit) throws IllegalArgumentException {
         if (!SI.RADIAN.isCompatible(unit) && !AbstractUnit.ONE.equals(unit)) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NON_ANGULAR_UNIT_$1, unit));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NON_ANGULAR_UNIT_$1, unit));
         }
     }
 }

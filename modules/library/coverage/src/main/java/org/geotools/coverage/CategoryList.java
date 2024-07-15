@@ -21,14 +21,15 @@ import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.Objects;
 import javax.measure.Unit;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.referencing.wkt.UnformattableObjectException;
@@ -36,7 +37,6 @@ import org.geotools.util.AbstractInternationalString;
 import org.geotools.util.Classes;
 import org.geotools.util.NumberRange;
 import org.geotools.util.Utilities;
-import org.opengis.util.InternationalString;
 
 /**
  * An immutable list of categories. Categories are sorted by their sample values. Overlapping ranges
@@ -50,9 +50,22 @@ import org.opengis.util.InternationalString;
  * @version $Id$
  * @author Martin Desruisseaux (IRD)
  */
-class CategoryList extends AbstractList<Category> implements Comparator<Category>, Serializable {
+class CategoryList extends AbstractList<Category> implements Serializable {
     /** Serial number for interoperability with different versions. */
     private static final long serialVersionUID = 2647846361059903365L;
+
+    /**
+     * Compares {@link Category} objects according their {@link Category#minimum} value. This is
+     * used for sorting the {@link #categories} array at construction time.
+     */
+    static Comparator<Category> COMPARATOR =
+            new Comparator<Category>() {
+
+                @Override
+                public int compare(Category c1, Category c2) {
+                    return CategoryList.compare(c1.minimum, c2.minimum);
+                }
+            };
 
     /**
      * The range of values in this category list. This is the union of the range of values of every
@@ -153,7 +166,7 @@ class CategoryList extends AbstractList<Category> implements Comparator<Category
     CategoryList(Category[] categories, Unit<?> units, boolean searchNearest)
             throws IllegalArgumentException {
         this.categories = categories = categories.clone();
-        Arrays.sort(categories, this);
+        Arrays.sort(categories, COMPARATOR);
         assert isSorted(categories);
         /*
          * Constructs the array of Category.minimum values. During
@@ -171,11 +184,10 @@ class CategoryList extends AbstractList<Category> implements Comparator<Category
                     // Formats an error message.
                     final NumberRange range1 = categories[i - 1].getRange();
                     final NumberRange range2 = categories[i - 0].getRange();
-                    final Comparable[] args =
-                            new Comparable[] {
-                                range1.getMinValue(), range1.getMaxValue(),
-                                range2.getMinValue(), range2.getMaxValue()
-                            };
+                    final Comparable[] args = {
+                        range1.getMinValue(), range1.getMaxValue(),
+                        range2.getMinValue(), range2.getMaxValue()
+                    };
                     for (int j = 0; j < args.length; j++) {
                         if (args[j] instanceof Number) {
                             final float value = ((Number) args[j]).floatValue();
@@ -186,7 +198,7 @@ class CategoryList extends AbstractList<Category> implements Comparator<Category
                         }
                     }
                     throw new IllegalArgumentException(
-                            Errors.format(ErrorKeys.RANGE_OVERLAP_$4, args));
+                            MessageFormat.format(ErrorKeys.RANGE_OVERLAP_$4, (Object) args));
                 }
                 // Checks if there is a gap between this category and the previous one.
                 if (!Double.isNaN(minimum) && minimum != previous.getRange().getMaximum(false)) {
@@ -251,14 +263,6 @@ class CategoryList extends AbstractList<Category> implements Comparator<Category
         }
         this.overflowFallback = overflowFallback;
         this.unit = units;
-    }
-
-    /**
-     * Compares {@link Category} objects according their {@link Category#minimum} value. This is
-     * used for sorting the {@link #categories} array at construction time.
-     */
-    public final int compare(final Category o1, final Category o2) {
-        return compare(o1.minimum, o2.minimum);
     }
 
     /**
@@ -367,6 +371,7 @@ class CategoryList extends AbstractList<Category> implements Comparator<Category
     /** The name for this category list. Will be created only when first needed. */
     private final class Name extends AbstractInternationalString {
         /** Returns the name in the specified locale. */
+        @Override
         public String toString(final Locale locale) {
             final StringBuffer buffer = new StringBuffer(30);
             if (main != null) {
@@ -399,9 +404,9 @@ class CategoryList extends AbstractList<Category> implements Comparator<Category
     /**
      * Returns the range of values in this category list. This is the union of the range of values
      * of every categories, excluding {@code NaN} values. A {@link NumberRange} object give more
-     * informations than {@link org.opengis.CV_SampleDimension#getMinimum} and {@link
-     * org.opengis.CV_SampleDimension#getMaximum} since it contains also the type (integer, float,
-     * etc.) and inclusion/exclusion informations.
+     * informations than {@link org.geotools.api.CV_SampleDimension#getMinimum} and {@link
+     * org.geotools.api.CV_SampleDimension#getMaximum} since it contains also the type (integer,
+     * float, etc.) and inclusion/exclusion informations.
      *
      * @return The range of values. May be {@code null} if this category list has no quantitative
      *     category.
@@ -410,8 +415,8 @@ class CategoryList extends AbstractList<Category> implements Comparator<Category
     public final NumberRange<?> getRange() {
         if (range == null) {
             NumberRange<?> range = null;
-            for (int i = 0; i < categories.length; i++) {
-                final NumberRange extent = categories[i].getRange();
+            for (Category category : categories) {
+                final NumberRange extent = category.getRange();
                 if (!Double.isNaN(extent.getMinimum()) && !Double.isNaN(extent.getMaximum())) {
                     if (range != null) {
                         range = range.union(extent);
@@ -617,11 +622,13 @@ class CategoryList extends AbstractList<Category> implements Comparator<Category
     ////////                                                                          ////////
     //////////////////////////////////////////////////////////////////////////////////////////
     /** Returns the number of categories in this list. */
+    @Override
     public final int size() {
         return categories.length;
     }
 
     /** Returns the element at the specified position in this list. */
+    @Override
     public final Category get(final int i) {
         return categories[i];
     }

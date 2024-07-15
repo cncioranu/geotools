@@ -18,6 +18,16 @@ package org.geotools.temporal.reference;
 
 import java.util.Collection;
 import java.util.GregorianCalendar;
+import org.geotools.api.metadata.extent.Extent;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.temporal.Calendar;
+import org.geotools.api.temporal.CalendarDate;
+import org.geotools.api.temporal.CalendarEra;
+import org.geotools.api.temporal.Clock;
+import org.geotools.api.temporal.ClockTime;
+import org.geotools.api.temporal.DateAndTime;
+import org.geotools.api.temporal.JulianDate;
+import org.geotools.api.temporal.TemporalCoordinateSystem;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.temporal.object.DefaultCalendarDate;
@@ -25,16 +35,6 @@ import org.geotools.temporal.object.DefaultDateAndTime;
 import org.geotools.temporal.object.DefaultJulianDate;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.Utilities;
-import org.opengis.metadata.extent.Extent;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.temporal.Calendar;
-import org.opengis.temporal.CalendarDate;
-import org.opengis.temporal.CalendarEra;
-import org.opengis.temporal.Clock;
-import org.opengis.temporal.ClockTime;
-import org.opengis.temporal.DateAndTime;
-import org.opengis.temporal.JulianDate;
-import org.opengis.temporal.TemporalCoordinateSystem;
 
 /** @author Mehdi Sidhoum (Geomatys) */
 public class DefaultCalendar extends DefaultTemporalReferenceSystem implements Calendar {
@@ -52,6 +52,7 @@ public class DefaultCalendar extends DefaultTemporalReferenceSystem implements C
     /**
      * Convert a TemporalPosition representing by a CalendarDate and a ClockTime to a Julian date.
      */
+    @Override
     public JulianDate dateTrans(CalendarDate calDate, ClockTime time) {
         JulianDate response;
         if (calDate != null && time != null) {
@@ -151,7 +152,6 @@ public class DefaultCalendar extends DefaultTemporalReferenceSystem implements C
      * and ClockTime.
      */
     public JulianDate dateTrans(DateAndTime dateAndTime) {
-        JulianDate response;
         GregorianCalendar gc = new GregorianCalendar(-4713, 1, 1);
         gc.set(GregorianCalendar.ERA, GregorianCalendar.BC);
         final int julianGre = 15 + 31 * (10 + 12 * 1582);
@@ -224,34 +224,33 @@ public class DefaultCalendar extends DefaultTemporalReferenceSystem implements C
                 coordinateValue = coordinateValue.doubleValue() + julian;
             }
         }
-        response = new DefaultJulianDate(refSystem, null, coordinateValue);
+        JulianDate response = new DefaultJulianDate(refSystem, null, coordinateValue);
         return response;
     }
 
     /** Convert a JulianDate to CalendarDate */
+    @Override
     public CalendarDate julTrans(JulianDate jdt) {
         if (jdt == null) return null;
 
-        CalendarDate response = null;
-
         int JGREG = 15 + 31 * (10 + 12 * 1582);
-        int jalpha, ja, jb, jc, jd, je, year, month, day;
-        ja = (int) jdt.getCoordinateValue().intValue();
+        int jalpha;
+        int ja = jdt.getCoordinateValue().intValue();
         if (ja >= JGREG) {
             jalpha = (int) (((ja - 1867216) - 0.25) / 36524.25);
             ja = ja + 1 + jalpha - jalpha / 4;
         }
 
-        jb = ja + 1524;
-        jc = (int) (6680.0 + ((jb - 2439870) - 122.1) / 365.25);
-        jd = 365 * jc + jc / 4;
-        je = (int) ((jb - jd) / 30.6001);
-        day = jb - jd - (int) (30.6001 * je);
-        month = je - 1;
+        int jb = ja + 1524;
+        int jc = (int) (6680.0 + ((jb - 2439870) - 122.1) / 365.25);
+        int jd = 365 * jc + jc / 4;
+        int je = (int) ((jb - jd) / 30.6001);
+        int day = jb - jd - (int) (30.6001 * je);
+        int month = je - 1;
         if (month > 12) {
             month = month - 12;
         }
-        year = jc - 4715;
+        int year = jc - 4715;
         if (month > 2) {
             year--;
         }
@@ -259,14 +258,16 @@ public class DefaultCalendar extends DefaultTemporalReferenceSystem implements C
             year--;
         }
         int[] calendarDate = {year, month, day};
-        response = new DefaultCalendarDate(this, null, null, calendarDate);
+        CalendarDate response = new DefaultCalendarDate(this, null, null, calendarDate);
         return response;
     }
 
+    @Override
     public Collection<CalendarEra> getBasis() {
         return basis;
     }
 
+    @Override
     public Clock getClock() {
         return timeBasis;
     }

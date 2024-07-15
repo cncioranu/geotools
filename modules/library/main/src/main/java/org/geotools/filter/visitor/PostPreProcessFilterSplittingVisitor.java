@@ -23,70 +23,70 @@ import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 import java.util.logging.Logger;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.ExcludeFilter;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.IncludeFilter;
+import org.geotools.api.filter.NativeFilter;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsGreaterThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNil;
+import org.geotools.api.filter.PropertyIsNotEqualTo;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.BinaryExpression;
+import org.geotools.api.filter.expression.Divide;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.Multiply;
+import org.geotools.api.filter.expression.NilExpression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.Subtract;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.BBOX3D;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
+import org.geotools.api.filter.spatial.Contains;
+import org.geotools.api.filter.spatial.Crosses;
+import org.geotools.api.filter.spatial.DWithin;
+import org.geotools.api.filter.spatial.Disjoint;
+import org.geotools.api.filter.spatial.Equals;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.filter.spatial.Overlaps;
+import org.geotools.api.filter.spatial.Touches;
+import org.geotools.api.filter.spatial.Within;
+import org.geotools.api.filter.temporal.After;
+import org.geotools.api.filter.temporal.AnyInteracts;
+import org.geotools.api.filter.temporal.Before;
+import org.geotools.api.filter.temporal.Begins;
+import org.geotools.api.filter.temporal.BegunBy;
+import org.geotools.api.filter.temporal.BinaryTemporalOperator;
+import org.geotools.api.filter.temporal.During;
+import org.geotools.api.filter.temporal.EndedBy;
+import org.geotools.api.filter.temporal.Ends;
+import org.geotools.api.filter.temporal.Meets;
+import org.geotools.api.filter.temporal.MetBy;
+import org.geotools.api.filter.temporal.OverlappedBy;
+import org.geotools.api.filter.temporal.TContains;
+import org.geotools.api.filter.temporal.TEquals;
+import org.geotools.api.filter.temporal.TOverlaps;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.FilterCapabilities;
 import org.geotools.filter.IllegalFilterException;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.And;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.ExcludeFilter;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.Id;
-import org.opengis.filter.IncludeFilter;
-import org.opengis.filter.NativeFilter;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNil;
-import org.opengis.filter.PropertyIsNotEqualTo;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.BinaryExpression;
-import org.opengis.filter.expression.Divide;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.Multiply;
-import org.opengis.filter.expression.NilExpression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Subtract;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.BBOX3D;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.BinarySpatialOperator;
-import org.opengis.filter.spatial.Contains;
-import org.opengis.filter.spatial.Crosses;
-import org.opengis.filter.spatial.DWithin;
-import org.opengis.filter.spatial.Disjoint;
-import org.opengis.filter.spatial.Equals;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.filter.spatial.Overlaps;
-import org.opengis.filter.spatial.Touches;
-import org.opengis.filter.spatial.Within;
-import org.opengis.filter.temporal.After;
-import org.opengis.filter.temporal.AnyInteracts;
-import org.opengis.filter.temporal.Before;
-import org.opengis.filter.temporal.Begins;
-import org.opengis.filter.temporal.BegunBy;
-import org.opengis.filter.temporal.BinaryTemporalOperator;
-import org.opengis.filter.temporal.During;
-import org.opengis.filter.temporal.EndedBy;
-import org.opengis.filter.temporal.Ends;
-import org.opengis.filter.temporal.Meets;
-import org.opengis.filter.temporal.MetBy;
-import org.opengis.filter.temporal.OverlappedBy;
-import org.opengis.filter.temporal.TContains;
-import org.opengis.filter.temporal.TEquals;
-import org.opengis.filter.temporal.TOverlaps;
 
 /**
  * Determines what queries can be processed server side and which can be processed client side.
@@ -247,7 +247,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
                 updateFilter = next;
                 break;
             } else {
-                updateFilter = (Filter) ff.or(updateFilter, next);
+                updateFilter = ff.or(updateFilter, next);
             }
         }
         if (updateFilter == Filter.INCLUDE || f == Filter.INCLUDE) return Filter.INCLUDE;
@@ -278,6 +278,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
      *     implemented. If you want to know how this class works read this method first!
      * @param filter the {@link Filter} to visit
      */
+    @Override
     public Object visit(PropertyIsBetween filter, Object extradata) {
         if (original == null) original = filter;
 
@@ -375,31 +376,37 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         return null;
     }
 
+    @Override
     public Object visit(PropertyIsEqualTo filter, Object notUsed) {
         visitBinaryComparisonOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(PropertyIsGreaterThan filter, Object notUsed) {
         visitBinaryComparisonOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(PropertyIsGreaterThanOrEqualTo filter, Object notUsed) {
         visitBinaryComparisonOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(PropertyIsLessThan filter, Object notUsed) {
         visitBinaryComparisonOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(PropertyIsLessThanOrEqualTo filter, Object notUsed) {
         visitBinaryComparisonOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(PropertyIsNotEqualTo filter, Object notUsed) {
         visitBinaryComparisonOperator(filter);
         return null;
@@ -446,6 +453,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         preStack.push(filter);
     }
 
+    @Override
     public Object visit(BBOX filter, Object notUsed) {
         if (filter instanceof BBOX3D && !supports(BBOX3D.class)) {
             postStack.push(filter);
@@ -458,51 +466,61 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         return null;
     }
 
+    @Override
     public Object visit(Beyond filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(Contains filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(Crosses filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(Disjoint filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(DWithin filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(Equals filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(Intersects filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(Overlaps filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(Touches filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
     }
 
+    @Override
     public Object visit(Within filter, Object notUsed) {
         visitBinarySpatialOperator(filter);
         return null;
@@ -511,7 +529,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
     protected void visitBinarySpatialOperator(BinarySpatialOperator filter) {
         if (original == null) original = filter;
 
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings({"unchecked", "PMD.UseShortArrayInitializer"})
         Class<? extends Filter>[] spatialOps =
                 new Class[] {
                     Beyond.class,
@@ -526,9 +544,9 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
                     Within.class
                 };
 
-        for (int i = 0; i < spatialOps.length; i++) {
-            if (spatialOps[i].isAssignableFrom(filter.getClass())) {
-                if (!supports(spatialOps[i])) {
+        for (Class<? extends Filter> spatialOp : spatialOps) {
+            if (spatialOp.isAssignableFrom(filter.getClass())) {
+                if (!supports(spatialOp)) {
                     postStack.push(filter);
                     return;
                 } else {
@@ -542,9 +560,8 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
 
         int i = postStack.size();
 
-        Expression leftGeometry, rightGeometry;
-        leftGeometry = ((BinarySpatialOperator) filter).getExpression1();
-        rightGeometry = ((BinarySpatialOperator) filter).getExpression2();
+        Expression leftGeometry = filter.getExpression1();
+        Expression rightGeometry = filter.getExpression2();
 
         if (leftGeometry == null || rightGeometry == null) {
             postStack.push(filter);
@@ -574,6 +591,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         preStack.push(filter);
     }
 
+    @Override
     public Object visit(PropertyIsLike filter, Object notUsed) {
         if (original == null) original = filter;
 
@@ -598,16 +616,19 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         return null;
     }
 
+    @Override
     public Object visit(And filter, Object notUsed) {
         visitLogicOperator(filter, And.class);
         return null;
     }
 
+    @Override
     public Object visit(Not filter, Object notUsed) {
         visitLogicOperator(filter, Not.class);
         return null;
     }
 
+    @Override
     public Object visit(Or filter, Object notUsed) {
         visitLogicOperator(filter, Or.class);
         return null;
@@ -710,14 +731,17 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         }
     }
 
+    @Override
     public Object visitNullFilter(Object notUsed) {
         return null;
     }
 
+    @Override
     public Object visit(IncludeFilter filter, Object notUsed) {
         return null;
     }
 
+    @Override
     public Object visit(ExcludeFilter filter, Object notUsed) {
         if (supports(Filter.EXCLUDE)) {
             preStack.push(filter);
@@ -727,10 +751,12 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         return null;
     }
 
+    @Override
     public Object visit(PropertyIsNil filter, Object extraData) {
         return visitNullNil(filter, filter.getExpression());
     }
 
+    @Override
     public Object visit(PropertyIsNull filter, Object notUsed) {
         return visitNullNil(filter, filter.getExpression());
     }
@@ -759,6 +785,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         return null;
     }
 
+    @Override
     public Object visit(Id filter, Object notUsed) {
         if (original == null) original = filter;
 
@@ -771,6 +798,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         return null;
     }
 
+    @Override
     public Object visit(PropertyName expression, Object notUsed) {
         // JD: use an expression to get at the attribute type intead of accessing directly
         if (parent != null && expression.evaluate(parent) == null) {
@@ -781,8 +809,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
                             + parent.getTypeName());
         }
         if (transactionAccessor != null) {
-            Filter updateFilter =
-                    (Filter) transactionAccessor.getUpdateFilter(expression.getPropertyName());
+            Filter updateFilter = transactionAccessor.getUpdateFilter(expression.getPropertyName());
             if (updateFilter != null) {
                 changedStack.add(updateFilter);
                 preStack.push(updateFilter);
@@ -793,26 +820,31 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         return null;
     }
 
+    @Override
     public Object visit(Literal expression, Object notUsed) {
         preStack.push(expression);
         return null;
     }
 
+    @Override
     public Object visit(Add filter, Object notUsed) {
         visitMathExpression(filter);
         return null;
     }
 
+    @Override
     public Object visit(Divide filter, Object notUsed) {
         visitMathExpression(filter);
         return null;
     }
 
+    @Override
     public Object visit(Multiply filter, Object notUsed) {
         visitMathExpression(filter);
         return null;
     }
 
+    @Override
     public Object visit(Subtract filter, Object notUsed) {
         visitMathExpression(filter);
         return null;
@@ -858,6 +890,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         preStack.push(expression);
     }
 
+    @Override
     public Object visit(Function expression, Object notUsed) {
         if (!supports(expression)) {
             postStack.push(expression);
@@ -873,7 +906,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         int j = preStack.size();
 
         for (int k = 0; k < expression.getParameters().size(); k++) {
-            ((Expression) expression.getParameters().get(i)).accept(this, null);
+            expression.getParameters().get(k).accept(this, null);
 
             if (i < postStack.size()) {
                 while (j < preStack.size()) preStack.pop();
@@ -888,6 +921,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         return null;
     }
 
+    @Override
     public Object visit(NilExpression nilExpression, Object notUsed) {
         postStack.push(nilExpression);
         return null;
@@ -906,7 +940,7 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         List<Filter> translated = new ArrayList<>();
 
         while (i.hasNext()) {
-            Filter f = (Filter) i.next();
+            Filter f = i.next();
 
             if (f instanceof Not) {
                 // simplify it
@@ -922,58 +956,72 @@ public class PostPreProcessFilterSplittingVisitor implements FilterVisitor, Expr
         return ff.not(and);
     }
 
+    @Override
     public Object visit(After after, Object extraData) {
         return visit((BinaryTemporalOperator) after, extraData);
     }
 
+    @Override
     public Object visit(AnyInteracts anyInteracts, Object extraData) {
         return visit((BinaryTemporalOperator) anyInteracts, extraData);
     }
 
+    @Override
     public Object visit(Before before, Object extraData) {
         return visit((BinaryTemporalOperator) before, extraData);
     }
 
+    @Override
     public Object visit(Begins begins, Object extraData) {
         return visit((BinaryTemporalOperator) begins, extraData);
     }
 
+    @Override
     public Object visit(BegunBy begunBy, Object extraData) {
         return visit((BinaryTemporalOperator) begunBy, extraData);
     }
 
+    @Override
     public Object visit(During during, Object extraData) {
         return visit((BinaryTemporalOperator) during, extraData);
     }
 
+    @Override
     public Object visit(EndedBy endedBy, Object extraData) {
         return visit((BinaryTemporalOperator) endedBy, extraData);
     }
 
+    @Override
     public Object visit(Ends ends, Object extraData) {
         return visit((BinaryTemporalOperator) ends, extraData);
     }
 
+    @Override
     public Object visit(Meets meets, Object extraData) {
         return visit((BinaryTemporalOperator) meets, extraData);
     }
 
+    @Override
     public Object visit(MetBy metBy, Object extraData) {
         return visit((BinaryTemporalOperator) metBy, extraData);
     }
 
+    @Override
     public Object visit(OverlappedBy overlappedBy, Object extraData) {
         return visit((BinaryTemporalOperator) overlappedBy, extraData);
     }
 
+    @Override
     public Object visit(TContains contains, Object extraData) {
         return visit((BinaryTemporalOperator) contains, extraData);
     }
 
+    @Override
     public Object visit(TEquals equals, Object extraData) {
         return visit((BinaryTemporalOperator) equals, extraData);
     }
 
+    @Override
     public Object visit(TOverlaps contains, Object extraData) {
         return visit((BinaryTemporalOperator) contains, extraData);
     }

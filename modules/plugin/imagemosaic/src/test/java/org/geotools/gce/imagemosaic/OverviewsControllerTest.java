@@ -28,16 +28,20 @@ import java.util.logging.Logger;
 import javax.imageio.ImageReadParam;
 import javax.imageio.spi.ImageReaderSpi;
 import junit.framework.JUnit4TestAdapter;
-import junit.textui.TestRunner;
 import org.apache.commons.io.filefilter.FileFilterUtils;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.DecimationPolicy;
 import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.coverage.grid.io.OverviewPolicy;
 import org.geotools.coverage.grid.io.UnknownFormat;
-import org.geotools.coverage.grid.io.footprint.MultiLevelROI;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
@@ -49,12 +53,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Testing {@link OverviewsController}.
@@ -182,7 +180,7 @@ public class OverviewsControllerTest extends Assert {
         final Hints hints = new Hints(Hints.DEFAULT_COORDINATE_REFERENCE_SYSTEM, WGS84);
         hints.put(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, true);
         final AbstractGridFormat format =
-                (AbstractGridFormat) GridFormatFinder.findFormat(heterogeneousGranulesURL, hints);
+                GridFormatFinder.findFormat(heterogeneousGranulesURL, hints);
         Assert.assertNotNull(format);
         Assert.assertFalse("UknownFormat", format instanceof UnknownFormat);
 
@@ -214,7 +212,7 @@ public class OverviewsControllerTest extends Assert {
                         null,
                         spi,
                         null,
-                        (MultiLevelROI) null,
+                        null,
                         -1,
                         true,
                         false,
@@ -226,7 +224,7 @@ public class OverviewsControllerTest extends Assert {
                         null,
                         spi,
                         null,
-                        (MultiLevelROI) null,
+                        null,
                         -1,
                         true,
                         false,
@@ -242,7 +240,7 @@ public class OverviewsControllerTest extends Assert {
         // Initializing read request
         //
         // //
-        final GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        final GeneralBounds envelope = reader.getOriginalEnvelope();
         final GridEnvelope originalRange = reader.getOriginalGridRange();
         final Rectangle rasterArea =
                 new Rectangle(
@@ -254,11 +252,9 @@ public class OverviewsControllerTest extends Assert {
         final GridToEnvelopeMapper geMapper = new GridToEnvelopeMapper(range, envelope);
         geMapper.setPixelAnchor(PixelInCell.CELL_CENTER);
         final AffineTransform gridToWorld = geMapper.createAffineTransform();
-        final double requestedResolution[] =
-                new double[] {
-                    XAffineTransform.getScaleX0(gridToWorld),
-                    XAffineTransform.getScaleY0(gridToWorld)
-                };
+        final double[] requestedResolution = {
+            XAffineTransform.getScaleX0(gridToWorld), XAffineTransform.getScaleY0(gridToWorld)
+        };
 
         TestSet at = null;
         if (nOv == 4 && Math.abs(hRes[0][0] - 0.833333333333) <= THRESHOLD) {
@@ -274,13 +270,12 @@ public class OverviewsControllerTest extends Assert {
         // Starting OverviewsController tests
         //
         // //
-        final OverviewPolicy[] ovPolicies =
-                new OverviewPolicy[] {
-                    OverviewPolicy.QUALITY,
-                    OverviewPolicy.SPEED,
-                    OverviewPolicy.NEAREST,
-                    OverviewPolicy.IGNORE
-                };
+        final OverviewPolicy[] ovPolicies = {
+            OverviewPolicy.QUALITY,
+            OverviewPolicy.SPEED,
+            OverviewPolicy.NEAREST,
+            OverviewPolicy.IGNORE
+        };
         for (int i = 0; i < ovPolicies.length; i++) {
             OverviewPolicy ovPolicy = ovPolicies[i];
             LOGGER.info("Testing with OverviewPolicy = " + ovPolicy.toString());
@@ -310,11 +305,6 @@ public class OverviewsControllerTest extends Assert {
             assertSame(at.ot[i].g2.ssy, readParamsG2.getSourceYSubsampling());
         }
         reader.dispose();
-    }
-
-    /** @param args */
-    public static void main(String[] args) {
-        TestRunner.run(OverviewsControllerTest.suite());
     }
 
     @Before

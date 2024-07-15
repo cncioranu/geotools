@@ -22,12 +22,21 @@ package org.geotools.referencing.operation.transform;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.Collections;
+import java.util.Objects;
 import javax.measure.Unit;
 import javax.measure.UnitConverter;
 import javax.measure.quantity.Length;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
@@ -35,14 +44,6 @@ import org.geotools.parameter.DefaultParameterDescriptor;
 import org.geotools.parameter.FloatParameter;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.operation.MathTransformProvider;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.MathTransform;
 import si.uom.SI;
 
 /**
@@ -155,7 +156,7 @@ public class GeocentricTransform extends AbstractMathTransform implements Serial
         if (!(value >= 0 && value <= max)) {
             // Use '!' in order to trap NaN
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, name, value));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, name, value));
         }
     }
 
@@ -195,11 +196,13 @@ public class GeocentricTransform extends AbstractMathTransform implements Serial
     }
 
     /** Gets the dimension of input points, which is 2 or 3. */
+    @Override
     public int getSourceDimensions() {
         return hasHeight ? 3 : 2;
     }
 
     /** Gets the dimension of output points, which is 3. */
+    @Override
     public final int getTargetDimensions() {
         return 3;
     }
@@ -208,6 +211,7 @@ public class GeocentricTransform extends AbstractMathTransform implements Serial
      * Converts geodetic coordinates (longitude, latitude, height) to geocentric coordinates (x, y,
      * z) according to the current ellipsoid parameters.
      */
+    @Override
     public void transform(double[] srcPts, int srcOff, double[] dstPts, int dstOff, int numPts) {
         transform(srcPts, srcOff, dstPts, dstOff, numPts, false);
     }
@@ -438,46 +442,24 @@ public class GeocentricTransform extends AbstractMathTransform implements Serial
         return inverse;
     }
 
-    /** Returns a hash value for this transform. */
     @Override
-    public int hashCode() {
-        final long code =
-                Double.doubleToLongBits(a)
-                        + 37
-                                * (Double.doubleToLongBits(b)
-                                        + 37
-                                                * (Double.doubleToLongBits(a2)
-                                                        + 37
-                                                                * (Double.doubleToLongBits(b2)
-                                                                        + 37
-                                                                                * (Double
-                                                                                                .doubleToLongBits(
-                                                                                                        e2)
-                                                                                        + 37
-                                                                                                * (Double
-                                                                                                        .doubleToLongBits(
-                                                                                                                ep2))))));
-        return (int) code ^ (int) (code >>> 32) ^ (int) serialVersionUID;
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+        GeocentricTransform that = (GeocentricTransform) o;
+        return Double.compare(that.a, a) == 0
+                && Double.compare(that.b, b) == 0
+                && Double.compare(that.a2, a2) == 0
+                && Double.compare(that.b2, b2) == 0
+                && Double.compare(that.e2, e2) == 0
+                && Double.compare(that.ep2, ep2) == 0
+                && hasHeight == that.hasHeight;
     }
 
-    /** Compares the specified object with this math transform for equality. */
     @Override
-    public boolean equals(final Object object) {
-        if (object == this) {
-            // Slight optimization
-            return true;
-        }
-        if (super.equals(object)) {
-            final GeocentricTransform that = (GeocentricTransform) object;
-            return Double.doubleToLongBits(this.a) == Double.doubleToLongBits(that.a)
-                    && Double.doubleToLongBits(this.b) == Double.doubleToLongBits(that.b)
-                    && Double.doubleToLongBits(this.a2) == Double.doubleToLongBits(that.a2)
-                    && Double.doubleToLongBits(this.b2) == Double.doubleToLongBits(that.b2)
-                    && Double.doubleToLongBits(this.e2) == Double.doubleToLongBits(that.e2)
-                    && Double.doubleToLongBits(this.ep2) == Double.doubleToLongBits(that.ep2)
-                    && this.hasHeight == that.hasHeight;
-        }
-        return false;
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), a, b, a2, b2, e2, ep2, hasHeight);
     }
 
     /**
@@ -512,6 +494,7 @@ public class GeocentricTransform extends AbstractMathTransform implements Serial
         }
 
         /** Inverse transform an array of points. */
+        @Override
         public void transform(
                 final double[] source,
                 final int srcOffset,
@@ -660,6 +643,7 @@ public class GeocentricTransform extends AbstractMathTransform implements Serial
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup values)
                 throws ParameterNotFoundException {
             final int dimGeographic = intValue(DIM, values);

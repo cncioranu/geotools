@@ -43,7 +43,8 @@ import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.params.HttpMethodParams;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.arcgisrest.schema.catalog.Catalog;
 import org.geotools.data.arcgisrest.schema.catalog.Dataset;
 import org.geotools.data.arcgisrest.schema.catalog.Error_;
@@ -54,7 +55,6 @@ import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.NameImpl;
 import org.geotools.util.UnsupportedImplementationException;
-import org.opengis.feature.type.Name;
 
 /**
  * Main class of the data store
@@ -357,8 +357,7 @@ public class ArcGISRestDataStore extends ContentDataStore {
         // metadata that support the ReST API (if there are no distribution
         // elements, return an error)
         Collection<WsCall> calls = new ArrayList<WsCall>();
-        datasetList
-                .stream()
+        datasetList.stream()
                 .forEach(
                         (ds) -> {
                             String ws = ArcGISRestDataStore.getWebServiceEndpoint(ds);

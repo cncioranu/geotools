@@ -20,6 +20,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Logger;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleVisitor;
+import org.geotools.api.style.StyledLayer;
+import org.geotools.api.style.StyledLayerDescriptor;
+import org.geotools.api.style.UserLayer;
 import org.geotools.util.Utilities;
 
 /**
@@ -70,19 +75,17 @@ public class StyledLayerDescriptorImpl implements StyledLayerDescriptor {
      */
     public Style getDefaultStyle() {
         // descend into the layers
-        for (int i = 0; i < layers.size(); i++) {
-            StyledLayer layer = (StyledLayer) layers.get(i);
-
+        for (StyledLayer layer : layers) {
             if (layer instanceof UserLayer) {
                 UserLayer userLayer = (UserLayer) layer;
 
                 // descend into the styles
                 Style[] styles = userLayer.getUserStyles();
 
-                for (int j = 0; j < styles.length; j++) {
+                for (Style style : styles) {
                     // return the first style that claims to be the default
-                    if (styles[j].isDefault()) {
-                        return styles[j];
+                    if (style.isDefault()) {
+                        return style;
                     }
                 }
             }
@@ -91,26 +94,30 @@ public class StyledLayerDescriptorImpl implements StyledLayerDescriptor {
         return null;
     }
 
+    @Override
     public StyledLayer[] getStyledLayers() {
-        return (StyledLayerImpl[]) layers.toArray(new StyledLayerImpl[layers.size()]);
+        return layers.toArray(new StyledLayerImpl[layers.size()]);
     }
 
+    @Override
     public void setStyledLayers(StyledLayer[] layers) {
         this.layers.clear();
 
-        for (int i = 0; i < layers.length; i++) {
-            addStyledLayer(layers[i]);
+        for (StyledLayer layer : layers) {
+            addStyledLayer(layer);
         }
 
         LOGGER.fine("StyleLayerDescriptorImpl added " + this.layers.size() + " styled layers");
     }
 
+    @Override
     public List<StyledLayer> layers() {
         return layers;
     }
 
+    @Override
     public void addStyledLayer(StyledLayer layer) {
-        layers.add((StyledLayerImpl) layer);
+        layers.add(layer);
     }
 
     /**
@@ -118,6 +125,7 @@ public class StyledLayerDescriptorImpl implements StyledLayerDescriptor {
      *
      * @return Value of property name.
      */
+    @Override
     public String getName() {
         return this.name;
     }
@@ -127,6 +135,7 @@ public class StyledLayerDescriptorImpl implements StyledLayerDescriptor {
      *
      * @param name New value of property name.
      */
+    @Override
     public void setName(String name) {
         this.name = name;
     }
@@ -136,6 +145,7 @@ public class StyledLayerDescriptorImpl implements StyledLayerDescriptor {
      *
      * @return Value of property title.
      */
+    @Override
     public String getTitle() {
         return this.title;
     }
@@ -145,6 +155,7 @@ public class StyledLayerDescriptorImpl implements StyledLayerDescriptor {
      *
      * @param title New value of property title.
      */
+    @Override
     public void setTitle(String title) {
         this.title = title;
     }
@@ -154,6 +165,7 @@ public class StyledLayerDescriptorImpl implements StyledLayerDescriptor {
      *
      * @return Value of property abstractStr.
      */
+    @Override
     public java.lang.String getAbstract() {
         return abstractStr;
     }
@@ -163,14 +175,17 @@ public class StyledLayerDescriptorImpl implements StyledLayerDescriptor {
      *
      * @param abstractStr New value of property abstractStr.
      */
+    @Override
     public void setAbstract(java.lang.String abstractStr) {
         this.abstractStr = abstractStr;
     }
 
+    @Override
     public void accept(StyleVisitor visitor) {
         visitor.visit(this);
     }
 
+    @Override
     public boolean equals(Object oth) {
         if (this == oth) {
             return true;

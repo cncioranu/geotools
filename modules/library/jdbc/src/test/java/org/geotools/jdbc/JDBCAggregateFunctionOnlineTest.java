@@ -16,14 +16,28 @@
  */
 package org.geotools.jdbc;
 
-import static org.opengis.filter.sort.SortOrder.*;
+import static org.geotools.api.filter.sort.SortOrder.ASCENDING;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import org.geotools.data.Query;
+import java.util.stream.Collectors;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.visitor.AverageVisitor;
 import org.geotools.feature.visitor.GroupByVisitor;
@@ -34,18 +48,14 @@ import org.geotools.feature.visitor.NearestVisitor;
 import org.geotools.feature.visitor.StandardDeviationVisitor;
 import org.geotools.feature.visitor.SumAreaVisitor;
 import org.geotools.feature.visitor.SumVisitor;
+import org.geotools.feature.visitor.UniqueCountVisitor;
 import org.geotools.feature.visitor.UniqueVisitor;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.filter.SortByImpl;
 import org.geotools.filter.function.FilterFunction_area;
 import org.geotools.util.Converters;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.sort.SortBy;
+import org.junit.Before;
+import org.junit.Test;
 
 public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
 
@@ -54,9 +64,8 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
     @Override
     protected abstract JDBCAggregateTestSetup createTestSetup();
 
-    @Override
-    protected void setUpInternal() throws Exception {
-        super.setUpInternal();
+    @Before
+    public void resetVisited() {
         visited = false;
     }
 
@@ -66,17 +75,20 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
             super(expr);
         }
 
+        @Override
         public void visit(Feature feature) {
             super.visit(feature);
             visited = true;
         }
 
+        @Override
         public void visit(SimpleFeature feature) {
             super.visit(feature);
             visited = true;
         }
     }
 
+    @Test
     public void testSum() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -93,17 +105,20 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
             super(expr);
         }
 
+        @Override
         public void visit(Feature feature) {
             super.visit(feature);
             visited = true;
         }
 
+        @Override
         public void visit(SimpleFeature feature) {
             super.visit(feature);
             visited = true;
         }
     }
 
+    @Test
     public void testSumArea() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("geom"));
@@ -115,6 +130,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(30.0, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
     public void testSumAreaWithGroupBy() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("geom"));
@@ -137,6 +153,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(10.0, (Double) ((Object[]) groups.get(1))[1], 0.01);
     }
 
+    @Test
     public void testSumWithFilter() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -150,10 +167,29 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(1.1, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
+    public void testSumWithFunctionFilter() throws Exception {
+        FilterFactory ff = dataStore.getFilterFactory();
+        PropertyName p = ff.property(aname("doubleProperty"));
+
+        SumVisitor v = new MySumVisitor(p);
+
+        Filter f =
+                ff.equals(
+                        ff.function(
+                                "strMatches",
+                                ff.property(aname("stringProperty")),
+                                ff.literal("zero*")),
+                        ff.literal(false));
+        Query q = new Query(tname("ft1"), f);
+
+        dataStore.getFeatureSource(tname("ft1")).accepts(q, v, null);
+        assertEquals(3.3, v.getResult().toDouble(), 0.00001);
+    }
+
+    @Test
     public void testSumWithLimitOffset() throws Exception {
-        if (!dataStore.getSQLDialect().isLimitOffsetSupported()) {
-            return;
-        }
+        assumeTrue(dataStore.getSQLDialect().isLimitOffsetSupported());
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
 
@@ -174,17 +210,20 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
             super(expr);
         }
 
+        @Override
         public void visit(Feature feature) {
             super.visit(feature);
             visited = true;
         }
 
+        @Override
         public void visit(SimpleFeature feature) {
             super.visit(feature);
             visited = true;
         }
     }
 
+    @Test
     public void testMax() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -195,6 +234,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(2.2, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
     public void testMaxWithFilter() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -208,10 +248,9 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(1.1, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
     public void testMaxWithLimitOffset() throws Exception {
-        if (!dataStore.getSQLDialect().isLimitOffsetSupported()) {
-            return;
-        }
+        assumeTrue(dataStore.getSQLDialect().isLimitOffsetSupported());
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
 
@@ -232,17 +271,20 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
             super(expr);
         }
 
+        @Override
         public void visit(Feature feature) {
             super.visit(feature);
             visited = true;
         }
 
+        @Override
         public void visit(SimpleFeature feature) {
             super.visit(feature);
             visited = true;
         }
     }
 
+    @Test
     public void testMin() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -253,6 +295,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(0.0, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
     public void testMinWithFilter() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -266,10 +309,9 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(1.1, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
     public void testMinWithLimitOffset() throws Exception {
-        if (!dataStore.getSQLDialect().isLimitOffsetSupported()) {
-            return;
-        }
+        assumeTrue(dataStore.getSQLDialect().isLimitOffsetSupported());
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
 
@@ -290,17 +332,20 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
             super(expr);
         }
 
+        @Override
         public void visit(Feature feature) {
             super.visit(feature);
             visited = true;
         }
 
+        @Override
         public void visit(SimpleFeature feature) {
             super.visit(feature);
             visited = true;
         }
     }
 
+    @Test
     public void testUnique() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("stringProperty"));
@@ -315,6 +360,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertTrue(result.contains("two"));
     }
 
+    @Test
     public void testUniqueWithFilter() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("stringProperty"));
@@ -330,12 +376,10 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertTrue(result.contains("two"));
     }
 
+    @Test
     public void testUniqueWithLimitOffset() throws Exception {
-
-        if (!dataStore.getSQLDialect().isLimitOffsetSupported()
-                || !dataStore.getSQLDialect().isAggregatedSortSupported("distinct")) {
-            return;
-        }
+        assumeTrue(dataStore.getSQLDialect().isLimitOffsetSupported());
+        assumeTrue(dataStore.getSQLDialect().isAggregatedSortSupported("distinct"));
 
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("stringProperty"));
@@ -350,12 +394,10 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(2, result.size());
     }
 
+    @Test
     public void testUniqueWithLimitOnVisitor() throws Exception {
-
-        if (!dataStore.getSQLDialect().isLimitOffsetSupported()
-                || !dataStore.getSQLDialect().isAggregatedSortSupported("distinct")) {
-            return;
-        }
+        assumeTrue(dataStore.getSQLDialect().isLimitOffsetSupported());
+        assumeTrue(dataStore.getSQLDialect().isAggregatedSortSupported("distinct"));
 
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("stringProperty"));
@@ -365,7 +407,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         v.setStartIndex(0);
         v.setMaxFeatures(2);
         Query q = new Query(tname("ft1"));
-        q.setSortBy(new SortBy[] {new SortByImpl(p, ASCENDING)});
+        q.setSortBy(new SortByImpl(p, ASCENDING));
         dataStore.getFeatureSource(tname("ft1")).accepts(q, v, null);
         assertFalse(visited);
         Set result = v.getResult().toSet();
@@ -373,12 +415,29 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals("one", result.iterator().next());
     }
 
-    public void testStoreChecksVisitorLimits() throws Exception {
+    @Test
+    public void testUniqueWithNonMatchingSort() throws Exception {
+        assumeTrue(dataStore.getSQLDialect().isAggregatedSortSupported("distinct"));
 
-        if (!dataStore.getSQLDialect().isLimitOffsetSupported()
-                || !dataStore.getSQLDialect().isAggregatedSortSupported("distinct")) {
-            return;
-        }
+        FilterFactory ff = dataStore.getFilterFactory();
+        PropertyName p = ff.property(aname("stringProperty"));
+
+        UniqueVisitor v = new MyUniqueVisitor(p);
+        v.setStartIndex(0);
+        Query q = new Query(tname("ft1"));
+        PropertyName pNonMatching = ff.property(aname("doubleProperty"));
+        q.setSortBy(new SortByImpl(pNonMatching, ASCENDING));
+        // used to fail with an exception, because stringProperty was in order by, but not in select
+        dataStore.getFeatureSource(tname("ft1")).accepts(q, v, null);
+        assertFalse(visited);
+        Set result = v.getResult().toSet();
+        assertEquals(3, result.size());
+    }
+
+    @Test
+    public void testStoreChecksVisitorLimits() throws Exception {
+        assumeTrue(dataStore.getSQLDialect().isLimitOffsetSupported());
+        assumeTrue(dataStore.getSQLDialect().isAggregatedSortSupported("distinct"));
 
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("stringProperty"));
@@ -397,7 +456,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
 
         Query q = new Query(tname("ft1"));
         q.setMaxFeatures(1);
-        q.setSortBy(new SortBy[] {new SortByImpl(p, ASCENDING)});
+        q.setSortBy(new SortByImpl(p, ASCENDING));
         dataStore.getFeatureSource(tname("ft1")).accepts(q, v, null);
         assertFalse(visited);
         Set result = v.getResult().toSet();
@@ -405,12 +464,10 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals("one", result.iterator().next());
     }
 
+    @Test
     public void testUniqueWithLimitOffsetOnVisitor() throws Exception {
-
-        if (!dataStore.getSQLDialect().isLimitOffsetSupported()
-                || !dataStore.getSQLDialect().isAggregatedSortSupported("distinct")) {
-            return;
-        }
+        assumeTrue(dataStore.getSQLDialect().isLimitOffsetSupported());
+        assumeTrue(dataStore.getSQLDialect().isAggregatedSortSupported("distinct"));
 
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("stringProperty"));
@@ -420,7 +477,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         v.setStartIndex(1);
         v.setMaxFeatures(2);
         Query q = new Query(tname("ft1"));
-        q.setSortBy(new SortBy[] {new SortByImpl(p, ASCENDING)});
+        q.setSortBy(new SortByImpl(p, ASCENDING));
         dataStore.getFeatureSource(tname("ft1")).accepts(q, v, null);
         assertFalse(visited);
         Set result = v.getResult().toSet();
@@ -434,6 +491,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
             super(expr, valueToMatch);
         }
 
+        @Override
         public void visit(Feature feature) {
             super.visit(feature);
             visited = true;
@@ -445,6 +503,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testNearest() throws IOException {
         // test strings
         testNearest("ft1", "stringProperty", "two", "two"); // exact match
@@ -500,17 +559,20 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
             super(expr);
         }
 
+        @Override
         public void visit(Feature feature) {
             super.visit(feature);
             visited = true;
         }
 
+        @Override
         public void visit(SimpleFeature feature) {
             super.visit(feature);
             visited = true;
         }
     }
 
+    @Test
     public void testAverage() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -521,6 +583,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(1.1, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
     public void testAverageWithFilter() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -534,10 +597,9 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(1.65, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
     public void testAverageWithLimitOffset() throws Exception {
-        if (!dataStore.getSQLDialect().isLimitOffsetSupported()) {
-            return;
-        }
+        assumeTrue(dataStore.getSQLDialect().isLimitOffsetSupported());
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
 
@@ -558,17 +620,20 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
             super(expr);
         }
 
+        @Override
         public void visit(Feature feature) {
             super.visit(feature);
             visited = true;
         }
 
+        @Override
         public void visit(SimpleFeature feature) {
             super.visit(feature);
             visited = true;
         }
     }
 
+    @Test
     public void testStandardDeviation() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -579,6 +644,7 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(0.89, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
     public void testStandardDeviationWithFilter() throws Exception {
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
@@ -591,10 +657,9 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
         assertEquals(0.55, v.getResult().toDouble(), 0.01);
     }
 
+    @Test
     public void testStandardDeviationWithLimitOffset() throws Exception {
-        if (!dataStore.getSQLDialect().isLimitOffsetSupported()) {
-            return;
-        }
+        assumeTrue(dataStore.getSQLDialect().isLimitOffsetSupported());
         FilterFactory ff = dataStore.getFilterFactory();
         PropertyName p = ff.property(aname("doubleProperty"));
 
@@ -606,5 +671,140 @@ public abstract class JDBCAggregateFunctionOnlineTest extends JDBCTestSupport {
 
         assertFalse(visited);
         assertEquals(0.55, v.getResult().toDouble(), 0.01);
+    }
+
+    @Test
+    public void testUniqueCount() throws Exception {
+        FilterFactory ff = dataStore.getFilterFactory();
+        PropertyName p = ff.property(aname("stringProperty"));
+
+        UniqueVisitor v = new UniqueCountVisitor(p);
+        dataStore.getFeatureSource(tname("ft1")).accepts(Query.ALL, v, null);
+        int result = v.getResult().toInt();
+        assertEquals(0, v.getUnique().size());
+        assertEquals(3, result);
+    }
+
+    @Test
+    public void testUniqueCountWithFilter() throws Exception {
+        FilterFactory ff = dataStore.getFilterFactory();
+        PropertyName p = ff.property(aname("stringProperty"));
+
+        UniqueCountVisitor v = new UniqueCountVisitor(p);
+        Filter f = ff.greater(ff.property(aname("doubleProperty")), ff.literal(1));
+        Query q = new Query(tname("ft1"), f);
+        dataStore.getFeatureSource(tname("ft1")).accepts(q, v, null);
+        assertFalse(visited);
+        Set result = v.getUnique();
+        assertEquals(0, result.size());
+        assertEquals(2, v.getResult().toInt());
+    }
+
+    @Test
+    public void testUniqueCountWithLimit() throws Exception {
+        FilterFactory ff = dataStore.getFilterFactory();
+        PropertyName p = ff.property(aname("stringProperty"));
+
+        UniqueVisitor v = new UniqueCountVisitor(p);
+        v.setMaxFeatures(2);
+        dataStore.getFeatureSource(tname("ft1")).accepts(Query.ALL, v, null);
+        int result = v.getResult().toInt();
+        assertEquals(0, v.getUnique().size());
+        assertEquals(2, result);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testUniqueMultipleAttributes() throws Exception {
+        UniqueVisitor v = new UniqueVisitor("stringProperty", "doubleProperty");
+        dataStore.getFeatureSource(tname("ft4")).accepts(Query.ALL, v, null);
+        Set result = v.getResult().toSet();
+
+        // makes sure types of numeric values are of the same type. Eg. Oracle DB
+        // uses BigDecimal and BigInteger instead of Double and Integer.
+        convertNumbers(result, new int[] {1}, new Class<?>[] {Double.class});
+
+        Set expected = new HashSet();
+        addValues(expected, "zero", 0.0);
+        addValues(expected, "one", 1.1);
+        addValues(expected, "one_2", 1.1);
+        addValues(expected, "two", 2.2);
+        addValues(expected, "two_2", 2.2);
+        addValues(expected, "three", 3.3);
+        assertEquals(expected.size(), result.size());
+        assertTrue(expected.containsAll(result));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testUniqueMultipleAttributes2() throws Exception {
+        UniqueVisitor v = new UniqueVisitor("intProperty", "doubleProperty");
+        dataStore.getFeatureSource(tname("ft4")).accepts(Query.ALL, v, null);
+        Set result = v.getResult().toSet();
+
+        // makes sure types of numeric values are of the same type. Eg. Oracle DB
+        // uses BigDecimal and BigInteger instead of Double and Integer.
+        convertNumbers(result, new int[] {0, 1}, new Class<?>[] {Integer.class, Double.class});
+        Set expected = new HashSet();
+        addValues(expected, 0, 0.0);
+        addValues(expected, 1, 1.1);
+        addValues(expected, 2, 2.2);
+        addValues(expected, 3, 3.3);
+        assertEquals(expected.size(), result.size());
+        assertTrue(expected.containsAll(result));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testUniqueMultipleAttributes3() throws Exception {
+        UniqueVisitor v = new UniqueVisitor("intProperty", "doubleProperty", "stringProperty");
+        dataStore.getFeatureSource(tname("ft4")).accepts(Query.ALL, v, null);
+        Set result = v.getResult().toSet();
+
+        // makes sure types of numeric values are of the same type. Eg. Oracle DB
+        // uses BigDecimal and BigInteger instead of Double and Integer.
+        convertNumbers(result, new int[] {0, 1}, new Class<?>[] {Integer.class, Double.class});
+
+        Set expected = new HashSet();
+        addValues(expected, 0, 0.0, "zero");
+        addValues(expected, 1, 1.1, "one");
+        addValues(expected, 1, 1.1, "one_2");
+        addValues(expected, 2, 2.2, "two");
+        addValues(expected, 2, 2.2, "two_2");
+        addValues(expected, 3, 3.3, "three");
+        assertEquals(expected.size(), result.size());
+        assertTrue(expected.containsAll(result));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testUniqueMultipleAttrOneResult() throws Exception {
+        // check that when the result is a single pair the result is returned as a single entry List
+        // and not as separate values.
+        UniqueVisitor v = new UniqueVisitor("intProperty", "doubleProperty");
+        v.setMaxFeatures(1);
+        dataStore.getFeatureSource(tname("ft1")).accepts(Query.ALL, v, null);
+        Set result = v.getResult().toSet();
+        assertEquals(1, result.size());
+        assertTrue(result.iterator().next() instanceof List);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void addValues(Set set, Object... values) {
+        LinkedList<Object> list =
+                Arrays.stream(values).collect(Collectors.toCollection(LinkedList::new));
+        set.add(list);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void convertNumbers(Set values, int[] indexes, Class<?>[] clazz) {
+        for (Object o : values) {
+            List uniques = (List) o;
+            for (int i = 0; i < indexes.length; i++) {
+                Object val = uniques.get(indexes[i]);
+                Object result = Converters.convert(val, clazz[i]);
+                uniques.set(indexes[i], result);
+            }
+        }
     }
 }

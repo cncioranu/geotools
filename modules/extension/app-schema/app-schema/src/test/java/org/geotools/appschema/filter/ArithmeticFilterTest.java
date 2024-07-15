@@ -24,9 +24,15 @@ import java.io.Serializable;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import org.geotools.data.DataAccess;
-import org.geotools.data.DataAccessFinder;
-import org.geotools.data.FeatureSource;
+import org.geotools.api.data.DataAccess;
+import org.geotools.api.data.DataAccessFinder;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.data.complex.feature.type.Types;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
@@ -34,12 +40,6 @@ import org.geotools.filter.FilterFactoryImpl;
 import org.geotools.test.AppSchemaTestSupport;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opengis.feature.Feature;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.expression.PropertyName;
 import org.xml.sax.helpers.NamespaceSupport;
 
 public class ArithmeticFilterTest extends AppSchemaTestSupport {
@@ -70,7 +70,7 @@ public class ArithmeticFilterTest extends AppSchemaTestSupport {
         dsParams.put("url", url.toExternalForm());
         dataAccess = DataAccessFinder.getDataStore(dsParams);
 
-        fSource = (FeatureSource<FeatureType, Feature>) dataAccess.getFeatureSource(FEATURE_TYPE);
+        fSource = dataAccess.getFeatureSource(FEATURE_TYPE);
     }
 
     @Test
@@ -119,20 +119,15 @@ public class ArithmeticFilterTest extends AppSchemaTestSupport {
         PropertyName positionalAccuracy =
                 ff.property("gsml:positionalAccuracy/gsml:CGI_NumericValue/gsml:principalValue");
 
-        FeatureIterator<Feature> iterator = features.features();
-        try {
+        try (FeatureIterator<Feature> iterator = features.features()) {
 
             Feature f = iterator.next();
-            Property val = (Property) positionalAccuracy.evaluate(f);
-            System.out.println(val.getValue());
+            assertTrue(positionalAccuracy.evaluate(f) instanceof Property);
             // try all filters
             assertTrue(arithmeticMultiplyFilter.evaluate(f));
             assertTrue(arithmeticDivideFilter.evaluate(f));
             assertTrue(arithmeticAdditionFilter.evaluate(f));
             assertTrue(arithmeticSubtractionFilter.evaluate(f));
-
-        } finally {
-            iterator.close();
         }
     }
 }

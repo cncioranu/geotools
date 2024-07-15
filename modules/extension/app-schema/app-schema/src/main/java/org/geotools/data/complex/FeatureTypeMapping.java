@@ -19,14 +19,21 @@ package org.geotools.data.complex;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import javax.xml.namespace.QName;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.appschema.util.IndexQueryUtils;
-import org.geotools.data.FeatureSource;
 import org.geotools.data.complex.feature.type.Types;
 import org.geotools.data.complex.filter.XPath;
 import org.geotools.data.complex.util.XPathUtil.Step;
@@ -34,13 +41,6 @@ import org.geotools.data.complex.util.XPathUtil.StepList;
 import org.geotools.data.joining.JoiningNestedAttributeMapping;
 import org.geotools.gml3.GML;
 import org.geotools.xlink.XLINK;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.expression.Expression;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -81,6 +81,9 @@ public class FeatureTypeMapping {
     private Expression featureFidMapping;
 
     private boolean isDenormalised;
+
+    // whether the mapping came from an XML include
+    private boolean isInclude;
 
     /**
      * User-provided XPath expression specifying a property to be used as default geometry for the
@@ -133,7 +136,7 @@ public class FeatureTypeMapping {
             if (targetXPath.size() > 1) {
                 continue;
             }
-            Step step = (Step) targetXPath.get(0);
+            Step step = targetXPath.get(0);
             QName stepName = step.getName();
             if (Types.equals(target.getName(), stepName)) {
                 featureFidMapping = attMapping.getIdentifierExpression();
@@ -171,8 +174,8 @@ public class FeatureTypeMapping {
     public List<AttributeMapping> getAttributeMappingsIgnoreIndex(final StepList targetPath) {
         AttributeMapping attMapping;
         List<AttributeMapping> mappings = new ArrayList<>();
-        for (Iterator<AttributeMapping> it = attributeMappings.iterator(); it.hasNext(); ) {
-            attMapping = (AttributeMapping) it.next();
+        for (AttributeMapping attributeMapping : attributeMappings) {
+            attMapping = attributeMapping;
             if (targetPath.equalsIgnoreIndex(attMapping.getTargetXPath())) {
                 mappings.add(attMapping);
             }
@@ -189,8 +192,8 @@ public class FeatureTypeMapping {
             final Expression sourceExpression) {
         AttributeMapping attMapping;
         List<AttributeMapping> mappings = new ArrayList<>();
-        for (Iterator<AttributeMapping> it = attributeMappings.iterator(); it.hasNext(); ) {
-            attMapping = (AttributeMapping) it.next();
+        for (AttributeMapping attributeMapping : attributeMappings) {
+            attMapping = attributeMapping;
             if (sourceExpression.equals(attMapping.getSourceExpression())) {
                 mappings.add(attMapping);
             }
@@ -207,8 +210,8 @@ public class FeatureTypeMapping {
      */
     public AttributeMapping getAttributeMapping(final StepList exactPath) {
         AttributeMapping attMapping;
-        for (Iterator<AttributeMapping> it = attributeMappings.iterator(); it.hasNext(); ) {
-            attMapping = (AttributeMapping) it.next();
+        for (AttributeMapping attributeMapping : attributeMappings) {
+            attMapping = attributeMapping;
             if (exactPath.equals(attMapping.getTargetXPath())) {
                 return attMapping;
             }
@@ -226,8 +229,8 @@ public class FeatureTypeMapping {
         AttributeMapping attMapping;
         StepList stepList =
                 XPath.steps(this.getTargetFeature(), xpathExpression, this.getNamespaces());
-        for (Iterator<AttributeMapping> it = attributeMappings.iterator(); it.hasNext(); ) {
-            attMapping = it.next();
+        for (AttributeMapping attributeMapping : attributeMappings) {
+            attMapping = attributeMapping;
             if (stepList.equals(attMapping.getTargetXPath())) {
                 return attMapping;
             }
@@ -275,8 +278,8 @@ public class FeatureTypeMapping {
     public List<AttributeMapping> getIsListMappings() {
         List<AttributeMapping> mappings = new ArrayList<>();
         AttributeMapping attMapping;
-        for (Iterator<AttributeMapping> it = attributeMappings.iterator(); it.hasNext(); ) {
-            attMapping = (AttributeMapping) it.next();
+        for (AttributeMapping attributeMapping : attributeMappings) {
+            attMapping = attributeMapping;
             if (attMapping.isList()) {
                 mappings.add(attMapping);
             }
@@ -308,7 +311,7 @@ public class FeatureTypeMapping {
                 candidates.add(mapping);
             }
         }
-        if (candidates.size() == 0
+        if (candidates.isEmpty()
                 && propertyName.toString().equals("@gml:id")
                 && getFeatureIdExpression() != null) {
             Expression idExpression = getFeatureIdExpression();
@@ -321,8 +324,8 @@ public class FeatureTypeMapping {
         // i.e. a client property maps to an xml attribute, and the step list
         // could have been generated from an xpath of the form
         // @attName or propA/propB@attName
-        if (candidates.size() == 0 && propertyName.size() > 0) {
-            XPath.Step clientPropertyStep = (Step) propertyName.get(propertyName.size() - 1);
+        if (candidates.isEmpty() && propertyName.size() > 0) {
+            XPath.Step clientPropertyStep = propertyName.get(propertyName.size() - 1);
             if (clientPropertyStep.isXmlAttribute()) {
                 Name clientPropertyName = Types.toTypeName(clientPropertyStep.getName());
                 XPath.StepList parentPath;
@@ -363,8 +366,8 @@ public class FeatureTypeMapping {
         AttributeMapping attMapping;
         Map<Name, Expression> clientProperties;
         Expression propertyExpression;
-        for (Iterator<AttributeMapping> it = attributeMappings.iterator(); it.hasNext(); ) {
-            attMapping = it.next();
+        for (AttributeMapping attributeMapping : attributeMappings) {
+            attMapping = attributeMapping;
             if (attMapping instanceof JoiningNestedAttributeMapping
                     && !Types.equals(clientPropertyName, XLINK.HREF)) {
                 // if it's joining for simple content feature chaining it has to be empty
@@ -381,7 +384,7 @@ public class FeatureTypeMapping {
                     clientPropertyExpressions.add(attMapping.getIdentifierExpression());
                 } else if (clientProperties.containsKey(clientPropertyName)) {
                     // end NC - added
-                    propertyExpression = (Expression) clientProperties.get(clientPropertyName);
+                    propertyExpression = clientProperties.get(clientPropertyName);
                     clientPropertyExpressions.add(propertyExpression);
                 }
             }
@@ -390,14 +393,45 @@ public class FeatureTypeMapping {
         return clientPropertyExpressions;
     }
 
+    @Override
+    // null check is needed to see if we should use target feature name or mapping name
+    @SuppressWarnings("PMD.UnusedNullCheckInEquals")
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        FeatureTypeMapping that = (FeatureTypeMapping) o;
+        return Objects.equals(attributeMappings, that.attributeMappings)
+                && Objects.equals(sourceDatastoreId, that.sourceDatastoreId)
+                && isDenormalised == that.isDenormalised
+                && ((mappingName != null && Objects.equals(mappingName, that.mappingName))
+                        || Objects.equals(
+                                getTargetFeature().getName(), that.getTargetFeature().getName()));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                source,
+                sourceDatastoreId,
+                indexSource,
+                target,
+                attributeMappings,
+                namespaces,
+                mappingName,
+                featureFidMapping,
+                isDenormalised,
+                isInclude,
+                defaultGeometryXPath);
+    }
+
     /** Extracts the source Expressions from a list of {@link AttributeMapping}s */
     private List<Expression> getExpressions(
             List<AttributeMapping> attributeMappings, boolean includeNestedMappings) {
         List<Expression> expressions = new ArrayList<>(attributeMappings.size());
         AttributeMapping mapping;
         Expression sourceExpression;
-        for (Iterator<AttributeMapping> it = attributeMappings.iterator(); it.hasNext(); ) {
-            mapping = it.next();
+        for (AttributeMapping attributeMapping : attributeMappings) {
+            mapping = attributeMapping;
             if (mapping instanceof JoiningNestedAttributeMapping) {
                 if (!includeNestedMappings) {
                     // will be added to post filter
@@ -423,6 +457,14 @@ public class FeatureTypeMapping {
 
     public void setDenormalised(boolean isDenormalised) {
         this.isDenormalised = isDenormalised;
+    }
+
+    public boolean isInclude() {
+        return isInclude;
+    }
+
+    public void setInclude(boolean isInclude) {
+        this.isInclude = isInclude;
     }
 
     /**

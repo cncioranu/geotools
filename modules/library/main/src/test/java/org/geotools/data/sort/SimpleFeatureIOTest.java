@@ -21,16 +21,16 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.geometry.jts.GeometryBuilder;
 import org.geotools.referencing.CRS;
 import org.junit.Test;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 
 /** Testing class for {@link SimpleFeatureIO} util type */
 public class SimpleFeatureIOTest {
@@ -80,7 +80,7 @@ public class SimpleFeatureIOTest {
         sfio = new SimpleFeatureIO(tempFile, type);
         SimpleFeature readFeature = sfio.read();
         assertEquals(name.length(), ((String) readFeature.getAttribute(NAME_FIELD)).length());
-        assertEquals(name, (String) readFeature.getAttribute(NAME_FIELD));
+        assertEquals(name, readFeature.getAttribute(NAME_FIELD));
         sfio.close(true);
     }
 

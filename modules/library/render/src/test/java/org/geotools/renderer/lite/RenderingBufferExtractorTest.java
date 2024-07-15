@@ -23,25 +23,25 @@ import static org.junit.Assert.assertTrue;
 import java.awt.Color;
 import java.io.File;
 import java.net.URL;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.PointPlacement;
+import org.geotools.api.style.PointSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.Symbolizer;
+import org.geotools.api.style.TextSymbolizer;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.function.EnvFunction;
-import org.geotools.styling.Graphic;
-import org.geotools.styling.PointPlacement;
-import org.geotools.styling.PointSymbolizer;
-import org.geotools.styling.Rule;
-import org.geotools.styling.Style;
 import org.geotools.styling.StyleBuilder;
-import org.geotools.styling.Symbolizer;
-import org.geotools.styling.TextSymbolizer;
 import org.geotools.test.TestData;
 import org.junit.Test;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.Function;
 
 public class RenderingBufferExtractorTest {
     StyleBuilder sb = new StyleBuilder();
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+    FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
     @Test
     public void testTextNoStroke() {
@@ -137,7 +137,7 @@ public class RenderingBufferExtractorTest {
     public void testMultiSymbolizers() {
         Symbolizer ls = sb.createLineSymbolizer(sb.createStroke(10.8));
         Symbolizer ps = sb.createPolygonSymbolizer(sb.createStroke(12), sb.createFill());
-        Rule r = sb.createRule(new Symbolizer[] {ls, ps});
+        Rule r = sb.createRule(ls, ps);
         MetaBufferEstimator rbe = new MetaBufferEstimator();
         rbe.visit(r);
         assertEquals(12, rbe.getBuffer());
@@ -151,11 +151,11 @@ public class RenderingBufferExtractorTest {
                         sb.createStroke(
                                 sb.colorExpression(Color.BLACK), sb.attributeExpression("gimbo")));
         Symbolizer ps = sb.createPolygonSymbolizer(sb.createStroke(12), sb.createFill());
-        Rule r = sb.createRule(new Symbolizer[] {ls, ps});
+        Rule r = sb.createRule(ls, ps);
         MetaBufferEstimator rbe = new MetaBufferEstimator();
         rbe.visit(r);
         assertEquals(12, rbe.getBuffer());
-        assertTrue(!rbe.isEstimateAccurate());
+        assertFalse(rbe.isEstimateAccurate());
     }
 
     @Test
@@ -165,7 +165,7 @@ public class RenderingBufferExtractorTest {
                         sb.createStroke(
                                 sb.colorExpression(Color.BLACK),
                                 ff.function("env", ff.literal("thickness"), ff.literal(10))));
-        Rule r = sb.createRule(new Symbolizer[] {ls});
+        Rule r = sb.createRule(ls);
         MetaBufferEstimator rbe = new MetaBufferEstimator();
 
         // no env variable, fall back on the default value
@@ -189,7 +189,7 @@ public class RenderingBufferExtractorTest {
         Function cos = ff.function("cos", ff.literal(Math.toRadians(Math.PI)));
         Symbolizer ls =
                 sb.createLineSymbolizer(sb.createStroke(sb.colorExpression(Color.BLACK), cos));
-        Rule r = sb.createRule(new Symbolizer[] {ls});
+        Rule r = sb.createRule(ls);
         MetaBufferEstimator rbe = new MetaBufferEstimator();
 
         // cos(pi) == 1
@@ -203,7 +203,7 @@ public class RenderingBufferExtractorTest {
         Add add = ff.add(ff.literal("5"), ff.literal("-2"));
         Symbolizer ls =
                 sb.createLineSymbolizer(sb.createStroke(sb.colorExpression(Color.BLACK), add));
-        Rule r = sb.createRule(new Symbolizer[] {ls});
+        Rule r = sb.createRule(ls);
         MetaBufferEstimator rbe = new MetaBufferEstimator();
 
         // 5-2 = 3

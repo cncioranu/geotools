@@ -18,13 +18,13 @@ package org.geotools.gml2.bindings;
 
 import java.util.Collection;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.gml2.GML;
 import org.geotools.xsd.AbstractComplexBinding;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * Binding object for the type http://www.opengis.net/gml:AbstractFeatureCollectionType.
@@ -54,6 +54,7 @@ import org.opengis.feature.simple.SimpleFeature;
  */
 public class GMLAbstractFeatureCollectionTypeBinding extends AbstractComplexBinding {
     /** @generated */
+    @Override
     public QName getTarget() {
         return GML.AbstractFeatureCollectionType;
     }
@@ -65,6 +66,7 @@ public class GMLAbstractFeatureCollectionTypeBinding extends AbstractComplexBind
      *
      * @generated modifiable
      */
+    @Override
     public int getExecutionMode() {
         return AFTER;
     }
@@ -76,6 +78,7 @@ public class GMLAbstractFeatureCollectionTypeBinding extends AbstractComplexBind
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return FeatureCollection.class;
     }
@@ -87,6 +90,7 @@ public class GMLAbstractFeatureCollectionTypeBinding extends AbstractComplexBind
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         // call "super"
         SimpleFeatureCollection fc = (SimpleFeatureCollection) value;

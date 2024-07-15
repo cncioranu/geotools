@@ -16,9 +16,9 @@
  */
 package org.geotools.data.postgis;
 
+import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.util.Version;
-import org.opengis.feature.type.GeometryDescriptor;
 
 public class GeometryColumnEncoder {
 
@@ -154,7 +154,17 @@ public class GeometryColumnEncoder {
      * distance
      */
     private int getTWKBDigits(Double distance) {
+        if (distance.doubleValue() == 0D) {
+            return 7;
+        }
         int result = -(int) Math.floor(Math.log10(distance));
+        // Prevent PostGIS ERROR: lwgeom_write_to_buffer: X/Z precision cannot be greater than 7 or
+        // less than -7
+        if (result > 7) {
+            result = 7;
+        } else if (result < -7) {
+            result = -7;
+        }
         return result;
     }
 }

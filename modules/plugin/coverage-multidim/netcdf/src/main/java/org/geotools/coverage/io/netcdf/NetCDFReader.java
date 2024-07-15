@@ -42,6 +42,24 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.media.jai.ImageLayout;
+import org.geotools.api.coverage.Coverage;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GeneralGridGeometry;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
@@ -72,11 +90,10 @@ import org.geotools.coverage.io.catalog.CoverageSlicesCatalogSource;
 import org.geotools.coverage.io.util.DateRangeTreeSet;
 import org.geotools.coverage.io.util.DoubleRangeTreeSet;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.ResourceInfo;
 import org.geotools.feature.NameImpl;
 import org.geotools.gce.imagemosaic.ImageMosaicFormat;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.imageio.netcdf.NetCDFImageReader;
 import org.geotools.imageio.netcdf.VariableAdapter;
 import org.geotools.imageio.netcdf.VariableAdapter.UnidataSpatialDomain;
@@ -89,22 +106,6 @@ import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.Coverage;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A NetCDF Reader implementation
@@ -152,10 +153,7 @@ public class NetCDFReader extends AbstractGridCoverage2DReader
 
         // getting access to the source
         try {
-            access =
-                    (NetCDFAccess)
-                            DRIVER.process(
-                                    DriverCapabilities.CONNECT, sourceURL, null, uHints, null);
+            access = DRIVER.process(DriverCapabilities.CONNECT, sourceURL, null, uHints, null);
         } catch (IOException e) {
             throw new DataSourceException("Unable to connect", e);
         }
@@ -335,7 +333,7 @@ public class NetCDFReader extends AbstractGridCoverage2DReader
 
     @Override
     public String[] getGridCoverageNames() {
-        return (String[]) setNames.toArray(new String[setNames.size()]);
+        return setNames.toArray(new String[setNames.size()]);
     }
 
     @Override
@@ -471,11 +469,11 @@ public class NetCDFReader extends AbstractGridCoverage2DReader
      * @return TODO: improve that to deal with multiple types
      */
     private String buildElementsList(Set<Object> elements) {
-        Iterator<Object> iterator = (Iterator<Object>) elements.iterator();
+        Iterator<Object> iterator = elements.iterator();
         LinkedHashSet<String> ranges = new LinkedHashSet<>();
 
         while (iterator.hasNext()) {
-            Object value = (Object) iterator.next();
+            Object value = iterator.next();
             ranges.add(ConvertersHack.convert(value, String.class));
         }
         return buildResultsString(ranges);
@@ -536,7 +534,7 @@ public class NetCDFReader extends AbstractGridCoverage2DReader
             if (value == null) return;
             final GridGeometry2D gg = (GridGeometry2D) value;
             request.setDomainSubset(
-                    gg.getGridRange2D(), gg.getGridToCRS2D(), gg.getCoordinateReferenceSystem());
+                    gg.getGridRange2D(), new ReferencedEnvelope(gg.getEnvelope2D()));
             return;
         }
 
@@ -704,7 +702,7 @@ public class NetCDFReader extends AbstractGridCoverage2DReader
 
     /** Build a String containing comma separated values from the result set */
     private String buildResultsString(Set<String> result) {
-        if (result.size() <= 0) {
+        if (result.isEmpty()) {
             return "";
         }
 
@@ -735,19 +733,19 @@ public class NetCDFReader extends AbstractGridCoverage2DReader
     }
 
     @Override
-    public GeneralEnvelope getOriginalEnvelope() {
+    public GeneralBounds getOriginalEnvelope() {
         return getOriginalEnvelope(UNSPECIFIED);
     }
 
     @Override
-    public GeneralEnvelope getOriginalEnvelope(String coverageName) {
+    public GeneralBounds getOriginalEnvelope(String coverageName) {
         coverageName = checkUnspecifiedCoverage(coverageName);
         try {
             CoverageSource source = getGridCoverageSource(coverageName);
             VariableAdapter.UnidataSpatialDomain spatialDomain =
                     (UnidataSpatialDomain) source.getSpatialDomain();
-            GeneralEnvelope generalEnvelope =
-                    new GeneralEnvelope(spatialDomain.getReferencedEnvelope());
+            GeneralBounds generalEnvelope =
+                    new GeneralBounds(spatialDomain.getReferencedEnvelope());
             generalEnvelope.setCoordinateReferenceSystem(
                     spatialDomain.getCoordinateReferenceSystem2D());
             return generalEnvelope;
@@ -934,7 +932,7 @@ public class NetCDFReader extends AbstractGridCoverage2DReader
     @Override
     public List<DimensionDescriptor> getDimensionDescriptors(String coverageName)
             throws IOException {
-        final CoverageSource source = (CoverageSource) getGridCoverageSource(coverageName);
+        final CoverageSource source = getGridCoverageSource(coverageName);
         return source.getDimensionDescriptors();
     }
 

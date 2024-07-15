@@ -28,10 +28,10 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.sql.DataSource;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.Parameter;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Parameter;
 import org.geotools.jdbc.JDBCDataStoreFactory;
 import org.sqlite.SQLiteConfig;
 import org.sqlite.javax.SQLiteConnectionPoolDataSource;
@@ -83,7 +83,7 @@ public class MBTilesDataStoreFactory implements DataStoreFactorySpi {
         LinkedHashMap<String, Param> map = new LinkedHashMap<>();
         setupParameters(map);
 
-        return (Param[]) map.values().toArray(new Param[map.size()]);
+        return map.values().toArray(new Param[map.size()]);
     }
 
     protected void setupParameters(Map<String, Param> parameters) {
@@ -153,6 +153,7 @@ public class MBTilesDataStoreFactory implements DataStoreFactorySpi {
         return "jdbc:sqlite:" + db;
     }
 
+    @Override
     public boolean canProcess(Map<String, ?> params) {
         if (!DataUtilities.canProcess(params, getParametersInfo())) {
             return false;

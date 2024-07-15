@@ -33,6 +33,16 @@ import java.util.logging.Logger;
 import javax.imageio.ImageReader;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.media.jai.JAI;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.data.ServiceInfo;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
@@ -41,14 +51,11 @@ import org.geotools.coverage.grid.io.footprint.MultiLevelROI;
 import org.geotools.coverage.grid.io.footprint.MultiLevelROIProvider;
 import org.geotools.coverage.grid.io.footprint.MultiLevelROIProviderFactory;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.data.DataSourceException;
 import org.geotools.data.DefaultResourceInfo;
 import org.geotools.data.DefaultServiceInfo;
 import org.geotools.data.PrjFileReader;
-import org.geotools.data.ResourceInfo;
-import org.geotools.data.ServiceInfo;
 import org.geotools.data.WorldFileReader;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.PixelTranslation;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -56,13 +63,6 @@ import org.geotools.referencing.CRS;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Base class for GridCoverage data access
@@ -121,7 +121,9 @@ public abstract class BaseGridCoverage2DReader extends AbstractGridCoverage2DRea
 
     private ServiceInfo serviceInfo;
 
-    private ResourceInfo resourceInfo;
+    protected ResourceInfo resourceInfo;
+
+    protected Double nodata;
 
     /**
      * Creates a new instance of a {@link BaseGridCoverage2DReader}. I assume nothing about file
@@ -176,12 +178,7 @@ public abstract class BaseGridCoverage2DReader extends AbstractGridCoverage2DRea
             // //
             getResolutionInfo(reader);
 
-        } catch (IOException e) {
-            if (LOGGER.isLoggable(Level.SEVERE))
-                LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
-
-            throw new DataSourceException(e);
-        } catch (TransformException e) {
+        } catch (IOException | TransformException e) {
             if (LOGGER.isLoggable(Level.SEVERE))
                 LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
 
@@ -226,7 +223,8 @@ public abstract class BaseGridCoverage2DReader extends AbstractGridCoverage2DRea
     }
 
     /** Package scope highest resolution serviceInfo accessor */
-    double[] getHighestRes() {
+    @Override
+    protected double[] getHighestRes() {
         return highestRes;
     }
 
@@ -366,6 +364,7 @@ public abstract class BaseGridCoverage2DReader extends AbstractGridCoverage2DRea
      *
      * @param params a {@code GeneralParameterValue} array to customize the read operation.
      */
+    @Override
     public GridCoverage2D read(GeneralParameterValue[] params)
             throws IllegalArgumentException, IOException {
 
@@ -386,67 +385,22 @@ public abstract class BaseGridCoverage2DReader extends AbstractGridCoverage2DRea
      * looking for a related PRJ.
      */
     protected void parsePRJFile() {
-        String prjPath = null;
 
         this.crs = null;
-        prjPath = this.parentPath + File.separatorChar + coverageName + ".prj";
+        String prjPath = this.parentPath + File.separatorChar + coverageName + ".prj";
 
-        // read the prj serviceInfo from the file
-        PrjFileReader projReader = null;
-
-        FileInputStream inStream = null;
-        FileChannel channel = null;
-        try {
-            final File prj = new File(prjPath);
-            if (prj.exists() && prj.canRead()) {
-
-                inStream = new FileInputStream(prj);
-                channel = inStream.getChannel();
-                projReader = new PrjFileReader(channel);
+        final File prj = new File(prjPath);
+        if (prj.exists() && prj.canRead()) {
+            // read the prj serviceInfo from the file
+            try (FileInputStream inStream = new FileInputStream(prj);
+                    FileChannel channel = inStream.getChannel();
+                    PrjFileReader projReader = new PrjFileReader(channel); ) {
                 this.crs = projReader.getCoordinateReferenceSystem();
-            }
-            // If some exception occurs, warn about the error but proceed
-            // using a default CRS
-        } catch (FileNotFoundException e) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-            }
-        } catch (IOException e) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-            }
-        } catch (FactoryException e) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-            }
-        } finally {
-            if (projReader != null) {
-                try {
-                    projReader.close();
-                } catch (IOException e) {
-                    if (LOGGER.isLoggable(Level.WARNING)) {
-                        LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-                    }
-                }
-            }
-
-            if (inStream != null) {
-                try {
-                    inStream.close();
-                } catch (Throwable e) {
-                    if (LOGGER.isLoggable(Level.WARNING)) {
-                        LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-                    }
-                }
-            }
-
-            if (channel != null) {
-                try {
-                    channel.close();
-                } catch (Throwable e) {
-                    if (LOGGER.isLoggable(Level.WARNING)) {
-                        LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-                    }
+                // If some exception occurs, warn about the error but proceed
+                // using a default CRS
+            } catch (FactoryException | IOException e) {
+                if (LOGGER.isLoggable(Level.WARNING)) {
+                    LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
                 }
             }
         }
@@ -501,19 +455,11 @@ public abstract class BaseGridCoverage2DReader extends AbstractGridCoverage2DRea
                 MathTransform tempTransform =
                         PixelTranslation.translate(
                                 raster2Model, PixelInCell.CELL_CENTER, PixelInCell.CELL_CORNER);
-                final Envelope gridRange = new GeneralEnvelope((GridEnvelope2D) originalGridRange);
-                final GeneralEnvelope coverageEnvelope = CRS.transform(tempTransform, gridRange);
+                final Bounds gridRange = new GeneralBounds((GridEnvelope2D) originalGridRange);
+                final GeneralBounds coverageEnvelope = CRS.transform(tempTransform, gridRange);
                 originalEnvelope = coverageEnvelope;
                 return;
-            } catch (TransformException e) {
-                if (LOGGER.isLoggable(Level.WARNING)) {
-                    LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-                }
-            } catch (IllegalStateException e) {
-                if (LOGGER.isLoggable(Level.WARNING)) {
-                    LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-                }
-            } catch (IOException e) {
+            } catch (TransformException | IOException | IllegalStateException e) {
                 if (LOGGER.isLoggable(Level.WARNING)) {
                     LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
                 }
@@ -529,6 +475,7 @@ public abstract class BaseGridCoverage2DReader extends AbstractGridCoverage2DRea
      *
      * @return ServiceInfo describing getSource().
      */
+    @Override
     public synchronized ServiceInfo getInfo() {
         if (serviceInfo != null) {
             return new DefaultServiceInfo(this.serviceInfo);
@@ -566,6 +513,7 @@ public abstract class BaseGridCoverage2DReader extends AbstractGridCoverage2DRea
      * @param subname Name indicing grid coverage to describe
      * @return ResourceInfo describing grid coverage indicated
      */
+    @Override
     public synchronized ResourceInfo getInfo(String subname) {
 
         if (this.resourceInfo != null) {
@@ -613,11 +561,16 @@ public abstract class BaseGridCoverage2DReader extends AbstractGridCoverage2DRea
     }
 
     /** @return the gridCoverage count */
+    @Override
     public int getGridCoverageCount() {
         return 1;
     }
 
     protected MultiLevelROI getMultiLevelRoi() {
         return multiLevelRoi;
+    }
+
+    public Double getNodata() {
+        return nodata;
     }
 }

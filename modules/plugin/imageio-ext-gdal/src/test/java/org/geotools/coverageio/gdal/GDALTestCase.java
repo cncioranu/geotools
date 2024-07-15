@@ -29,6 +29,7 @@ import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.GridFormatFactorySpi;
 import org.geotools.test.TestData;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 
 /**
@@ -53,13 +54,7 @@ public class GDALTestCase {
                             new javax.media.jai.widget.ScrollingImagePanel(
                                     gc.getRenderedImage(), 800, 800));
             frame.pack();
-            SwingUtilities.invokeLater(
-                    new Runnable() {
-
-                        public void run() {
-                            frame.setVisible(true);
-                        }
-                    });
+            SwingUtilities.invokeLater(() -> frame.setVisible(true));
         } else {
             PlanarImage.wrapRenderedImage(gc.getRenderedImage()).getTiles();
         }
@@ -84,12 +79,15 @@ public class GDALTestCase {
 
     @Before
     public void setUp() throws Exception {
-        if (!testingEnabled()) return;
+        // skip all tests if gdal-java is not found
+        Assume.assumeTrue(testingEnabled());
+
         try {
-            final File file = TestData.file(this, "test.zip");
-            if (file != null && file.exists() && file.canRead())
+            final File file = new File(TestData.file(this, null), "test.zip");
+            if (file.exists()) {
                 // unzip it
                 TestData.unzipFile(this, "test.zip");
+            }
         } catch (FileNotFoundException e) {
             LOGGER.log(Level.SEVERE, "can not locate test-data for \"test.zip\"");
         } catch (Exception e1) {

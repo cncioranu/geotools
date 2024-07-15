@@ -16,6 +16,7 @@
  */
 package org.geotools.referencing.factory;
 
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -24,8 +25,50 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.measure.Unit;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.AuthorityFactory;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CRSFactory;
+import org.geotools.api.referencing.crs.CompoundCRS;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.EngineeringCRS;
+import org.geotools.api.referencing.crs.GeneralDerivedCRS;
+import org.geotools.api.referencing.crs.GeocentricCRS;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.ImageCRS;
+import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.referencing.crs.SingleCRS;
+import org.geotools.api.referencing.crs.TemporalCRS;
+import org.geotools.api.referencing.crs.VerticalCRS;
+import org.geotools.api.referencing.cs.AffineCS;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CSAuthorityFactory;
+import org.geotools.api.referencing.cs.CSFactory;
+import org.geotools.api.referencing.cs.CartesianCS;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.CylindricalCS;
+import org.geotools.api.referencing.cs.EllipsoidalCS;
+import org.geotools.api.referencing.cs.LinearCS;
+import org.geotools.api.referencing.cs.PolarCS;
+import org.geotools.api.referencing.cs.SphericalCS;
+import org.geotools.api.referencing.cs.TimeCS;
+import org.geotools.api.referencing.cs.UserDefinedCS;
+import org.geotools.api.referencing.cs.VerticalCS;
+import org.geotools.api.referencing.datum.Datum;
+import org.geotools.api.referencing.datum.DatumAuthorityFactory;
+import org.geotools.api.referencing.datum.EngineeringDatum;
+import org.geotools.api.referencing.datum.GeodeticDatum;
+import org.geotools.api.referencing.datum.ImageDatum;
+import org.geotools.api.referencing.datum.TemporalDatum;
+import org.geotools.api.referencing.datum.VerticalDatum;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory;
+import org.geotools.api.referencing.operation.CoordinateOperationFactory;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.cs.DefaultCoordinateSystemAxis;
@@ -35,49 +78,6 @@ import org.geotools.util.Classes;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.FactoryRegistryException;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.AuthorityFactory;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CRSFactory;
-import org.opengis.referencing.crs.CompoundCRS;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.EngineeringCRS;
-import org.opengis.referencing.crs.GeneralDerivedCRS;
-import org.opengis.referencing.crs.GeocentricCRS;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.ImageCRS;
-import org.opengis.referencing.crs.ProjectedCRS;
-import org.opengis.referencing.crs.SingleCRS;
-import org.opengis.referencing.crs.TemporalCRS;
-import org.opengis.referencing.crs.VerticalCRS;
-import org.opengis.referencing.cs.AffineCS;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CSAuthorityFactory;
-import org.opengis.referencing.cs.CSFactory;
-import org.opengis.referencing.cs.CartesianCS;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.cs.CylindricalCS;
-import org.opengis.referencing.cs.EllipsoidalCS;
-import org.opengis.referencing.cs.LinearCS;
-import org.opengis.referencing.cs.PolarCS;
-import org.opengis.referencing.cs.SphericalCS;
-import org.opengis.referencing.cs.TimeCS;
-import org.opengis.referencing.cs.UserDefinedCS;
-import org.opengis.referencing.cs.VerticalCS;
-import org.opengis.referencing.datum.Datum;
-import org.opengis.referencing.datum.DatumAuthorityFactory;
-import org.opengis.referencing.datum.EngineeringDatum;
-import org.opengis.referencing.datum.GeodeticDatum;
-import org.opengis.referencing.datum.ImageDatum;
-import org.opengis.referencing.datum.TemporalDatum;
-import org.opengis.referencing.datum.VerticalDatum;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.CoordinateOperationAuthorityFactory;
-import org.opengis.referencing.operation.CoordinateOperationFactory;
 
 /**
  * An authority factory which returns modified {@linkplain CoordinateReferenceSystem CRS},
@@ -163,6 +163,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
      * which implies that this adapter has precedence over the wrapped factories. Subclasses should
      * override this method if they want a different priority order for this instance.
      */
+    @Override
     public int getPriority() {
         return priority + 1;
     }
@@ -239,7 +240,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
             axis =
                     csFactory.createCoordinateSystemAxis(
                             properties, axis.getAbbreviation(), newDirection, newUnits);
-            axis = (CoordinateSystemAxis) pool.unique(axis);
+            axis = pool.unique(axis);
         }
         return axis;
     }
@@ -253,6 +254,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
      * @return The new coordinate system, or {@code cs} if no change were needed.
      * @throws FactoryException if an error occured while creating the new coordinate system.
      */
+    @Override
     // @Override
     @SuppressWarnings("unchecked")
     protected CoordinateSystem replace(final CoordinateSystem cs) throws FactoryException {
@@ -269,7 +271,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
                 CoordinateSystem modified = createCS(cs.getClass(), getProperties(cs), orderedAxis);
                 assert Classes.sameInterfaces(
                         cs.getClass(), modified.getClass(), CoordinateSystem.class);
-                modified = (CoordinateSystem) pool.unique(modified);
+                modified = pool.unique(modified);
                 return modified;
             }
         }
@@ -287,6 +289,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
      * @throws FactoryException if an error occured while creating the new datum.
      */
     // @Override
+    @Override
     protected Datum replace(final Datum datum) throws FactoryException {
         return super.replace(datum);
     }
@@ -303,6 +306,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
      * @throws FactoryException if an error occured while creating the new CRS object.
      */
     // @Override
+    @Override
     protected CoordinateReferenceSystem replace(final CoordinateReferenceSystem crs)
             throws FactoryException {
         /*
@@ -346,8 +350,9 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
                                 properties, (GeographicCRS) baseCRS, fromBase, (CartesianCS) cs);
             } else {
                 // TODO: Need a createDerivedCRS method.
+                final Object arg0 = crs.getName().getCode();
                 throw new FactoryException(
-                        Errors.format(ErrorKeys.UNSUPPORTED_CRS_$1, crs.getName().getCode()));
+                        MessageFormat.format(ErrorKeys.UNSUPPORTED_CRS_$1, arg0));
             }
         } else if (sameCS) {
             return crs;
@@ -385,15 +390,16 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
                 final CoordinateReferenceSystem[] m =
                         new CoordinateReferenceSystem[elements.size()];
                 for (int i = 0; i < m.length; i++) {
-                    m[i] = replace((CoordinateReferenceSystem) elements.get(i));
+                    m[i] = replace(elements.get(i));
                 }
                 modified = crsFactory.createCompoundCRS(properties, m);
             } else {
+                final Object arg0 = crs.getName().getCode();
                 throw new FactoryException(
-                        Errors.format(ErrorKeys.UNSUPPORTED_CRS_$1, crs.getName().getCode()));
+                        MessageFormat.format(ErrorKeys.UNSUPPORTED_CRS_$1, arg0));
             }
         }
-        modified = (CoordinateReferenceSystem) pool.unique(modified);
+        modified = pool.unique(modified);
         return modified;
     }
 
@@ -408,6 +414,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
      * @throws FactoryException if an error occured while creating the new operation object.
      */
     // @Override
+    @Override
     protected CoordinateOperation replace(final CoordinateOperation operation)
             throws FactoryException {
         final CoordinateReferenceSystem oldSrcCRS = operation.getSourceCRS();
@@ -422,7 +429,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
         }
         CoordinateOperation modified;
         modified = opFactory.createOperation(sourceCRS, targetCRS);
-        modified = (CoordinateOperation) pool.unique(modified);
+        modified = pool.unique(modified);
         return modified;
     }
 
@@ -440,7 +447,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
     private CoordinateSystem createCS(
             final Class<? extends CoordinateSystem> type,
             final Map<String, ?> properties,
-            final CoordinateSystemAxis[] axis)
+            final CoordinateSystemAxis... axis)
             throws FactoryException {
         final int dimension = axis.length;
         final ReferencingFactoryContainer factories = getFactoryContainer(false);
@@ -497,7 +504,8 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
                     return csFactory.createUserDefinedCS(properties, axis[0], axis[1], axis[2]);
             }
         }
-        throw new FactoryException(Errors.format(ErrorKeys.UNSUPPORTED_COORDINATE_SYSTEM_$1, type));
+        throw new FactoryException(
+                MessageFormat.format(ErrorKeys.UNSUPPORTED_COORDINATE_SYSTEM_$1, type));
     }
 
     /**
@@ -523,15 +531,18 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
      * invokes the same method from the {@linkplain #operationFactory underlying operation factory},
      * and next invokes {@link #replace(CoordinateOperation) replace} for each operations.
      */
+    @Override
+    @SuppressWarnings("PMD.ForLoopCanBeForeach")
     public Set<CoordinateOperation> createFromCoordinateReferenceSystemCodes(
             final String sourceCode, final String targetCode) throws FactoryException {
-        final Set<CoordinateOperation> operations, modified;
-        operations = super.createFromCoordinateReferenceSystemCodes(sourceCode, targetCode);
-        modified = new LinkedHashSet<>((int) (operations.size() / 0.75f) + 1);
+        final Set<CoordinateOperation> operations =
+                super.createFromCoordinateReferenceSystemCodes(sourceCode, targetCode);
+        final Set<CoordinateOperation> modified =
+                new LinkedHashSet<>((int) (operations.size() / 0.75f) + 1);
         for (final Iterator<CoordinateOperation> it = operations.iterator(); it.hasNext(); ) {
             final CoordinateOperation operation;
             try {
-                operation = (CoordinateOperation) it.next();
+                operation = it.next();
             } catch (BackingStoreException exception) {
                 final Throwable cause = exception.getCause();
                 if (cause instanceof FactoryException) {
@@ -550,6 +561,7 @@ public class TransformedAuthorityFactory extends AuthorityFactoryAdapter {
      * <strong>not</strong> dispose the resources of wrapped factories (e.g. {@link #crsFactory
      * crsFactory}), because they may still in use by other classes.
      */
+    @Override
     public synchronized void dispose() throws FactoryException {
         pool.clear();
         super.dispose();

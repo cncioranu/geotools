@@ -20,6 +20,14 @@ import java.awt.Rectangle;
 import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
@@ -28,16 +36,8 @@ import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.gce.grassraster.core.GrassBinaryRasterWriteHandler;
 import org.geotools.gce.grassraster.format.GrassCoverageFormat;
 import org.geotools.gce.grassraster.spi.GrassBinaryImageWriterSpi;
-import org.geotools.geometry.Envelope2D;
-import org.geotools.geometry.GeneralEnvelope;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.util.ProgressListener;
+import org.geotools.geometry.GeneralBounds;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 
 /**
  * Coverage Writer class for writing GRASS raster maps.
@@ -76,7 +76,7 @@ public class GrassCoverageWriter extends AbstractGridCoverageWriter implements G
      */
     public void writeRaster(GridCoverage2D gridCoverage2D) throws IOException {
         try {
-            Envelope2D env = gridCoverage2D.getEnvelope2D();
+            ReferencedEnvelope env = gridCoverage2D.getEnvelope2D();
             GridEnvelope2D worldToGrid = gridCoverage2D.getGridGeometry().worldToGrid(env);
 
             double xRes = env.getWidth() / worldToGrid.getWidth();
@@ -99,24 +99,24 @@ public class GrassCoverageWriter extends AbstractGridCoverageWriter implements G
 
     public void writeRaster(GridCoverage2D gridCoverage2D, GeneralParameterValue[] params)
             throws IOException {
-        GeneralEnvelope requestedEnvelope = null;
+        GeneralBounds requestedEnvelope = null;
         Rectangle dim = null;
         JGrassRegion writeRegion = null;
         if (params != null) {
-            for (int i = 0; i < params.length; i++) {
-                final ParameterValue<?> param = (ParameterValue<?>) params[i];
+            for (GeneralParameterValue generalParameterValue : params) {
+                final ParameterValue<?> param = (ParameterValue<?>) generalParameterValue;
                 final String name = param.getDescriptor().getName().getCode();
                 if (name.equals(AbstractGridFormat.READ_GRIDGEOMETRY2D.getName().toString())) {
                     final GridGeometry2D gg = (GridGeometry2D) param.getValue();
-                    requestedEnvelope = new GeneralEnvelope((Envelope) gg.getEnvelope2D());
+                    requestedEnvelope = new GeneralBounds((Bounds) gg.getEnvelope2D());
                     dim = gg.getGridRange2D().getBounds();
                     continue;
                 }
             }
             if (requestedEnvelope != null && dim != null) {
-                DirectPosition lowerCorner = requestedEnvelope.getLowerCorner();
+                Position lowerCorner = requestedEnvelope.getLowerCorner();
                 double[] westSouth = lowerCorner.getCoordinate();
-                DirectPosition upperCorner = requestedEnvelope.getUpperCorner();
+                Position upperCorner = requestedEnvelope.getUpperCorner();
                 double[] eastNorth = upperCorner.getCoordinate();
                 writeRegion =
                         new JGrassRegion(
@@ -141,10 +141,12 @@ public class GrassCoverageWriter extends AbstractGridCoverageWriter implements G
         writer.dispose();
     }
 
+    @Override
     public Format getFormat() {
         return new GrassCoverageFormat();
     }
 
+    @Override
     public void write(GridCoverage coverage, GeneralParameterValue[] parameters)
             throws IllegalArgumentException, IOException {
         if (coverage instanceof GridCoverage2D) {

@@ -22,13 +22,13 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.util.factory.Hints;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /**
  * {@link Function} to format a time given as a {@link Date} using a {@link SimpleDateFormat}
@@ -68,14 +68,17 @@ public class FormatDateTimezoneFunction implements Function {
         this.fallback = fallback;
     }
 
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public Object evaluate(Object object) {
         return evaluate(object, Hints.class);
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     public <T> T evaluate(Object object, Class<T> context) {
         if (parameters.size() != 3) {
@@ -95,7 +98,7 @@ public class FormatDateTimezoneFunction implements Function {
             throw new RuntimeException(
                     getName()
                             + ": could not parse date: "
-                            + (String) parameters.get(1).evaluate(object, String.class));
+                            + parameters.get(1).evaluate(object, String.class));
         }
         // if timezone is not understood it is silently set to UTC
         TimeZone timezone = TimeZone.getTimeZone(parameters.get(2).evaluate(object, String.class));
@@ -105,18 +108,22 @@ public class FormatDateTimezoneFunction implements Function {
         return (T) dateFormat.format(date);
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallback;
     }
 
+    @Override
     public FunctionName getFunctionName() {
         return NAME;
     }
 
+    @Override
     public String getName() {
         return NAME.getName();
     }
 
+    @Override
     public List<Expression> getParameters() {
         return Collections.unmodifiableList(parameters);
     }

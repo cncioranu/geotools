@@ -24,6 +24,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 import java.sql.SQLException;
+import java.text.MessageFormat;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -31,7 +32,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import javax.sql.DataSource;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.LoggingKeys;
 import org.geotools.metadata.i18n.Loggings;
 import org.geotools.referencing.factory.AbstractAuthorityFactory;
@@ -47,8 +47,9 @@ import org.hsqldb.jdbc.JDBCDataSource;
  * be downloaded from <A HREF="http://www.epsg.org">http://www.epsg.org</A>. The SQL scripts
  * (modified for the HSQL syntax as <A HREF="doc-files/HSQL.html">explained here</A>) are bundled
  * into this plugin. The database version is given in the {@linkplain
- * org.opengis.metadata.citation.Citation#getEdition edition attribute} of the {@linkplain
- * org.opengis.referencing.AuthorityFactory#getAuthority authority}. The HSQL database is read only.
+ * org.geotools.api.metadata.citation.Citation#getEdition edition attribute} of the {@linkplain
+ * org.geotools.api.referencing.AuthorityFactory#getAuthority authority}. The HSQL database is read
+ * only.
  *
  * <p>
  *
@@ -73,11 +74,11 @@ public class ThreadedHsqlEpsgFactory extends ThreadedEpsgFactory {
     /**
      * Current version of EPSG-HSQL plugin. This is usually the same version number than the one in
      * the EPSG database bundled in this plugin. However this field may contains additional minor
-     * version number if there is some changes related to the EPSG-HSQL plugin rather then the EPSG
+     * version number if there is some changes related to the EPSG-HSQL plugin rather than the EPSG
      * database itself (for example additional database index).
      */
     @SuppressWarnings("PMD.AvoidUsingHardCodedIP")
-    public static final Version VERSION = new Version("9.6.0");
+    public static final Version VERSION = new Version("9.6.1");
 
     /**
      * The key for fetching the database directory from {@linkplain System#getProperty(String)
@@ -183,6 +184,7 @@ public class ThreadedHsqlEpsgFactory extends ThreadedEpsgFactory {
     }
 
     /** Returns a data source for the HSQL database. */
+    @Override
     protected DataSource createDataSource() throws SQLException {
         final Logger logger = Logging.getLogger(ThreadedHsqlEpsgFactory.class);
         logger.log(Level.FINE, "Building new data source for " + getClass().getName());
@@ -242,6 +244,7 @@ public class ThreadedHsqlEpsgFactory extends ThreadedEpsgFactory {
      * @return The EPSG factory using HSQL syntax.
      * @throws SQLException if connection to the database failed.
      */
+    @Override
     @SuppressWarnings("PMD.CloseResource")
     protected AbstractAuthorityFactory createBackingStore(final Hints hints) throws SQLException {
         final Logger logger = Logging.getLogger(ThreadedHsqlEpsgFactory.class);
@@ -300,7 +303,8 @@ public class ThreadedHsqlEpsgFactory extends ThreadedEpsgFactory {
                     new File(directory, MARKER_FILE).createNewFile();
                 }
             } catch (IOException exception) {
-                SQLException e = new SQLException(Errors.format(ErrorKeys.CANT_READ_$1, ZIP_FILE));
+                SQLException e =
+                        new SQLException(MessageFormat.format(ErrorKeys.CANT_READ_$1, ZIP_FILE));
                 e.initCause(
                         exception); // TODO: inline cause when we will be allowed to target Java 6.
                 throw e;

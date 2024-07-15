@@ -19,12 +19,12 @@ package org.geotools.data.sort;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
+import org.geotools.api.data.SimpleFeatureReader;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.data.simple.DelegateSimpleFeatureReader;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.sort.SortBy;
 
 public class SortedFeatureIterator implements SimpleFeatureIterator {
 
@@ -34,7 +34,7 @@ public class SortedFeatureIterator implements SimpleFeatureIterator {
      * Checks if the schema and the sortBy are suitable for merge/sort. All attributes need to be
      * {@link Serializable}, all sorting attributes need to be {@link Comparable}
      */
-    public static final boolean canSort(SimpleFeatureType schema, SortBy[] sortBy) {
+    public static final boolean canSort(SimpleFeatureType schema, SortBy... sortBy) {
         return MergeSortDumper.canSort(schema, sortBy);
     }
 
@@ -59,14 +59,17 @@ public class SortedFeatureIterator implements SimpleFeatureIterator {
         this.delegate = new FeatureReaderFeatureIterator(sorted);
     }
 
+    @Override
     public boolean hasNext() {
         return delegate.hasNext();
     }
 
+    @Override
     public SimpleFeature next() throws NoSuchElementException {
         return delegate.next();
     }
 
+    @Override
     public void close() {
         delegate.close();
     }

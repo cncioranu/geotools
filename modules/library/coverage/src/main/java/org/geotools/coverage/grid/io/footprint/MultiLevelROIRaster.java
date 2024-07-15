@@ -31,6 +31,7 @@ import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import javax.media.jai.ROI;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.coverage.grid.io.imageio.MaskOverviewProvider;
 import org.geotools.coverage.grid.io.imageio.MaskOverviewProvider.MaskInfo;
 import org.geotools.coverage.grid.io.imageio.ReadType;
@@ -39,7 +40,6 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.URLs;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * {@link MultiLevelROI} implementation supporting Raster masking. Notice that actually it does not
@@ -78,7 +78,9 @@ public class MultiLevelROIRaster implements MultiLevelROI {
         maskOvrProvider = new MaskOverviewProvider(layout, file);
     }
 
-    @SuppressWarnings("PMD.CloseResource") // if delayed read we should not close immediately
+    @Override
+    // if delayed read we should not close immediately
+    @SuppressWarnings({"PMD.CloseResource", "PMD.UseTryWithResources"})
     public ROI getTransformedROI(
             AffineTransform at,
             int imageIndex,

@@ -17,6 +17,14 @@
 package org.geotools.referencing.operation.transform;
 
 import java.io.Serializable;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform1D;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
@@ -25,14 +33,6 @@ import org.geotools.parameter.FloatParameter;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.operation.LinearTransform;
 import org.geotools.referencing.operation.MathTransformProvider;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform1D;
 import tech.units.indriya.AbstractUnit;
 
 /**
@@ -136,11 +136,13 @@ public class ExponentialTransform1D extends AbstractMathTransform
     }
 
     /** Gets the dimension of input points, which is 1. */
+    @Override
     public int getSourceDimensions() {
         return 1;
     }
 
     /** Gets the dimension of output points, which is 1. */
+    @Override
     public int getTargetDimensions() {
         return 1;
     }
@@ -155,11 +157,13 @@ public class ExponentialTransform1D extends AbstractMathTransform
     }
 
     /** Gets the derivative of this function at a value. */
+    @Override
     public double derivative(final double value) {
         return lnBase * transform(value);
     }
 
     /** Transforms the specified value. */
+    @Override
     public double transform(final double value) {
         return scale * Math.pow(base, value);
     }
@@ -181,6 +185,7 @@ public class ExponentialTransform1D extends AbstractMathTransform
     }
 
     /** Transforms a list of coordinate point ordinal values. */
+    @Override
     public void transform(
             final double[] srcPts, int srcOff, final double[] dstPts, int dstOff, int numPts) {
         if (srcPts != dstPts || srcOff >= dstOff) {
@@ -343,6 +348,7 @@ public class ExponentialTransform1D extends AbstractMathTransform
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform1D createMathTransform(final ParameterValueGroup values)
                 throws ParameterNotFoundException {
             return create(doubleValue(BASE, values), doubleValue(SCALE, values));

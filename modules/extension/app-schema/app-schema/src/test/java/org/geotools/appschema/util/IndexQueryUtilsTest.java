@@ -20,12 +20,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.complex.AttributeMapping;
 import org.geotools.data.complex.TestFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
 import org.junit.Test;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
 
 /** @author Fernando Miño, Geosolutions */
 public class IndexQueryUtilsTest {
@@ -65,26 +65,8 @@ public class IndexQueryUtilsTest {
         }
     }
 
-    private Filter totallyIndexedFilter() {
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
-        Filter filter =
-                ff.and(
-                        ff.equals(ff.property("ID"), ff.literal("st.1")),
-                        ff.like(ff.property("NAME"), "*fer*"));
-        return filter;
-    }
-
-    private Filter partialIndexedFilter() {
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
-        Filter filter =
-                ff.and(
-                        ff.equals(ff.property("ID"), ff.literal("st.1")),
-                        ff.like(ff.property("LOCATION_NAME"), "*fer*"));
-        return filter;
-    }
-
     private Filter totallyIndexedFilterXpath() {
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory();
         Filter filter =
                 ff.and(
                         ff.equals(ff.property("st:Station"), ff.literal("st.1")),
@@ -93,7 +75,7 @@ public class IndexQueryUtilsTest {
     }
 
     private Filter partialIndexedFilterXpath() {
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory();
         Filter filter =
                 ff.and(
                         ff.equals(ff.property("st:Station"), ff.literal("st.1")),

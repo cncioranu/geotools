@@ -20,27 +20,25 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import org.geotools.data.DataStore;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.data.EmptyFeatureReader;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.junit.Test;
 import org.locationtech.jts.geom.LineString;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
 
 public class ContentFeatureSourceTest {
 
@@ -50,7 +48,7 @@ public class ContentFeatureSourceTest {
     /** Mock feature type. */
     protected static final SimpleFeatureType TYPE = buildType();
 
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+    FilterFactory ff = CommonFactoryFinder.getFilterFactory();
 
     /** Build the test type. */
     protected static SimpleFeatureType buildType() {
@@ -71,37 +69,28 @@ public class ContentFeatureSourceTest {
     @Test
     public void testRetypeCannotSortCovered() throws Exception {
         Query q = new Query();
-        q.setPropertyNames(new String[] {"name", "z"});
-        q.setSortBy(new SortBy[] {ff.sort("z", SortOrder.ASCENDING)});
+        q.setPropertyNames("name", "z");
+        q.setSortBy(ff.sort("z", SortOrder.ASCENDING));
         checkRetypeCannotSort(q, q);
     }
 
     @Test
     public void testRetypeCannotSortPartiallyCovered() throws Exception {
         Query q = new Query();
-        q.setPropertyNames(
-                new String[] {
-                    "name",
-                });
-        q.setSortBy(
-                new SortBy[] {
-                    ff.sort("name", SortOrder.ASCENDING), ff.sort("z", SortOrder.ASCENDING)
-                });
+        q.setPropertyNames("name");
+        q.setSortBy(ff.sort("name", SortOrder.ASCENDING), ff.sort("z", SortOrder.ASCENDING));
         Query expected = new Query(q);
-        expected.setPropertyNames(new String[] {"name", "z"});
+        expected.setPropertyNames("name", "z");
         checkRetypeCannotSort(q, expected);
     }
 
     @Test
     public void testRetypeCannotSortFullyCovered() throws Exception {
         Query q = new Query();
-        q.setPropertyNames(
-                new String[] {
-                    "name",
-                });
-        q.setSortBy(new SortBy[] {ff.sort("z", SortOrder.ASCENDING)});
+        q.setPropertyNames("name");
+        q.setSortBy(ff.sort("z", SortOrder.ASCENDING));
         Query expected = new Query(q);
-        expected.setPropertyNames(new String[] {"name", "z"});
+        expected.setPropertyNames("name", "z");
         checkRetypeCannotSort(q, expected);
     }
 
@@ -116,11 +105,7 @@ public class ContentFeatureSourceTest {
                     @SuppressWarnings("serial")
                     @Override
                     protected List<Name> createTypeNames() throws IOException {
-                        return new ArrayList<Name>() {
-                            {
-                                add(TYPENAME);
-                            }
-                        };
+                        return List.of(TYPENAME);
                     }
 
                     @Override
@@ -152,12 +137,12 @@ public class ContentFeatureSourceTest {
                             }
 
                             @Override
-                            protected boolean canRetype() {
+                            protected boolean canRetype(Query query) {
                                 return true;
                             }
 
                             @Override
-                            protected boolean canSort() {
+                            protected boolean canSort(Query query) {
                                 return false;
                             }
                         };

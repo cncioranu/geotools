@@ -22,18 +22,18 @@ import static java.lang.Math.cos;
 import java.awt.geom.Point2D;
 import java.util.Collection;
 import java.util.logging.Level;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.CylindricalProjection;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.operation.CylindricalProjection;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Equidistant cylindrical projection (EPSG code 9823). In the particular case where the {@code
@@ -97,6 +97,7 @@ public class EquidistantCylindrical extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -120,6 +121,7 @@ public class EquidistantCylindrical extends MapProjection {
      * @param x The longitude of the coordinate, in <strong>radians</strong>.
      * @param y The latitude of the coordinate, in <strong>radians</strong>.
      */
+    @Override
     protected Point2D transformNormalized(double x, double y, final Point2D ptDst)
             throws ProjectionException {
         x *= cosStandardParallel;
@@ -134,6 +136,7 @@ public class EquidistantCylindrical extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, final Point2D ptDst)
             throws ProjectionException {
         x /= cosStandardParallel;
@@ -233,6 +236,7 @@ public class EquidistantCylindrical extends MapProjection {
          * @throws ParameterNotFoundException if a required parameter was not found.
          * @throws FactoryException if the projection can not be created.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException, FactoryException {
             if (!isSpherical(parameters)) {
@@ -268,6 +272,7 @@ public class EquidistantCylindrical extends MapProjection {
                         new NamedIdentifier[] {
                             new NamedIdentifier(
                                     Citations.EPSG, "Equidistant Cylindrical (Spherical)"),
+                            new NamedIdentifier(Citations.EPSG, "Equirectangular"),
                             new NamedIdentifier(Citations.ESRI, "Equidistant_Cylindrical"),
                             new NamedIdentifier(
                                     Citations.GEOTOOLS,
@@ -303,8 +308,10 @@ public class EquidistantCylindrical extends MapProjection {
          * @throws ParameterNotFoundException if a required parameter was not found.
          * @throws FactoryException if the projection can not be created.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException, FactoryException {
+
             return new EquidistantCylindrical(parameters) {
                 @Override
                 public ParameterDescriptorGroup getParameterDescriptors() {

@@ -23,13 +23,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
+import org.geotools.api.feature.type.Name;
 import org.geotools.feature.NameImpl;
 import org.geotools.imageio.netcdf.NetCDFImageReader;
 import org.geotools.imageio.netcdf.NetCDFImageReaderSpi;
 import org.geotools.imageio.netcdf.VariableAdapter;
 import org.geotools.test.TestData;
 import org.junit.Test;
-import org.opengis.feature.type.Name;
 
 /**
  * @author Niels Charlier
@@ -39,7 +39,7 @@ import org.opengis.feature.type.Name;
  *     THREDDS license) except the reversed sample files which are manipulations of the originals
  *     from the website above.
  */
-public class NetCDFAggregationTest {
+public class NetCDFAggregationTest extends NetCDFBaseTest {
 
     @Test
     public void testUnion() throws IOException {
@@ -85,7 +85,7 @@ public class NetCDFAggregationTest {
         NetCDFImageReader reader = (NetCDFImageReader) readerSpi.createReaderInstance();
         reader.setInput(file);
 
-        assertEquals("time", reader.getVariableByName("T").getDimension(0).getFullName());
+        assertEquals("time", reader.getVariableByName("T").getDimension(0).getName());
         assertEquals(3, reader.getVariableByName("T").getDimension(0).getLength());
         assertEquals(3, reader.getVariableByName("time").getDimension(0).getLength());
         reader.dispose();
@@ -101,7 +101,7 @@ public class NetCDFAggregationTest {
         reader.setInput(file);
 
         assertEquals(3, reader.getVariableByName("runtime").getDimension(0).getLength());
-        assertEquals("runtime", reader.getVariableByName("T").getDimension(0).getFullName());
+        assertEquals("runtime", reader.getVariableByName("T").getDimension(0).getName());
         reader.dispose();
     }
 

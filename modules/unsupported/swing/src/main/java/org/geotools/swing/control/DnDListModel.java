@@ -52,6 +52,7 @@ public class DnDListModel<T> extends AbstractListModel<T> {
         return notify;
     }
 
+    @Override
     public int getSize() {
         return items.size();
     }
@@ -63,6 +64,7 @@ public class DnDListModel<T> extends AbstractListModel<T> {
      *
      * @throws IndexOutOfBoundsException if index is invalid
      */
+    @Override
     public T getElementAt(int index) {
         return items.get(index);
     }
@@ -76,8 +78,8 @@ public class DnDListModel<T> extends AbstractListModel<T> {
      */
     public List<T> getElementsAt(int[] indices) {
         List<T> refs = new ArrayList<>();
-        for (int k = 0; k < indices.length; k++) {
-            refs.add(items.get(indices[k]));
+        for (int index : indices) {
+            refs.add(items.get(index));
         }
 
         return refs;

@@ -18,12 +18,12 @@ package org.geotools.data.collection;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.FeatureReader;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.type.FeatureType;
 import org.geotools.feature.FeatureIterator;
-import org.opengis.feature.Feature;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.type.FeatureType;
 
 /**
  * A FeatureReader that wraps up a normal FeatureIterator.
@@ -44,10 +44,12 @@ public class DelegateFeatureReader<T extends FeatureType, F extends Feature>
         this.delegate = features;
     }
 
+    @Override
     public T getFeatureType() {
         return schema;
     }
 
+    @Override
     public F next() throws IOException, IllegalAttributeException, NoSuchElementException {
         if (delegate == null) {
             throw new IOException("Feature Reader has been closed");
@@ -61,10 +63,12 @@ public class DelegateFeatureReader<T extends FeatureType, F extends Feature>
         }
     }
 
+    @Override
     public boolean hasNext() throws IOException {
         return delegate != null && delegate.hasNext();
     }
 
+    @Override
     public void close() throws IOException {
         if (delegate != null) delegate.close();
         delegate = null;

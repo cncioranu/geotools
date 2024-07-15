@@ -62,6 +62,10 @@ import net.opengis.wfs.UpdateElementType;
 import net.opengis.wfs.WFSCapabilitiesType;
 import net.opengis.wfs.WfsFactory;
 import org.eclipse.emf.ecore.EObject;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.capability.FilterCapabilities;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.data.wfs.WFSServiceInfo;
 import org.geotools.data.wfs.internal.AbstractWFSStrategy;
 import org.geotools.data.wfs.internal.DescribeFeatureTypeRequest;
@@ -86,10 +90,6 @@ import org.geotools.data.wfs.internal.WFSStrategy;
 import org.geotools.util.Version;
 import org.geotools.wfs.v1_0.WFS;
 import org.geotools.xsd.Configuration;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.capability.FilterCapabilities;
-import org.opengis.filter.sort.SortBy;
 
 /** */
 public class StrictWFS_1_x_Strategy extends AbstractWFSStrategy {
@@ -181,8 +181,10 @@ public class StrictWFS_1_x_Strategy extends AbstractWFSStrategy {
         }
 
         query.setUnsupportedFilter(unsupportedFilter);
+        updatePropertyNames(query, unsupportedFilter);
 
         if (!Filter.INCLUDE.equals(supportedFilter)) {
+            // the unsupported filter must be able to run in memory afterwards
             wfsQuery.setFilter(supportedFilter);
         }
 
@@ -291,10 +293,8 @@ public class StrictWFS_1_x_Strategy extends AbstractWFSStrategy {
                     deletes.add(delete);
                 }
             }
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
-        } catch (RuntimeException re) {
-            throw re;
         } catch (Exception other) {
             throw new RuntimeException(other);
         }
@@ -516,12 +516,10 @@ public class StrictWFS_1_x_Strategy extends AbstractWFSStrategy {
     /** @see WFSStrategy#getFilterCapabilities() */
     @Override
     public FilterCapabilities getFilterCapabilities() {
-        FilterCapabilities wfsFilterCapabilities;
-        wfsFilterCapabilities = capabilities.getFilterCapabilities();
+        FilterCapabilities wfsFilterCapabilities = capabilities.getFilterCapabilities();
         return wfsFilterCapabilities;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     protected String getOperationURI(WFSOperationType operation, HttpMethod method) {
 
@@ -611,9 +609,8 @@ public class StrictWFS_1_x_Strategy extends AbstractWFSStrategy {
 
         final OperationType operationMetadata = getOperationMetadata(operation);
 
-        Set<String> serverSupportedFormats;
         LOGGER.fine("requesting " + parameterName + " from " + operationMetadata);
-        serverSupportedFormats = findParameters(operationMetadata, parameterName);
+        Set<String> serverSupportedFormats = findParameters(operationMetadata, parameterName);
         return serverSupportedFormats;
     }
 
@@ -643,7 +640,6 @@ public class StrictWFS_1_x_Strategy extends AbstractWFSStrategy {
         return ftypeCrss;
     }
 
-    @SuppressWarnings("unchecked")
     protected Set<String> findParameters(
             final OperationType operationMetadata, final String parameterName) {
         Set<String> outputFormats = new HashSet<>();
@@ -665,8 +661,8 @@ public class StrictWFS_1_x_Strategy extends AbstractWFSStrategy {
     @Override
     public List<String> getClientSupportedOutputFormats(WFSOperationType operation) {
 
-        List<WFSResponseFactory> operationResponseFactories;
-        operationResponseFactories = WFSExtensions.findResponseFactories(operation);
+        List<WFSResponseFactory> operationResponseFactories =
+                WFSExtensions.findResponseFactories(operation);
 
         List<String> outputFormats = new LinkedList<>();
         for (WFSResponseFactory factory : operationResponseFactories) {
@@ -696,7 +692,6 @@ public class StrictWFS_1_x_Strategy extends AbstractWFSStrategy {
      */
     protected OperationType getOperationMetadata(final WFSOperationType operation) {
         final OperationsMetadataType operationsMetadata = capabilities.getOperationsMetadata();
-        @SuppressWarnings("unchecked")
         final List<OperationType> operations = operationsMetadata.getOperation();
         final String expectedOperationName = operation.getName();
         for (OperationType operationType : operations) {

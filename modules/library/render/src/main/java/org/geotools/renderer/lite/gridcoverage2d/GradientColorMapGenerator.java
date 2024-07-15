@@ -22,16 +22,16 @@ import java.io.IOException;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.style.ColorMap;
+import org.geotools.api.style.ColorMapEntry;
 import org.geotools.data.util.ColorConverterFactory;
 import org.geotools.filter.FilterFactoryImpl;
-import org.geotools.styling.ColorMap;
-import org.geotools.styling.ColorMapEntry;
 import org.geotools.styling.ColorMapEntryImpl;
 import org.geotools.styling.ColorMapImpl;
 import org.geotools.util.Converter;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Utilities;
-import org.opengis.filter.FilterFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -126,12 +126,12 @@ public class GradientColorMapGenerator {
         colorMap.addColorMapEntry(startEntry);
 
         if (intervals) {
-            colorMap.setType(ColorMap.TYPE_INTERVALS);
+            colorMap.setType(org.geotools.api.style.ColorMap.TYPE_INTERVALS);
             for (int i = 1; i < numEntries - 1; i += 2) {
                 colorMap.addColorMapEntry(entries[i].getColorMapEntry(min, range));
             }
         } else {
-            colorMap.setType(ColorMap.TYPE_RAMP);
+            colorMap.setType(org.geotools.api.style.ColorMap.TYPE_RAMP);
             for (int i = 0; i < numEntries - 1; i++) {
                 colorMap.addColorMapEntry(entries[i].getColorMapEntry(min, range));
             }
@@ -228,7 +228,7 @@ public class GradientColorMapGenerator {
                 final int rampTypeIndex = colorValues.indexOf(":");
                 colorValues = colorValues.substring(0, rampTypeIndex);
             }
-            String colors[] = colorValues.split(";");
+            String[] colors = colorValues.split(";");
             final int numEntries = colors.length;
             LinearGradientEntry[] entries = new LinearGradientEntry[numEntries];
             final double step = 1d / (numEntries - 1);
@@ -290,12 +290,12 @@ public class GradientColorMapGenerator {
     private static Color createColor(String color) {
         if (color.startsWith(RGB_INLINEVALUE_MARKER)) {
             String colorString = color.substring(4, color.length() - 1);
-            String rgb[] = colorString.split("\\s*,\\s*");
+            String[] rgb = colorString.split("\\s*,\\s*");
             return new Color(
                     Integer.parseInt(rgb[0]), Integer.parseInt(rgb[1]), Integer.parseInt(rgb[2]));
         } else if (color.startsWith(RGBA_INLINEVALUE_MARKER)) {
             String colorString = color.substring(5, color.length() - 1);
-            String rgba[] = colorString.split("\\s*,\\s*");
+            String[] rgba = colorString.split("\\s*,\\s*");
             return new Color(
                     Integer.parseInt(rgba[0]),
                     Integer.parseInt(rgba[1]),
@@ -312,7 +312,7 @@ public class GradientColorMapGenerator {
     private static float getOpacity(String color) {
         if (color.startsWith(RGBA_INLINEVALUE_MARKER)) {
             String colorString = color.substring(5, color.length() - 1);
-            String rgba[] = colorString.split("\\s*,\\s*");
+            String[] rgba = colorString.split("\\s*,\\s*");
             return Float.parseFloat(rgba[3]);
         } else {
             return 1f;

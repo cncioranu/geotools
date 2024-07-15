@@ -20,7 +20,7 @@ package org.geotools.data.shapefile.index;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.NoSuchElementException;
-import org.geotools.data.CloseableIterator;
+import org.geotools.api.data.CloseableIterator;
 import org.geotools.data.shapefile.index.quadtree.Node;
 import org.geotools.data.shapefile.index.quadtree.QuadTree;
 import org.geotools.data.shapefile.index.quadtree.StoreException;
@@ -61,8 +61,8 @@ public class CachedQuadTree {
         if (shapeIds != null && shapeIds.length > 0) {
             start = offsets.size();
             // turn the shape ids into offsets so that we won't need to open the index file anymore
-            for (int i = 0; i < shapeIds.length; i++) {
-                offsets.add(indexfile.getOffsetInBytes(shapeIds[i]));
+            for (int shapeId : shapeIds) {
+                offsets.add(indexfile.getOffsetInBytes(shapeId));
             }
             end = offsets.size();
         }
@@ -87,10 +87,12 @@ public class CachedQuadTree {
             boolean read = true;
             int idx = 0;
 
+            @Override
             public void remove() {
                 throw new UnsupportedOperationException();
             }
 
+            @Override
             public Data next() {
                 if (!hasNext()) {
                     throw new NoSuchElementException();
@@ -100,6 +102,7 @@ public class CachedQuadTree {
                 return data;
             }
 
+            @Override
             public boolean hasNext() {
                 if (!read) {
                     return true;
@@ -122,6 +125,7 @@ public class CachedQuadTree {
                 return true;
             }
 
+            @Override
             public void close() throws IOException {
                 indices.clear();
             }

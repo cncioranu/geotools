@@ -17,16 +17,16 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.NoSuchElementException;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureWriter;
-import org.geotools.data.Query;
 import org.geotools.data.csv.parse.CSVIterator;
 import org.geotools.data.csv.parse.CSVStrategy;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.wkt.Formattable;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * Iterator supporting writing of feature content.
@@ -123,7 +123,7 @@ public class CSVFeatureWriter implements FeatureWriter<SimpleFeatureType, Simple
                 }
             }
             String fid = featureType.getTypeName() + "-fid" + nextRow;
-            Object values[] = DataUtilities.defaultValues(featureType);
+            Object[] values = DataUtilities.defaultValues(featureType);
 
             this.currentFeature = SimpleFeatureBuilder.build(featureType, values, fid);
             return this.currentFeature;

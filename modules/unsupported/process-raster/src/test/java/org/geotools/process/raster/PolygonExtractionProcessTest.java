@@ -26,12 +26,11 @@ import java.awt.image.Raster;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import javax.imageio.ImageIO;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
@@ -50,7 +49,6 @@ import org.junit.Test;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * Tests for the raster to vector PolygonExtractionProcess.
@@ -76,16 +74,13 @@ public class PolygonExtractionProcessTest {
     public void simpleSmallCoverage() throws Exception {
         GridCoverage2D cov = buildSmallCoverage();
 
-        final int perimeters[] = {4, 16, 4};
-        final int areas[] = {1, 7, 1};
+        final int[] perimeters = {4, 16, 4};
+        final int[] areas = {1, 7, 1};
 
-        int band = 0;
-        Set<Double> outsideValues = Collections.singleton(0D);
         SimpleFeatureCollection fc = process.execute(cov, 0, Boolean.TRUE, null, null, null, null);
         assertEquals(3, fc.size());
 
-        FeatureIterator iter = fc.features();
-        try {
+        try (FeatureIterator iter = fc.features()) {
             while (iter.hasNext()) {
                 SimpleFeature feature = (SimpleFeature) iter.next();
                 Polygon poly = (Polygon) feature.getDefaultGeometry();
@@ -93,8 +88,6 @@ public class PolygonExtractionProcessTest {
                 assertEquals(perimeters[value - 1], (int) (poly.getBoundary().getLength() + 0.5));
                 assertEquals(areas[value - 1], (int) (poly.getArea() + 0.5));
             }
-        } finally {
-            iter.close();
         }
     }
 
@@ -135,15 +128,11 @@ public class PolygonExtractionProcessTest {
         SimpleFeatureCollection fc = process.execute(cov, 0, Boolean.TRUE, null, null, null, null);
         assertEquals(NUM_POLYS, fc.size());
 
-        SimpleFeatureIterator iter = fc.features();
-        try {
+        try (SimpleFeatureIterator iter = fc.features()) {
             while (iter.hasNext()) {
                 Polygon poly = (Polygon) iter.next().getDefaultGeometry();
                 assertEquals(1, poly.getNumInteriorRing());
             }
-
-        } finally {
-            iter.close();
         }
     }
 
@@ -218,8 +207,6 @@ public class PolygonExtractionProcessTest {
                         DATA,
                         new ReferencedEnvelope(0, DATA[0].length, 0, DATA.length, null));
 
-        Set<Double> outsideValues = Collections.singleton(0D);
-
         SimpleFeatureCollection fc = process.execute(cov, 0, Boolean.TRUE, null, null, null, null);
         assertEquals(1, fc.size());
 
@@ -252,9 +239,8 @@ public class PolygonExtractionProcessTest {
                 process.execute(cov, 0, Boolean.TRUE, null, noDataValues, null, null);
 
         // validate geometries and sum areas
-        SimpleFeatureIterator iter = fc.features();
         Map<Integer, Double> areas = new HashMap<>();
-        try {
+        try (SimpleFeatureIterator iter = fc.features()) {
             while (iter.hasNext()) {
                 SimpleFeature feature = iter.next();
                 Geometry geom = (Geometry) feature.getDefaultGeometry();
@@ -270,8 +256,6 @@ public class PolygonExtractionProcessTest {
                     areas.put(value, sum);
                 }
             }
-        } finally {
-            iter.close();
         }
 
         // compare summed areas to image data
@@ -332,11 +316,10 @@ public class PolygonExtractionProcessTest {
         assertEquals(2, fc.size());
 
         // Expected result is 2 polygons, each with area == 16.0
-        SimpleFeatureIterator iter = fc.features();
         List<Integer> expectedValues = new ArrayList<>();
         expectedValues.add(1);
         expectedValues.add(2);
-        try {
+        try (SimpleFeatureIterator iter = fc.features()) {
             while (iter.hasNext()) {
                 SimpleFeature feature = iter.next();
                 Integer value = ((Number) feature.getAttribute("value")).intValue();
@@ -345,8 +328,6 @@ public class PolygonExtractionProcessTest {
                 Polygon poly = (Polygon) feature.getDefaultGeometry();
                 assertEquals(16.0, poly.getArea(), TOL);
             }
-        } finally {
-            iter.close();
         }
     }
 
@@ -449,8 +430,7 @@ public class PolygonExtractionProcessTest {
         List<Integer> expectedValues = new ArrayList<>();
         expectedValues.addAll(Arrays.asList(1, 2, 3));
 
-        SimpleFeatureIterator iter = fc.features();
-        try {
+        try (SimpleFeatureIterator iter = fc.features()) {
             while (iter.hasNext()) {
                 SimpleFeature feature = iter.next();
                 Integer value = ((Number) feature.getAttribute("value")).intValue();
@@ -461,8 +441,6 @@ public class PolygonExtractionProcessTest {
                 // System.out.println(poly.toText());
                 assertEquals(areas[value - 1], poly.getArea(), TOL);
             }
-        } finally {
-            iter.close();
         }
     }
 

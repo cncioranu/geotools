@@ -8,13 +8,13 @@ import static org.geotools.referencing.operation.projection.MapProjection.Abstra
 import static org.geotools.referencing.operation.projection.MapProjection.AbstractProvider.SEMI_MINOR;
 import static org.junit.Assert.assertEquals;
 
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransformFactory;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.junit.Test;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransformFactory;
 
 public class CassiniSoldnerTest {
 
@@ -39,8 +39,8 @@ public class CassiniSoldnerTest {
         MathTransform transform = mtFactory.createParameterizedTransform(parameters);
 
         // results as provided by the EPSG guidance
-        final double[] point = new double[] {-62, 10};
-        final double[] expected = new double[] {66644.94 * linkToMeter, 82536.22 * linkToMeter};
+        final double[] point = {-62, 10};
+        final double[] expected = {66644.94 * linkToMeter, 82536.22 * linkToMeter};
 
         // check forward transform
         final double[] forward = new double[2];

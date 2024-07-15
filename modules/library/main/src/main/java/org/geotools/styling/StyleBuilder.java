@@ -18,21 +18,45 @@ package org.geotools.styling;
 
 import java.awt.Color;
 import java.util.Arrays;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.style.AnchorPoint;
+import org.geotools.api.style.ColorMap;
+import org.geotools.api.style.ColorMapEntry;
+import org.geotools.api.style.Displacement;
+import org.geotools.api.style.ExternalGraphic;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Fill;
+import org.geotools.api.style.Font;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.Halo;
+import org.geotools.api.style.LabelPlacement;
+import org.geotools.api.style.LinePlacement;
+import org.geotools.api.style.LineSymbolizer;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.PointPlacement;
+import org.geotools.api.style.PointSymbolizer;
+import org.geotools.api.style.PolygonSymbolizer;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Stroke;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.Symbol;
+import org.geotools.api.style.Symbolizer;
+import org.geotools.api.style.TextSymbolizer;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.NameImpl;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.util.factory.GeoTools;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
 
 /**
  * An utility class designed to ease style building with convenience methods.
@@ -62,7 +86,7 @@ public class StyleBuilder {
     public static final String FONT_WEIGHT_BOLD = "bold";
 
     private StyleFactory sf;
-    private FilterFactory2 ff;
+    private FilterFactory ff;
 
     /** use the default StyleFactory and FilterFactory */
     public StyleBuilder() {
@@ -95,7 +119,7 @@ public class StyleBuilder {
      */
     public StyleBuilder(StyleFactory styleFactory, FilterFactory filterFactory) {
         this.sf = styleFactory;
-        this.ff = (FilterFactory2) filterFactory;
+        this.ff = (FilterFactory) filterFactory;
     }
 
     /** Documented setter injection, StyleBuilder uses a StyleFactory for creation. */
@@ -113,7 +137,7 @@ public class StyleBuilder {
 
     /** Documented setter injection, StyleBuilder uses a StyleFactory for creation. */
     public void setFilterFactory(FilterFactory factory) {
-        ff = (FilterFactory2) factory;
+        ff = (FilterFactory) factory;
     }
 
     /**
@@ -121,7 +145,7 @@ public class StyleBuilder {
      *
      * @return the FilterFactory being used
      */
-    public FilterFactory2 getFilterFactory() {
+    public FilterFactory getFilterFactory() {
         return ff;
     }
 
@@ -1200,7 +1224,7 @@ public class StyleBuilder {
      * @param symbolizers - an array of symbolizers to use
      * @return the new rule
      */
-    public Rule createRule(Symbolizer[] symbolizers) {
+    public Rule createRule(Symbolizer... symbolizers) {
         return createRule(symbolizers, Double.NaN, Double.NaN);
     }
 
@@ -1290,7 +1314,7 @@ public class StyleBuilder {
      * @return the new feature type styler
      */
     public FeatureTypeStyle createFeatureTypeStyle(
-            String featureTypeName, Symbolizer[] symbolizers) {
+            String featureTypeName, Symbolizer... symbolizers) {
         return createFeatureTypeStyle(featureTypeName, symbolizers, Double.NaN, Double.NaN);
     }
 
@@ -1369,7 +1393,7 @@ public class StyleBuilder {
      * @param rules - the rules that make up the FeatureTypeStyle
      * @return the new feature type styler
      */
-    public FeatureTypeStyle createFeatureTypeStyle(String typeName, Rule[] rules) {
+    public FeatureTypeStyle createFeatureTypeStyle(String typeName, Rule... rules) {
         FeatureTypeStyle fts = sf.createFeatureTypeStyle();
         fts.rules().addAll(Arrays.asList(rules));
 
@@ -1561,14 +1585,11 @@ public class StyleBuilder {
         double[] values = new double[fc.size()];
         int count = 0;
 
-        SimpleFeatureIterator it = fc.features();
-        try {
+        try (SimpleFeatureIterator it = fc.features()) {
             while (it.hasNext()) {
-                SimpleFeature f = (SimpleFeature) it.next();
+                SimpleFeature f = it.next();
                 values[count++] = ((Number) f.getAttribute(name)).doubleValue();
             }
-        } finally {
-            it.close();
         }
 
         // pass to classification algorithm

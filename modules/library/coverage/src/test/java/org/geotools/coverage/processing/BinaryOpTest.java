@@ -24,11 +24,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.media.jai.operator.ExtremaDescriptor;
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.image.ImageWorker;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.parameter.ParameterValueGroup;
 
 /**
  * Tests some binary operations like add and multiply.
@@ -56,8 +56,8 @@ public class BinaryOpTest extends GridProcessingTestBase {
         final GridCoverage2D result = doOp("Add", shortCoverage, floatCoverage);
         final RenderedImage image = result.getRenderedImage();
         ImageWorker w = new ImageWorker(image);
-        double[] min = (double[]) w.getMinimums();
-        double[] max = (double[]) w.getMaximums();
+        double[] min = w.getMinimums();
+        double[] max = w.getMaximums();
         assertEquals(min[0], 1.0, DELTA);
         assertEquals(max[0], 66401.0, DELTA);
     }
@@ -79,7 +79,6 @@ public class BinaryOpTest extends GridProcessingTestBase {
      * Applies the specified operation to the given coverages.
      *
      * @param coverage0 The coverage to scale.
-     * @param interp The interpolation to use.
      */
     private GridCoverage2D doOp(
             final String operationName,

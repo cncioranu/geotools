@@ -27,8 +27,22 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import org.geotools.TestData;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Fill;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.NamedLayer;
+import org.geotools.api.style.PointSymbolizer;
+import org.geotools.api.style.PolygonSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Stroke;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.StyledLayer;
+import org.geotools.api.style.StyledLayerDescriptor;
 import org.geotools.data.property.PropertyDataStore;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.function.EnvFunction;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -41,25 +55,11 @@ import org.geotools.referencing.CRS;
 import org.geotools.renderer.lite.LabelShieldTest;
 import org.geotools.renderer.lite.StreamingRenderer;
 import org.geotools.renderer.style.FontCache;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Fill;
-import org.geotools.styling.Graphic;
-import org.geotools.styling.Mark;
-import org.geotools.styling.NamedLayer;
-import org.geotools.styling.PointSymbolizer;
-import org.geotools.styling.PolygonSymbolizer;
-import org.geotools.styling.Rule;
-import org.geotools.styling.Stroke;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.StyledLayer;
-import org.geotools.styling.StyledLayerDescriptor;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opengis.filter.FilterFactory;
 
 // import org.geotools.gce.geotiff.GeoTiffReader;
 
@@ -742,7 +742,7 @@ public class VisualTransformerTest {
     //        mc.dispose();
     //    }
 
-    public void testVisualizeStyleWithPointFeatures(
+    protected void testVisualizeStyleWithPointFeatures(
             JSONObject jsonStyle,
             String renderTitle,
             String renderComparisonFileName,
@@ -782,7 +782,7 @@ public class VisualTransformerTest {
         mc.dispose();
     }
 
-    public void testVisualizeStyleWithLineFeatures(
+    protected void testVisualizeStyleWithLineFeatures(
             JSONObject jsonStyle,
             String renderTitle,
             String renderComparisonFileName,
@@ -822,7 +822,7 @@ public class VisualTransformerTest {
                 styleFactory.createStroke(
                         filterFactory.literal(Color.BLACK), filterFactory.literal(1));
         rule.symbolizers().add(styleFactory.createLineSymbolizer(stroke, null));
-        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(new Rule[] {rule});
+        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(rule);
         Style lineStyle = styleFactory.createStyle();
         lineStyle.featureTypeStyles().addAll(Arrays.asList(fts));
         return lineStyle;
@@ -845,7 +845,7 @@ public class VisualTransformerTest {
         PointSymbolizer p = styleFactory.createPointSymbolizer(gr, null);
 
         rule.symbolizers().add(p);
-        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(new Rule[] {rule});
+        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(rule);
         Style pointStyle = styleFactory.createStyle();
         pointStyle.featureTypeStyles().addAll(Arrays.asList(fts));
         return pointStyle;
@@ -872,7 +872,7 @@ public class VisualTransformerTest {
 
         Rule rule = styleFactory.createRule();
         rule.symbolizers().add(sym);
-        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(new Rule[] {rule});
+        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(rule);
         Style style = styleFactory.createStyle();
         style.featureTypeStyles().add(fts);
 

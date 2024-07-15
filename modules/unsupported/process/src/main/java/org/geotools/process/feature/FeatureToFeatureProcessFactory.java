@@ -19,7 +19,7 @@ package org.geotools.process.feature;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.process.ProcessFactory;
 import org.geotools.text.Text;
@@ -37,7 +37,7 @@ import org.geotools.text.Text;
  *
  * <ul>
  *   <li>{@link ProcessFactory#getTitle()}
- *   <li>{@link ProcessFactory#getDescription()}
+ *   <li>{@link ProcessFactory#getDescription(Name)}
  *   <li>{@link #addParameters(Map)}
  *   <li>
  * </ul>
@@ -67,15 +67,18 @@ public abstract class FeatureToFeatureProcessFactory
         resultInfo.put(RESULT.key, RESULT);
     }
 
+    @Override
     public final Map<String, Parameter<?>> getResultInfo(Map<String, Object> parameters)
             throws IllegalArgumentException {
         return Collections.unmodifiableMap(resultInfo);
     }
 
+    @Override
     public final boolean supportsProgress() {
         return true;
     }
 
+    @Override
     public String getVersion() {
         return VERSION;
     }

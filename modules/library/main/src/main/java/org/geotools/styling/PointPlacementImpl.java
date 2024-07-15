@@ -18,19 +18,65 @@ package org.geotools.styling;
 
 // OpenGIS dependencies
 
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.AnchorPoint;
+import org.geotools.api.style.Displacement;
+import org.geotools.api.style.PointPlacement;
+import org.geotools.api.style.StyleVisitor;
+import org.geotools.api.style.TraversingStyleVisitor;
+import org.geotools.api.util.Cloneable;
 import org.geotools.factory.CommonFactoryFinder;
+import org.geotools.filter.ConstantExpression;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.GeoTools;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
-import org.opengis.style.StyleVisitor;
-import org.opengis.util.Cloneable;
 
 /**
  * @author Ian Turton, CCG
  * @version $Id$
  */
 public class PointPlacementImpl implements PointPlacement, Cloneable {
+    public static final AnchorPoint DEFAULT_ANCHOR_POINT =
+            new AnchorPoint() {
+                private void cannotModifyConstant() {
+                    throw new UnsupportedOperationException(
+                            "Constant AnchorPoint may not be modified");
+                }
+
+                @Override
+                public void setAnchorPointX(Expression x) {
+                    cannotModifyConstant();
+                }
+
+                @Override
+                public void setAnchorPointY(Expression y) {
+                    cannotModifyConstant();
+                }
+
+                /**
+                 * calls the visit method of a StyleVisitor
+                 *
+                 * @param visitor the style visitor
+                 */
+                @Override
+                public void accept(StyleVisitor visitor) {}
+
+                @Override
+                public Object accept(TraversingStyleVisitor visitor, Object data) {
+                    cannotModifyConstant();
+                    return null;
+                }
+
+                @Override
+                public Expression getAnchorPointX() {
+                    return ConstantExpression.constant(0.0);
+                }
+
+                @Override
+                public Expression getAnchorPointY() {
+                    return ConstantExpression.constant(0.5);
+                }
+            };
     /** The logger for the default core module. */
     private static final java.util.logging.Logger LOGGER =
             org.geotools.util.logging.Logging.getLogger(PointPlacementImpl.class);
@@ -60,7 +106,8 @@ public class PointPlacementImpl implements PointPlacement, Cloneable {
      *
      * @return Label's AnchorPoint.
      */
-    public AnchorPointImpl getAnchorPoint() {
+    @Override
+    public AnchorPoint getAnchorPoint() {
         return anchorPoint;
     }
 
@@ -69,7 +116,8 @@ public class PointPlacementImpl implements PointPlacement, Cloneable {
      *
      * @param anchorPoint New value of property anchorPoint.
      */
-    public void setAnchorPoint(org.opengis.style.AnchorPoint anchorPoint) {
+    @Override
+    public void setAnchorPoint(org.geotools.api.style.AnchorPoint anchorPoint) {
         if (this.anchorPoint == anchorPoint) {
             return;
         }
@@ -82,6 +130,7 @@ public class PointPlacementImpl implements PointPlacement, Cloneable {
      *
      * @return The label displacement.
      */
+    @Override
     public Displacement getDisplacement() {
         return displacement;
     }
@@ -91,7 +140,8 @@ public class PointPlacementImpl implements PointPlacement, Cloneable {
      *
      * @param displacement New value of property displacement.
      */
-    public void setDisplacement(org.opengis.style.Displacement displacement) {
+    @Override
+    public void setDisplacement(org.geotools.api.style.Displacement displacement) {
         if (this.displacement == displacement) {
             return;
         }
@@ -103,6 +153,7 @@ public class PointPlacementImpl implements PointPlacement, Cloneable {
      *
      * @return The rotation of the label.
      */
+    @Override
     public Expression getRotation() {
         return rotation;
     }
@@ -112,21 +163,25 @@ public class PointPlacementImpl implements PointPlacement, Cloneable {
      *
      * @param rotation New value of property rotation.
      */
+    @Override
     public void setRotation(Expression rotation) {
         this.rotation = rotation;
     }
 
-    public Object accept(StyleVisitor visitor, Object data) {
+    @Override
+    public Object accept(TraversingStyleVisitor visitor, Object data) {
         return visitor.visit(this, data);
     }
 
-    public void accept(org.geotools.styling.StyleVisitor visitor) {
+    @Override
+    public void accept(StyleVisitor visitor) {
         visitor.visit(this);
     }
 
     /* (non-Javadoc)
      * @see Cloneable#clone()
      */
+    @Override
     public Object clone() {
         try {
             PointPlacementImpl clone = (PointPlacementImpl) super.clone();
@@ -142,6 +197,7 @@ public class PointPlacementImpl implements PointPlacement, Cloneable {
     /* (non-Javadoc)
      * @see java.lang.Object#equals(java.lang.Object)
      */
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -161,6 +217,7 @@ public class PointPlacementImpl implements PointPlacement, Cloneable {
     /* (non-Javadoc)
      * @see java.lang.Object#hashCode()
      */
+    @Override
     public int hashCode() {
         final int PRIME = 37;
         int result = 17;
@@ -180,14 +237,14 @@ public class PointPlacementImpl implements PointPlacement, Cloneable {
         return result;
     }
 
-    static PointPlacementImpl cast(org.opengis.style.LabelPlacement placement) {
+    static PointPlacementImpl cast(org.geotools.api.style.LabelPlacement placement) {
         if (placement == null) {
             return null;
         } else if (placement instanceof PointPlacementImpl) {
             return (PointPlacementImpl) placement;
-        } else if (placement instanceof org.opengis.style.PointPlacement) {
-            org.opengis.style.PointPlacement pointPlacement =
-                    (org.opengis.style.PointPlacement) placement;
+        } else if (placement instanceof org.geotools.api.style.PointPlacement) {
+            org.geotools.api.style.PointPlacement pointPlacement =
+                    (org.geotools.api.style.PointPlacement) placement;
             PointPlacementImpl copy = new PointPlacementImpl();
             copy.setAnchorPoint(AnchorPointImpl.cast(pointPlacement.getAnchorPoint()));
             copy.setDisplacement(DisplacementImpl.cast(pointPlacement.getDisplacement()));

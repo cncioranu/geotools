@@ -16,7 +16,23 @@
  */
 package org.geotools.data.postgis;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.io.StringWriter;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.spatial.BBOX3D;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
 import org.geotools.data.jdbc.FilterToSQLException;
 import org.geotools.data.jdbc.SQLFilterTestSupport;
 import org.geotools.factory.CommonFactoryFinder;
@@ -29,26 +45,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.spatial.BBOX3D;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 
 public class PostgisFilterToSQLTest extends SQLFilterTestSupport {
 
-    public PostgisFilterToSQLTest(String name) {
-        super(name);
-    }
-
-    private static FilterFactory2 ff;
+    private static FilterFactory ff;
 
     private static GeometryFactory gf = new GeometryFactory();
 
@@ -58,9 +58,10 @@ public class PostgisFilterToSQLTest extends SQLFilterTestSupport {
 
     StringWriter writer;
 
+    @Override
     @Before
     public void setUp() throws IllegalAttributeException, SchemaException {
-        ff = CommonFactoryFinder.getFilterFactory2();
+        ff = CommonFactoryFinder.getFilterFactory();
         dialect = new PostGISDialect(null);
         filterToSql = new PostgisFilterToSQL(dialect);
         filterToSql.setFunctionEncodingEnabled(true);
@@ -235,6 +236,31 @@ public class PostgisFilterToSQLTest extends SQLFilterTestSupport {
     }
 
     @Test
+    public void testFunctionStrEndsWithEscaping() throws Exception {
+        filterToSql.setFeatureType(testSchema);
+        Filter filter =
+                ff.equals(
+                        ff.literal(true),
+                        ff.function("strEndsWith", ff.property("testString"), ff.literal("'FOO")));
+        filterToSql.encode(filter);
+        String sql = writer.toString();
+        assertEquals("WHERE true = (testString LIKE ('%' || '''FOO'))", sql);
+    }
+
+    @Test
+    public void testFunctionStrStartsWithEscaping() throws Exception {
+        filterToSql.setFeatureType(testSchema);
+        Filter filter =
+                ff.equals(
+                        ff.literal(true),
+                        ff.function(
+                                "strStartsWith", ff.property("testString"), ff.literal("'FOO")));
+        filterToSql.encode(filter);
+        String sql = writer.toString();
+        assertEquals("WHERE true = (testString LIKE ('''FOO' || '%'))", sql);
+    }
+
+    @Test
     public void testFunctionLike() throws Exception {
         filterToSql.setFeatureType(testSchema);
         PropertyIsLike like =
@@ -285,5 +311,77 @@ public class PostgisFilterToSQLTest extends SQLFilterTestSupport {
         filterToSql.encode(like);
         String sql = writer.toString().toLowerCase().trim();
         assertEquals("where testjson ::json  -> 'arr' ->> 0 like 'a_literal'", sql);
+    }
+
+    @Test
+    public void testFunctionJsonArrayContains() throws Exception {
+        filterToSql.setFeatureType(testSchema);
+        Function pointer =
+                ff.function(
+                        "jsonArrayContains",
+                        ff.property("OPERATIONS"),
+                        ff.literal("/operations"),
+                        ff.literal("OP1"));
+        filterToSql.encode(pointer);
+        String sql = writer.toString().trim();
+        assertEquals("OPERATIONS::jsonb @> '{ \"operations\": [\"OP1\"] }'::jsonb", sql);
+    }
+
+    @Test
+    public void testFunctionJsonArrayContainsNumber() throws Exception {
+        filterToSql.setFeatureType(testSchema);
+        Function pointer =
+                ff.function(
+                        "jsonArrayContains",
+                        ff.property("OPERATIONS"),
+                        ff.literal("/operations"),
+                        ff.literal(1));
+        filterToSql.encode(pointer);
+        String sql = writer.toString().trim();
+        assertEquals("OPERATIONS::jsonb @> '{ \"operations\": [1] }'::jsonb", sql);
+    }
+
+    @Test
+    public void testNestedObjectJsonArrayContains() throws Exception {
+        filterToSql.setFeatureType(testSchema);
+        Function pointer =
+                ff.function(
+                        "jsonArrayContains",
+                        ff.property("OPERATIONS"),
+                        ff.literal("/operations/parameters"),
+                        ff.literal("P1"));
+        filterToSql.encode(pointer);
+        String sql = writer.toString().trim();
+        assertEquals(
+                "OPERATIONS::jsonb @> '{ \"operations\": { \"parameters\": [\"P1\"] } }'::jsonb",
+                sql);
+    }
+
+    @Test
+    public void testFunctionJsonArrayContainsEscapingPointer() throws Exception {
+        filterToSql.setFeatureType(testSchema);
+        Function pointer =
+                ff.function(
+                        "jsonArrayContains",
+                        ff.property("OPERATIONS"),
+                        ff.literal("/\"'FOO"),
+                        ff.literal("OP1"));
+        filterToSql.encode(pointer);
+        String sql = writer.toString().trim();
+        assertEquals("OPERATIONS::jsonb @> '{ \"\\\"''FOO\": [\"OP1\"] }'::jsonb", sql);
+    }
+
+    @Test
+    public void testFunctionJsonArrayContainsEscapingExpected() throws Exception {
+        filterToSql.setFeatureType(testSchema);
+        Function pointer =
+                ff.function(
+                        "jsonArrayContains",
+                        ff.property("OPERATIONS"),
+                        ff.literal("/operations"),
+                        ff.literal("\"'FOO"));
+        filterToSql.encode(pointer);
+        String sql = writer.toString().trim();
+        assertEquals("OPERATIONS::jsonb @> '{ \"operations\": [\"\\\"''FOO\"] }'::jsonb", sql);
     }
 }

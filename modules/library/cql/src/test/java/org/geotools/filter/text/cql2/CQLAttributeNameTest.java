@@ -16,12 +16,11 @@
  */
 package org.geotools.filter.text.cql2;
 
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.filter.text.commons.CompilerUtil;
 import org.geotools.filter.text.commons.Language;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.expression.PropertyName;
 
 /**
  * Test Attribute
@@ -123,15 +122,9 @@ public class CQLAttributeNameTest {
         testAttributeBetweenDoubleQuotes("\"環境\"");
     }
 
-    private void testAttributeBetweenDoubleQuotes(final String attSample) throws CQLException {
-        PropertyIsLike result;
-        PropertyName attResult = null;
+    protected void testAttributeBetweenDoubleQuotes(final String attSample) throws CQLException {
 
-        result =
-                (PropertyIsLike)
-                        CompilerUtil.parseFilter(this.language, attSample + " LIKE 'abc%'");
-
-        attResult = (PropertyName) result.getExpression();
+        PropertyName attResult = parsePropertyName(attSample);
 
         String expected = attSample.replace('.', '/');
         expected = expected.substring(1, expected.length() - 1);
@@ -141,17 +134,14 @@ public class CQLAttributeNameTest {
     }
 
     private void testAttribute(final String attSample) throws CQLException {
-        PropertyIsLike result;
-        PropertyName attResult = null;
-
-        result =
-                (PropertyIsLike)
-                        CompilerUtil.parseFilter(this.language, attSample + " LIKE 'abc%'");
-
-        attResult = (PropertyName) result.getExpression();
+        PropertyName attResult = parsePropertyName(attSample);
 
         final String expected = attSample.replace('.', '/');
 
         Assert.assertEquals(expected, attResult.getPropertyName());
+    }
+
+    protected PropertyName parsePropertyName(String attSample) throws CQLException {
+        return (PropertyName) CompilerUtil.parseExpression(this.language, attSample);
     }
 }

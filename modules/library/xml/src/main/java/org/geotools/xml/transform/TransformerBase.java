@@ -18,12 +18,17 @@ package org.geotools.xml.transform;
 
 import java.io.StringWriter;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.xml.XMLConstants;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
@@ -35,14 +40,16 @@ import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import org.xml.sax.SAXNotRecognizedException;
+import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.ext.LexicalHandler;
 import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.helpers.NamespaceSupport;
 import org.xml.sax.helpers.XMLFilterImpl;
 
 /**
- * TransformerBase provides support for writing Object->XML encoders. The basic pattern for useage
- * is to extend TransformerBase and implement the createTranslator(ContentHandler) method. This is
+ * TransformerBase provides support for writing Object->XML encoders. The basic pattern for usage is
+ * to extend TransformerBase and implement the createTranslator(ContentHandler) method. This is
  * easiest done by extending the inner class TranslatorSupport. A Translator uses a ContentHandler
  * to issue SAX events to a javax.xml.transform.Transformer. If possible, make the translator public
  * so it can be used by others as well.
@@ -53,7 +60,7 @@ public abstract class TransformerBase {
     private int indentation = -1;
     private boolean xmlDecl = false;
     private boolean nsDecl = true;
-    private Charset charset = Charset.forName("UTF-8");
+    private Charset charset = StandardCharsets.UTF_8;
 
     public static final String XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/";
 
@@ -278,6 +285,7 @@ public abstract class TransformerBase {
          * Perform the translation. Exceptions are captured and can be obtained through the
          * checkError and getError methods.
          */
+        @Override
         public void run() {
             try {
                 transformer.transform(xmlSource, result);
@@ -294,52 +302,143 @@ public abstract class TransformerBase {
         private final ContentHandler original;
         private AttributesImpl namespaceDecls;
 
+        private int level = 0;
+
+        private static class LevelPrefixMappings {
+            final int level;
+            final Set<String> prefixes;
+
+            private LevelPrefixMappings(final int level, final String prefix) {
+                this.level = level;
+                this.prefixes = new HashSet<>();
+                this.prefixes.add(prefix);
+            }
+        }
+
+        private Deque<LevelPrefixMappings> prefixMappings = null;
+
         public ContentHandlerFilter(ContentHandler original, AttributesImpl nsDecls) {
             this.original = original;
             this.namespaceDecls = nsDecls;
         }
 
+        @Override
         public void characters(char[] ch, int start, int length) throws SAXException {
             original.characters(ch, start, length);
         }
 
+        @Override
         public void endDocument() throws SAXException {
             original.endDocument();
         }
 
+        @Override
+        public void endPrefixMapping(String prefix) throws SAXException {
+            if (removePrefixMapping(prefix)) {
+                original.endPrefixMapping(prefix);
+            }
+        }
+
+        private boolean removePrefixMapping(String prefix) {
+            if (prefixMappings != null) {
+                final Iterator<LevelPrefixMappings> it = prefixMappings.iterator();
+                while (it.hasNext()) {
+                    final LevelPrefixMappings levelPrefixMappings = it.next();
+
+                    if (levelPrefixMappings.level < level) {
+                        break;
+                    }
+
+                    if (levelPrefixMappings.level == level) {
+                        if (levelPrefixMappings.prefixes.remove(prefix)) {
+                            if (levelPrefixMappings.prefixes.isEmpty()) {
+                                it.remove();
+                            }
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        @Override
         public void endElement(String namespaceURI, String localName, String qName)
                 throws SAXException {
             original.endElement(namespaceURI, localName, qName);
+            level--;
+
+            // call endPrefixMapping to stop any namespace prefixes
+            if (qName != null) {
+                final int c = qName.indexOf(":");
+                if (c != -1) {
+                    final String prefix = qName.substring(0, c);
+                    endPrefixMapping(prefix);
+                }
+            }
         }
 
-        public void endPrefixMapping(String prefix) throws SAXException {
-            original.endPrefixMapping(prefix);
-        }
-
+        @Override
         public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {
             original.ignorableWhitespace(ch, start, length);
         }
 
+        @Override
         public void processingInstruction(String target, String data) throws SAXException {
             original.processingInstruction(target, data);
         }
 
+        @Override
         public void setDocumentLocator(org.xml.sax.Locator locator) {
             original.setDocumentLocator(locator);
         }
 
+        @Override
         public void skippedEntity(String name) throws SAXException {
             original.skippedEntity(name);
         }
 
+        @Override
         public void startDocument() throws SAXException {
             original.startDocument();
         }
 
+        @Override
+        public void startPrefixMapping(String prefix, String uri) throws SAXException {
+            original.startPrefixMapping(prefix, uri);
+            storePrefixMapping(prefix);
+        }
+
+        private void storePrefixMapping(final String prefix) {
+            if (prefixMappings == null) {
+                prefixMappings = new ArrayDeque<>();
+            }
+            final LevelPrefixMappings levelPrefixMappings = prefixMappings.peekFirst();
+            if (levelPrefixMappings == null || levelPrefixMappings.level != level) {
+                prefixMappings.addFirst(new LevelPrefixMappings(level, prefix));
+            } else {
+                if (!levelPrefixMappings.prefixes.contains(prefix)) {
+                    levelPrefixMappings.prefixes.add(prefix);
+                }
+            }
+        }
+
+        @Override
         public void startElement(
                 String namespaceURI, String localName, String qName, Attributes atts)
                 throws SAXException {
             if (namespaceDecls != null) {
+
+                // call startPrefixMapping for any namespace prefixes
+                for (int i = 0; i < namespaceDecls.getLength(); i++) {
+                    final String nsQName = namespaceDecls.getQName(i);
+                    if (nsQName != null && nsQName.startsWith("xmlns:")) {
+                        final String nsPrefix = nsQName.substring(6);
+                        final String nsUri = namespaceDecls.getValue(i);
+                        startPrefixMapping(nsPrefix, nsUri);
+                    }
+                }
+
                 for (int i = 0, ii = atts.getLength(); i < ii; i++) {
                     namespaceDecls.addAttribute(
                             null, null, atts.getQName(i), atts.getType(i), atts.getValue(i));
@@ -348,51 +447,56 @@ public abstract class TransformerBase {
                 atts = namespaceDecls;
                 namespaceDecls = null;
             }
+
             if (namespaceURI == null) namespaceURI = "";
             if (localName == null) localName = "";
             original.startElement(namespaceURI, localName, qName, atts);
+            level++;
         }
 
-        public void startPrefixMapping(String prefix, String uri) throws SAXException {
-            original.startPrefixMapping(prefix, uri);
-        }
-
+        @Override
         public void comment(char[] ch, int start, int length) throws SAXException {
             if (original instanceof LexicalHandler) {
                 ((LexicalHandler) original).comment(ch, start, length);
             }
         }
 
+        @Override
         public void startCDATA() throws SAXException {
             if (original instanceof LexicalHandler) {
                 ((LexicalHandler) original).startCDATA();
             }
         }
 
+        @Override
         public void endCDATA() throws SAXException {
             if (original instanceof LexicalHandler) {
                 ((LexicalHandler) original).endCDATA();
             }
         }
 
+        @Override
         public void startDTD(String name, String publicId, String systemId) throws SAXException {
             if (original instanceof LexicalHandler) {
                 ((LexicalHandler) original).startDTD(name, publicId, systemId);
             }
         }
 
+        @Override
         public void endDTD() throws SAXException {
             if (original instanceof LexicalHandler) {
                 ((LexicalHandler) original).endDTD();
             }
         }
 
+        @Override
         public void startEntity(String name) throws SAXException {
             if (original instanceof LexicalHandler) {
                 ((LexicalHandler) original).startEntity(name);
             }
         }
 
+        @Override
         public void endEntity(String name) throws SAXException {
             if (original instanceof LexicalHandler) {
                 ((LexicalHandler) original).endEntity(name);
@@ -432,10 +536,12 @@ public abstract class TransformerBase {
                 this.attributes = new AttributesImpl(attributes);
             }
 
+            @Override
             public void commit() {
                 _start(element, attributes);
             }
 
+            @Override
             public String toString() {
                 return "Start(" + element + ", " + attributes + ")";
             }
@@ -452,10 +558,12 @@ public abstract class TransformerBase {
                 this.text = text;
             }
 
+            @Override
             public void commit() {
                 _chars(text);
             }
 
+            @Override
             public String toString() {
                 return "Chars(" + text + ")";
             }
@@ -472,10 +580,12 @@ public abstract class TransformerBase {
                 this.text = text;
             }
 
+            @Override
             public void commit() {
                 _cdata(text);
             }
 
+            @Override
             public String toString() {
                 return "CData(" + text + ")";
             }
@@ -492,10 +602,12 @@ public abstract class TransformerBase {
                 this.text = text;
             }
 
+            @Override
             public void commit() {
                 _comment(text);
             }
 
+            @Override
             public String toString() {
                 return "Comment(" + text + ")";
             }
@@ -509,10 +621,12 @@ public abstract class TransformerBase {
                 this.element = element;
             }
 
+            @Override
             public void commit() {
                 _end(element);
             }
 
+            @Override
             public String toString() {
                 return "End(" + element + ")";
             }
@@ -536,6 +650,7 @@ public abstract class TransformerBase {
          * time.
          */
         private class BufferedBackend implements Backend {
+            @Override
             public void start(String element, Attributes attributes) {
                 if (element == null) {
                     throw new NullPointerException("Attempted to start XML tag with null element");
@@ -547,6 +662,7 @@ public abstract class TransformerBase {
                 pending.add(new Start(element, attributes));
             }
 
+            @Override
             public void chars(String text) {
                 if (text == null) {
                     throw new NullPointerException("Attempted to start text block with null text");
@@ -554,6 +670,7 @@ public abstract class TransformerBase {
                 pending.add(new Chars(text));
             }
 
+            @Override
             public void cdata(String text) {
                 if (text == null) {
                     throw new NullPointerException("Attempted to start CDATA block with null text");
@@ -561,6 +678,7 @@ public abstract class TransformerBase {
                 pending.add(new CData(text));
             }
 
+            @Override
             public void end(String element) {
                 if (element == null) {
                     throw new NullPointerException("Attempted to close tag with null element");
@@ -568,6 +686,7 @@ public abstract class TransformerBase {
                 pending.add(new End(element));
             }
 
+            @Override
             public void comment(String text) {
                 if (text == null) {
                     throw new NullPointerException("Attempted to add comment with null text");
@@ -578,22 +697,27 @@ public abstract class TransformerBase {
 
         /** The DirectBackend writes immediately to the underlying output stream. */
         private class DirectBackend implements Backend {
+            @Override
             public void start(String element, Attributes attributes) {
                 _start(element, attributes);
             }
 
+            @Override
             public void chars(String text) {
                 _chars(text);
             }
 
+            @Override
             public void cdata(String text) {
                 _cdata(text);
             }
 
+            @Override
             public void end(String element) {
                 _end(element);
             }
 
+            @Override
             public void comment(String text) {
                 _comment(text);
             }
@@ -633,6 +757,7 @@ public abstract class TransformerBase {
             this.schemaLocation = schemaLocation;
         }
 
+        @Override
         public void abort() {
             running = false;
         }
@@ -751,7 +876,14 @@ public abstract class TransformerBase {
             start(element, atts);
 
             if (content != null) {
-                chars(content);
+                int length = content.length();
+                if (length > 0
+                        && (Character.isWhitespace(content.charAt(0))
+                                || Character.isWhitespace(content.charAt(length - 1)))) {
+                    cdata(content);
+                } else {
+                    chars(content);
+                }
             }
 
             end(element);
@@ -766,11 +898,37 @@ public abstract class TransformerBase {
         }
 
         private void _start(String element, Attributes atts) {
+            if (atts != null) {
+                for (int i = 0; i < atts.getLength(); i++) {
+                    if (atts.getValue(i) == null) {
+                        throw new IllegalArgumentException(
+                                "Value of attribute " + atts.getQName(i) + " was set to null.");
+                    }
+                }
+            }
             try {
-                String el = (prefix == null) ? element : (prefix + ":" + element);
-                contentHandler.startElement("", "", el, atts);
-            } catch (SAXException se) {
-                throw new RuntimeException(se);
+                String ns;
+                String qn;
+                String[] parts = element.split(":");
+                if (parts.length == 2) {
+                    // there is a prefix in the element name already, so try and process it
+                    String elemPrefix = parts[0];
+                    ns = nsSupport.getURI(elemPrefix);
+                    qn = element;
+                    element = parts[1];
+                } else {
+                    // fallback to adding a possible static prefix and namespace
+                    ns = (prefix == null) ? XMLConstants.NULL_NS_URI : nsSupport.getURI(prefix);
+                    qn = (prefix == null) ? element : (prefix + ":" + element);
+                }
+
+                if (ns == null) {
+                    ns = XMLConstants.NULL_NS_URI;
+                }
+
+                contentHandler.startElement(ns, element, qn, atts);
+            } catch (Exception e) {
+                throw new RuntimeException("Error transforming start of element: " + element, e);
             }
         }
 
@@ -782,8 +940,8 @@ public abstract class TransformerBase {
             try {
                 char[] ch = text.toCharArray();
                 contentHandler.characters(ch, 0, ch.length);
-            } catch (SAXException se) {
-                throw new RuntimeException(se);
+            } catch (Exception e) {
+                throw new RuntimeException("Error transforming chars:" + text, e);
             }
         }
 
@@ -793,10 +951,14 @@ public abstract class TransformerBase {
 
         private void _end(String element) {
             try {
+                String ns = (prefix == null) ? XMLConstants.NULL_NS_URI : nsSupport.getURI(prefix);
+                if (ns == null) {
+                    ns = XMLConstants.NULL_NS_URI;
+                }
                 String el = (prefix == null) ? element : (prefix + ":" + element);
-                contentHandler.endElement("", "", el);
-            } catch (SAXException se) {
-                throw new RuntimeException(se);
+                contentHandler.endElement(ns, element, el);
+            } catch (Exception e) {
+                throw new RuntimeException("Error transforming end of element: " + element, e);
             }
         }
 
@@ -812,8 +974,8 @@ public abstract class TransformerBase {
                     char[] carray = cdata.toCharArray();
                     contentHandler.characters(carray, 0, carray.length);
                     lexicalHandler.endCDATA();
-                } catch (SAXException e) {
-                    throw new RuntimeException(e);
+                } catch (Exception e) {
+                    throw new RuntimeException("Error transforming cdata: " + cdata, e);
                 }
             }
         }
@@ -828,24 +990,28 @@ public abstract class TransformerBase {
                 try {
                     char[] carray = comment.toCharArray();
                     lexicalHandler.comment(carray, 0, carray.length);
-                } catch (SAXException e) {
-                    throw new RuntimeException(e);
+                } catch (Exception e) {
+                    throw new RuntimeException("Error transforming comment: " + comment, e);
                 }
             }
         }
 
+        @Override
         public String getDefaultNamespace() {
             return namespace;
         }
 
+        @Override
         public String getDefaultPrefix() {
             return prefix;
         }
 
+        @Override
         public NamespaceSupport getNamespaceSupport() {
             return nsSupport;
         }
 
+        @Override
         public SchemaLocationSupport getSchemaLocationSupport() {
             return schemaLocation;
         }
@@ -870,7 +1036,7 @@ public abstract class TransformerBase {
         }
 
         public String getSchemaLocation(String nsURI) {
-            String uri = (String) locations.get(nsURI);
+            String uri = locations.get(nsURI);
 
             if (uri == null) {
                 return "";
@@ -908,8 +1074,17 @@ public abstract class TransformerBase {
             return translator;
         }
 
+        @Override
+        public void setFeature(String name, boolean value)
+                throws SAXNotRecognizedException, SAXNotSupportedException {
+            // no-op. The base XMLFilterImpl will throw an exception, so we must override this as
+            // Transformer implementations such as Saxonica's Saxon expect to at least switch on
+            // http://xml.org/sax/features/namespaces
+        }
+
+        @Override
         public void parse(InputSource in) throws SAXException {
-            ContentHandler handler = getContentHandler();
+            ContentHandler handler = new QNameValidatingHandler(getContentHandler());
 
             if (base.isNamespaceDeclartionEnabled()) {
                 AttributesImpl atts = new AttributesImpl();

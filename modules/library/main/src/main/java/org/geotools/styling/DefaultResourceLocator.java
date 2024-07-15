@@ -19,6 +19,7 @@ package org.geotools.styling;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
+import org.geotools.api.style.ResourceLocator;
 import org.geotools.util.URLs;
 
 /**
@@ -38,6 +39,7 @@ public class DefaultResourceLocator implements ResourceLocator {
         this.sourceUrl = sourceUrl;
     }
 
+    @Override
     public URL locateResource(String uri) {
         URL url = null;
         try {
@@ -87,8 +89,7 @@ public class DefaultResourceLocator implements ResourceLocator {
     }
 
     protected URL validateRelativeURL(URL relativeUrl) {
-        File f;
-        f = URLs.urlToFile(relativeUrl);
+        File f = URLs.urlToFile(relativeUrl);
         if (f != null && f.exists()) {
             // bingo!
             return relativeUrl;

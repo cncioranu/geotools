@@ -20,6 +20,7 @@ import java.math.BigInteger;
 import javax.xml.namespace.QName;
 import org.geotools.xs.TestSchema;
 import org.geotools.xs.XS;
+import org.junit.Test;
 
 public class XSIntegerStrategyTest extends TestSchema {
     /**
@@ -28,14 +29,26 @@ public class XSIntegerStrategyTest extends TestSchema {
      *
      * <p>For example: -1, 0, 12678967543233, +100000.
      */
+    @Test
     public void testParse() throws Exception {
         validateValues("-1", new BigInteger("-1"));
-        validateValues("0", new BigInteger("0"));
+        validateValues("0", BigInteger.valueOf(0));
         validateValues("12678967543233", new BigInteger("12678967543233"));
         validateValues("+100000", new BigInteger("100000"));
     }
 
+    @Override
     protected QName getQName() {
         return XS.INTEGER;
+    }
+
+    /**
+     * GEOT-7072: Non-comformant WFS implementations tend to send empty elements (e.g. {@code
+     * <value></value>})
+     */
+    @Test
+    public void testParseEmptyStringAsNull() throws Exception {
+        validateValues("", null);
+        validateValues("\t", null);
     }
 }

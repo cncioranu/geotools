@@ -63,6 +63,7 @@ public class SimpleTypeHandler extends XSIElementHandler {
     }
 
     /** @see java.lang.Object#hashCode() */
+    @Override
     @SuppressWarnings("PMD.OverrideBothEqualsAndHashcode")
     public int hashCode() {
         return (LOCALNAME.hashCode()
@@ -73,6 +74,7 @@ public class SimpleTypeHandler extends XSIElementHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getHandler(java.lang.String, java.lang.String) */
+    @Override
     public XSIElementHandler getHandler(String namespaceURI, String localName) throws SAXException {
         if (SchemaHandler.namespaceURI.equalsIgnoreCase(namespaceURI)) {
             // child types
@@ -136,6 +138,7 @@ public class SimpleTypeHandler extends XSIElementHandler {
      * @see org.geotools.xml.XSIElementHandler#startElement(java.lang.String, java.lang.String,
      *     org.xml.sax.Attributes)
      */
+    @Override
     public void startElement(String namespaceURI, String localName, Attributes atts) {
         id = atts.getValue("", "id");
 
@@ -190,6 +193,7 @@ public class SimpleTypeHandler extends XSIElementHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getLocalName() */
+    @Override
     public String getLocalName() {
         return LOCALNAME;
     }
@@ -279,7 +283,7 @@ public class SimpleTypeHandler extends XSIElementHandler {
         if (union.getMemberTypes() != null) {
             String[] qNames = union.getMemberTypes().split("\\s");
 
-            for (int i = 0; i < qNames.length; i++) l.add(parent.lookUpSimpleType(qNames[i]));
+            for (String qName : qNames) l.add(parent.lookUpSimpleType(qName));
         }
 
         if (union.getSimpleTypes() != null) {
@@ -288,18 +292,18 @@ public class SimpleTypeHandler extends XSIElementHandler {
             }
         }
 
-        return (SimpleType[]) l.toArray(new SimpleType[l.size()]);
+        return l.toArray(new SimpleType[l.size()]);
     }
 
     static Facet[] getFacets(RestrictionHandler rh) {
-        List contraints = rh.getConstraints();
+        List constraints = rh.getConstraints();
 
-        if ((contraints == null) || (contraints.size() == 0)) {
+        if ((constraints == null) || (constraints.isEmpty())) {
             return null;
         }
 
-        Facet[] facets = new Facet[contraints.size()];
-        Iterator i = contraints.iterator();
+        Facet[] facets = new Facet[constraints.size()];
+        Iterator i = constraints.iterator();
         int index = 0;
 
         while (i.hasNext()) {
@@ -312,11 +316,13 @@ public class SimpleTypeHandler extends XSIElementHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getHandlerType() */
+    @Override
     public int getHandlerType() {
         return SIMPLETYPE;
     }
 
     /** @see org.geotools.xml.XSIElementHandler#endElement(java.lang.String, java.lang.String) */
+    @Override
     public void endElement(String namespaceURI, String localName) {
         // do nothing
     }

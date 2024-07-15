@@ -18,9 +18,9 @@ package org.geotools.mbstyle.function;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
 
 /**
  * Function that takes a scale denominator and a srid and outputs the zoom level.
@@ -78,6 +78,7 @@ public class ZoomLevelFunction extends FunctionExpressionImpl {
         return 2;
     }
 
+    @Override
     public Object evaluate(Object feature) {
         Number arg0;
         String arg1;

@@ -19,9 +19,9 @@ package org.geotools.coverageio.gdal.mrsid;
 import it.geosolutions.imageio.plugins.mrsid.MrSIDImageReaderSpi;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.coverage.grid.Format;
 import org.geotools.coverage.grid.io.GridFormatFactorySpi;
 import org.geotools.coverageio.BaseGridFormatFactorySPI;
-import org.opengis.coverage.grid.Format;
 
 /**
  * Implementation of the {@link Format} service provider interface for MrSID files.
@@ -41,6 +41,7 @@ public final class MrSIDFormatFactory extends BaseGridFormatFactorySPI
      *
      * @return {@code true} if the plugin is available, {@code false} otherwise.
      */
+    @Override
     public boolean isAvailable() {
         boolean available = true;
 
@@ -74,6 +75,7 @@ public final class MrSIDFormatFactory extends BaseGridFormatFactorySPI
      *
      * @return A {@link MrSIDFormat}
      */
+    @Override
     public MrSIDFormat createFormat() {
         return new MrSIDFormat();
     }

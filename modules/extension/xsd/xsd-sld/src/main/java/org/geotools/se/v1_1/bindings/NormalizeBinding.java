@@ -17,12 +17,12 @@
 package org.geotools.se.v1_1.bindings;
 
 import javax.xml.namespace.QName;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.se.v1_1.SE;
 import org.geotools.sld.bindings.SLDNormalizeBinding;
-import org.geotools.styling.StyleFactory;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
-import org.opengis.filter.FilterFactory;
 
 /**
  * Binding object for the element http://www.opengis.net/se:Normalize.
@@ -54,6 +54,7 @@ public class NormalizeBinding extends SLDNormalizeBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return SE.Normalize;
     }
@@ -65,6 +66,7 @@ public class NormalizeBinding extends SLDNormalizeBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return null;
     }
@@ -76,6 +78,7 @@ public class NormalizeBinding extends SLDNormalizeBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
 
         // TODO: implement and remove call to super

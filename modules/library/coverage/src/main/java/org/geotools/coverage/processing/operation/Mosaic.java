@@ -26,6 +26,7 @@ import java.awt.RenderingHints;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.IndexColorModel;
 import java.awt.image.RenderedImage;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -42,6 +43,18 @@ import javax.media.jai.ROI;
 import javax.media.jai.ROIShape;
 import javax.media.jai.operator.MosaicDescriptor;
 import javax.media.jai.operator.MosaicType;
+import org.geotools.api.coverage.Coverage;
+import org.geotools.api.coverage.grid.GridGeometry;
+import org.geotools.api.metadata.spatial.PixelOrientation;
+import org.geotools.api.parameter.InvalidParameterValueException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
@@ -50,12 +63,11 @@ import org.geotools.coverage.grid.InvalidGridGeometryException;
 import org.geotools.coverage.processing.CoverageProcessingException;
 import org.geotools.coverage.processing.OperationJAI;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.geometry.Envelope2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.ImageWorker;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.parameter.DefaultParameterDescriptor;
 import org.geotools.parameter.ImagingParameterDescriptors;
@@ -65,19 +77,6 @@ import org.geotools.referencing.operation.transform.ConcatenatedTransform;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.Coverage;
-import org.opengis.coverage.grid.GridGeometry;
-import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.parameter.InvalidParameterValueException;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.TransformException;
-import org.opengis.util.InternationalString;
 
 /**
  * This operation does a mosaic of multiple {@link GridCoverage2D}s. The {@link GridCoverage2D}s can
@@ -250,22 +249,21 @@ public class Mosaic extends OperationJAI {
                 int numSources = sources.length;
                 // Selection of the first GridGeometry
                 GridGeometry2D grid = sources[0].getGridGeometry();
-                Envelope2D env = grid.getEnvelope2D();
+                ReferencedEnvelope env = grid.getEnvelope2D();
                 GridEnvelope2D gridEnv = grid.getGridRange2D();
 
                 // Method for searching the index at the highest resolution. Suppose that the
-                // coverages contains the same
-                // resolution on both axis
-                double res = env.width / gridEnv.width;
+                // coverages contains the same resolution on both axis
+                double res = env.getWidth() / gridEnv.width;
 
                 // Coverage index
                 int index = PRIMARY_SOURCE_INDEX;
                 // Search for the minimum value of the resolution
                 for (int i = 1; i < numSources; i++) {
                     GridGeometry2D gridI = sources[i].getGridGeometry();
-                    Envelope2D envI = gridI.getEnvelope2D();
+                    ReferencedEnvelope envI = gridI.getEnvelope2D();
                     GridEnvelope2D gridEnvI = gridI.getGridRange2D();
-                    double resValue = envI.width / gridEnvI.width;
+                    double resValue = envI.getWidth() / gridEnvI.width;
                     // Search the index associated to the better resolution
                     if (resValue < res) {
                         res = resValue;
@@ -290,22 +288,22 @@ public class Mosaic extends OperationJAI {
                 int numSources = sources.length;
                 // Selection of the first GridGeometry
                 GridGeometry2D grid = sources[0].getGridGeometry();
-                Envelope2D env = grid.getEnvelope2D();
+                ReferencedEnvelope env = grid.getEnvelope2D();
                 GridEnvelope2D gridEnv = grid.getGridRange2D();
 
                 // Method for searching the index at the lowest resolution. Suppose that the
                 // coverages contains the same
                 // resolution on both axis
-                double res = env.width / gridEnv.width;
+                double res = env.getWidth() / gridEnv.width;
 
                 // Coverage index
                 int index = PRIMARY_SOURCE_INDEX;
                 // Search for the minimum value of the resolution
                 for (int i = 1; i < numSources; i++) {
                     GridGeometry2D gridI = sources[i].getGridGeometry();
-                    Envelope2D envI = gridI.getEnvelope2D();
+                    ReferencedEnvelope envI = gridI.getEnvelope2D();
                     GridEnvelope2D gridEnvI = gridI.getGridRange2D();
-                    double resValue = envI.width / gridEnvI.width;
+                    double resValue = envI.getWidth() / gridEnvI.width;
                     // Search the index associated to the worst resolution
                     if (resValue > res) {
                         res = resValue;
@@ -464,7 +462,7 @@ public class Mosaic extends OperationJAI {
                                     GeoTools.getDefaultHints());
                     try {
                         // Transformation of the input envelope in the Raster Space
-                        GeneralEnvelope transformed =
+                        GeneralBounds transformed =
                                 CRS.transform(g2w.inverse(), inputGG.getEnvelope());
                         // Rounding of the bounds
                         Rectangle rect = transformed.toRectangle2D().getBounds();
@@ -472,11 +470,7 @@ public class Mosaic extends OperationJAI {
                         GridEnvelope2D gEnv2 = new GridEnvelope2D(rect);
                         // Creation of the new GridGeometry
                         newGG = new GridGeometry2D(gEnv2, inputGG.getEnvelope());
-                    } catch (InvalidGridGeometryException e) {
-                        throw new CoverageProcessingException(e);
-                    } catch (NoninvertibleTransformException e) {
-                        throw new CoverageProcessingException(e);
-                    } catch (TransformException e) {
+                    } catch (InvalidGridGeometryException | TransformException e) {
                         throw new CoverageProcessingException(e);
                     }
                     // Initialization of the nodata value
@@ -566,12 +560,10 @@ public class Mosaic extends OperationJAI {
             GridGeometry2D gg = sources[index].getGridGeometry();
             MathTransform g2w = gg.getGridToCRS2D(PixelOrientation.UPPER_LEFT);
             // Initial Bounding box
-            Envelope2D bbox = gg.getEnvelope2D();
-            // Number of the sources to use
-            int numSources = sources.length;
+            ReferencedEnvelope bbox = gg.getEnvelope2D();
             // Cycle on all the GridCoverages in order to create the final Bounding box
-            for (int i = 0; i < numSources; i++) {
-                bbox.include(sources[i].getEnvelope2D());
+            for (GridCoverage2D source : sources) {
+                bbox.include(source.getEnvelope2D());
             }
 
             // Creation of a final GridGeometry containing the final Bounding Box
@@ -589,6 +581,7 @@ public class Mosaic extends OperationJAI {
                         getOperationDescriptor("Mosaic"), REPLACED_DESCRIPTORS));
     }
 
+    @Override
     public Coverage doOperation(final ParameterValueGroup parameters, final Hints hints)
             throws CoverageProcessingException {
         /*
@@ -607,8 +600,7 @@ public class Mosaic extends OperationJAI {
         GridCoverage2D firstCoverage = sources[PRIMARY_SOURCE_INDEX];
         CoordinateReferenceSystem crs = firstCoverage.getCoordinateReferenceSystem();
 
-        for (int i = 0; i < sources.length; i++) {
-            final GridCoverage2D source = sources[i];
+        for (final GridCoverage2D source : sources) {
             CoordinateReferenceSystem crsSource = source.getCoordinateReferenceSystem();
             if (!CRS.equalsIgnoreMetadata(crs, crsSource)) {
                 throw new CoverageProcessingException("Input Coverages have different CRS");
@@ -856,14 +848,12 @@ public class Mosaic extends OperationJAI {
      * We override this one to get some extra behavior that ImageWorker has (ROI, paletted images
      * management)
      */
+    @Override
     protected RenderedImage createRenderedImage(
             final ParameterBlockJAI parameters, RenderingHints hints) {
         parameters.getSources();
         RenderedImage[] images =
-                (RenderedImage[])
-                        parameters
-                                .getSources()
-                                .toArray(new RenderedImage[parameters.getSources().size()]);
+                parameters.getSources().toArray(new RenderedImage[parameters.getSources().size()]);
         MosaicType type = getParameter(parameters, 0);
         PlanarImage[] alphas = getParameter(parameters, ALPHA_PARAM);
         ROI[] rois = getParameter(parameters, ROI_PARAM);
@@ -1000,6 +990,7 @@ public class Mosaic extends OperationJAI {
         return properties;
     }
 
+    @Override
     protected void extractSources(
             final ParameterValueGroup parameters,
             final Collection<GridCoverage2D> sources,
@@ -1015,7 +1006,7 @@ public class Mosaic extends OperationJAI {
                 || ((Collection) srcCoverages).isEmpty()
                 || !(((Collection) srcCoverages).iterator().next() instanceof GridCoverage2D)) {
             throw new InvalidParameterValueException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$1, "sources"),
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$1, "sources"),
                     "sources",
                     srcCoverages);
         }

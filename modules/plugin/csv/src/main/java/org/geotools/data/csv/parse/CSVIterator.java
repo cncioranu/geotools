@@ -23,8 +23,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.csv.CSVFileState;
-import org.opengis.feature.simple.SimpleFeature;
 
 public class CSVIterator implements Iterator<SimpleFeature>, Closeable {
 
@@ -104,6 +104,7 @@ public class CSVIterator implements Iterator<SimpleFeature>, Closeable {
         throw new UnsupportedOperationException("Cannot remove features from csv iteratore");
     }
 
+    @Override
     public void close() {
         try {
             csvReader.close();

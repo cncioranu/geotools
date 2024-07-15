@@ -21,14 +21,14 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.Query;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.store.ContentState;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /** Read contents from MemoryDataStore. */
 public class MemoryFeatureReader implements FeatureReader<SimpleFeatureType, SimpleFeature> {
@@ -44,10 +44,12 @@ public class MemoryFeatureReader implements FeatureReader<SimpleFeatureType, Sim
         iterator = internalCollection.iterator();
     }
 
+    @Override
     public SimpleFeatureType getFeatureType() {
         return featureType;
     }
 
+    @Override
     public SimpleFeature next()
             throws IOException, IllegalAttributeException, NoSuchElementException {
         if (iterator == null) {
@@ -55,16 +57,18 @@ public class MemoryFeatureReader implements FeatureReader<SimpleFeatureType, Sim
         }
 
         try {
-            return SimpleFeatureBuilder.copy((SimpleFeature) iterator.next());
+            return SimpleFeatureBuilder.copy(iterator.next());
         } catch (NoSuchElementException end) {
             throw new DataSourceException("There are no more Features", end);
         }
     }
 
+    @Override
     public boolean hasNext() {
         return (iterator != null) && iterator.hasNext();
     }
 
+    @Override
     public void close() {
         if (iterator != null) {
             iterator = null;

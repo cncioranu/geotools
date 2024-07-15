@@ -19,9 +19,9 @@ package org.geotools.filter.function;
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
 import java.util.Arrays;
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
 
 public class InArrayFunction extends FunctionExpressionImpl {
     public static FunctionName NAME =
@@ -39,6 +39,7 @@ public class InArrayFunction extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         Object candidate = getExpression(0).evaluate(feature);
         Object[] array = getExpression(1).evaluate(feature, Object[].class);

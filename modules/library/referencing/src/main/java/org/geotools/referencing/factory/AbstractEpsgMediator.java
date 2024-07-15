@@ -20,20 +20,19 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.naming.InitialContext;
 import javax.sql.DataSource;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.util.GenericName;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.metadata.Identifier;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.util.GenericName;
-import org.opengis.util.InternationalString;
 
 /**
  * Abstract implementation for EPSG (has a DataSource reference inside).
@@ -73,11 +72,8 @@ public abstract class AbstractEpsgMediator extends AbstractAuthorityMediator {
             return (DataSource) hint;
         } else if (hint instanceof String) {
             String name = (String) hint;
-            InitialContext context;
             try {
-                context = GeoTools.getInitialContext(hints);
-                // name = GeoTools.fixName( context, name );
-                return (DataSource) context.lookup(name);
+                return (DataSource) GeoTools.jndiLookup(name);
             } catch (Exception e) {
                 throw new FactoryException("EPSG_DATA_SOURCE '" + name + "' not found:" + e, e);
             }
@@ -111,15 +107,18 @@ public abstract class AbstractEpsgMediator extends AbstractAuthorityMediator {
         }
     }
 
+    @Override
     public Citation getAuthority() {
         return Citations.EPSG;
     }
 
+    @Override
     public void dispose() throws FactoryException {
         super.dispose();
         datasource = null;
     }
 
+    @Override
     public boolean isConnected() {
         return datasource != null && super.isConnected();
     }
@@ -133,6 +132,7 @@ public abstract class AbstractEpsgMediator extends AbstractAuthorityMediator {
      * @throws NoSuchAuthorityCodeException if the specified {@code code} was not found.
      * @throws FactoryException if the query failed for some other reason.
      */
+    @Override
     public InternationalString getDescriptionText(final String code) throws FactoryException {
         IdentifiedObject identifiedObject = createObject(code);
         final Identifier identifier = identifiedObject.getName();

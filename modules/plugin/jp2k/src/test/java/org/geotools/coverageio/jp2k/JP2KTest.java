@@ -27,23 +27,22 @@ import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.logging.Logger;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.OverviewPolicy;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.test.TestData;
 import org.geotools.util.factory.Hints;
 import org.junit.AssumptionViolatedException;
 import org.junit.Test;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * @author Daniele Romagnoli, GeoSolutions
@@ -51,9 +50,6 @@ import org.opengis.referencing.operation.MathTransform;
  *     <p>Testing {@link org.geotools.coverageio.jp2k.JP2KReader}
  */
 public final class JP2KTest extends BaseJP2K {
-
-    private static final Logger LOGGER =
-            org.geotools.util.logging.Logging.getLogger(JP2KTest.class);
 
     /** Creates a new instance of JP2KTest */
     public JP2KTest() {}
@@ -84,7 +80,7 @@ public final class JP2KTest extends BaseJP2K {
 
         useMT.setValue(false);
         useJAI.setValue(true);
-        final GeneralEnvelope oldEnvelope = reader.getOriginalEnvelope();
+        final GeneralBounds oldEnvelope = reader.getOriginalEnvelope();
         gg.setValue(new GridGeometry2D(reader.getOriginalGridRange(), oldEnvelope));
 
         // //
@@ -93,11 +89,10 @@ public final class JP2KTest extends BaseJP2K {
         //
         // //
         final GridCoverage2D gc =
-                (GridCoverage2D)
-                        reader.read(
-                                new GeneralParameterValue[] {
-                                    gg, useJAI, useMT, tileSize, transparentColor
-                                });
+                reader.read(
+                        new GeneralParameterValue[] {
+                            gg, useJAI, useMT, tileSize, transparentColor
+                        });
         assertNotNull(gc);
         forceDataLoading(gc);
 
@@ -132,10 +127,10 @@ public final class JP2KTest extends BaseJP2K {
         final ParameterValue<GridGeometry2D> gg = JP2KFormat.READ_GRIDGEOMETRY2D.createValue();
         final ParameterValue<Boolean> useJAI = JP2KFormat.USE_JAI_IMAGEREAD.createValue();
         useJAI.setValue(false);
-        final GeneralEnvelope oldEnvelope = reader.getOriginalEnvelope();
+        final GeneralBounds oldEnvelope = reader.getOriginalEnvelope();
         checkReader(reader);
         gg.setValue(new GridGeometry2D(reader.getOriginalGridRange(), oldEnvelope));
-        GridCoverage2D gc = (GridCoverage2D) reader.read(new GeneralParameterValue[] {gg, useJAI});
+        GridCoverage2D gc = reader.read(new GeneralParameterValue[] {gg, useJAI});
         assertNotNull(gc);
         forceDataLoading(gc);
 
@@ -146,9 +141,9 @@ public final class JP2KTest extends BaseJP2K {
         // //
 
         useJAI.setValue(true);
-        final Envelope wgs84Envelope = CRS.transform(oldEnvelope, DefaultGeographicCRS.WGS84);
+        final Bounds wgs84Envelope = CRS.transform(oldEnvelope, DefaultGeographicCRS.WGS84);
         gg.setValue(new GridGeometry2D(reader.getOriginalGridRange(), wgs84Envelope));
-        gc = (GridCoverage2D) reader.read(new GeneralParameterValue[] {gg, useJAI});
+        gc = reader.read(new GeneralParameterValue[] {gg, useJAI});
         assertNotNull(gc);
         forceDataLoading(gc);
     }
@@ -168,7 +163,7 @@ public final class JP2KTest extends BaseJP2K {
         assertEquals(nCov, 1);
         CoordinateReferenceSystem expected = CRS.decode("EPSG:21892");
         assertTrue(CRS.equalsIgnoreMetadata(expected, reader.getCoordinateReferenceSystem()));
-        GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        GeneralBounds envelope = reader.getOriginalEnvelope();
         final double EPS = 1e-6;
         assertEquals(440720, envelope.getMinimum(0), EPS);
         assertEquals(471440, envelope.getMaximum(0), EPS);
@@ -191,7 +186,7 @@ public final class JP2KTest extends BaseJP2K {
         assertEquals(nCov, 1);
         CoordinateReferenceSystem expected = CRS.decode("EPSG:4326", true);
         assertTrue(CRS.equalsIgnoreMetadata(expected, reader.getCoordinateReferenceSystem()));
-        GeneralEnvelope envelope = reader.getOriginalEnvelope();
+        GeneralBounds envelope = reader.getOriginalEnvelope();
         final double EPS = 1e-6;
         assertEquals(-180, envelope.getMinimum(0), EPS);
         assertEquals(180, envelope.getMaximum(0), EPS);

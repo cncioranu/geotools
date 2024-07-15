@@ -28,15 +28,15 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.Style;
 import org.geotools.data.property.PropertyDataStore;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.test.ImageAssert;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
 import org.geotools.renderer.style.FontCache;
-import org.geotools.styling.Mark;
-import org.geotools.styling.Style;
 import org.geotools.styling.visitor.DuplicatingStyleVisitor;
 import org.geotools.test.TestData;
 import org.junit.Before;
@@ -184,6 +184,11 @@ public class VectorFillTest {
     }
 
     @Test
+    public void testDot() throws Exception {
+        testParametricMark("dot", "shape://dot");
+    }
+
+    @Test
     public void testTimes() throws Exception {
         testParametricMark("times", "shape://times");
     }
@@ -204,7 +209,7 @@ public class VectorFillTest {
                 "wktcomposite", "wkt://MULTILINESTRING((-0.5 -0.5, 0.5 0.5), (0 -0.5, 0 0.5))");
     }
 
-    public void testParametricMark(String fileName, final String markName) throws Exception {
+    protected void testParametricMark(String fileName, final String markName) throws Exception {
         Style slashStyle = RendererBaseTest.loadStyle(this, "fillSlash.sld");
         final DuplicatingStyleVisitor markReplacer =
                 new DuplicatingStyleVisitor() {

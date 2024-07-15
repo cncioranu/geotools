@@ -18,11 +18,11 @@ package org.geotools.ows.wmts.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.ows.wms.CRSEnvelope;
 import org.geotools.referencing.CRS;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * The geometry of the tiled space.
@@ -57,7 +57,7 @@ public class TileMatrixSet {
 
     private CRSEnvelope bbox;
 
-    private ArrayList<TileMatrix> matrices = new ArrayList<>();
+    private List<TileMatrix> matrices = new ArrayList<>();
 
     public void setIdentifier(String id) {
         this.identifier = id;
@@ -96,8 +96,14 @@ public class TileMatrixSet {
     protected CoordinateReferenceSystem parseCoordinateReferenceSystem(String crs)
             throws NoSuchAuthorityCodeException, FactoryException {
 
+        /**
+         * Take care of various badly behaved CRS that persist in the Web Mapping Community
+         * urn:ogc:def:crs:EPSG:6.18:3:3857 - comes from a typo in the WMTS spec
+         * (https://portal.ogc.org/files/?artifact_id=50398)
+         */
         if (crs.equalsIgnoreCase("epsg:900913")
-                || crs.equalsIgnoreCase("urn:ogc:def:crs:EPSG::900913")) {
+                || crs.equalsIgnoreCase("urn:ogc:def:crs:EPSG::900913")
+                || crs.equalsIgnoreCase("urn:ogc:def:crs:EPSG:6.18:3:3857")) {
             return WEB_MERCATOR_CRS;
         }
 
@@ -110,7 +116,7 @@ public class TileMatrixSet {
     }
 
     /** @param matrices the matrices to set */
-    public void setMatrices(ArrayList<TileMatrix> matrices) {
+    public void setMatrices(List<TileMatrix> matrices) {
         this.matrices = matrices;
     }
 

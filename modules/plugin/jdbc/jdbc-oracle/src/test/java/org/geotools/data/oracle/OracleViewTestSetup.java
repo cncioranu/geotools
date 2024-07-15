@@ -8,6 +8,7 @@ public class OracleViewTestSetup extends JDBCViewTestSetup {
         super(new OracleTestSetup());
     }
 
+    @Override
     protected void createLakesTable() throws Exception {
         // set up table
         run(

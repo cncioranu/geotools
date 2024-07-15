@@ -25,39 +25,38 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.DataAccess;
-import org.geotools.data.DataStore;
+import org.geotools.api.data.DataAccess;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureListener;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.Repository;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.data.DefaultResourceInfo;
-import org.geotools.data.FeatureListener;
 import org.geotools.data.FeatureListenerManager;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
-import org.geotools.data.Repository;
-import org.geotools.data.ResourceInfo;
-import org.geotools.data.Transaction;
 import org.geotools.data.gen.info.Generalization;
 import org.geotools.data.gen.info.GeneralizationInfo;
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeImpl;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.sort.SortBy;
 
 /**
  * @author Christian Mueller
@@ -77,11 +76,7 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
 
     protected Logger log = Logging.getLogger(this.getClass());
 
-    private SimpleFeatureSource baseFeatureSource;
-
     private Set<Key> supportedHints;
-
-    private Map<Generalization, SimpleFeatureSource> featureSourceCache;
 
     private QueryCapabilities queryCapabilities;
 
@@ -107,8 +102,6 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
     }
 
     public void reset() {
-        baseFeatureSource = null;
-        featureSourceCache = new HashMap<>();
         indexMapping = new HashMap<>();
         supportedHints = null;
         queryCapabilities = null;
@@ -116,23 +109,12 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
     }
 
     private SimpleFeatureSource getBaseFeatureSource() throws IOException {
-        if (baseFeatureSource != null) return baseFeatureSource;
         DataStore ds =
                 repository.dataStore(
                         new NameImpl(info.getDataSourceNameSpace(), info.getDataSourceName()));
         if (ds == null)
             dsNotFoundException(info.getDataSourceNameSpace(), info.getDataSourceName());
-        baseFeatureSource = ds.getFeatureSource(info.getBaseFeatureName());
-
-        // calculate indexMapping
-        int[] mapping =
-                calculateIndexMapping(
-                        baseFeatureSource.getSchema(),
-                        info.getGeomPropertyName(),
-                        info.getGeomPropertyName());
-        indexMapping.put(0.0, mapping);
-
-        return baseFeatureSource;
+        return ds.getFeatureSource(info.getBaseFeatureName());
     }
 
     private int[] calculateIndexMapping(
@@ -155,38 +137,40 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
         return mapping;
     }
 
+    @Override
     public void addFeatureListener(FeatureListener listener) {
         listenerManager.addFeatureListener(this, listener);
     }
 
+    @Override
     public ReferencedEnvelope getBounds() throws IOException {
         return getBounds(Query.ALL);
     }
 
+    @Override
     public ReferencedEnvelope getBounds(Query query) throws IOException {
+        Generalization di = info.getGeneralizationForDistance(getRequestedDistance(query));
+        SimpleFeatureSource fs = getBaseFeatureSource();
+        Query newQuery = getProxyObject(query, fs, di);
 
-        // SimpleFeatureSource fs = getFeatureSourceFor(query);
-        // Query newQuery=getProxyObject(query, fs);
-        // return fs.getBounds(newQuery);
-
-        Query newQuery = getProxyObject(query, getBaseFeatureSource());
         return getBaseFeatureSource().getBounds(newQuery);
     }
 
+    @Override
     public int getCount(Query query) throws IOException {
+        Generalization di = info.getGeneralizationForDistance(getRequestedDistance(query));
+        SimpleFeatureSource fs = getBaseFeatureSource();
+        Query newQuery = getProxyObject(query, fs, di);
 
-        // SimpleFeatureSource fs = getFeatureSourceFor(query);
-        // Query newQuery=getProxyObject(query, fs);
-        // return fs.getCount(newQuery);
-
-        Query newQuery = getProxyObject(query, getBaseFeatureSource());
         return getBaseFeatureSource().getCount(newQuery);
     }
 
+    @Override
     public DataAccess<SimpleFeatureType, SimpleFeature> getDataStore() {
         return dataStore;
     }
 
+    @Override
     public SimpleFeatureCollection getFeatures() throws IOException {
         return new PreGeneralizedFeatureCollection(
                 getBaseFeatureSource().getFeatures(),
@@ -197,6 +181,7 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
                 info.getGeomPropertyName());
     }
 
+    @Override
     public SimpleFeatureCollection getFeatures(Filter filter) throws IOException {
         return new PreGeneralizedFeatureCollection(
                 getBaseFeatureSource().getFeatures(filter),
@@ -207,11 +192,12 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
                 info.getGeomPropertyName());
     }
 
+    @Override
     public SimpleFeatureCollection getFeatures(Query query) throws IOException {
 
         SimpleFeatureSource fs = getFeatureSourceFor(query);
-        Query newQuery = getProxyObject(query, fs);
         Generalization di = info.getGeneralizationForDistance(getRequestedDistance(query));
+        Query newQuery = getProxyObject(query, fs, di);
         if (di != null) logDistanceInfo(di);
         return new PreGeneralizedFeatureCollection(
                 fs.getFeatures(newQuery),
@@ -221,7 +207,7 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
                         ? indexMapping.get(di == null ? 0.0 : di.getDistance())
                         : null,
                 info.getGeomPropertyName(),
-                getBackendGeometryName(fs));
+                getBackendGeometryName(di));
     }
 
     private SimpleFeatureType getReturnedSchema(SimpleFeatureType schema, Query query) {
@@ -236,13 +222,14 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
             Query query, Transaction transaction) throws IOException {
 
         SimpleFeatureSource fs = getFeatureSourceFor(query);
-        Query newQuery = getProxyObject(query, fs);
         DataAccess<SimpleFeatureType, SimpleFeature> access = fs.getDataStore();
         if (access instanceof DataStore) {
-            String backendGeometryPropertyName = getBackendGeometryName(fs);
-
             Generalization di = info.getGeneralizationForDistance(getRequestedDistance(query));
             if (di != null) logDistanceInfo(di);
+
+            Query newQuery = getProxyObject(query, fs, di);
+
+            String backendGeometryPropertyName = getBackendGeometryName(di);
 
             return new PreGeneralizedFeatureReader(
                     getSchema(),
@@ -255,6 +242,7 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
         return null;
     }
 
+    @Override
     public ResourceInfo getInfo() {
         if (ri != null) return ri;
         try {
@@ -285,6 +273,7 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
         return ri;
     }
 
+    @Override
     public Name getName() {
         return new NameImpl(
                 dataStore.getNamespace() == null ? null : dataStore.getNamespace().toString(),
@@ -294,9 +283,10 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
     /*
      * (non-Javadoc)
      *
-     * @see org.geotools.data.FeatureSource#getQueryCapabilities() A query capabilitiy is supported
+     * @see org.geotools.api.data.FeatureSource#getQueryCapabilities() A query capabilitiy is supported
      *      only if ALL backend feature sources support it
      */
+    @Override
     public QueryCapabilities getQueryCapabilities() {
         if (queryCapabilities != null) return queryCapabilities;
         queryCapabilities =
@@ -356,10 +346,11 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
     /*
      * (non-Javadoc)
      *
-     * @see org.geotools.data.FeatureSource#getSchema() Schema derived from base feature schema 1)
+     * @see org.geotools.api.data.FeatureSource#getSchema() Schema derived from base feature schema 1)
      *      all generalized geom attributes removed 2) the default gemoetry propery is taken from
      *      the config
      */
+    @Override
     public SimpleFeatureType getSchema() {
         if (featureTyp != null) return featureTyp;
         try {
@@ -408,9 +399,10 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
     /*
      * (non-Javadoc)
      *
-     * @see org.geotools.data.FeatureSource#getSupportedHints() Calculates the supported hints as
+     * @see org.geotools.api.data.FeatureSource#getSupportedHints() Calculates the supported hints as
      *      intersection of the the generalized features and adds Hints.GEOMETRY_DISTANCE
      */
+    @Override
     public Set<Key> getSupportedHints() {
         if (supportedHints != null) return supportedHints;
         Set<Key> hints = new HashSet<>();
@@ -433,6 +425,7 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
         return supportedHints;
     }
 
+    @Override
     public void removeFeatureListener(FeatureListener listener) {
         listenerManager.removeFeatureListener(this, listener);
     }
@@ -447,15 +440,12 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
 
     private SimpleFeatureSource getFeatureSourceFor(Generalization di) throws IOException {
         if (di == null) return getBaseFeatureSource();
-        SimpleFeatureSource fs = featureSourceCache.get(di);
-        if (fs != null) return fs;
 
         DataStore ds =
                 repository.dataStore(
                         new NameImpl(di.getDataSourceNameSpace(), di.getDataSourceName()));
         if (ds == null) dsNotFoundException(di.getDataSourceNameSpace(), di.getDataSourceName());
-        fs = ds.getFeatureSource(di.getFeatureName());
-        featureSourceCache.put(di, fs);
+        SimpleFeatureSource fs = ds.getFeatureSource(di.getFeatureName());
 
         // calculate indexMapping
         int[] mapping =
@@ -507,25 +497,23 @@ public class PreGeneralizedFeatureSource implements SimpleFeatureSource {
     }
 
     /**
-     * @param fs the backend feature surce
+     * @param di the backend dimension
      * @return Proxy modified for backend feature source
      *     <p>create a proxy for the origianl query object 1) typeName has to be changed to backend
      *     type name 2) geometry property name has tob be changed to backend geometry property name
      */
-    private String getBackendGeometryName(SimpleFeatureSource fs) {
+    private String getBackendGeometryName(Generalization di) {
         // look for the backend geom property name
-        for (Entry<Generalization, SimpleFeatureSource> entry : featureSourceCache.entrySet()) {
-            if (entry.getValue() == fs) {
-                return entry.getKey().getGeomPropertyName();
-            }
+        if (di != null) {
+            return di.getGeomPropertyName();
         }
         return info.getGeomPropertyName(); // use prop name from base feature source
     }
 
-    protected Query getProxyObject(Query query, SimpleFeatureSource fs) {
+    protected Query getProxyObject(Query query, SimpleFeatureSource fs, Generalization di) {
 
         String baseGeomPropertyName = info.getGeomPropertyName(); // generalized geom property
-        String backendGeomPropertyName = getBackendGeometryName(fs);
+        String backendGeomPropertyName = getBackendGeometryName(di);
 
         String[] originalPropNames = query.getPropertyNames();
         String[] newPropNames;

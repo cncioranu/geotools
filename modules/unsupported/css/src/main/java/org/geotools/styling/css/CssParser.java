@@ -28,6 +28,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.filter.text.ecql.ECQL;
 import org.geotools.styling.css.Value.Literal;
@@ -38,8 +40,6 @@ import org.geotools.styling.css.selector.ScaleRange;
 import org.geotools.styling.css.selector.Selector;
 import org.geotools.styling.css.selector.TypeName;
 import org.geotools.util.SuppressFBWarnings;
-import org.opengis.filter.Filter;
-import org.opengis.filter.expression.Expression;
 import org.parboiled.Action;
 import org.parboiled.BaseParser;
 import org.parboiled.Context;
@@ -178,15 +178,11 @@ public class CssParser extends BaseParser<Object> {
                                 stream.collect(
                                         Collectors.partitioningBy(x -> x instanceof CssRule));
                         List<Property> properties =
-                                splitContents
-                                        .get(Boolean.FALSE)
-                                        .stream()
+                                splitContents.get(Boolean.FALSE).stream()
                                         .map(o -> (Property) o)
                                         .collect(Collectors.toList());
                         List<CssRule> subRules =
-                                splitContents
-                                        .get(Boolean.TRUE)
-                                        .stream()
+                                splitContents.get(Boolean.TRUE).stream()
                                         .map(o -> (CssRule) o)
                                         .collect(Collectors.toList());
 
@@ -432,8 +428,7 @@ public class CssParser extends BaseParser<Object> {
                     @Override
                     public boolean run(Context context) {
                         List<Value> values =
-                                popAll(Value.class)
-                                        .stream()
+                                popAll(Value.class).stream()
                                         .map(o -> (Value) o)
                                         .collect(Collectors.toList());
                         Literal id = (Literal) values.get(0);
@@ -484,13 +479,13 @@ public class CssParser extends BaseParser<Object> {
                             value = pop();
                         }
 
-                        if (expressions.size() == 0) {
+                        if (expressions.isEmpty()) {
                             return false;
                         } else if (expressions.size() == 1) {
                             push(firstValue);
                         } else {
                             Collections.reverse(expressions);
-                            org.opengis.filter.expression.Function function =
+                            org.geotools.api.filter.expression.Function function =
                                     Data.FF.function(
                                             "Concatenate",
                                             expressions.toArray(
@@ -640,7 +635,7 @@ public class CssParser extends BaseParser<Object> {
                         String expression = match();
                         expression = expandEnvironmentVariables(expression);
                         try {
-                            org.opengis.filter.expression.Expression e =
+                            org.geotools.api.filter.expression.Expression e =
                                     ECQL.toExpression(expression);
                             ctx.getValueStack().push(new Value.Expression(e));
                             return true;
@@ -936,8 +931,8 @@ public class CssParser extends BaseParser<Object> {
     }
 
     private boolean isInstance(Class[] classes, Object peek) {
-        for (int i = 0; i < classes.length; i++) {
-            if (classes[i].isInstance(peek)) {
+        for (Class aClass : classes) {
+            if (aClass.isInstance(peek)) {
                 return true;
             }
         }

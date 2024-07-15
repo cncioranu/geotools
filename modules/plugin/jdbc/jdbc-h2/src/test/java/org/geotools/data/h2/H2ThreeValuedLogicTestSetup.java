@@ -8,6 +8,7 @@ public class H2ThreeValuedLogicTestSetup extends JDBCThreeValuedLogicTestSetup {
         super(new H2TestSetup());
     }
 
+    @Override
     protected void createAbcTable() throws Exception {
         run(
                 "CREATE TABLE \"geotools\".\"abc\"(\"name\" varchar(10), \"a\" int, \"b\" int, \"c\" int)");
@@ -16,6 +17,7 @@ public class H2ThreeValuedLogicTestSetup extends JDBCThreeValuedLogicTestSetup {
     }
 
     /** Drops the "testlob" table */
+    @Override
     protected void dropAbcTable() throws Exception {
         runSafe("DROP TABLE \"geotools\".\"abc\"");
     }

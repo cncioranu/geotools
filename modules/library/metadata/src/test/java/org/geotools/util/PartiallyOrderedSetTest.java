@@ -30,9 +30,7 @@ public class PartiallyOrderedSetTest {
     @Test
     public void testIterationOverEmptySet() {
         PartiallyOrderedSet<String> poset = new PartiallyOrderedSet<>();
-        for (String s : poset) {
-            fail();
-        }
+        if (!poset.isEmpty()) fail();
     }
 
     @Test
@@ -156,6 +154,7 @@ public class PartiallyOrderedSetTest {
     }
 
     @Test(expected = IllegalStateException.class)
+    @SuppressWarnings("ReturnValueIgnored")
     public void testLoop() {
         PartiallyOrderedSet<String> poset = new PartiallyOrderedSet<>();
         poset.add("a");

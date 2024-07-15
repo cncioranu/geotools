@@ -24,7 +24,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import junit.framework.TestCase;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.GeometryAttribute;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.identity.FeatureId;
 import org.geotools.data.complex.util.ComplexFeatureConstants;
 import org.geotools.data.util.ComplexAttributeConverterFactory;
 import org.geotools.feature.AttributeImpl;
@@ -38,16 +43,12 @@ import org.geotools.gml3.GMLSchema;
 import org.geotools.util.Converters;
 import org.geotools.xs.XSSchema;
 import org.hamcrest.CoreMatchers;
+import org.junit.Assert;
+import org.junit.Test;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.GeometryAttribute;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.identity.FeatureId;
 
 /**
  * Tests for {@link ComplexAttributeConverterFactory}.
@@ -55,9 +56,10 @@ import org.opengis.filter.identity.FeatureId;
  * @author Rini Angreani (CSIRO Earth Science and Resource Engineering)
  * @author Niels Charlier
  */
-public class ComplexAttributeConverterFactoryTest extends TestCase {
+public class ComplexAttributeConverterFactoryTest {
 
     /** Test extracting complex attribute leaf value should be successful. */
+    @Test
     public void testLeafComplexAttribute() {
         Collection<Property> attributes = new ArrayList<>();
         AttributeDescriptor descriptor =
@@ -67,15 +69,16 @@ public class ComplexAttributeConverterFactoryTest extends TestCase {
                         1,
                         1,
                         true,
-                        (Object) null);
+                        null);
         attributes.add(new AttributeImpl("rini", descriptor, null));
         ComplexAttribute gmlName =
                 new ComplexAttributeImpl(attributes, GMLSchema.CODETYPE_TYPE, null);
         String nameString = Converters.convert(gmlName, String.class);
-        assertEquals("rini", nameString);
+        Assert.assertEquals("rini", nameString);
     }
 
     /** Test extracting complex attribute non-leaf value should fail. */
+    @Test
     public void testParentComplexAttribute() {
         Collection<Property> attributes = new ArrayList<>();
         AttributeDescriptor descriptor =
@@ -85,7 +88,7 @@ public class ComplexAttributeConverterFactoryTest extends TestCase {
                         1,
                         1,
                         true,
-                        (Object) null);
+                        null);
         attributes.add(new AttributeImpl("rini", descriptor, null));
         ComplexAttribute gmlName =
                 new ComplexAttributeImpl(attributes, GMLSchema.CODETYPE_TYPE, null);
@@ -97,18 +100,20 @@ public class ComplexAttributeConverterFactoryTest extends TestCase {
                         parentAttributes, GMLSchema.ABSTRACTFEATURETYPE_TYPE, null);
         String nameString = Converters.convert(parentAtt, String.class);
 
-        assertEquals(parentAtt.toString(), nameString);
-        assertNotSame("rini", nameString);
+        Assert.assertEquals(parentAtt.toString(), nameString);
+        Assert.assertNotSame("rini", nameString);
     }
 
     /** Test converting String to FeatureId successful. This is required by feature chaining. */
+    @Test
     public void testFeatureId() throws Exception {
         FeatureId id = Converters.convert("blah", FeatureId.class);
-        assertNotNull(id);
-        assertEquals(id.getID(), "blah");
+        Assert.assertNotNull(id);
+        Assert.assertEquals(id.getID(), "blah");
     }
 
     /** Test extracting geometry from geometryattribute should be successful. */
+    @Test
     public void testGeometry() {
         Geometry geometry =
                 new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING))
@@ -133,10 +138,11 @@ public class ComplexAttributeConverterFactoryTest extends TestCase {
                                 null),
                         null);
         Geometry geometry2 = Converters.convert(geoatt, Geometry.class);
-        assertTrue(geometry == geometry2);
+        Assert.assertSame(geometry, geometry2);
     }
 
     /** Checks that an attribute value is correctly converted to the expected type. */
+    @Test
     public void testAttributeConversion() {
         // create an attribute containing a double
         AttributeDescriptor descriptor =
@@ -162,6 +168,7 @@ public class ComplexAttributeConverterFactoryTest extends TestCase {
      * Checks that a list of attributes is correctly convert to a concatenated string and that only
      * string conversion is supported.
      */
+    @Test
     public void testAttributeListConversion() {
         // create two attributes containing an itneger
         AttributeDescriptor descriptor =

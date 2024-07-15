@@ -16,6 +16,8 @@
  */
 package org.geotools.sld;
 
+import org.geotools.api.style.ResourceLocator;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.filter.v1_0.OGCConfiguration;
 import org.geotools.sld.bindings.SLD;
 import org.geotools.sld.bindings.SLDAbstractBinding;
@@ -70,8 +72,6 @@ import org.geotools.sld.bindings.SLDUserLayerBinding;
 import org.geotools.sld.bindings.SLDUserStyleBinding;
 import org.geotools.sld.bindings.SLDVendorOptionBinding;
 import org.geotools.styling.DefaultResourceLocator;
-import org.geotools.styling.ResourceLocator;
-import org.geotools.styling.StyleFactory;
 import org.geotools.styling.StyleFactoryImpl;
 import org.geotools.xsd.Configuration;
 import org.geotools.xsd.Parser;
@@ -90,6 +90,7 @@ public class SLDConfiguration extends Configuration {
         addDependency(new OGCConfiguration());
     }
 
+    @Override
     protected void registerBindings(MutablePicoContainer container) {
         // Types
         container.registerComponentImplementation(
@@ -192,6 +193,7 @@ public class SLDConfiguration extends Configuration {
      *   <li>{@link StyleFactoryImpl} under {@link StyleFactory}
      * </ul>
      */
+    @Override
     protected void configureContext(MutablePicoContainer container) {
         super.configureContext(container);
 

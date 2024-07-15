@@ -17,8 +17,8 @@
 package org.geotools.feature;
 
 import java.io.Serializable;
+import org.geotools.api.feature.type.Name;
 import org.geotools.util.Utilities;
-import org.opengis.feature.type.Name;
 
 /**
  * Simple implementation of Name.
@@ -41,7 +41,8 @@ import org.opengis.feature.type.Name;
  *
  * @author Justin Deoliveira, The Open Planning Project, jdeolive@openplans.org
  */
-public class NameImpl implements org.opengis.feature.type.Name, Serializable, Comparable<NameImpl> {
+public class NameImpl
+        implements org.geotools.api.feature.type.Name, Serializable, Comparable<NameImpl> {
     private static final long serialVersionUID = 4564070184645559899L;
 
     /** namespace / scope */
@@ -87,22 +88,27 @@ public class NameImpl implements org.opengis.feature.type.Name, Serializable, Co
         this(qName.getNamespaceURI(), qName.getLocalPart());
     }
 
+    @Override
     public boolean isGlobal() {
         return getNamespaceURI() == null;
     }
 
+    @Override
     public String getSeparator() {
         return separator;
     }
 
+    @Override
     public String getNamespaceURI() {
         return namespace;
     }
 
+    @Override
     public String getLocalPart() {
         return local;
     }
 
+    @Override
     public String getURI() {
         if ((namespace == null) && (local == null)) {
             return null;
@@ -124,6 +130,7 @@ public class NameImpl implements org.opengis.feature.type.Name, Serializable, Co
     }
 
     /** value object with equality based on name and namespace. */
+    @Override
     public boolean equals(Object obj) {
         if (obj == this) return true;
 
@@ -141,14 +148,24 @@ public class NameImpl implements org.opengis.feature.type.Name, Serializable, Co
     }
 
     /** name or namespace:name */
+    @Override
     public String toString() {
         return getURI();
     }
 
+    @Override
     public int compareTo(NameImpl other) {
         if (other == null) {
             return 1; // we are greater than null!
         }
-        return getURI().compareTo(other.getURI());
+        int c = compare(getNamespaceURI(), other.getNamespaceURI());
+        return c != 0 ? c : compare(getLocalPart(), other.getLocalPart());
+    }
+
+    private int compare(String s1, String s2) {
+        if (s1 == null || s2 == null) {
+            return s1 == s2 ? 0 : s1 == null ? 1 : -1;
+        }
+        return s1.compareTo(s2);
     }
 }

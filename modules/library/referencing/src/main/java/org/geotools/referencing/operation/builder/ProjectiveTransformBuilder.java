@@ -17,14 +17,14 @@
 package org.geotools.referencing.operation.builder;
 
 import java.util.List;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.geometry.MismatchedReferenceSystemException;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.cs.CartesianCS;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.referencing.operation.matrix.GeneralMatrix;
 import org.geotools.referencing.operation.transform.ProjectiveTransform;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.geometry.MismatchedReferenceSystemException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.cs.CartesianCS;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Builds {@linkplain MathTransform MathTransform} setup as Projective transformation from a list of
@@ -95,6 +95,7 @@ public class ProjectiveTransformBuilder extends MathTransformBuilder {
      *
      * @return minimum number of points required by this builder, which is 4 by default.
      */
+    @Override
     public int getMinimumPointCount() {
         return 4;
     }
@@ -104,6 +105,7 @@ public class ProjectiveTransformBuilder extends MathTransformBuilder {
      *
      * @return required coordinate system type
      */
+    @Override
     public Class<? extends CartesianCS> getCoordinateSystemType() {
         return CartesianCS.class;
     }
@@ -118,25 +120,21 @@ public class ProjectiveTransformBuilder extends MathTransformBuilder {
                 new GeneralMatrix(getMappedPositions().size() * 2, getMappedPositions().size() * 2);
 
         for (int i = 0; i < getMappedPositions().size(); i = i + 2) {
-            if (Double.compare(
-                            (((MappedPosition) getMappedPositions().get(i)).getAccuracy()),
-                            Double.NaN)
-                    == 0) {
+            if (Double.compare((getMappedPositions().get(i).getAccuracy()), Double.NaN) == 0) {
                 throw new MissingInfoException("Accuracy has to be defined for all points");
             }
 
             // weight for x
-            P.setElement(i, i, 1 / ((MappedPosition) getMappedPositions().get(i)).getAccuracy());
+            P.setElement(i, i, 1 / getMappedPositions().get(i).getAccuracy());
             // weight for y
-            P.setElement(
-                    i + 1, i + 1, 1 / ((MappedPosition) getMappedPositions().get(i)).getAccuracy());
+            P.setElement(i + 1, i + 1, 1 / getMappedPositions().get(i).getAccuracy());
         }
     }
 
     /** Fills A matrix for m = (A<sup>T</sup>PA)<sup>-1</sup> A<sup>T</sup>Px' equation */
     protected void fillAMatrix() {
-        final DirectPosition[] sourcePoints = getSourcePoints();
-        final DirectPosition[] targetPoints = getTargetPoints();
+        final Position[] sourcePoints = getSourcePoints();
+        final Position[] targetPoints = getTargetPoints();
         A = new GeneralMatrix(2 * sourcePoints.length, 8);
 
         int numRow = 2 * sourcePoints.length;
@@ -220,7 +218,7 @@ public class ProjectiveTransformBuilder extends MathTransformBuilder {
             }
         }
 
-        GeneralMatrix AT = (GeneralMatrix) A.clone();
+        GeneralMatrix AT = A.clone();
         AT.transpose();
 
         GeneralMatrix ATP = new GeneralMatrix(AT.getNumRow(), P.getNumCol());
@@ -268,6 +266,7 @@ public class ProjectiveTransformBuilder extends MathTransformBuilder {
         return M;
     }
 
+    @Override
     protected MathTransform computeMathTransform() {
         return ProjectiveTransform.create(getProjectiveMatrix());
     }

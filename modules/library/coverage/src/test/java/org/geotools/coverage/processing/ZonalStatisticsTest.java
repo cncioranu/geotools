@@ -35,8 +35,11 @@ import java.util.Set;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.media.jai.PlanarImage;
-import junit.framework.TestCase;
 import org.geotools.TestData;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
@@ -47,12 +50,9 @@ import org.geotools.data.WorldFileReader;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.logging.Logging;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * This test-class evaluates the functionalities of the "ZonalStatistics" {@link OperationJAI}. The
@@ -61,7 +61,7 @@ import org.opengis.referencing.operation.TransformException;
  *
  * @author Nicola Lagomarsini, GeoSolutions
  */
-public class ZonalStatisticsTest extends TestCase {
+public class ZonalStatisticsTest {
 
     /** {@link Logger} used */
     private static final Logger LOGGER = Logging.getLogger(ZonalStatisticsTest.class);
@@ -256,12 +256,13 @@ public class ZonalStatisticsTest extends TestCase {
 
         // Selection of the input geometries and creation of the related list.
         List<SimpleFeature> polygonList = new ArrayList<>();
-        FeatureIterator<SimpleFeature> featureIterator = ZonalStasTest.testPolygons.features();
-        while (featureIterator.hasNext()) {
-            SimpleFeature feature = featureIterator.next();
-            polygonList.add(feature);
+        try (FeatureIterator<SimpleFeature> featureIterator =
+                ZonalStatsTest.testPolygons.features()) {
+            while (featureIterator.hasNext()) {
+                SimpleFeature feature = featureIterator.next();
+                polygonList.add(feature);
+            }
         }
-        featureIterator.close();
 
         // choose the stats
         Set<StatsType> statsSet = new LinkedHashSet<>();
@@ -277,7 +278,7 @@ public class ZonalStatisticsTest extends TestCase {
         includedRanges.add(RangeFactory.create(1370f, true, 1600f, true, false));
 
         // select the bands to work on
-        int[] bands = new int[] {0};
+        int[] bands = {0};
 
         // create the proper instance
         StatisticsTool statisticsTool =
@@ -306,11 +307,11 @@ public class ZonalStatisticsTest extends TestCase {
         double meanResult0 = Math.abs(1283.1634d - mean0) / 1283.1634d * 100;
         double dev_stdResult0 = Math.abs(11.7972d - sdev0) / 11.7972d * 100;
 
-        assertTrue(minResult0 < 10);
-        assertTrue(varResult0 < 10);
-        assertTrue(maxResult0 < 10);
-        assertTrue(meanResult0 < 10);
-        assertTrue(dev_stdResult0 < 10);
+        Assert.assertTrue(minResult0 < 10);
+        Assert.assertTrue(varResult0 < 10);
+        Assert.assertTrue(maxResult0 < 10);
+        Assert.assertTrue(meanResult0 < 10);
+        Assert.assertTrue(dev_stdResult0 < 10);
 
         // Second Range
 
@@ -329,11 +330,11 @@ public class ZonalStatisticsTest extends TestCase {
         double meanResult1 = Math.abs(1433.8979d - mean1) / 1433.8979d * 100;
         double dev_stdResult1 = Math.abs(63.7335d - sdev1) / 63.7335d * 100;
 
-        assertTrue(minResult1 < 10);
-        assertTrue(varResult1 < 10);
-        assertTrue(maxResult1 < 10);
-        assertTrue(meanResult1 < 10);
-        assertTrue(dev_stdResult1 < 10);
+        Assert.assertTrue(minResult1 < 10);
+        Assert.assertTrue(varResult1 < 10);
+        Assert.assertTrue(maxResult1 < 10);
+        Assert.assertTrue(meanResult1 < 10);
+        Assert.assertTrue(dev_stdResult1 < 10);
 
         reader.dispose();
         coverage2D.dispose(true);
@@ -373,12 +374,13 @@ public class ZonalStatisticsTest extends TestCase {
 
         // Selection of the input geometries and creation of the related list.
         List<SimpleFeature> polygonList = new ArrayList<>();
-        FeatureIterator<SimpleFeature> featureIterator = ZonalStasTest.testPolygons.features();
-        while (featureIterator.hasNext()) {
-            SimpleFeature feature = featureIterator.next();
-            polygonList.add(feature);
+        try (FeatureIterator<SimpleFeature> featureIterator =
+                ZonalStatsTest.testPolygons.features()) {
+            while (featureIterator.hasNext()) {
+                SimpleFeature feature = featureIterator.next();
+                polygonList.add(feature);
+            }
         }
-        featureIterator.close();
 
         // choose the stats
         Set<StatsType> statsSet = new LinkedHashSet<>();
@@ -394,7 +396,7 @@ public class ZonalStatisticsTest extends TestCase {
         includedRanges.add(RangeFactory.create(1370f, true, 1600f, true, false));
 
         // select the bands to work on
-        int[] bands = new int[] {0};
+        int[] bands = {0};
 
         // create the proper instance
         StatisticsTool statisticsTool =
@@ -420,11 +422,11 @@ public class ZonalStatisticsTest extends TestCase {
         double meanResult1 = Math.abs(1380.5423d - mean1) / 1380.5423d * 100;
         double dev_stdResult1 = Math.abs(88.7357d - sdev1) / 88.7357d * 100;
 
-        assertTrue(minResult1 < 10);
-        assertTrue(varResult1 < 10);
-        assertTrue(maxResult1 < 10);
-        assertTrue(meanResult1 < 10);
-        assertTrue(dev_stdResult1 < 10);
+        Assert.assertTrue(minResult1 < 10);
+        Assert.assertTrue(varResult1 < 10);
+        Assert.assertTrue(maxResult1 < 10);
+        Assert.assertTrue(meanResult1 < 10);
+        Assert.assertTrue(dev_stdResult1 < 10);
 
         // get the results for the second polygon
         id = "testpolygon.2";
@@ -443,11 +445,11 @@ public class ZonalStatisticsTest extends TestCase {
         double meanResult2 = Math.abs(1248.38d - mean2) / 1248.38d * 100;
         double dev_stdResult2 = Math.abs(36.7996d - sdev2) / 36.7996d * 100;
 
-        assertTrue(minResult2 < 10);
-        assertTrue(varResult2 < 10);
-        assertTrue(maxResult2 < 10);
-        assertTrue(meanResult2 < 10);
-        assertTrue(dev_stdResult2 < 10);
+        Assert.assertTrue(minResult2 < 10);
+        Assert.assertTrue(varResult2 < 10);
+        Assert.assertTrue(maxResult2 < 10);
+        Assert.assertTrue(meanResult2 < 10);
+        Assert.assertTrue(dev_stdResult2 < 10);
 
         // get the results for the third polygon
         id = "testpolygon.3";
@@ -466,11 +468,11 @@ public class ZonalStatisticsTest extends TestCase {
         double meanResult3 = Math.abs(1266.3876d - mean3) / 1266.3876d * 100;
         double dev_stdResult3 = Math.abs(30.9411d - sdev3) / 30.9411d * 100;
 
-        assertTrue(minResult3 < 10);
-        assertTrue(varResult3 < 10);
-        assertTrue(maxResult3 < 10);
-        assertTrue(meanResult3 < 10);
-        assertTrue(dev_stdResult3 < 10);
+        Assert.assertTrue(minResult3 < 10);
+        Assert.assertTrue(varResult3 < 10);
+        Assert.assertTrue(maxResult3 < 10);
+        Assert.assertTrue(meanResult3 < 10);
+        Assert.assertTrue(dev_stdResult3 < 10);
 
         reader.dispose();
         coverage2D.dispose(true);

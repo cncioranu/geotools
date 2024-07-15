@@ -2,7 +2,7 @@
  *    GeoTools - The Open Source Java GIS Toolkit
  *    http://geotools.org
  *
- *    (C) 2006-2016, Open Source Geospatial Foundation (OSGeo)
+ *    (C) 2006-2021, Open Source Geospatial Foundation (OSGeo)
  *
  *    This library is free software; you can redistribute it and/or
  *    modify it under the terms of the GNU Lesser General Public
@@ -63,12 +63,12 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.IIOException;
@@ -127,13 +127,18 @@ import javax.media.jai.operator.RescaleDescriptor;
 import javax.media.jai.operator.SubtractDescriptor;
 import javax.media.jai.operator.XorConstDescriptor;
 import javax.media.jai.registry.RenderedRegistryMode;
+import org.geotools.api.coverage.processing.OperationNotFoundException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.MathTransformFactory;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.LiteCoordinateSequence;
 import org.geotools.image.io.ImageIOExt;
 import org.geotools.image.util.ColorUtilities;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.operation.transform.WarpBuilder;
 import org.geotools.util.Arguments;
@@ -141,10 +146,6 @@ import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.coverage.processing.OperationNotFoundException;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.MathTransformFactory;
 
 /**
  * Helper methods for applying JAI operations on an image. The image is specified at {@linkplain
@@ -187,9 +188,9 @@ public class ImageWorker {
         IDENTITY_SHORT = data;
     }
 
-    private static final double[] ROI_BACKGROUND = new double[] {0};
+    private static final double[] ROI_BACKGROUND = {0};
 
-    private static final double[][] ROI_THRESHOLDS = new double[][] {{1.0}};
+    private static final double[][] ROI_THRESHOLDS = {{1.0}};
 
     private static final String OPERATION_CONST_OP_NAME = "operationConst";
 
@@ -233,12 +234,14 @@ public class ImageWorker {
     static {
         ImageWriterSpi temp = null;
         try {
-
-            Class<?> clazz = Class.forName("com.sun.imageio.plugins.jpeg.JPEGImageWriterSpi");
-            if (clazz != null) {
-                temp = (ImageWriterSpi) clazz.getDeclaredConstructor().newInstance();
-            } else {
-                temp = null;
+            Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType("image/jpeg");
+            while (writers.hasNext()) {
+                ImageWriter temp2 = writers.next();
+                if (temp2.getOriginatingProvider().getClass().getName()
+                        == "com.sun.imageio.plugins.jpeg.JPEGImageWriterSpi") {
+                    temp = temp2.getOriginatingProvider();
+                    break;
+                }
             }
         } catch (Exception e) {
             LOGGER.log(Level.FINER, e.getMessage(), e);
@@ -254,14 +257,7 @@ public class ImageWorker {
     static {
         ImageWriterSpi temp = null;
         try {
-
-            Class<?> clazz =
-                    Class.forName("com.sun.media.imageioimpl.plugins.gif.GIFImageWriterSpi");
-            if (clazz != null) {
-                temp = (ImageWriterSpi) clazz.getDeclaredConstructor().newInstance();
-            } else {
-                temp = null;
-            }
+            temp = getImageWriterSpi("com.sun.media.imageioimpl.plugins.gif.GIFImageWriterSpi");
         } catch (Exception e) {
             LOGGER.log(Level.FINER, e.getMessage(), e);
             temp = null;
@@ -277,11 +273,10 @@ public class ImageWorker {
     static {
         ImageWriterSpi temp = null;
         try {
-
-            Class<?> clazz =
-                    Class.forName("com.sun.media.imageioimpl.plugins.jpeg.CLibJPEGImageWriterSpi");
-            if (clazz != null && PackageUtil.isCodecLibAvailable()) {
-                temp = (ImageWriterSpi) clazz.getDeclaredConstructor().newInstance();
+            if (PackageUtil.isCodecLibAvailable()) {
+                temp =
+                        getImageWriterSpi(
+                                "com.sun.media.imageioimpl.plugins.jpeg.CLibJPEGImageWriterSpi");
             } else {
                 temp = null;
             }
@@ -300,14 +295,7 @@ public class ImageWorker {
     static {
         ImageWriterSpi temp = null;
         try {
-
-            Class<?> clazz =
-                    Class.forName("it.geosolutions.imageioimpl.plugins.tiff.TIFFImageWriterSpi");
-            if (clazz != null) {
-                temp = (ImageWriterSpi) clazz.getDeclaredConstructor().newInstance();
-            } else {
-                temp = null;
-            }
+            temp = getImageWriterSpi("it.geosolutions.imageioimpl.plugins.tiff.TIFFImageWriterSpi");
         } catch (Exception e) {
             LOGGER.log(Level.FINER, e.getMessage(), e);
             temp = null;
@@ -323,11 +311,10 @@ public class ImageWorker {
     static {
         ImageWriterSpi temp = null;
         try {
-
-            Class<?> clazz =
-                    Class.forName("com.sun.media.imageioimpl.plugins.png.CLibPNGImageWriterSpi");
-            if (clazz != null && PackageUtil.isCodecLibAvailable()) {
-                temp = (ImageWriterSpi) clazz.getDeclaredConstructor().newInstance();
+            if (PackageUtil.isCodecLibAvailable()) {
+                temp =
+                        getImageWriterSpi(
+                                "com.sun.media.imageioimpl.plugins.png.CLibPNGImageWriterSpi");
             } else {
                 temp = null;
             }
@@ -339,6 +326,18 @@ public class ImageWorker {
 
         // assign
         CLIB_PNG_IMAGE_WRITER_SPI = temp;
+    }
+
+    static ImageWriterSpi getImageWriterSpi(String className) throws Exception {
+        Iterator<ImageWriterSpi> serviceProviders =
+                IIORegistry.lookupProviders(ImageWriterSpi.class);
+        while (serviceProviders.hasNext()) {
+            ImageWriterSpi serviceProvider = serviceProviders.next();
+            if (serviceProvider.getClass().getName() == className) {
+                return serviceProvider;
+            }
+        }
+        throw new Exception("Class " + className + " not found");
     }
 
     /** Raster space epsilon */
@@ -405,7 +404,8 @@ public class ImageWorker {
             return operation;
         }
 
-        throw new OperationNotFoundException(Errors.format(ErrorKeys.OPERATION_NOT_FOUND_$1, name));
+        throw new OperationNotFoundException(
+                MessageFormat.format(ErrorKeys.OPERATION_NOT_FOUND_$1, name));
     }
 
     /**
@@ -1104,7 +1104,7 @@ public class ImageWorker {
             ParameterBlock pb = new ParameterBlock();
             pb.setSource(image, 0);
             if (JAIExt.isJAIExtOperation("Stats")) {
-                StatsType[] stats = new StatsType[] {StatsType.EXTREMA};
+                StatsType[] stats = {StatsType.EXTREMA};
                 // Band definition
                 int numBands = getNumBands();
                 int[] bands = new int[numBands];
@@ -1168,7 +1168,7 @@ public class ImageWorker {
         ParameterBlock pb = new ParameterBlock();
         pb.setSource(image, 0);
         if (JAIExt.isJAIExtOperation("Stats")) {
-            StatsType[] stats = new StatsType[] {StatsType.HISTOGRAM};
+            StatsType[] stats = {StatsType.HISTOGRAM};
             // Band definition
             int numBands = getNumBands();
             int[] bands = new int[numBands];
@@ -1244,7 +1244,7 @@ public class ImageWorker {
             ParameterBlock pb = new ParameterBlock();
             pb.setSource(image, 0);
             if (JAIExt.isJAIExtOperation("Stats")) {
-                StatsType[] stats = new StatsType[] {StatsType.MEAN};
+                StatsType[] stats = {StatsType.MEAN};
                 // Band definition
                 int numBands = getNumBands();
                 int[] bands = new int[numBands];
@@ -1334,7 +1334,7 @@ public class ImageWorker {
     public final boolean isBytes() {
         final SampleModel sm = image.getSampleModel();
         final int[] sampleSize = sm.getSampleSize();
-        for (int i = 0; i < sampleSize.length; i++) if (sampleSize[i] != 8) return false;
+        for (int j : sampleSize) if (j != 8) return false;
         return true;
     }
 
@@ -1478,7 +1478,7 @@ public class ImageWorker {
                         : ((nodata != null && !nodata.contains(0)) ? 0d : Double.NaN);
 
         // If setting noData to zero, make sure the rescale doesn't map good values to zero.
-        double offsetAdjustment = Math.abs(destNodata - 0) < 1E-6 ? 1 : 0;
+        double offsetAdjustment = nodata != null || Math.abs(destNodata - 0) < 1E-6 ? 1 : 0;
 
         boolean computeRescale = false;
         for (int i = 0; i < length; i++) {
@@ -1945,12 +1945,14 @@ public class ImageWorker {
 
                 default:
                     throw new IllegalArgumentException(
-                            Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "datatype", datatype));
+                            MessageFormat.format(
+                                    ErrorKeys.ILLEGAL_ARGUMENT_$2, "datatype", datatype));
             }
 
             // did we initialized the LUT?
             if (lut == null)
-                throw new IllegalStateException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "lut"));
+                throw new IllegalStateException(
+                        MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "lut"));
             /*
              * Get the default hints, which usually contains only information about tiling.
              * If the user override the rendering hints with an explicit color model,
@@ -2071,7 +2073,8 @@ public class ImageWorker {
 
                 default:
                     throw new IllegalArgumentException(
-                            Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "datatype", dataType));
+                            MessageFormat.format(
+                                    ErrorKeys.ILLEGAL_ARGUMENT_$2, "datatype", dataType));
             }
 
             // prepare color model and sample model
@@ -2299,7 +2302,7 @@ public class ImageWorker {
                 pb.set(background[0], 1);
             } else if (nodata != null) {
                 // default background value may screw up things, let's preserve nodata
-                pb.set(((Number) nodata.getMin()).doubleValue(), 1);
+                pb.set(nodata.getMin().doubleValue(), 1);
             }
         }
         pb.set(roi, 3);
@@ -2350,7 +2353,7 @@ public class ImageWorker {
                 pb.set(background[0], 1);
             } else if (nodata != null) {
                 // default background value may screw up things, let's preserve nodata
-                pb.set(((Number) nodata.getMin()).doubleValue(), 1);
+                pb.set(nodata.getMin().doubleValue(), 1);
             }
         }
         pb.set(roi, 3);
@@ -2403,7 +2406,7 @@ public class ImageWorker {
                 pb.set(background[0], 1);
             } else if (nodata != null) {
                 // default background value may screw up things, let's preserve nodata
-                pb.set(((Number) nodata.getMin()).doubleValue(), 1);
+                pb.set(nodata.getMin().doubleValue(), 1);
             }
         }
         pb.set(transformationList, 3);
@@ -2569,7 +2572,7 @@ public class ImageWorker {
     public final ImageWorker retainBands(final int numBands) {
         if (numBands <= 0) {
             throw new IndexOutOfBoundsException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "numBands", numBands));
+                    MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "numBands", numBands));
         }
         if (getNumBands() > numBands) {
             final int[] bands = new int[numBands];
@@ -2753,7 +2756,7 @@ public class ImageWorker {
             throws IllegalStateException {
         if (transparentColor == null) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "transparentColor"));
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "transparentColor"));
         }
         final ColorModel cm = image.getColorModel();
         if (cm instanceof IndexColorModel) {
@@ -2767,7 +2770,7 @@ public class ImageWorker {
                     // Add other types here if we support them...
             }
         }
-        throw new IllegalStateException(Errors.format(ErrorKeys.UNSUPPORTED_DATA_TYPE));
+        throw new IllegalStateException(ErrorKeys.UNSUPPORTED_DATA_TYPE);
     }
 
     /**
@@ -2840,8 +2843,8 @@ public class ImageWorker {
                     new IndexColorModel(
                             cm.getPixelSize(), mapSize, rgb[0], rgb[1], rgb[2], transparencyIndex);
         } else {
-            for (int k = 0; k < found; k++) {
-                rgb[3][transparentPixelsIndexes.get(k)] = (byte) 0;
+            for (Integer transparentPixelsIndex : transparentPixelsIndexes) {
+                rgb[3][transparentPixelsIndex] = (byte) 0;
             }
             cm = new IndexColorModel(cm.getPixelSize(), mapSize, rgb[0], rgb[1], rgb[2], rgb[3]);
         }
@@ -3423,11 +3426,11 @@ public class ImageWorker {
          * transparent index value can hold in the amount of bits allowed for this color model (the mapSize value may not use all bits). It works as
          * expected with the -1 special value. It also make sure that "transparent + 1" do not exeed the maximum map size allowed.
          */
-        final boolean forceBitmask;
         final IndexColorModel oldCM = (IndexColorModel) image.getColorModel();
         final int pixelSize = oldCM.getPixelSize();
         transparent &= (1 << pixelSize) - 1;
-        forceBitmask = !translucent && oldCM.getTransparency() == Transparency.TRANSLUCENT;
+        final boolean forceBitmask =
+                !translucent && oldCM.getTransparency() == Transparency.TRANSLUCENT;
         if (forceBitmask || oldCM.getTransparentPixel() != transparent) {
             final int mapSize = Math.max(oldCM.getMapSize(), transparent + 1);
             final byte[][] RGBA = new byte[translucent ? 4 : 3][mapSize];
@@ -3463,7 +3466,7 @@ public class ImageWorker {
         // All post conditions for this method contract.
         assert isIndexed();
         assert translucent || !isTranslucent() : translucent;
-        assert ((IndexColorModel) image.getColorModel()).getAlpha(transparent) == 0;
+        assert image.getColorModel().getAlpha(transparent) == 0;
         return this;
     }
 
@@ -3670,7 +3673,7 @@ public class ImageWorker {
         final String filename = output.getName();
         final int dot = filename.lastIndexOf('.');
         if (dot < 0) {
-            throw new IIOException(Errors.format(ErrorKeys.NO_IMAGE_WRITER));
+            throw new IIOException(ErrorKeys.NO_IMAGE_WRITER);
         }
         final String extension = filename.substring(dot + 1).trim();
         write(output, ImageIO.getImageWritersBySuffix(extension));
@@ -3770,7 +3773,7 @@ public class ImageWorker {
             final Iterator<ImageWriter> it =
                     ImageIO.getImageWriters(new ImageTypeSpecifier(image), "PNG");
             if (!it.hasNext()) {
-                throw new IllegalStateException(Errors.format(ErrorKeys.NO_IMAGE_WRITER));
+                throw new IllegalStateException(ErrorKeys.NO_IMAGE_WRITER);
             }
             while (it.hasNext()) {
                 writer = it.next();
@@ -3831,7 +3834,7 @@ public class ImageWorker {
         try (ImageOutputStream memOutStream =
                 ImageIOExt.createImageOutputStream(image, destination)) {
             if (memOutStream == null) {
-                throw new IIOException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "stream"));
+                throw new IIOException(MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "stream"));
             }
             if (CLIB_PNG_IMAGE_WRITER_SPI != null
                     && originatingProvider
@@ -3898,11 +3901,11 @@ public class ImageWorker {
         forceIndexColorModelForGIF(true);
 
         if (IMAGEIO_GIF_IMAGE_WRITER_SPI == null) {
-            throw new IIOException(Errors.format(ErrorKeys.NO_IMAGE_WRITER));
+            throw new IIOException(ErrorKeys.NO_IMAGE_WRITER);
         }
         try (ImageOutputStream stream = ImageIOExt.createImageOutputStream(image, destination)) {
             if (stream == null)
-                throw new IIOException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "stream"));
+                throw new IIOException(MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "stream"));
             final ImageWriter writer = IMAGEIO_GIF_IMAGE_WRITER_SPI.createWriterInstance();
             final ImageWriteParam param = writer.getDefaultWriteParam();
             param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
@@ -3975,7 +3978,7 @@ public class ImageWorker {
         if (writer == null) {
             if (JDK_JPEG_IMAGE_WRITER_SPI == null) {
                 throw new IllegalStateException(
-                        Errors.format(
+                        MessageFormat.format(
                                 ErrorKeys.ILLEGAL_CLASS_$2, "Unable to find JDK JPEG Writer"));
             }
             writer = JDK_JPEG_IMAGE_WRITER_SPI.createWriterInstance();
@@ -3986,7 +3989,7 @@ public class ImageWorker {
 
         try (ImageOutputStream outStream = ImageIOExt.createImageOutputStream(image, destination)) {
             if (outStream == null) {
-                throw new IIOException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "stream"));
+                throw new IIOException(MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "stream"));
             }
 
             iwp.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
@@ -4074,7 +4077,7 @@ public class ImageWorker {
             LOGGER.finer("Unable to find ImageIO-Ext Tiff Writer, looking for another one");
             final Iterator<ImageWriter> it = ImageIO.getImageWritersByFormatName("TIFF");
             if (!it.hasNext()) {
-                throw new IllegalStateException(Errors.format(ErrorKeys.NO_IMAGE_WRITER));
+                throw new IllegalStateException(ErrorKeys.NO_IMAGE_WRITER);
             }
             writer = it.next();
         } else {
@@ -4089,7 +4092,7 @@ public class ImageWorker {
         final ImageWriteParam iwp = writer.getDefaultWriteParam();
         try (ImageOutputStream outStream = ImageIOExt.createImageOutputStream(image, destination)) {
             if (outStream == null) {
-                throw new IIOException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "stream"));
+                throw new IIOException(MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "stream"));
             }
 
             if (compression != null) {
@@ -4187,205 +4190,10 @@ public class ImageWorker {
                     && sourceBoundsProperty instanceof Rectangle
                     && !preserveChainedAffines) {
                 try {
-                    // we can merge the affine into the warp
-                    MathTransform2D originalTransform = (MathTransform2D) mtProperty;
-                    MathTransformFactory factory =
-                            ReferencingFactoryFinder.getMathTransformFactory(null);
-                    MathTransform affineMT =
-                            factory.createAffineTransform(
-                                    new org.geotools.referencing.operation.matrix.AffineTransform2D(
-                                            tx));
-                    MathTransform2D chained =
-                            (MathTransform2D)
-                                    factory.createConcatenatedTransform(
-                                            affineMT.inverse(), originalTransform);
-
-                    // setup the warp builder
-                    Double tolerance = (Double) getRenderingHint(Hints.RESAMPLE_TOLERANCE);
-                    if (tolerance == null) {
-                        tolerance = (Double) Hints.getSystemDefault(Hints.RESAMPLE_TOLERANCE);
-                    }
-                    if (tolerance == null) {
-                        tolerance = 0.333;
-                    }
-
-                    // in case of oversampling, reduce the tolerance by the oversampling factor
-                    // as the oversampling magnifies errors that would not be otherwise visible
-                    if (tx.getScaleX() > 1 || tx.getScaleY() > 1) {
-                        double factor = Math.max(tx.getScaleX(), tx.getScaleY());
-                        tolerance = tolerance / factor;
-                    }
-
-                    // setup a warp builder that is not gong to use too much memory
-                    WarpBuilder wb = new WarpBuilder(tolerance);
-                    wb.setMaxPositions(4 * 1024 * 1024);
-
-                    // compute the target bbox the same way the affine would have to have a 1-1
-                    // match
-                    ParameterBlock pb = new ParameterBlock();
-                    pb.setSource(source, 0);
-                    pb.set(tx, 0);
-                    pb.set(interpolation, 1);
-                    pb.set(bgValues, 2);
-                    pb.set(roi, 3);
-                    pb.set(true, 5);
-                    pb.set(nodata, 6);
-                    RenderedOp at = JAI.create("Affine", pb, getRenderingHints());
-                    updateNoData(bgValues, image);
-
-                    // commonHints);
-                    Rectangle targetBB = at.getBounds();
-                    int tileWidth = at.getTileWidth();
-                    int tileHeight = at.getTileHeight();
-                    ImageUtilities.disposeSinglePlanarImage(at);
-                    Rectangle sourceBB = (Rectangle) sourceBoundsProperty;
-
-                    // warp
-                    Rectangle mappingBB;
-                    if (source.getProperty("ROI") instanceof ROI) {
-                        // Due to a limitation in JAI we need to make sure the
-                        // mapping bounding box covers both source and target bounding box
-                        // otherwise the warped roi image layout won't be computed properly
-                        mappingBB = sourceBB.union(targetBB);
-                    } else {
-                        mappingBB = targetBB;
-                    }
-                    Warp warp = wb.buildWarp(chained, mappingBB);
-
-                    // do the switch only if we get a warp that is as fast as the original one,
-                    // of if we are upsampling, in which case the merge is required to preserve
-                    // good image quality (warp on NN produces pixels that are aligned to the axis
-                    // and then scaled, while the pixels should appear rotated instead)
-                    Warp sourceWarp = (Warp) sourceParamBlock.getObjectParameter(0);
-                    if (warp instanceof WarpGrid
-                            || warp instanceof WarpAffine
-                            || !(sourceWarp instanceof WarpGrid || sourceWarp instanceof WarpAffine)
-                            || tx.getScaleX() > 1
-                            || tx.getScaleY() > 1) {
-                        // and then the JAI Operation
-                        PlanarImage sourceImage = op.getSourceImage(0);
-                        final ParameterBlock paramBlk = new ParameterBlock().addSource(sourceImage);
-                        Object property = sourceImage.getProperty("ROI");
-                        // Boolean indicating if optional ROI may be reprojected back to the initial
-                        // image
-                        boolean canProcessROI = true;
-                        // Boolean indicating if NoData are the same as for the source operation or
-                        // are not present
-                        Range oldNoData =
-                                (Range)
-                                        (sourceParamBlock.getNumParameters() > 3
-                                                ? sourceParamBlock.getObjectParameter(4)
-                                                : null);
-                        boolean hasSameNodata =
-                                (oldNoData == null && nodata == null)
-                                        || (oldNoData != null
-                                                && nodata != null
-                                                && oldNoData.equals(nodata));
-                        if (((property == null)
-                                || property.equals(java.awt.Image.UndefinedProperty)
-                                || !(property instanceof ROI))) {
-                            paramBlk.add(warp).add(interpolation).add(bgValues);
-                            if (oldNoData != null) {
-                                paramBlk.set(oldNoData, 4);
-                            }
-                            // Try to reproject ROI after Warp
-                            ROI newROI = null;
-                            if (roi != null) {
-                                ROI reprojectedROI = roi;
-                                try {
-                                    MathTransform inverse = originalTransform.inverse();
-                                    if (inverse instanceof AffineTransform) {
-                                        AffineTransform inv = (AffineTransform) inverse;
-                                        newROI = reprojectedROI.transform(inv);
-                                    }
-                                } catch (Exception e) {
-                                    if (LOGGER.isLoggable(Level.WARNING)) {
-                                        LOGGER.log(
-                                                Level.WARNING,
-                                                "Unable to compute the inverse of the new ROI provided",
-                                                e);
-                                    }
-                                    // Skip Warp Affine reduction
-                                    canProcessROI = false;
-                                }
-                            }
-
-                            if (newROI != null) {
-                                setROI(newROI);
-                                paramBlk.set(newROI, 3);
-                            }
-                        } else {
-                            // Intersect ROIs
-                            ROI newROI = null;
-                            if (roi != null) {
-                                // Try to reproject ROI after Warp
-                                ROI reprojectedROI = roi;
-                                try {
-                                    MathTransform inverse = originalTransform.inverse();
-                                    if (inverse instanceof AffineTransform) {
-                                        AffineTransform inv = (AffineTransform) inverse;
-                                        reprojectedROI = reprojectedROI.transform(inv);
-                                        newROI = reprojectedROI.intersect((ROI) property);
-                                    }
-                                } catch (Exception e) {
-                                    if (LOGGER.isLoggable(Level.WARNING)) {
-                                        LOGGER.log(
-                                                Level.WARNING,
-                                                "Unable to compute the inverse of the new ROI provided",
-                                                e);
-                                    }
-                                    // Skip Warp Affine reduction
-                                    canProcessROI = false;
-                                }
-                            } else {
-                                newROI = (ROI) property;
-                            }
-                            setROI(newROI);
-                            paramBlk.add(warp).add(interpolation).add(newROI);
-                            if (oldNoData != null) {
-                                paramBlk.set(oldNoData, 4);
-                            }
-                        }
-
-                        // handle background values
-                        if (bgValues == null && sourceParamBlock.getNumParameters() > 2) {
-                            bgValues = (double[]) sourceParamBlock.getObjectParameter(2);
-                        }
-                        if (bgValues != null) {
-                            paramBlk.set(bgValues, 2);
-                        }
-
-                        // Checks if ROI can be processed
-                        if (canProcessROI && hasSameNodata) {
-                            // force in the image layout, this way we get exactly the same
-                            // as the affine we're eliminating
-                            Hints localHints = new Hints(getRenderingHints());
-                            localHints.remove(JAI.KEY_IMAGE_LAYOUT);
-                            ImageLayout il = new ImageLayout();
-                            il.setMinX(targetBB.x);
-                            il.setMinY(targetBB.y);
-                            il.setWidth(targetBB.width);
-                            il.setHeight(targetBB.height);
-
-                            il.setTileHeight(tileWidth);
-                            il.setTileWidth(tileHeight);
-                            il.setTileGridXOffset(0);
-                            il.setTileGridYOffset(0);
-                            localHints.put(JAI.KEY_IMAGE_LAYOUT, il);
-
-                            RenderedOp result = JAI.create("Warp", paramBlk, localHints);
-                            result.setProperty("MathTransform", chained);
-                            image = result;
-                            // getting the new ROI property
-                            Object prop = result.getProperty("roi");
-                            if (prop != null && prop instanceof ROI) {
-                                setROI((ROI) prop);
-                            } else {
-                                setROI(null);
-                            }
-                            return this;
-                        }
-                    }
+                    WarpAffineReducer warpAffineReducer =
+                            new WarpAffineReducer(tx, interpolation, bgValues, op).invoke();
+                    if (warpAffineReducer.reduced()) return this;
+                    bgValues = warpAffineReducer.getBgValues();
                 } catch (Exception e) {
                     LOGGER.log(
                             Level.WARNING,
@@ -4548,19 +4356,17 @@ public class ImageWorker {
                 // layout
                 Hints localHints = new Hints(getRenderingHints());
                 localHints.remove(JAI.KEY_IMAGE_LAYOUT);
-                double[] scalingParams =
-                        new double[] {
-                            1.0, 1.0, Math.round(tx.getTranslateX()), Math.round(tx.getTranslateY())
-                        };
+                double[] scalingParams = {
+                    1.0, 1.0, Math.round(tx.getTranslateX()), Math.round(tx.getTranslateY())
+                };
                 scale(pb, scalingParams, interpolation, localHints);
                 updateNoData(background, image);
                 updateROI(false, SCALE_OP_NAME);
             } else {
                 // generic scale
-                double[] scalingParams =
-                        new double[] {
-                            tx.getScaleX(), tx.getScaleY(), tx.getTranslateX(), tx.getTranslateY()
-                        };
+                double[] scalingParams = {
+                    tx.getScaleX(), tx.getScaleY(), tx.getTranslateX(), tx.getTranslateY()
+                };
                 scale(pb, scalingParams, interpolation, getRenderingHints());
                 updateNoData(background, image);
                 updateROI(false, SCALE_OP_NAME);
@@ -4642,12 +4448,20 @@ public class ImageWorker {
             pb2.set(roi, 5);
             pb2.set(nodata, 7);
             alphaChannel = JAI.create(SCALE_OP_NAME, pb2, hints);
-
             // Now, re-attach the scaled alpha to the scaled image
-            ImageWorker merged = new ImageWorker(scaledImage);
-            Object candidate = hints.get(JAI.KEY_IMAGE_LAYOUT);
-            if (candidate instanceof ImageLayout) {
-                ImageLayout layout = (ImageLayout) candidate;
+            ImageWorker merged = prepareForScaledAlphaChannel(scaledImage, hints, cm, sm);
+            image = merged.addBand(alphaChannel, false, true, null).getRenderedImage();
+        }
+    }
+
+    /** Reattach scaled alpha channel with separate layout. */
+    ImageWorker prepareForScaledAlphaChannel(
+            RenderedImage scaledImage, RenderingHints hints, ColorModel cm, SampleModel sm) {
+        ImageWorker merged = new ImageWorker(scaledImage);
+        Object candidate = hints.get(JAI.KEY_IMAGE_LAYOUT);
+        if (candidate instanceof ImageLayout) {
+            ImageLayout layout = (ImageLayout) candidate;
+            if (layout.getTileWidth(null) > 0 && layout.getTileHeight(null) > 0) {
                 ImageLayout layout2 =
                         new ImageLayout2(
                                 layout.getTileGridXOffset(null),
@@ -4658,8 +4472,8 @@ public class ImageWorker {
                                 cm);
                 merged.setRenderingHints(new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout2));
             }
-            image = merged.addBand(alphaChannel, false, true, null).getRenderedImage();
         }
+        return merged;
     }
 
     /**
@@ -4679,7 +4493,7 @@ public class ImageWorker {
             if (localImage instanceof RenderedOp) {
                 String operationName = ((RenderedOp) localImage).getOperationName();
                 if ("BandMerge".equalsIgnoreCase(operationName)) {
-                    Vector<RenderedImage> sources = localImage.getSources();
+                    List<RenderedImage> sources = localImage.getSources();
                     if (!sources.isEmpty()) {
                         localImage = sources.get(0);
                     }
@@ -4791,9 +4605,7 @@ public class ImageWorker {
                             : (background != null && background.length > 0)
                                     ? background[0]
                                     : Double.NaN;
-            if (!Double.isNaN(destinationNoData)) {
-                pb.set(new double[] {destinationNoData}, 6);
-            }
+            pb.set(new double[] {destinationNoData}, 6);
         }
 
         image = JAI.create("Crop", pb, commonHints);
@@ -4847,8 +4659,7 @@ public class ImageWorker {
             return null;
         }
 
-        for (int i = 0; i < background.length; i++) {
-            double component = background[i];
+        for (double component : background) {
             if (component < 0 || component > 255) {
                 return null;
             }
@@ -4915,9 +4726,9 @@ public class ImageWorker {
         int srcNum = 0;
         // pb.addSource(image);
         if (images != null && images.length > 0) {
-            for (int i = 0; i < images.length; i++) {
-                if (images[i] != null) {
-                    pb.addSource(images[i]);
+            for (RenderedImage renderedImage : images) {
+                if (renderedImage != null) {
+                    pb.addSource(renderedImage);
                     srcNum++;
                 }
             }
@@ -4985,7 +4796,7 @@ public class ImageWorker {
         return this;
     }
 
-    private ROI mosaicROIs(Vector sources, ROI... roiArray) {
+    private ROI mosaicROIs(List sources, ROI... roiArray) {
         if (roiArray == null) {
             return null;
         }
@@ -5023,7 +4834,7 @@ public class ImageWorker {
         for (ROI roi : rois) {
             if (roi instanceof ROIShape || roi instanceof ROIGeometry) {
                 if (vectorReference == null && roi instanceof ROIGeometry) {
-                    vectorReference = (ROIGeometry) roi;
+                    vectorReference = roi;
                 } else {
                     vectorROIs.add(roi);
                 }
@@ -5031,7 +4842,7 @@ public class ImageWorker {
                 rasterROIs.add(roi);
             }
         }
-        if (vectorReference == null && vectorROIs.size() > 0) {
+        if (vectorReference == null && !vectorROIs.isEmpty()) {
             vectorReference = vectorROIs.remove(0);
         }
         // accumulate the vector ROIs, if any
@@ -5040,7 +4851,7 @@ public class ImageWorker {
         }
 
         // optimization in case we end up with just one ROI, no need to mosaic
-        if (rasterROIs.size() == 0) {
+        if (rasterROIs.isEmpty()) {
             return vectorReference;
         } else if (rasterROIs.size() == 1 && vectorReference == null) {
             return rasterROIs.get(0);
@@ -5151,7 +4962,7 @@ public class ImageWorker {
             double xScale, double yScale, double xTrans, double yTrans, Interpolation interp) {
         ParameterBlock pb = new ParameterBlock();
         pb.setSource(image, 0); // The source image.
-        double[] scalingParams = new double[] {xScale, yScale, xTrans, yTrans};
+        double[] scalingParams = {xScale, yScale, xTrans, yTrans};
         scale(pb, scalingParams, interp, getRenderingHints());
 
         // getting the new ROI property
@@ -5259,9 +5070,7 @@ public class ImageWorker {
             }
         }
 
-        if (!Double.isNaN(destNodata)) {
-            pb.set(destNodata, 5);
-        }
+        pb.set(destNodata, 5);
         image = JAI.create("Rescale", pb, getRenderingHints());
         if (!Double.isNaN(destNodata)) {
             setNoData(RangeFactory.create((byte) destNodata, (byte) destNodata));
@@ -5342,8 +5151,7 @@ public class ImageWorker {
         if (cm instanceof IndexColorModel) {
             IndexColorModel icm = (IndexColorModel) cm;
             // try to find the index that matches the requested background color
-            final int bgColorIndex;
-            bgColorIndex = icm.getTransparentPixel();
+            final int bgColorIndex = icm.getTransparentPixel();
 
             // we did not find the background color, well we have to expand to RGB and then tell
             // Mosaic to use the RGB(A) color as the
@@ -5504,13 +5312,12 @@ public class ImageWorker {
 
         // If we need to add a collar use mosaic or if we need to blend/apply a bkg color
         ImageWorker iw = new ImageWorker(image);
-        ROI[] rois = new ROI[] {roi};
+        ROI[] rois = {roi};
 
         // build the transparency thresholds
-        double[][] thresholds =
-                new double[][] {
-                    {ColorUtilities.getThreshold(image.getSampleModel().getDataType())}
-                };
+        double[][] thresholds = {
+            {ColorUtilities.getThreshold(image.getSampleModel().getDataType())}
+        };
         // apply the mosaic
         iw.setBackground(bgValues);
         iw.mosaic(
@@ -5552,6 +5359,7 @@ public class ImageWorker {
      *
      * @return this {@link ImageWorker}.
      */
+    @SuppressWarnings("PMD.UseTryWithResources") // resource might be null
     private ImageWorker write(final Object output, final Iterator<? extends ImageWriter> encoders)
             throws IOException {
         if (encoders != null) {
@@ -5606,7 +5414,7 @@ public class ImageWorker {
                 return this;
             }
         }
-        throw new IIOException(Errors.format(ErrorKeys.NO_IMAGE_WRITER));
+        throw new IIOException(ErrorKeys.NO_IMAGE_WRITER);
     }
 
     /** Returns {@code true} if the specified array contains the specified type. */
@@ -5659,8 +5467,8 @@ public class ImageWorker {
         try {
             c = Class.forName("org.geotools.gui.swing.image.OperationTreeBrowser");
         } catch (ClassNotFoundException cause) {
-            final HeadlessException e;
-            e = new HeadlessException("The \"gt2-widgets-swing.jar\" file is required.");
+            final HeadlessException e =
+                    new HeadlessException("The \"gt2-widgets-swing.jar\" file" + " is required.");
             e.initCause(cause);
             throw e;
         }
@@ -5748,12 +5556,238 @@ public class ImageWorker {
                  * TIP: Tests operations here (before the call to 'show()'), if wanted.
                  */
                 worker.show();
-            } catch (FileNotFoundException e) {
-                arguments.printSummary(e);
-            } catch (NoSuchMethodException e) {
+            } catch (FileNotFoundException | NoSuchMethodException e) {
                 arguments.printSummary(e);
             } catch (Exception e) {
                 java.util.logging.Logger.getGlobal().log(java.util.logging.Level.INFO, "", e);
             }
+    }
+
+    private class WarpAffineReducer {
+        private boolean reduced;
+        private AffineTransform tx;
+        private Interpolation interpolation;
+        private double[] bgValues;
+        private RenderedOp op;
+
+        public WarpAffineReducer(
+                AffineTransform tx, Interpolation interpolation, double[] bgValues, RenderedOp op) {
+            this.tx = tx;
+            this.interpolation = interpolation;
+            this.bgValues = bgValues;
+            this.op = op;
+        }
+
+        boolean reduced() {
+            return reduced;
+        }
+
+        public double[] getBgValues() {
+            return bgValues;
+        }
+
+        public WarpAffineReducer invoke() throws FactoryException, TransformException {
+            // we can merge the affine into the warp
+            MathTransform2D originalTransform = (MathTransform2D) op.getProperty("MathTransform");
+            ParameterBlock sourceParamBlock = op.getParameterBlock();
+            MathTransformFactory factory = ReferencingFactoryFinder.getMathTransformFactory(null);
+            MathTransform affineMT =
+                    factory.createAffineTransform(
+                            new org.geotools.referencing.operation.matrix.AffineTransform2D(tx));
+            MathTransform2D chained =
+                    (MathTransform2D)
+                            factory.createConcatenatedTransform(
+                                    affineMT.inverse(), originalTransform);
+
+            // setup the warp builder
+            Double tolerance = (Double) getRenderingHint(Hints.RESAMPLE_TOLERANCE);
+            if (tolerance == null) {
+                tolerance = (Double) Hints.getSystemDefault(Hints.RESAMPLE_TOLERANCE);
+            }
+            if (tolerance == null) {
+                tolerance = Hints.DEFAULT_RESAMPLE_TOLERANCE;
+            }
+
+            // in case of oversampling, reduce the tolerance by the oversampling factor
+            // as the oversampling magnifies errors that would not be otherwise visible
+            if (tx.getScaleX() > 1 || tx.getScaleY() > 1) {
+                double factor = Math.max(tx.getScaleX(), tx.getScaleY());
+                tolerance = tolerance / factor;
+            }
+
+            // setup a warp builder that is not gong to use too much memory
+            WarpBuilder wb = new WarpBuilder(tolerance);
+            wb.setMaxPositions(4 * 1024 * 1024);
+
+            // compute the target bbox the same way the affine would have to have a 1-1
+            // match
+            ParameterBlock pb = new ParameterBlock();
+            pb.setSource(op, 0);
+            pb.set(tx, 0);
+            pb.set(interpolation, 1);
+            pb.set(bgValues, 2);
+            pb.set(roi, 3);
+            pb.set(true, 5);
+            pb.set(nodata, 6);
+            RenderedOp at = JAI.create("Affine", pb, getRenderingHints());
+            updateNoData(bgValues, image);
+
+            // commonHints);
+            Rectangle targetBB = at.getBounds();
+            int tileWidth = at.getTileWidth();
+            int tileHeight = at.getTileHeight();
+            ImageUtilities.disposeSinglePlanarImage(at);
+
+            // warp
+            Rectangle sourceBB = (Rectangle) op.getProperty("SourceBoundingBox");
+            Rectangle mappingBB;
+            if (op.getProperty("ROI") instanceof ROI) {
+                // Due to a limitation in JAI we need to make sure the
+                // mapping bounding box covers both source and target bounding box
+                // otherwise the warped roi image layout won't be computed properly
+                mappingBB = sourceBB.union(targetBB);
+            } else {
+                mappingBB = targetBB;
+            }
+            Warp warp = wb.buildWarp(chained, mappingBB);
+
+            // do the switch only if we get a warp that is as fast as the original one,
+            // of if we are upsampling, in which case the merge is required to preserve
+            // good image quality (warp on NN produces pixels that are aligned to the axis
+            // and then scaled, while the pixels should appear rotated instead)
+            Warp sourceWarp = (Warp) sourceParamBlock.getObjectParameter(0);
+            if (warp instanceof WarpGrid
+                    || warp instanceof WarpAffine
+                    || !(sourceWarp instanceof WarpGrid || sourceWarp instanceof WarpAffine)
+                    || tx.getScaleX() > 1
+                    || tx.getScaleY() > 1) {
+                // and then the JAI Operation
+                PlanarImage sourceImage = op.getSourceImage(0);
+                final ParameterBlock paramBlk = new ParameterBlock().addSource(sourceImage);
+                Object property = sourceImage.getProperty("ROI");
+                // Boolean indicating if optional ROI may be reprojected back to the initial
+                // image
+                boolean canProcessROI = true;
+                // Boolean indicating if NoData are the same as for the source operation or
+                // are not present
+                Range oldNoData =
+                        (Range)
+                                (sourceParamBlock.getNumParameters() > 3
+                                        ? sourceParamBlock.getObjectParameter(4)
+                                        : null);
+                boolean hasSameNodata =
+                        (oldNoData == null && nodata == null)
+                                || (oldNoData != null
+                                        && nodata != null
+                                        && oldNoData.equals(nodata));
+                if (((property == null)
+                        || property.equals(Image.UndefinedProperty)
+                        || !(property instanceof ROI))) {
+                    paramBlk.add(warp).add(interpolation).add(bgValues);
+                    if (oldNoData != null) {
+                        paramBlk.set(oldNoData, 4);
+                    }
+                    // Try to reproject ROI after Warp
+                    ROI newROI = null;
+                    if (roi != null) {
+                        ROI reprojectedROI = roi;
+                        try {
+                            MathTransform inverse = originalTransform.inverse();
+                            if (inverse instanceof AffineTransform) {
+                                AffineTransform inv = (AffineTransform) inverse;
+                                newROI = reprojectedROI.transform(inv);
+                            }
+                        } catch (Exception e) {
+                            if (LOGGER.isLoggable(Level.WARNING)) {
+                                LOGGER.log(
+                                        Level.WARNING,
+                                        "Unable to compute the inverse of the new ROI provided",
+                                        e);
+                            }
+                            // Skip Warp Affine reduction
+                            canProcessROI = false;
+                        }
+                    }
+
+                    if (newROI != null) {
+                        setROI(newROI);
+                        paramBlk.set(newROI, 3);
+                    }
+                } else {
+                    // Intersect ROIs
+                    ROI newROI = null;
+                    if (roi != null) {
+                        // Try to reproject ROI after Warp
+                        ROI reprojectedROI = roi;
+                        try {
+                            MathTransform inverse = originalTransform.inverse();
+                            if (inverse instanceof AffineTransform) {
+                                AffineTransform inv = (AffineTransform) inverse;
+                                reprojectedROI = reprojectedROI.transform(inv);
+                                newROI = reprojectedROI.intersect((ROI) property);
+                            }
+                        } catch (Exception e) {
+                            if (LOGGER.isLoggable(Level.WARNING)) {
+                                LOGGER.log(
+                                        Level.WARNING,
+                                        "Unable to compute the inverse of the new ROI provided",
+                                        e);
+                            }
+                            // Skip Warp Affine reduction
+                            canProcessROI = false;
+                        }
+                    } else {
+                        newROI = (ROI) property;
+                    }
+                    setROI(newROI);
+                    paramBlk.add(warp).add(interpolation).add(newROI);
+                    if (oldNoData != null) {
+                        paramBlk.set(oldNoData, 4);
+                    }
+                }
+
+                // handle background values
+                if (bgValues == null && sourceParamBlock.getNumParameters() > 2) {
+                    bgValues = (double[]) sourceParamBlock.getObjectParameter(2);
+                }
+                if (bgValues != null) {
+                    paramBlk.set(bgValues, 2);
+                }
+
+                // Checks if ROI can be processed
+                if (canProcessROI && hasSameNodata) {
+                    // force in the image layout, this way we get exactly the same
+                    // as the affine we're eliminating
+                    Hints localHints = new Hints(getRenderingHints());
+                    localHints.remove(JAI.KEY_IMAGE_LAYOUT);
+                    ImageLayout il = new ImageLayout();
+                    il.setMinX(targetBB.x);
+                    il.setMinY(targetBB.y);
+                    il.setWidth(targetBB.width);
+                    il.setHeight(targetBB.height);
+
+                    il.setTileHeight(tileWidth);
+                    il.setTileWidth(tileHeight);
+                    il.setTileGridXOffset(0);
+                    il.setTileGridYOffset(0);
+                    localHints.put(JAI.KEY_IMAGE_LAYOUT, il);
+
+                    RenderedOp result = JAI.create("Warp", paramBlk, localHints);
+                    result.setProperty("MathTransform", chained);
+                    image = result;
+                    // getting the new ROI property
+                    Object prop = result.getProperty("roi");
+                    if (prop != null && prop instanceof ROI) {
+                        setROI((ROI) prop);
+                    } else {
+                        setROI(null);
+                    }
+                    reduced = true;
+                    return this;
+                }
+            }
+            reduced = false;
+            return this;
+        }
     }
 }

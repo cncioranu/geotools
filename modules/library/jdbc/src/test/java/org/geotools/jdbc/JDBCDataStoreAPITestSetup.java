@@ -29,6 +29,7 @@ public abstract class JDBCDataStoreAPITestSetup extends JDBCDelegatingTestSetup 
         super(delegate);
     }
 
+    @Override
     protected void setUpData() throws Exception {
         // kill all the data
         try {
@@ -74,7 +75,7 @@ public abstract class JDBCDataStoreAPITestSetup extends JDBCDelegatingTestSetup 
     /**
      * Drops the "building" table.
      *
-     * <p>This feature type / table is created by one of the tests in teh suite, and not by this
+     * <p>This feature type / table is created by one of the tests in the suite, and not by this
      * test harness.
      */
     protected abstract void dropBuildingTable() throws Exception;

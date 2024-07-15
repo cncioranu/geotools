@@ -22,13 +22,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.parsers.ParserConfigurationException;
 import net.opengis.wmts.v_1.CapabilitiesType;
 import org.geotools.data.ows.GetCapabilitiesResponse;
-import org.geotools.data.ows.HTTPResponse;
+import org.geotools.http.HTTPResponse;
 import org.geotools.ows.ServiceException;
 import org.geotools.ows.wmts.model.WMTSCapabilities;
 import org.geotools.util.logging.Logging;
@@ -67,7 +68,8 @@ public class WMTSGetCapabilitiesResponse extends GetCapabilitiesResponse {
                     String line = null;
 
                     try (BufferedReader bufferedReader =
-                            new BufferedReader(new InputStreamReader(inputStream, "utf-8"))) {
+                            new BufferedReader(
+                                    new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
                         while ((line = bufferedReader.readLine()) != null) {
                             stringBuilder.append(line + "\n");
                         }

@@ -36,21 +36,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.geotools.TestData;
-import org.geotools.data.DataStore;
-import org.geotools.data.FileDataStore;
-import org.geotools.data.FileDataStoreFinder;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FileDataStore;
+import org.geotools.api.data.FileDataStoreFinder;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.data.csv.parse.CSVIterator;
 import org.geotools.data.csv.parse.CSVLatLonStrategy;
 import org.geotools.data.csv.parse.CSVTestStrategySupport;
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
 
 /** @author ian */
 public class CSVWriteOptionsTest {
@@ -92,10 +92,10 @@ public class CSVWriteOptionsTest {
 
     @After
     public void removeTemporaryLocations() throws IOException {
-        File list[] = tmp.listFiles();
+        File[] list = tmp.listFiles();
         if (list != null) {
-            for (int i = 0; i < list.length; i++) {
-                list[i].delete();
+            for (File file : list) {
+                file.delete();
             }
         }
         tmp.delete();
@@ -103,10 +103,10 @@ public class CSVWriteOptionsTest {
 
     // Make sure any temp files were cleaned up.
     public boolean cleanedup() {
-        File list[] = tmp.listFiles((dir, name) -> name.endsWith(".csv"));
+        File[] list = tmp.listFiles((dir, name) -> name.endsWith(".csv"));
         if (list != null) {
-            for (int i = 0; i < list.length; i++) {
-                if (list[i].getName().equalsIgnoreCase("locations.csv")) {
+            for (File file : list) {
+                if (file.getName().equalsIgnoreCase("locations.csv")) {
                     continue;
                 }
                 return false;
@@ -255,13 +255,12 @@ public class CSVWriteOptionsTest {
             String localName = geometryDescriptor.getLocalName();
             assertEquals("Invalid geometry name", "location", localName);
             // iterate through values and verify
-            Object[][] expValues =
-                    new Object[][] {
-                        new Object[] {3.8, 7, "f'oo", 73.28, -14.39},
-                        new Object[] {9.12, -38, "bar", 0, 29},
-                        new Object[] {-37.0, 0, "baz", 49, 0}
-                    };
-            Object[] expTypes = new Object[] {Double.class, Integer.class, String.class};
+            Object[][] expValues = {
+                new Object[] {3.8, 7, "f'oo", 73.28, -14.39},
+                new Object[] {9.12, -38, "bar", 0, 29},
+                new Object[] {-37.0, 0, "baz", 49, 0}
+            };
+            Object[] expTypes = {Double.class, Integer.class, String.class};
             List<SimpleFeature> features = new ArrayList<>(3);
             while (iterator.hasNext()) {
                 features.add(iterator.next());
@@ -269,7 +268,7 @@ public class CSVWriteOptionsTest {
 
             assertEquals("Invalid number of features", 3, features.size());
 
-            String[] attrNames = new String[] {"doubleval", "int'val", "stringval"};
+            String[] attrNames = {"doubleval", "int'val", "stringval"};
             int i = 0;
             for (SimpleFeature feature : features) {
                 Object[] expVals = expValues[i];

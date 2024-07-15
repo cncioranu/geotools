@@ -1,53 +1,39 @@
 /*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
+ *    GeoTools Sample code and Tutorials by Open Source Geospatial Foundation, and others
+ *    https://docs.geotools.org
  *
- *    (C) 2019, Open Source Geospatial Foundation (OSGeo)
+ *    To the extent possible under law, the author(s) have dedicated all copyright
+ *    and related and neighboring rights to this software to the public domain worldwide.
+ *    This software is distributed without any warranty.
  *
- *    This library is free software; you can redistribute it and/or
- *    modify it under the terms of the GNU Lesser General Public
- *    License as published by the Free Software Foundation;
- *    version 2.1 of the License.
- *
- *    This library is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *    Lesser General Public License for more details.
- *
+ *    You should have received a copy of the CC0 Public Domain Dedication along with this
+ *    software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
-
 // docs start source
-/*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
- *
- *    (C) 2006-2008, Open Source Geospatial Foundation (OSGeo)
- *
- *    This file is hereby placed into the Public Domain. This means anyone is
- *    free to do whatever they wish with this file. Use it well and enjoy!
- */
 package org.geotools.tutorial.style;
 
 import java.awt.Color;
 import java.io.File;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.FileDataStore;
-import org.geotools.data.FileDataStoreFinder;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.FileDataStore;
+import org.geotools.api.data.FileDataStoreFinder;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Fill;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.LineSymbolizer;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.PointSymbolizer;
+import org.geotools.api.style.PolygonSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Stroke;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.Layer;
 import org.geotools.map.MapContent;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Fill;
-import org.geotools.styling.Graphic;
-import org.geotools.styling.LineSymbolizer;
-import org.geotools.styling.Mark;
-import org.geotools.styling.PointSymbolizer;
-import org.geotools.styling.PolygonSymbolizer;
-import org.geotools.styling.Rule;
-import org.geotools.styling.Stroke;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
 import org.geotools.swing.JMapFrame;
 import org.geotools.swing.data.JFileDataStoreChooser;
 import org.geotools.swing.dialog.JExceptionReporter;
@@ -57,8 +43,6 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory;
 
 public class StyleLab {
 
@@ -203,7 +187,7 @@ public class StyleLab {
 
         Rule rule = styleFactory.createRule();
         rule.symbolizers().add(sym);
-        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(new Rule[] {rule});
+        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(rule);
         Style style = styleFactory.createStyle();
         style.featureTypeStyles().add(fts);
 
@@ -224,7 +208,7 @@ public class StyleLab {
 
         Rule rule = styleFactory.createRule();
         rule.symbolizers().add(sym);
-        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(new Rule[] {rule});
+        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(rule);
         Style style = styleFactory.createStyle();
         style.featureTypeStyles().add(fts);
 
@@ -255,7 +239,7 @@ public class StyleLab {
 
         Rule rule = styleFactory.createRule();
         rule.symbolizers().add(sym);
-        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(new Rule[] {rule});
+        FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(rule);
         Style style = styleFactory.createStyle();
         style.featureTypeStyles().add(fts);
 

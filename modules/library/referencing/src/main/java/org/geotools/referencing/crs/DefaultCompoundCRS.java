@@ -21,24 +21,24 @@ package org.geotools.referencing.crs;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.referencing.crs.CompoundCRS;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.SingleCRS;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.datum.Datum;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.AbstractReferenceSystem;
 import org.geotools.referencing.cs.DefaultCompoundCS;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.CheckedCollection;
 import org.geotools.util.UnmodifiableArrayList;
-import org.opengis.referencing.crs.CompoundCRS;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.SingleCRS;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.datum.Datum;
 
 /**
  * A coordinate reference system describing the position of points through two or more independent
@@ -87,42 +87,12 @@ public class DefaultCompoundCRS extends AbstractCRS implements CompoundCRS {
     }
 
     /**
-     * Constructs a coordinate reference system from a name and two CRS.
-     *
-     * @param name The name.
-     * @param head The head CRS.
-     * @param tail The tail CRS.
-     */
-    public DefaultCompoundCRS(
-            final String name,
-            final CoordinateReferenceSystem head,
-            final CoordinateReferenceSystem tail) {
-        this(name, new CoordinateReferenceSystem[] {head, tail});
-    }
-
-    /**
-     * Constructs a coordinate reference system from a name and three CRS.
-     *
-     * @param name The name.
-     * @param head The head CRS.
-     * @param middle The middle CRS.
-     * @param tail The tail CRS.
-     */
-    public DefaultCompoundCRS(
-            final String name,
-            final CoordinateReferenceSystem head,
-            final CoordinateReferenceSystem middle,
-            final CoordinateReferenceSystem tail) {
-        this(name, new CoordinateReferenceSystem[] {head, middle, tail});
-    }
-
-    /**
      * Constructs a coordinate reference system from a name.
      *
      * @param name The name.
      * @param crs The array of coordinate reference system making this compound CRS.
      */
-    public DefaultCompoundCRS(final String name, final CoordinateReferenceSystem[] crs) {
+    public DefaultCompoundCRS(final String name, final CoordinateReferenceSystem... crs) {
         this(Collections.singletonMap(NAME_KEY, name), crs);
     }
 
@@ -134,7 +104,7 @@ public class DefaultCompoundCRS extends AbstractCRS implements CompoundCRS {
      * @param properties Set of properties. Should contains at least {@code "name"}.
      * @param crs The array of coordinate reference system making this compound CRS.
      */
-    public DefaultCompoundCRS(final Map<String, ?> properties, CoordinateReferenceSystem[] crs) {
+    public DefaultCompoundCRS(final Map<String, ?> properties, CoordinateReferenceSystem... crs) {
         super(properties, createCoordinateSystem(crs));
         this.crs = copy(Arrays.asList(crs));
     }
@@ -144,11 +114,12 @@ public class DefaultCompoundCRS extends AbstractCRS implements CompoundCRS {
      * work around for RFE #4093999 in Sun's bug database ("Relax constraint on placement of
      * this()/super() call in constructors").
      */
-    private static CoordinateSystem createCoordinateSystem(final CoordinateReferenceSystem[] crs) {
+    private static CoordinateSystem createCoordinateSystem(final CoordinateReferenceSystem... crs) {
         ensureNonNull("crs", crs);
         if (crs.length < 2) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.MISSING_PARAMETER_$1, "crs[" + crs.length + ']'));
+                    MessageFormat.format(
+                            ErrorKeys.MISSING_PARAMETER_$1, "crs[" + crs.length + ']'));
         }
         final CoordinateSystem[] cs = new CoordinateSystem[crs.length];
         for (int i = 0; i < crs.length; i++) {
@@ -184,6 +155,7 @@ public class DefaultCompoundCRS extends AbstractCRS implements CompoundCRS {
      *
      * @return The coordinate reference systems as an unmodifiable list.
      */
+    @Override
     @SuppressWarnings("unchecked") // We are safe if the list is read-only.
     public List<CoordinateReferenceSystem> getCoordinateReferenceSystems() {
         return (List) crs;

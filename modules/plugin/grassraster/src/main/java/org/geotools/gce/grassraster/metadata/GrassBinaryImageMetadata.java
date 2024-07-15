@@ -23,11 +23,11 @@ import javax.imageio.metadata.IIOInvalidTreeException;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.metadata.IIOMetadataFormat;
 import javax.imageio.metadata.IIOMetadataNode;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.gce.grassraster.JGrassRegion;
 import org.geotools.gce.grassraster.core.GrassBinaryRasterReadHandler;
 import org.geotools.gce.grassraster.core.color.JGrassColorTable;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.w3c.dom.Node;
 
 /**
@@ -222,6 +222,7 @@ public final class GrassBinaryImageMetadata extends IIOMetadata {
         if (categories != null) categoriesString = categories;
     }
 
+    @Override
     public Node getAsTree(String formatName) {
         if (formatName.equals(nativeMetadataFormatName)) {
             return getNativeTree();
@@ -230,17 +231,21 @@ public final class GrassBinaryImageMetadata extends IIOMetadata {
         }
     }
 
+    @Override
     public boolean isReadOnly() {
         return false;
     }
 
+    @Override
     public void mergeTree(String formatName, Node root) throws IIOInvalidTreeException {}
 
+    @Override
     public void reset() {
         xRes = yRes = north = south = east = west = Double.NaN;
         nCols = nRows = -1;
     }
 
+    @Override
     public IIOMetadataFormat getMetadataFormat(String formatName) {
         if (formatName.equals(nativeMetadataFormatName))
             return new GrassBinaryImageMetadataFormat();
@@ -275,7 +280,7 @@ public final class GrassBinaryImageMetadata extends IIOMetadata {
         }
     }
 
-    @SuppressWarnings("nls")
+    @Override
     protected IIOMetadataNode getStandardCompressionNode() {
         IIOMetadataNode node = new IIOMetadataNode("Compression");
         IIOMetadataNode subNode = new IIOMetadataNode("Lossless");
@@ -338,7 +343,7 @@ public final class GrassBinaryImageMetadata extends IIOMetadata {
         return root;
     }
 
-    @SuppressWarnings("nls")
+    @Override
     public String toString() {
         StringBuffer buffer = new StringBuffer();
         buffer.append("GrassBinaryImageMetadata[");

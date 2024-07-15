@@ -22,8 +22,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.coverage.grid.Format;
 import org.geotools.coverage.grid.io.GridFormatFactorySpi;
-import org.opengis.coverage.grid.Format;
 
 /**
  * Implementation of the {@link Format} service provider interface for arc grid files.
@@ -41,6 +41,7 @@ public final class ArcGridFormatFactory implements GridFormatFactorySpi {
      *
      * @return True if the plugin is available, False otherwise.
      */
+    @Override
     public boolean isAvailable() {
         boolean available = true;
 
@@ -66,11 +67,13 @@ public final class ArcGridFormatFactory implements GridFormatFactorySpi {
      *
      * @return An {@link ArcGridFormat}.;
      */
+    @Override
     public ArcGridFormat createFormat() {
         return new ArcGridFormat();
     }
 
     /** Returns the implementation hints. The default implementation returns en empty map. */
+    @Override
     public Map<RenderingHints.Key, ?> getImplementationHints() {
         return Collections.emptyMap();
     }

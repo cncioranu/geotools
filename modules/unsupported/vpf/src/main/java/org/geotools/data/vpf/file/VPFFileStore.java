@@ -26,7 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.store.ContentDataStore;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
@@ -34,8 +36,6 @@ import org.geotools.data.vpf.VPFFeatureSource;
 import org.geotools.data.vpf.VPFLogger;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.SchemaException;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
 
 /**
  * A data store for VPF files. Any file can be retrieved from here. If you want joins (for example
@@ -66,6 +66,7 @@ public class VPFFileStore extends ContentDataStore {
     /* (non-Javadoc)
      * @see org.geotools.data.ContentDataStore#getNames()
      */
+    @Override
     public List<Name> getNames() {
         // String[] result = new String[files.size()];
         ArrayList<Name> result = new ArrayList<>();
@@ -126,7 +127,7 @@ public class VPFFileStore extends ContentDataStore {
         SimpleFeatureType result = null;
 
         if (files.containsKey(pathName)) {
-            result = (SimpleFeatureType) files.get(pathName);
+            result = files.get(pathName);
         } else {
             try {
                 VPFFile file = findFile(pathName);
@@ -158,9 +159,9 @@ public class VPFFileStore extends ContentDataStore {
                 SimpleFeatureType schema = iter.next();
                 file = (VPFFile) schema.getUserData().get(VPFFile.class);
                 file.close();
-            } catch (Exception exc) {
+            } catch (Exception e) {
                 // No idea why this might happen
-                exc.printStackTrace();
+                LOGGER.log(Level.SEVERE, "", e);
             }
         }
         files.clear();
@@ -186,8 +187,7 @@ public class VPFFileStore extends ContentDataStore {
             boolean useLower = !curr.equals(currLower);
             ArrayList<String> newMatches = new ArrayList<>();
 
-            for (Iterator<String> it = matches.iterator(); it.hasNext(); ) {
-                String match = (String) it.next();
+            for (String match : matches) {
                 String tmp = match + File.separator + curr;
 
                 if (new File(tmp).exists()) newMatches.add(tmp);
@@ -212,6 +212,6 @@ public class VPFFileStore extends ContentDataStore {
             throw new FileNotFoundException("Could not find file: " + pathName);
         }
 
-        return new VPFFile((String) matches.get(0));
+        return new VPFFile(matches.get(0));
     }
 }

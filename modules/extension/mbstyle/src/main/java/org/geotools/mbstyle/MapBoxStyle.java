@@ -22,15 +22,15 @@ import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.NamedLayer;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyledLayer;
+import org.geotools.api.style.StyledLayerDescriptor;
 import org.geotools.mbstyle.layer.MBLayer;
 import org.geotools.mbstyle.parse.MBFormatException;
 import org.geotools.mbstyle.parse.MBStyleParser;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.NamedLayer;
-import org.geotools.styling.StyledLayer;
-import org.geotools.styling.StyledLayerDescriptor;
 import org.json.simple.parser.ParseException;
-import org.opengis.style.Style;
 
 /**
  * MapBox Style facade offering utility methods for quickly working with JSON and converting to
@@ -130,27 +130,7 @@ public class MapBoxStyle {
                 } else {
                     for (StyledLayer layer : sld.getStyledLayers()) {
                         if (layer instanceof NamedLayer) {
-                            NamedLayer named = (NamedLayer) layer;
-                            if (named.styles().isEmpty()) {
-                                problems.add(
-                                        new MBFormatException(
-                                                "Generated named layer for "
-                                                        + named.getName()
-                                                        + " is empty."));
-                            } else {
-                                for (Style layerStyle : named.styles()) {
-                                    if (layerStyle instanceof FeatureTypeStyle) {
-                                        FeatureTypeStyle fts = (FeatureTypeStyle) layerStyle;
-                                        if (fts.rules().isEmpty()) {
-                                            problems.add(
-                                                    new MBFormatException(
-                                                            "Generated feature type style "
-                                                                    + fts.getName()
-                                                                    + " is empty."));
-                                        }
-                                    }
-                                }
-                            }
+                            validateLayer(problems, (NamedLayer) layer);
                         }
                     }
                 }
@@ -165,5 +145,27 @@ public class MapBoxStyle {
             }
         }
         return problems;
+    }
+
+    private static void validateLayer(List<Exception> problems, NamedLayer layer) {
+        NamedLayer named = layer;
+        if (named.styles().isEmpty()) {
+            problems.add(
+                    new MBFormatException(
+                            "Generated named layer for " + named.getName() + " is empty."));
+        } else {
+            for (Style layerStyle : named.styles()) {
+                if (layerStyle instanceof FeatureTypeStyle) {
+                    FeatureTypeStyle fts = (FeatureTypeStyle) layerStyle;
+                    if (fts.rules().isEmpty()) {
+                        problems.add(
+                                new MBFormatException(
+                                        "Generated feature type style "
+                                                + fts.getName()
+                                                + " is empty."));
+                    }
+                }
+            }
+        }
     }
 }

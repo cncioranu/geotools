@@ -40,16 +40,19 @@ public final class GPKG extends XSD {
     /** private constructor */
     private GPKG() {}
 
+    @Override
     protected void addDependencies(Set<XSD> dependencies) {
         dependencies.add(FES.getInstance());
     }
 
     /** Returns 'http://www.opengis.net/gpkg'. */
+    @Override
     public String getNamespaceURI() {
         return NAMESPACE;
     }
 
     /** Returns the location of 'gpkg.xsd.'. */
+    @Override
     public String getSchemaLocation() {
         return getClass().getResource("gpkg.xsd").toString();
     }
@@ -86,6 +89,9 @@ public final class GPKG extends XSD {
     public static final QName geopackage = new QName("http://www.opengis.net/gpkg", "geopackage");
 
     public static final QName overview = new QName("http://www.opengis.net/gpkg", "overview");
+
+    public static final QName parametertype =
+            new QName("http://www.opengis.net/gpkg", "parametertype");
 
     /* Attributes */
 

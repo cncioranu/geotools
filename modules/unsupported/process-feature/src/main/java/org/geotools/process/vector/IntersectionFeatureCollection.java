@@ -23,6 +23,15 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.factory.CommonFactoryFinder;
@@ -46,15 +55,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A process providing the intersection between two feature collections
@@ -65,10 +65,9 @@ import org.opengis.referencing.operation.TransformException;
  * @author Luca Paolino - GeoSolutions
  */
 @DescribeProcess(
-    title = "Intersection of Feature Collections",
-    description =
-            "Spatial intersection of two feature collections, including combining attributes from both."
-)
+        title = "Intersection of Feature Collections",
+        description =
+                "Spatial intersection of two feature collections, including combining attributes from both.")
 public class IntersectionFeatureCollection implements VectorProcess {
     private static final Logger logger =
             Logger.getLogger("org.geotools.process.feature.gs.IntersectionFeatureCollection");
@@ -85,50 +84,43 @@ public class IntersectionFeatureCollection implements VectorProcess {
     @DescribeResult(description = "Output feature collection")
     public SimpleFeatureCollection execute(
             @DescribeParameter(
-                        name = "first feature collection",
-                        description = "First feature collection"
-                    )
+                            name = "first feature collection",
+                            description = "First feature collection")
                     SimpleFeatureCollection firstFeatures,
             @DescribeParameter(
-                        name = "second feature collection",
-                        description = "Second feature collection"
-                    )
+                            name = "second feature collection",
+                            description = "Second feature collection")
                     SimpleFeatureCollection secondFeatures,
             @DescribeParameter(
-                        name = "first attributes to retain",
-                        collectionType = String.class,
-                        min = 0,
-                        description = "First feature collection attribute to include"
-                    )
+                            name = "first attributes to retain",
+                            collectionType = String.class,
+                            min = 0,
+                            description = "First feature collection attribute to include")
                     List<String> firstAttributes,
             @DescribeParameter(
-                        name = "second attributes to retain",
-                        collectionType = String.class,
-                        min = 0,
-                        description = "Second feature collection attribute to include"
-                    )
+                            name = "second attributes to retain",
+                            collectionType = String.class,
+                            min = 0,
+                            description = "Second feature collection attribute to include")
                     List<String> sndAttributes,
             @DescribeParameter(
-                        name = "intersectionMode",
-                        min = 0,
-                        description =
-                                "Specifies geometry computed for intersecting features.  INTERSECTION (default) computes the spatial intersection of the inputs. FIRST copies geometry A.  SECOND copies geometry B.",
-                        defaultValue = "INTERSECTION"
-                    )
+                            name = "intersectionMode",
+                            min = 0,
+                            description =
+                                    "Specifies geometry computed for intersecting features.  INTERSECTION (default) computes the spatial intersection of the inputs. FIRST copies geometry A.  SECOND copies geometry B.",
+                            defaultValue = "INTERSECTION")
                     IntersectionMode intersectionMode,
             @DescribeParameter(
-                        name = "percentagesEnabled",
-                        min = 0,
-                        description =
-                                "Indicates whether to output feature area percentages (attributes percentageA and percentageB)"
-                    )
+                            name = "percentagesEnabled",
+                            min = 0,
+                            description =
+                                    "Indicates whether to output feature area percentages (attributes percentageA and percentageB)")
                     Boolean percentagesEnabled,
             @DescribeParameter(
-                        name = "areasEnabled",
-                        min = 0,
-                        description =
-                                "Indicates whether to output feature areas (attributes areaA and areaB)"
-                    )
+                            name = "areasEnabled",
+                            min = 0,
+                            description =
+                                    "Indicates whether to output feature areas (attributes areaA and areaB)")
                     Boolean areasEnabled) {
         // assign defaults
         logger.fine("INTERSECTION FEATURE COLLECTION WPS STARTED");
@@ -258,7 +250,7 @@ public class IntersectionFeatureCollection implements VectorProcess {
             Geometry firstTargetGeometry = reprojectAndDensify(first, firstCRS, null);
             Geometry secondTargetGeometry = reprojectAndDensify(second, firstCRS, null);
             double numeratorArea =
-                    (double) (firstTargetGeometry.intersection(secondTargetGeometry)).getArea();
+                    (firstTargetGeometry.intersection(secondTargetGeometry)).getArea();
             if (divideFirst) {
                 double denom = firstTargetGeometry.getArea();
                 if (denom != 0) return numeratorArea / denom;
@@ -530,10 +522,13 @@ public class IntersectionFeatureCollection implements VectorProcess {
             logger.fine("Schema created");
         }
 
+        @Override
         public void close() {
             delegate.close();
         }
 
+        @Override
+        @SuppressWarnings("PMD.UseTryWithResources") // complex resource management
         public boolean hasNext() {
             //   logger.info("qui");
             logger.finer("HAS NEXT");
@@ -576,7 +571,7 @@ public class IntersectionFeatureCollection implements VectorProcess {
                                     } else if (intersectionMode == IntersectionMode.FIRST) {
                                         attribute = currentGeom;
                                     } else if (intersectionMode == IntersectionMode.SECOND) {
-                                        attribute = (Geometry) second.getDefaultGeometry();
+                                        attribute = second.getDefaultGeometry();
                                     }
                                     if (((Geometry) attribute).getNumGeometries() > 0) {
                                         fb.add(attribute);
@@ -685,6 +680,7 @@ public class IntersectionFeatureCollection implements VectorProcess {
             fb.set("percentageB", percentageB);
         }
 
+        @Override
         public SimpleFeature next() throws NoSuchElementException {
             if (!hasNext()) {
                 throw new NoSuchElementException("hasNext() returned false!");
@@ -697,7 +693,7 @@ public class IntersectionFeatureCollection implements VectorProcess {
 
         private SimpleFeatureCollection filteredCollection(
                 Geometry currentGeom, SimpleFeatureCollection subFeatureCollection) {
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
             Filter intersectFilter =
                     ff.intersects(ff.property(dataGeomName), ff.literal(currentGeom));
             SimpleFeatureCollection subFeatureCollectionIntersection =
@@ -760,6 +756,9 @@ public class IntersectionFeatureCollection implements VectorProcess {
                 Point[] array = new Point[n];
                 for (int i = 0; i < n; i++) array[i] = (Point) collection.get(i);
                 return factory.createMultiPoint(array);
+            }
+            if (Point.class.isAssignableFrom(binding) && !collection.isEmpty()) {
+                return (Point) collection.get(0);
             }
             return null;
         }

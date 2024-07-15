@@ -17,8 +17,8 @@
 package org.geotools.gce.imagemosaic.catalog;
 
 import java.util.NoSuchElementException;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * A feature iterator allowing to push back one feature (will be used to map the results of a join)
@@ -37,10 +37,12 @@ class PushbackFeatureIterator implements SimpleFeatureIterator {
         this.delegate = delegate;
     }
 
+    @Override
     public boolean hasNext() {
         return current != null || delegate.hasNext();
     }
 
+    @Override
     public SimpleFeature next() throws NoSuchElementException {
         if (current != null) {
             last = current;
@@ -66,6 +68,7 @@ class PushbackFeatureIterator implements SimpleFeatureIterator {
         }
     }
 
+    @Override
     public void close() {
         delegate.close();
     }

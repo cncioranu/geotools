@@ -21,8 +21,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import org.opengis.filter.capability.ComparisonOperators;
-import org.opengis.filter.capability.Operator;
+import org.geotools.api.filter.capability.ComparisonOperators;
+import org.geotools.api.filter.capability.Operator;
 
 /**
  * Implementation of the ComparisonOperators interface.
@@ -46,13 +46,14 @@ public class ComparisonOperatorsImpl implements ComparisonOperators {
         this.operators = new HashSet<>(operators);
     }
 
-    public ComparisonOperatorsImpl(Operator[] operators) {
+    public ComparisonOperatorsImpl(Operator... operators) {
         if (operators == null) {
             operators = new Operator[] {};
         }
         this.operators = new HashSet<>(Arrays.asList(operators));
     }
 
+    @Override
     public Collection<Operator> getOperators() {
         if (operators == null) {
             operators = new HashSet<>();
@@ -64,6 +65,7 @@ public class ComparisonOperatorsImpl implements ComparisonOperators {
         this.operators = new HashSet<>(operators);
     }
     /** @return Operator with the provided name, or null if not supported */
+    @Override
     public Operator getOperator(String name) {
         if (name == null || operators == null) {
             return null;

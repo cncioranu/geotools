@@ -25,7 +25,7 @@ import org.geotools.xsd.Binding;
 import org.geotools.xsd.ComplexBinding;
 
 /**
- * Gets children from a parent object, visiting bindings in teh hierachy until one is found.
+ * Gets children from a parent object, visiting bindings in the hierachy until one is found.
  *
  * @author Justin Deoliveira, The Open Planning Project
  */
@@ -51,6 +51,7 @@ public class GetPropertyExecutor implements BindingWalker.Visitor {
         return child;
     }
 
+    @Override
     public void visit(Binding binding) {
         // TODO: visit should return a boolean to signify whether to continue
         if (child != null) {

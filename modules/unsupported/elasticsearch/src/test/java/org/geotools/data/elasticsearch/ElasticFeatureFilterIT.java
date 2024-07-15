@@ -19,6 +19,7 @@ package org.geotools.data.elasticsearch;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -31,38 +32,39 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsGreaterThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNotEqualTo;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
+import org.geotools.api.filter.spatial.BBOX;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.store.ContentEntry;
+import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.NameImpl;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.And;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.Id;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNotEqualTo;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
-import org.opengis.filter.spatial.BBOX;
 
 public class ElasticFeatureFilterIT extends ElasticTestSupport {
 
@@ -164,6 +166,17 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
     }
 
     @Test
+    public void testGetFeaturesWithVerySmallBboxFilter() throws Exception {
+        init();
+        FilterFactory ff = dataStore.getFilterFactory();
+        BBOX bbox = ff.bbox("geo", 1, 1, 1.00000001, 1.00000001, "EPSG:" + SOURCE_SRID);
+        SimpleFeatureCollection features = featureSource.getFeatures(bbox);
+        // If the GeoJSON precision is not adjusted, this will fail with an IllegalArgumentException
+        // from ES "top cannot be the same as the bottom"
+        assertEquals(0, features.size());
+    }
+
+    @Test
     public void testGetFeaturesWithORLogicFilter() throws Exception {
         init();
         FilterFactory ff = dataStore.getFilterFactory();
@@ -172,12 +185,13 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
         Or filter = ff.or(property1, property2);
         SimpleFeatureCollection features = featureSource.getFeatures(filter);
         assertEquals(6, features.size());
-        SimpleFeatureIterator iterator = features.features();
-        while (iterator.hasNext()) {
-            SimpleFeature f = iterator.next();
-            assertTrue(
-                    f.getAttribute("vendor_s").equals("D-Link")
-                            || f.getAttribute("vendor_s").equals("Linksys"));
+        try (SimpleFeatureIterator iterator = features.features()) {
+            while (iterator.hasNext()) {
+                SimpleFeature f = iterator.next();
+                assertTrue(
+                        f.getAttribute("vendor_s").equals("D-Link")
+                                || f.getAttribute("vendor_s").equals("Linksys"));
+            }
         }
     }
 
@@ -189,10 +203,11 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
         Not filter = ff.not(property1);
         SimpleFeatureCollection features = featureSource.getFeatures(filter);
         assertEquals(7, features.size());
-        SimpleFeatureIterator iterator = features.features();
-        while (iterator.hasNext()) {
-            SimpleFeature f = iterator.next();
-            assertTrue(!f.getAttribute("vendor_s").equals("D-Link"));
+        try (SimpleFeatureIterator iterator = features.features()) {
+            while (iterator.hasNext()) {
+                SimpleFeature f = iterator.next();
+                assertNotEquals("D-Link", f.getAttribute("vendor_s"));
+            }
         }
     }
 
@@ -213,44 +228,46 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
                 ff.between(ff.property("speed_is"), ff.literal(0), ff.literal(150));
         SimpleFeatureCollection features = featureSource.getFeatures(between);
         assertEquals(9, features.size());
-        SimpleFeatureIterator iterator = features.features();
-        while (iterator.hasNext()) {
-            SimpleFeature f = iterator.next();
-            boolean found = false;
-            if (f.getAttribute("speed_is") instanceof List) {
-                for (Object obj : (List<?>) f.getAttribute("speed_is")) {
-                    int v = (Integer) obj;
-                    if (v >= 0 && v <= 150) {
-                        found = true;
-                        break;
+        try (SimpleFeatureIterator iterator = features.features()) {
+            while (iterator.hasNext()) {
+                SimpleFeature f = iterator.next();
+                boolean found = false;
+                if (f.getAttribute("speed_is") instanceof List) {
+                    for (Object obj : (List<?>) f.getAttribute("speed_is")) {
+                        int v = (Integer) obj;
+                        if (v >= 0 && v <= 150) {
+                            found = true;
+                            break;
+                        }
                     }
+                } else {
+                    int v = (Integer) f.getAttribute("speed_is");
+                    found = (v >= 0 && v <= 150);
                 }
-            } else {
-                int v = (Integer) f.getAttribute("speed_is");
-                found = (v >= 0 && v <= 150);
+                assertTrue(found);
             }
-            assertTrue(found);
         }
         between = ff.between(ff.property("speed_is"), ff.literal(160), ff.literal(300));
         features = featureSource.getFeatures(between);
         assertEquals(5, features.size());
-        iterator = features.features();
-        while (iterator.hasNext()) {
-            SimpleFeature f = iterator.next();
-            boolean found = false;
-            if (f.getAttribute("speed_is") instanceof List) {
-                for (Object obj : (List<?>) f.getAttribute("speed_is")) {
-                    int v = (Integer) obj;
-                    if (v >= 160 && v <= 300) {
-                        found = true;
-                        break;
+        try (SimpleFeatureIterator iterator = features.features()) {
+            while (iterator.hasNext()) {
+                SimpleFeature f = iterator.next();
+                boolean found = false;
+                if (f.getAttribute("speed_is") instanceof List) {
+                    for (Object obj : (List<?>) f.getAttribute("speed_is")) {
+                        int v = (Integer) obj;
+                        if (v >= 160 && v <= 300) {
+                            found = true;
+                            break;
+                        }
                     }
+                } else {
+                    int v = (Integer) f.getAttribute("speed_is");
+                    found = (v >= 160 && v <= 300);
                 }
-            } else {
-                int v = (Integer) f.getAttribute("speed_is");
-                found = (v >= 160 && v <= 300);
+                assertTrue(found);
             }
-            assertTrue(found);
         }
     }
 
@@ -261,7 +278,7 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
         PropertyIsEqualTo filter = ff.equals(ff.property("modem_b"), ff.literal(true));
 
         Query query = new Query();
-        query.setPropertyNames(new String[] {"standard_ss", "security_ss"});
+        query.setPropertyNames("standard_ss", "security_ss");
         query.setFilter(filter);
 
         SimpleFeatureCollection features = featureSource.getFeatures(query);
@@ -274,6 +291,46 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
             String st = (String) feature.getAttribute("standard_ss");
             // changed from "IEEE 802.11b" in SolrFeatureSourceTest
             assertTrue(st.contains("IEEE 802.11b"));
+        }
+    }
+
+    @Test
+    public void testRenamedProperties() throws Exception {
+        init();
+
+        ElasticLayerConfiguration renaming = new ElasticLayerConfiguration(config);
+        renaming.getAttributes().stream()
+                .forEach(
+                        a -> {
+                            if ("standard_ss".equals(a.getName())) a.setCustomName("std");
+                            if ("security_ss".equals(a.getName())) a.setCustomName("sec");
+                            if ("modem_b".equals(a.getName())) a.setCustomName("mob");
+                        });
+        final String RENAMED_TYPE_NAME = "renamed";
+        renaming.setLayerName(RENAMED_TYPE_NAME);
+
+        dataStore.setLayerConfiguration(renaming);
+        dataStore.setSourceFilteringEnabled(true);
+        ContentFeatureSource fs = dataStore.getFeatureSource(RENAMED_TYPE_NAME);
+
+        // setup a query filtering on, and retrieving, renamed attributes
+        FilterFactory ff = dataStore.getFilterFactory();
+        PropertyIsEqualTo filter = ff.equals(ff.property("mob"), ff.literal(true));
+        Query query = new Query();
+        query.setPropertyNames("std", "sec");
+        query.setFilter(filter);
+
+        SimpleFeatureCollection features = fs.getFeatures(query);
+        assertEquals(8, features.size());
+
+        try (SimpleFeatureIterator iterator = features.features()) {
+            assertTrue(iterator.hasNext());
+            SimpleFeature feature = iterator.next();
+            assertEquals(2, feature.getAttributeCount());
+            String std = (String) feature.getAttribute("std");
+            assertTrue(std.contains("IEEE 802.11b"));
+            String sec = (String) feature.getAttribute("sec");
+            assertTrue(sec.contains("WEP"));
         }
     }
 
@@ -307,10 +364,11 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
                 ff.between(ff.property("speed_is"), ff.literal(160), ff.literal(300));
         SimpleFeatureCollection features = featureSource.getFeatures(between);
         assertEquals(5, features.size());
-        SimpleFeatureIterator iterator = features.features();
-        while (iterator.hasNext()) {
-            SimpleFeature f = iterator.next();
-            assertFalse(f.getAttribute("speed_is") instanceof List);
+        try (SimpleFeatureIterator iterator = features.features()) {
+            while (iterator.hasNext()) {
+                SimpleFeature f = iterator.next();
+                assertFalse(f.getAttribute("speed_is") instanceof List);
+            }
         }
     }
 
@@ -320,14 +378,13 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
         FilterFactory ff = dataStore.getFilterFactory();
         SortBy sort = ff.sort("vendor_s", SortOrder.ASCENDING);
         Query query = new Query();
-        query.setSortBy(new SortBy[] {sort});
+        query.setSortBy(sort);
 
         SimpleFeatureCollection features = featureSource.getFeatures(query);
         assertEquals(11, features.size());
 
-        SimpleFeatureIterator iterator = features.features();
         SimpleFeature f;
-        try {
+        try (SimpleFeatureIterator iterator = features.features()) {
             assertTrue(iterator.hasNext());
             f = iterator.next();
             assertEquals("Asus", f.getAttribute("vendor_s"));
@@ -337,15 +394,12 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
             assertTrue(iterator.hasNext());
             f = iterator.next();
             assertEquals("Cisco", f.getAttribute("vendor_s"));
-        } finally {
-            iterator.close();
         }
 
         sort = ff.sort("vendor_s", SortOrder.DESCENDING);
-        query.setSortBy(new SortBy[] {sort});
+        query.setSortBy(sort);
         features = featureSource.getFeatures(query);
-        iterator = features.features();
-        try {
+        try (SimpleFeatureIterator iterator = features.features()) {
             assertTrue(iterator.hasNext());
             f = iterator.next();
             assertEquals("TP-Link", f.getAttribute("vendor_s"));
@@ -355,8 +409,6 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
             assertTrue(iterator.hasNext());
             f = iterator.next();
             assertEquals("Linksys", f.getAttribute("vendor_s"));
-        } finally {
-            iterator.close();
         }
     }
 
@@ -385,30 +437,30 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
     public void testNaturalSortingAsc() throws Exception {
         init();
         Query q = new Query(featureSource.getSchema().getTypeName());
-        q.setSortBy(new SortBy[] {SortBy.NATURAL_ORDER});
-        SimpleFeatureIterator features = featureSource.getFeatures(q).features();
-        String prevId = null;
-        while (features.hasNext()) {
-            String currId = features.next().getID();
-            if (prevId != null) assertTrue(prevId.compareTo(currId) <= 0);
-            prevId = currId;
+        q.setSortBy(SortBy.NATURAL_ORDER);
+        try (SimpleFeatureIterator features = featureSource.getFeatures(q).features()) {
+            String prevId = null;
+            while (features.hasNext()) {
+                String currId = features.next().getID();
+                if (prevId != null) assertTrue(prevId.compareTo(currId) <= 0);
+                prevId = currId;
+            }
         }
-        features.close();
     }
 
     @Test
     public void testNaturalSortingDesc() throws Exception {
         init();
         Query q = new Query(featureSource.getSchema().getTypeName());
-        q.setSortBy(new SortBy[] {SortBy.REVERSE_ORDER});
-        SimpleFeatureIterator features = featureSource.getFeatures(q).features();
-        String prevId = null;
-        while (features.hasNext()) {
-            String currId = features.next().getID();
-            if (prevId != null) assertTrue(prevId.compareTo(currId) >= 0);
-            prevId = currId;
+        q.setSortBy(SortBy.REVERSE_ORDER);
+        try (SimpleFeatureIterator features = featureSource.getFeatures(q).features()) {
+            String prevId = null;
+            while (features.hasNext()) {
+                String currId = features.next().getID();
+                if (prevId != null) assertTrue(prevId.compareTo(currId) >= 0);
+                prevId = currId;
+            }
         }
-        features.close();
     }
 
     @Test
@@ -486,10 +538,11 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
             }
         }
         assertEquals(11, featureSource.getCount(Query.ALL));
-        SimpleFeatureIterator features = featureSource.getFeatures().features();
-        for (int i = 0; i < 11; i++) {
-            assertTrue(features.hasNext());
-            features.next();
+        try (SimpleFeatureIterator features = featureSource.getFeatures().features()) {
+            for (int i = 0; i < 11; i++) {
+                assertTrue(features.hasNext());
+                features.next();
+            }
         }
     }
 
@@ -506,10 +559,11 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
 
         assertEquals(11, featureSource.getCount(Query.ALL));
 
-        SimpleFeatureIterator features = featureSource.getFeatures().features();
-        for (int i = 0; i < 11; i++) {
-            assertTrue(features.hasNext());
-            features.next();
+        try (SimpleFeatureIterator features = featureSource.getFeatures().features()) {
+            for (int i = 0; i < 11; i++) {
+                assertTrue(features.hasNext());
+                features.next();
+            }
         }
     }
 
@@ -524,10 +578,11 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
             }
         }
         assertEquals(11, featureSource.getCount(Query.ALL));
-        SimpleFeatureIterator features = featureSource.getFeatures().features();
-        for (int i = 0; i < 11; i++) {
-            assertTrue(features.hasNext());
-            features.next();
+        try (SimpleFeatureIterator features = featureSource.getFeatures().features()) {
+            for (int i = 0; i < 11; i++) {
+                assertTrue(features.hasNext());
+                features.next();
+            }
         }
     }
 
@@ -545,10 +600,11 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
 
         assertEquals(11, featureSource.getCount(Query.ALL));
 
-        SimpleFeatureIterator features = featureSource.getFeatures().features();
-        for (int i = 0; i < 11; i++) {
-            assertTrue(features.hasNext());
-            features.next();
+        try (SimpleFeatureIterator features = featureSource.getFeatures().features()) {
+            for (int i = 0; i < 11; i++) {
+                assertTrue(features.hasNext());
+                features.next();
+            }
         }
     }
 
@@ -578,7 +634,7 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
         }
 
         // Specify Columns
-        query.setPropertyNames(new String[] {"standard_ss", "security_ss"});
+        query.setPropertyNames("standard_ss", "security_ss");
 
         features = featureSource.getFeatures(query);
 
@@ -701,11 +757,12 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
         dataStore.setScrollSize(1L);
         Query q = new Query();
         q.setMaxFeatures(1);
-        SimpleFeatureIterator it = featureSource.getFeatures(q).features();
-        assertTrue(it.hasNext());
-        it.next();
-        assertTrue(!it.hasNext());
-        it.next();
+        try (SimpleFeatureIterator it = featureSource.getFeatures(q).features()) {
+            assertTrue(it.hasNext());
+            it.next();
+            assertFalse(it.hasNext());
+            it.next();
+        }
     }
 
     @Test
@@ -721,11 +778,12 @@ public class ElasticFeatureFilterIT extends ElasticTestSupport {
         assertEquals(ids.length, features.size());
 
         Set<Integer> s = new HashSet<>(Arrays.asList(ids));
-        SimpleFeatureIterator it = features.features();
-        while (it.hasNext()) {
-            SimpleFeature f = it.next();
-            s.remove(Integer.parseInt(f.getAttribute("id").toString()));
+        try (SimpleFeatureIterator it = features.features()) {
+            while (it.hasNext()) {
+                SimpleFeature f = it.next();
+                s.remove(Integer.parseInt(f.getAttribute("id").toString()));
+            }
+            assertTrue(s.isEmpty());
         }
-        assertTrue(s.isEmpty());
     }
 }

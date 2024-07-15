@@ -29,6 +29,10 @@ import java.awt.font.FontRenderContext;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.TextSymbolizer;
 import org.geotools.geometry.jts.LiteShape2;
 import org.geotools.referencing.operation.transform.ProjectiveTransform;
 import org.geotools.renderer.label.LabelCacheImpl.LabelRenderingMode;
@@ -36,16 +40,12 @@ import org.geotools.renderer.lite.RendererBaseTest;
 import org.geotools.renderer.style.MarkStyle2D;
 import org.geotools.renderer.style.Style2D;
 import org.geotools.renderer.style.TextStyle2D;
-import org.geotools.styling.StyleFactory;
 import org.geotools.styling.StyleFactoryImpl;
-import org.geotools.styling.TextSymbolizer;
 import org.junit.Before;
 import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.mockito.Mockito;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.operation.TransformException;
 
 public class LabelPainterTest {
 
@@ -117,7 +117,7 @@ public class LabelPainterTest {
         labelItem.setAutoWrap(100);
         painter.setLabel(labelItem);
         // should default to 0 with no lines to paint
-        assertTrue(painter.getLineHeightForAnchorY(0) == 0.0);
+        assertEquals(0.0, painter.getLineHeightForAnchorY(0), 0.0);
     }
 
     @Test
@@ -131,12 +131,13 @@ public class LabelPainterTest {
         assertTrue(painter.getLineHeightForAnchorY(0) > 0.0);
 
         // should get line height of first line
-        assertTrue(painter.lines.get(0).getLineHeight() == painter.getLineHeightForAnchorY(1));
+        assertEquals(painter.lines.get(0).getLineHeight(), painter.getLineHeightForAnchorY(1), 0.0);
 
         // should get line height of last line
-        assertTrue(
-                painter.lines.get(painter.getLineCount() - 1).getLineHeight()
-                        == painter.getLineHeightForAnchorY(1));
+        assertEquals(
+                painter.lines.get(painter.getLineCount() - 1).getLineHeight(),
+                painter.getLineHeightForAnchorY(1),
+                0.0);
     }
 
     @Test

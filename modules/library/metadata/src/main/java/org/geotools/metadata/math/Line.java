@@ -19,7 +19,7 @@ package org.geotools.metadata.math;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.io.Serializable;
-import org.opengis.util.Cloneable;
+import org.geotools.api.util.Cloneable;
 
 /**
  * Equation of a line in a two dimensional space (<var>x</var>,<var>y</var>). A line has an equation
@@ -37,7 +37,6 @@ import org.opengis.util.Cloneable;
  * @author Martin Desruisseaux (PMO, IRD)
  * @see Point2D
  * @see Line2D
- * @see Plane
  */
 public class Line implements Cloneable, Serializable {
     /** Serial number for compatibility with different versions. */
@@ -335,11 +334,10 @@ public class Line implements Cloneable, Serializable {
             }
             y = x * slope + y0;
         }
-        double eps;
         /*
          * Ensures that the intersection is in the range of valid x values.
          */
-        eps = EPS * Math.abs(x);
+        double eps = EPS * Math.abs(x);
         if (x1 <= x2) {
             if (!(x >= x1 - eps && x <= x2 + eps)) {
                 return null;

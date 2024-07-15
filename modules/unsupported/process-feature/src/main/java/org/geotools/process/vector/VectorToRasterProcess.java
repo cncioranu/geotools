@@ -42,6 +42,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.media.jai.RasterFactory;
 import javax.media.jai.TiledImage;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.grid.GridCoordinates2D;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
@@ -53,7 +62,7 @@ import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.filter.text.ecql.ECQL;
-import org.geotools.geometry.DirectPosition2D;
+import org.geotools.geometry.Position2D;
 import org.geotools.geometry.jts.Geometries;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -65,15 +74,6 @@ import org.geotools.util.SimpleInternationalString;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.expression.Expression;
-import org.opengis.geometry.Envelope;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
-import org.opengis.util.ProgressListener;
 
 /**
  * A Process to rasterize vector features in an input FeatureCollection.
@@ -90,10 +90,9 @@ import org.opengis.util.ProgressListener;
  * @version $Id$
  */
 @DescribeProcess(
-    title = "Transform",
-    description =
-            "Converts some or all of a feature collection to a raster grid, using an attribute to specify cell values."
-)
+        title = "Transform",
+        description =
+                "Converts some or all of a feature collection to a raster grid, using an attribute to specify cell values.")
 public class VectorToRasterProcess implements VectorProcess {
 
     private static final int COORD_GRID_CHUNK_SIZE = 1000;
@@ -138,8 +137,8 @@ public class VectorToRasterProcess implements VectorProcess {
      *
      * @param features the feature collection to be (wholly or partially) rasterized
      * @param attribute source of values for the output grid: either a {@code String} for the name
-     *     of a numeric feature property or an {@code org.opengis.filter.expression.Expression} that
-     *     evaluates to a numeric value
+     *     of a numeric feature property or an {@code org.geotools.api.filter.expression.Expression}
+     *     that evaluates to a numeric value
      * @param gridDim size of the output raster
      * @param bounds bounds (world coordinates) of the output raster
      * @param covName a name for the output raster
@@ -151,7 +150,7 @@ public class VectorToRasterProcess implements VectorProcess {
             SimpleFeatureCollection features,
             Object attribute,
             Dimension gridDim,
-            Envelope bounds,
+            Bounds bounds,
             String covName,
             ProgressListener monitor)
             throws VectorToRasterException {
@@ -163,50 +162,44 @@ public class VectorToRasterProcess implements VectorProcess {
     @DescribeResult(name = "result", description = "Rasterized grid")
     public GridCoverage2D execute(
             @DescribeParameter(
-                        name = "features",
-                        description = "Features to process",
-                        min = 1,
-                        max = 1
-                    )
+                            name = "features",
+                            description = "Features to process",
+                            min = 1,
+                            max = 1)
                     SimpleFeatureCollection features,
             @DescribeParameter(
-                        name = "rasterWidth",
-                        description = "Width of the output grid in pixels",
-                        min = 1,
-                        max = 1,
-                        minValue = 1
-                    )
+                            name = "rasterWidth",
+                            description = "Width of the output grid in pixels",
+                            min = 1,
+                            max = 1,
+                            minValue = 1)
                     Integer rasterWidth,
             @DescribeParameter(
-                        name = "rasterHeight",
-                        description = "Height of the output grid in pixels",
-                        min = 1,
-                        max = 1,
-                        minValue = 1
-                    )
+                            name = "rasterHeight",
+                            description = "Height of the output grid in pixels",
+                            min = 1,
+                            max = 1,
+                            minValue = 1)
                     Integer rasterHeight,
             @DescribeParameter(
-                        name = "title",
-                        description = "Title to use for the output grid",
-                        min = 0,
-                        max = 1,
-                        defaultValue = "raster"
-                    )
+                            name = "title",
+                            description = "Title to use for the output grid",
+                            min = 0,
+                            max = 1,
+                            defaultValue = "raster")
                     String title,
             @DescribeParameter(
-                        name = "attribute",
-                        description = "Attribute name to use for the raster cell values",
-                        min = 1,
-                        max = 1
-                    )
+                            name = "attribute",
+                            description = "Attribute name to use for the raster cell values",
+                            min = 1,
+                            max = 1)
                     String attribute,
             @DescribeParameter(
-                        name = "bounds",
-                        description = "Bounding box of the area to rasterize",
-                        min = 0,
-                        max = 1
-                    )
-                    Envelope bounds,
+                            name = "bounds",
+                            description = "Bounding box of the area to rasterize",
+                            min = 0,
+                            max = 1)
+                    Bounds bounds,
             ProgressListener progressListener) {
 
         Expression attributeExpr = null;
@@ -302,7 +295,7 @@ public class VectorToRasterProcess implements VectorProcess {
             SimpleFeatureCollection features,
             Object attribute,
             Dimension gridDim,
-            Envelope bounds,
+            Bounds bounds,
             String covName,
             ProgressListener monitor)
             throws VectorToRasterException {
@@ -318,8 +311,7 @@ public class VectorToRasterProcess implements VectorProcess {
         float scale = 100.0f / features.size();
         monitor.started();
 
-        SimpleFeatureIterator fi = features.features();
-        try {
+        try (SimpleFeatureIterator fi = features.features()) {
             int counter = 0;
             while (fi.hasNext()) {
                 try {
@@ -330,8 +322,6 @@ public class VectorToRasterProcess implements VectorProcess {
 
                 monitor.progress(scale * counter++);
             }
-        } finally {
-            fi.close();
         }
         monitor.complete();
 
@@ -342,7 +332,7 @@ public class VectorToRasterProcess implements VectorProcess {
     }
 
     private void initialize(
-            SimpleFeatureCollection features, Envelope bounds, Object attribute, Dimension gridDim)
+            SimpleFeatureCollection features, Bounds bounds, Object attribute, Dimension gridDim)
             throws VectorToRasterException {
 
         // check the attribute argument
@@ -406,11 +396,11 @@ public class VectorToRasterProcess implements VectorProcess {
                 }
                 if (hasException) {
                     throw new VectorToRasterException(
-                            ((Expression) attribute).toString() + " does not evaluate to a number");
+                            attribute.toString() + " does not evaluate to a number");
                 }
             } else if (!Number.class.isAssignableFrom(value.getClass())) {
                 throw new VectorToRasterException(
-                        ((Expression) attribute).toString() + " does not evaluate to a number");
+                        attribute.toString() + " does not evaluate to a number");
             } else if (Float.class.isAssignableFrom(value.getClass())) {
                 transferType = TransferType.FLOAT;
             } else if (Double.class.isAssignableFrom(value.getClass())) {
@@ -430,7 +420,7 @@ public class VectorToRasterProcess implements VectorProcess {
         } else {
             throw new VectorToRasterException(
                     "value attribute must be a feature property name"
-                            + "or an org.opengis.filter.expression.Expression object");
+                            + "or an org.geotools.api.filter.expression.Expression object");
         }
 
         minAttValue = maxAttValue = null;
@@ -453,7 +443,7 @@ public class VectorToRasterProcess implements VectorProcess {
      *
      * @throws org.geotools.process.raster.VectorToRasterException
      */
-    private void setBounds(SimpleFeatureCollection features, Envelope bounds)
+    private void setBounds(SimpleFeatureCollection features, Bounds bounds)
             throws TransformException {
 
         ReferencedEnvelope featureBounds = features.getBounds();
@@ -652,7 +642,7 @@ public class VectorToRasterProcess implements VectorProcess {
         }
 
         // Go through coordinate array in order received
-        DirectPosition2D worldPos = new DirectPosition2D();
+        Position2D worldPos = new Position2D();
         for (int n = 0; n < coords.length; n++) {
             worldPos.setLocation(coords[n].x, coords[n].y);
             GridCoordinates2D gridPos = gridGeom.worldToGrid(worldPos);

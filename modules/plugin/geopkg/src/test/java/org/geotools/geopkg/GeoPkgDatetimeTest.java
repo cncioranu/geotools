@@ -26,17 +26,24 @@ import java.io.IOException;
 import java.net.URL;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFinder;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFinder;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.visitor.Aggregate;
@@ -51,10 +58,6 @@ import org.geotools.util.URLs;
 import org.hamcrest.CoreMatchers;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
 
 public class GeoPkgDatetimeTest {
     private static final NullProgressListener NULL_LISTENER = new NullProgressListener();
@@ -98,8 +101,8 @@ public class GeoPkgDatetimeTest {
                 SimpleFeature f = itr.next();
                 assertNotNull(f);
 
-                Timestamp datetime = (Timestamp) f.getAttribute("datetime");
-                Date date = (Date) f.getAttribute("date");
+                assertThat(f.getAttribute("datetime"), CoreMatchers.instanceOf(Timestamp.class));
+                assertThat(f.getAttribute("date"), CoreMatchers.instanceOf(Date.class));
             }
         }
     }
@@ -224,7 +227,7 @@ public class GeoPkgDatetimeTest {
         SimpleFeatureSource fs = gpkg.getFeatureSource(gpkg.getTypeNames()[0]);
         SimpleFeatureCollection features = fs.getFeatures();
         features.accepts(visitor, NULL_LISTENER);
-        Map results = (Map) visitor.getResult().toMap();
+        Map results = visitor.getResult().toMap();
         assertEquals(java.sql.Date.valueOf("2020-02-19"), results.get(singletonList("1")));
         assertEquals(java.sql.Date.valueOf("2020-02-20"), results.get(singletonList("2")));
     }
@@ -242,7 +245,7 @@ public class GeoPkgDatetimeTest {
         SimpleFeatureSource fs = gpkg.getFeatureSource(gpkg.getTypeNames()[0]);
         SimpleFeatureCollection features = fs.getFeatures();
         features.accepts(visitor, NULL_LISTENER);
-        Map results = (Map) visitor.getResult().toMap();
+        Map results = visitor.getResult().toMap();
 
         assertEquals(5, results.size());
 
@@ -278,13 +281,51 @@ public class GeoPkgDatetimeTest {
         assertEquals(3, features.size());
     }
 
+    //     time                lower      upper   result
+    // 2020-02-19T22:00:00Z     FAIL       PASS    FAIL
+    // 2020-02-19T23:00:00Z     PASS       PASS    PASS
+    // 2020-03-19T00:00:00Z     PASS       PASS    PASS
+    // 2020-03-19T01:00:00Z     PASS       FAIL    FAIL
+    // 2020-02-20T02:00:00Z     PASS       PASS    PASS
+    //
+    //  '2020-03-19 00:00:00' is the start of the day
+    //  '2020-03-19 24:00:00' is the start of the next day
+    //
     @Test
-    public void testBetween_timestamp() throws IOException, CQLException {
+    public void testBetween_timestamp() throws IOException, CQLException, ParseException {
+        // try ISO format for literals
         Filter between =
-                ECQL.toFilter("time BETWEEN '2020-02-19 23:00:00' AND '2020-03-19 00:00:00'");
+                ECQL.toFilter("time BETWEEN '2020-02-19T23:00:00Z' AND '2020-03-19T00:00:00Z'");
 
         SimpleFeatureSource fs = gpkg.getFeatureSource(gpkg.getTypeNames()[0]);
         SimpleFeatureCollection features = fs.getFeatures(between);
+        // to see features returned: new
+        // ListFeatureCollection(features).stream().collect(Collectors.toList());
         assertEquals(3, features.size());
+
+        var lower = gmt2Local("2020-02-19T23:00:00Z");
+        var upper = gmt2Local("2020-03-19T00:00:00Z");
+
+        between = ECQL.toFilter("time BETWEEN '" + lower + "' AND '" + upper + "'");
+
+        fs = gpkg.getFeatureSource(gpkg.getTypeNames()[0]);
+        features = fs.getFeatures(between);
+        assertEquals(3, features.size());
+    }
+
+    // converts a gmt (ie '2020-02-19T23:00:00Z') to local time
+    public String gmt2Local(String gmt) throws ParseException {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss'Z'");
+        java.util.Date parsedDate = dateFormat.parse(gmt);
+        java.util.Date local =
+                new java.util.Date(
+                        parsedDate.getTime()
+                                + Calendar.getInstance()
+                                        .getTimeZone()
+                                        .getOffset(parsedDate.getTime()));
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        var localStr = sdf.format(local);
+        return localStr;
     }
 }

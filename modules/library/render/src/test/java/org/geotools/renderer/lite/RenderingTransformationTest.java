@@ -30,12 +30,21 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.media.jai.Interpolation;
 import org.geotools.TestData;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.style.Style;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.Query;
 import org.geotools.data.property.PropertyDataStore;
 import org.geotools.filter.text.cql2.CQL;
 import org.geotools.filter.text.cql2.CQLException;
@@ -50,20 +59,12 @@ import org.geotools.map.GridReaderLayer;
 import org.geotools.map.MapContent;
 import org.geotools.referencing.CRS;
 import org.geotools.renderer.RenderListener;
-import org.geotools.styling.Style;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opengis.coverage.grid.Format;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class RenderingTransformationTest {
 
@@ -77,7 +78,7 @@ public class RenderingTransformationTest {
     }
 
     @AfterClass
-    public static void tearDown() {
+    public static void tearDownClass() {
         Hints.removeSystemDefault(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER);
     }
 
@@ -390,12 +391,7 @@ public class RenderingTransformationTest {
 
     @Test
     public void testRenderingTransformHighOversample() throws Exception {
-        File file = TestData.copy(this, "arcgrid/arcgrid.zip");
-        TestData.unzipFile(this, "arcgrid/arcgrid.zip");
-        URL rainURL =
-                GridCoverageRendererTest.class.getResource("test-data/arcgrid/precip30min.asc");
-        File rainFile = URLs.urlToFile(rainURL);
-        ArcGridReader rainReader = new ArcGridReader(rainFile);
+        ArcGridReader rainReader = getRainReader();
 
         Style style = RendererBaseTest.loadStyle(this, "rainrt.sld");
         MapContent mc = new MapContent();
@@ -413,5 +409,38 @@ public class RenderingTransformationTest {
                         polarEnvelope);
         File expected = new File("src/test/resources/org/geotools/renderer/lite/rainrt.png");
         ImageAssert.assertEquals(expected, image, 100);
+    }
+
+    @Test
+    public void testRenderingTransformInterpolationHint() throws Exception {
+        ArcGridReader rainReader = getRainReader();
+        Style style = RendererBaseTest.loadStyle(this, "rainrt.sld");
+        MapContent mc = new MapContent();
+        GridReaderLayer layer = new GridReaderLayer(rainReader, style);
+        Interpolation bilinear = Interpolation.getInstance(Interpolation.INTERP_BILINEAR);
+        layer.getUserData().put(StreamingRenderer.BYLAYER_INTERPOLATION, bilinear);
+        mc.addLayer(layer);
+        StreamingRenderer renderer = new StreamingRenderer();
+        renderer.setMapContent(mc);
+        ReferencedEnvelope polarEnvelope =
+                new ReferencedEnvelope(
+                        313000, 413000, 13000, 213000, CRS.decode("EPSG:3995", true));
+        BufferedImage image =
+                RendererBaseTest.showRender(
+                        "High oversample, rendering transform and interpolation",
+                        renderer,
+                        TIME,
+                        polarEnvelope);
+        File expected = new File("src/test/resources/org/geotools/renderer/lite/rainrt-bil.png");
+        ImageAssert.assertEquals(expected, image, 100);
+    }
+
+    private ArcGridReader getRainReader() throws IOException {
+        TestData.unzipFile(this, "arcgrid/arcgrid.zip");
+        URL rainURL =
+                GridCoverageRendererTest.class.getResource("test-data/arcgrid/precip30min.asc");
+        File rainFile = URLs.urlToFile(rainURL);
+        ArcGridReader rainReader = new ArcGridReader(rainFile);
+        return rainReader;
     }
 }

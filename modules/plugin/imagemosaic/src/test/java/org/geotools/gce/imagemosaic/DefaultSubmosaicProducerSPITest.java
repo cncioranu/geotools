@@ -27,7 +27,8 @@ import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.io.FileUtils;
-import org.geotools.data.Query;
+import org.geotools.api.data.Query;
+import org.geotools.api.filter.Filter;
 import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.gce.imagemosaic.acceptors.ColorCheckAcceptor;
 import org.geotools.gce.imagemosaic.acceptors.DefaultGranuleAcceptorFactory;
@@ -43,7 +44,6 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.opengis.filter.Filter;
 
 /** Testing that granule collectors correctly get configured and initialized */
 public class DefaultSubmosaicProducerSPITest {
@@ -80,7 +80,7 @@ public class DefaultSubmosaicProducerSPITest {
 
         // make sure it is not empty
         assertNotNull(spiMap);
-        Assert.assertTrue(!spiMap.isEmpty());
+        Assert.assertFalse(spiMap.isEmpty());
 
         // check the default ones are there
         Assert.assertTrue(spiMap.containsKey(HeterogeneousCRSAcceptorFactory.class.getName()));
@@ -93,16 +93,16 @@ public class DefaultSubmosaicProducerSPITest {
         GranuleAcceptorFactorySPI spi = spiMap.get(HeterogeneousCRSAcceptorFactory.class.getName());
         List<GranuleAcceptor> acceptors = spi.create();
         assertNotNull(acceptors);
-        Assert.assertTrue(acceptors.size() == 1);
+        assertEquals(1, acceptors.size());
         GranuleAcceptor granuleAcceptor = acceptors.get(0);
-        Assert.assertTrue(granuleAcceptor.getClass().equals(ColorCheckAcceptor.class));
+        assertEquals(granuleAcceptor.getClass(), ColorCheckAcceptor.class);
 
         // DefaultGranuleAcceptorFactory
         assertNotNull(spiMap.get(DefaultGranuleAcceptorFactory.class.getName()));
         spi = spiMap.get(DefaultGranuleAcceptorFactory.class.getName());
         acceptors = spi.create();
         assertNotNull(acceptors);
-        Assert.assertTrue(acceptors.size() == 2);
+        assertEquals(2, acceptors.size());
         granuleAcceptor = acceptors.get(0);
         Assert.assertTrue(
                 granuleAcceptor.getClass().equals(ColorCheckAcceptor.class)

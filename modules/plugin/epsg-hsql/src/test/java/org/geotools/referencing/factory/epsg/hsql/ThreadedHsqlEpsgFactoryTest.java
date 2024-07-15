@@ -26,7 +26,14 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
-import org.geotools.geometry.DirectPosition2D;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.geometry.Position2D;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
@@ -36,13 +43,6 @@ import org.geotools.referencing.factory.IdentifiedObjectFinder;
 import org.geotools.referencing.factory.epsg.DirectEpsgFactory;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * This class makes sure we can find the ThreadedHsqlEpsgFactory using ReferencingFactoryFinder.
@@ -82,6 +82,7 @@ public class ThreadedHsqlEpsgFactoryTest {
         assertEquals(original, afterCorruption);
     }
 
+    @SuppressWarnings("PMD.CloseResource")
     private void corruptConnection() throws Exception {
         java.lang.reflect.Field field =
                 org.geotools.referencing.factory.BufferedAuthorityFactory.class.getDeclaredField(
@@ -111,7 +112,7 @@ public class ThreadedHsqlEpsgFactoryTest {
 
         // reproject
         MathTransform transform = CRS.findMathTransform(crs1, crs2, true);
-        DirectPosition pos = new DirectPosition2D(48.417, 123.35);
+        Position pos = new Position2D(48.417, 123.35);
         transform.transform(pos, null);
     }
 
@@ -124,8 +125,7 @@ public class ThreadedHsqlEpsgFactoryTest {
 
     @Test
     public void testFindWSG84() throws FactoryException {
-        String wkt;
-        wkt =
+        String wkt =
                 "GEOGCS[\"WGS 84\",\n"
                         + "  DATUM[\"World Geodetic System 1984\",\n"
                         + "    SPHEROID[\"WGS 84\", 6378137.0, 298.257223563]],\n"
@@ -224,16 +224,15 @@ public class ThreadedHsqlEpsgFactoryTest {
         MathTransform t2 = CRS.findMathTransform(epsg4326, epsg900913);
 
         // check the two equate each other, we know the above 900913 definition works
-        double[][] points =
-                new double[][] {
-                    {0, 0},
-                    {30.0, 30.0},
-                    {-45.0, 45.0},
-                    {-20, -20},
-                    {80, -80},
-                    {85, 180},
-                    {-85, -180}
-                };
+        double[][] points = {
+            {0, 0},
+            {30.0, 30.0},
+            {-45.0, 45.0},
+            {-20, -20},
+            {80, -80},
+            {85, 180},
+            {-85, -180}
+        };
         double[][] points2 = new double[points.length][2];
         double[] tp1 = new double[2];
         double[] tp2 = new double[2];
@@ -259,16 +258,16 @@ public class ThreadedHsqlEpsgFactoryTest {
         DefaultGeodeticDatum datum = (DefaultGeodeticDatum) crs.getDatum();
         BursaWolfParameters[] params = datum.getBursaWolfParameters();
         boolean wgs84Found = false;
-        for (int i = 0; i < params.length; i++) {
-            if (DefaultGeodeticDatum.isWGS84(params[i].targetDatum)) {
+        for (BursaWolfParameters param : params) {
+            if (DefaultGeodeticDatum.isWGS84(param.targetDatum)) {
                 wgs84Found = true;
-                assertEquals(0.0, params[i].dx, EPS);
-                assertEquals(0.0, params[i].dy, EPS);
-                assertEquals(0.0, params[i].dz, EPS);
-                assertEquals(0.0, params[i].ex, EPS);
-                assertEquals(0.0, params[i].ey, EPS);
-                assertEquals(0.0, params[i].ez, EPS);
-                assertEquals(0.0, params[i].ppm, EPS);
+                assertEquals(0.0, param.dx, EPS);
+                assertEquals(0.0, param.dy, EPS);
+                assertEquals(0.0, param.dz, EPS);
+                assertEquals(0.0, param.ex, EPS);
+                assertEquals(0.0, param.ey, EPS);
+                assertEquals(0.0, param.ez, EPS);
+                assertEquals(0.0, param.ppm, EPS);
             }
         }
         assertTrue(wgs84Found);

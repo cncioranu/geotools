@@ -23,15 +23,15 @@ import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.feature.visitor.NearestVisitor;
 import org.geotools.filter.FunctionImpl;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Finds the nearest value to the provided one in the attribute domain.
@@ -75,6 +75,7 @@ public class Collection_NearestFunction extends FunctionImpl {
         return visitor.getNearestMatch();
     }
 
+    @Override
     public Object evaluate(Object collection) {
         if (collection == null) {
             Literal value = getFallbackValue();
@@ -94,9 +95,7 @@ public class Collection_NearestFunction extends FunctionImpl {
                     if (result != null) {
                         match = result;
                     }
-                } catch (IllegalFilterException e) {
-                    LOGGER.log(Level.FINER, e.getLocalizedMessage(), e);
-                } catch (IOException e) {
+                } catch (IllegalFilterException | IOException e) {
                     LOGGER.log(Level.FINER, e.getLocalizedMessage(), e);
                 }
             }

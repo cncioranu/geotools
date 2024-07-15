@@ -19,15 +19,15 @@ package org.geotools.data.geobuf;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import org.geotools.data.DataStore;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.Query;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.store.ContentEntry;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 public class GeobufFeatureSource extends ContentFeatureSource {
 
@@ -59,23 +59,17 @@ public class GeobufFeatureSource extends ContentFeatureSource {
 
     @Override
     protected ReferencedEnvelope getBoundsInternal(Query query) throws IOException {
-        InputStream in = new FileInputStream(getDataStore().getFile());
-        try {
+        try (InputStream in = new FileInputStream(getDataStore().getFile())) {
             GeobufFeatureCollection geobufFeatureCollection = new GeobufFeatureCollection();
             return geobufFeatureCollection.getBounds(in);
-        } finally {
-            in.close();
         }
     }
 
     @Override
     protected int getCountInternal(Query query) throws IOException {
-        InputStream in = new FileInputStream(getDataStore().getFile());
-        try {
+        try (InputStream in = new FileInputStream(getDataStore().getFile())) {
             GeobufFeatureCollection geobufFeatureCollection = new GeobufFeatureCollection();
             return geobufFeatureCollection.countFeatures(in);
-        } finally {
-            in.close();
         }
     }
 

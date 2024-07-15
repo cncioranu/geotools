@@ -32,6 +32,16 @@ import javax.imageio.ImageReadParam;
 import javax.media.jai.BorderExtenderConstant;
 import javax.media.jai.Interpolation;
 import javax.media.jai.RenderedOp;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.Category;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
@@ -47,24 +57,13 @@ import org.geotools.gce.grassraster.core.color.JGrassColorTable;
 import org.geotools.gce.grassraster.format.GrassCoverageFormat;
 import org.geotools.gce.grassraster.metadata.GrassBinaryImageMetadata;
 import org.geotools.gce.grassraster.spi.GrassBinaryImageReaderSpi;
-import org.geotools.geometry.Envelope2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.ImageWorker;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
 import org.geotools.util.factory.GeoTools;
-import org.opengis.coverage.grid.Format;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.ProgressListener;
 
 /**
  * Coverage Reader class for reading GRASS raster maps.
@@ -121,7 +120,7 @@ public class GrassCoverageReader extends AbstractGridCoverage2DReader
                 JGrassRegion fileRegion = jgMapEnvironment.getFileRegion();
                 org.locationtech.jts.geom.Envelope env = fileRegion.getEnvelope();
                 originalEnvelope =
-                        new GeneralEnvelope(
+                        new GeneralBounds(
                                 new ReferencedEnvelope(
                                         env.getMinX(),
                                         env.getMaxX(),
@@ -215,7 +214,7 @@ public class GrassCoverageReader extends AbstractGridCoverage2DReader
          * the envelope that was requested, i.e. what has to be given back in
          * terms of bounds and resolution.
          */
-        Envelope requestedRegionEnvelope = null;
+        Bounds requestedRegionEnvelope = null;
         /*
          * the read region, i.e. the requested region without the parts east and
          * south of the file region. (since they would produce negative origin)
@@ -297,12 +296,12 @@ public class GrassCoverageReader extends AbstractGridCoverage2DReader
              */
             sourceRegion = new Rectangle(xmin, ymin, (xmax - xmin), ymax - ymin);
             requestedRegionEnvelope =
-                    new Envelope2D(
-                            crs,
+                    ReferencedEnvelope.rect(
                             requestedWest,
                             requestedSouth,
                             requestedEast - requestedWest,
-                            requestedNorth - requestedSouth);
+                            requestedNorth - requestedSouth,
+                            crs);
 
             /*
              * the real world deltas
@@ -401,12 +400,12 @@ public class GrassCoverageReader extends AbstractGridCoverage2DReader
             int ymax = (int) Math.ceil((fileNorth - requestedSouth) * scaleY - EPS);
             sourceRegion = new Rectangle(xmin, ymin, (xmax - xmin), ymax - ymin);
             requestedRegionEnvelope =
-                    new Envelope2D(
-                            crs,
+                    ReferencedEnvelope.rect(
                             requestedWest,
                             requestedSouth,
                             requestedEast - requestedWest,
-                            requestedNorth - requestedSouth);
+                            requestedNorth - requestedSouth,
+                            crs);
 
             /*
              * define the subsampling values. This done starting from the
@@ -564,7 +563,7 @@ public class GrassCoverageReader extends AbstractGridCoverage2DReader
             colorRulesSplit = colorRulesString.split(GrassBinaryImageMetadata.RULESSPLIT);
         } else {
             List<String> defColorTable = JGrassColorTable.createDefaultColorTable(range, 255);
-            colorRulesSplit = (String[]) defColorTable.toArray(new String[defColorTable.size()]);
+            colorRulesSplit = defColorTable.toArray(new String[defColorTable.size()]);
             // make it also persistent
             File colrFile = jgMapEnvironment.getCOLR();
             JGrassUtilities.makeColorRulesPersistent(colrFile, defColorTable, range, 255);
@@ -638,101 +637,12 @@ public class GrassCoverageReader extends AbstractGridCoverage2DReader
                 catsList.add(dataCategory);
             }
 
-            Category[] array = (Category[]) catsList.toArray(new Category[catsList.size()]);
+            Category[] array = catsList.toArray(new Category[catsList.size()]);
             return new GridSampleDimension(name, array, scale, offSet);
         } else {
             return new GridSampleDimension(name, new Category[] {}, null);
         }
     }
-
-    // @SuppressWarnings("nls")
-    // public static void main( String[] args ) {
-    // try {
-    // String mapPath = "/home/daniele/Jgrassworkspace/testLettura/test/cell/testa";
-    // // ";
-    // // String mapPath =
-    // //
-    // "/home/moovida/rcpdevelopment/WORKSPACES/eclipseGanimede/jai_tests/spearfish/PERMANENT/cell/elevation.dem"
-    // // ;
-    //
-    // /*
-    // * test1 - read the whole data
-    // */
-    // Interpolation interpolation = Interpolation.getInstance(Interpolation.INTERP_NEAREST);
-    // GrassCoverageReader tmp = new GrassCoverageReader(PixelInCell.CELL_CENTER,
-    // interpolation, true, false, new PrintStreamProgressMonitor(System.out,
-    // System.out));
-    // tmp.setInput(new File(mapPath));
-    //
-    // // JGrassRegion readRegion = JGrassRegion
-    // // .getActiveRegionFromMapset("/home/daniele/Jgrassworkspace/testLettura/test");
-    // // JGrassRegion readRegion = new JGrassRegion(1640650.0, 1640950.0,
-    // // 5139780.0, 5140020.0, 30.0, 30.0);
-    // JGrassRegion readRegion = new JGrassRegion(1640650.0, 1640950.0, 5139780.0, 5140020.0,
-    // 60.0, 60.0);
-    //
-    // GrassCoverageReadParam gcReadParam = new GrassCoverageReadParam(readRegion);
-    //
-    // GridCoverage2D coverage2D = tmp.read(gcReadParam);
-    // Raster fileImage = coverage2D.getRenderedImage().getData();
-    // for( int j = fileImage.getMinX(); j < fileImage.getMinX() + fileImage.getHeight(); j++ ) {
-    // for( int i = fileImage.getMinY(); i < fileImage.getMinY() + fileImage.getWidth(); i++ ) {
-    // System.out.print(fileImage.getSampleDouble(i, j, 0) + "\t");
-    // }
-    // System.out.println();
-    // }
-    //
-    // if (true) {
-    // System.exit(0);
-    // }
-    //
-    // Point2D point = new Point2D.Double(608940.0, 4914330.0);
-    // double[] buffer = new double[1];
-    // System.out.println(coverage2D.evaluate(point, buffer)[0]);
-    //
-    // interpolation = Interpolation.getInstance(Interpolation.INTERP_BILINEAR);
-    // GridCoverage2D interpolated = (GridCoverage2D) Operations.DEFAULT.interpolate(
-    // coverage2D, interpolation);
-    // System.out.println(interpolated.evaluate(point, buffer)[0]);
-    //
-    // System.out.println(integerView.evaluate(point, buffer)[0]);
-    //
-    // RenderedImage renderedImage = integerView.getRenderedImage();
-    //            OutputStream oStream = new FileOutputStream(new
-    // File("/Users/moovida/Desktop/test.png")); //$NON-NLS-1$
-    //            ImageIO.write(renderedImage, "png", oStream); //$NON-NLS-1$
-    //
-    // // GridCoverage2D geographic = (GridCoverage2D)
-    // // Operations.DEFAULT.resample(coverage2D,
-    // // DefaultGeographicCRS.WGS84);
-    // // // GridGeometry2D g2d = new GridGeometry2D()
-    // // // with GridGeometry I can control the target grid
-    // //
-    // // ImageIO.write(geographic.getRenderedImage(),
-    // // "png", new File(
-    // // "/home/moovida/Desktop/test2.png"));
-    // //
-    // /*
-    // * test2 - read the map at lower resolution
-    // */
-    // tmp = new GrassCoverageReader(null, null, false, false, new PrintStreamProgressMonitor(
-    // System.out, System.out));
-    // tmp.setInput(new File(mapPath));
-    //
-    // readRegion = new JGrassRegion(589980.0, 609000.0, 4913690.0, 4928030.0, 478, 200);
-    // gcReadParam = new GrassCoverageReadParam(readRegion);
-    //
-    // coverage2D = tmp.read(gcReadParam);
-    // integerView = coverage2D.view(ViewType.RENDERED);
-    // renderedImage = integerView.getRenderedImage();
-    //
-    //            oStream = new FileOutputStream(new File("/Users/moovida/Desktop/test1.png"));
-    // //$NON-NLS-1$
-    // ImageIO.write(renderedImage, "png", oStream);
-    // } catch (IOException e) {
-    // e.printStackTrace();
-    // }
-    // }
 
     /**
      * Getter for the legend string.
@@ -767,16 +677,16 @@ public class GrassCoverageReader extends AbstractGridCoverage2DReader
     public GridCoverage2D read(GeneralParameterValue[] params)
             throws IllegalArgumentException, IOException {
 
-        GeneralEnvelope requestedEnvelope = null;
+        GeneralBounds requestedEnvelope = null;
         Rectangle dim = null;
         // OverviewPolicy overviewPolicy = null;
         if (params != null) {
-            for (int i = 0; i < params.length; i++) {
-                final ParameterValue<?> param = (ParameterValue<?>) params[i];
+            for (GeneralParameterValue generalParameterValue : params) {
+                final ParameterValue<?> param = (ParameterValue<?>) generalParameterValue;
                 final String name = param.getDescriptor().getName().getCode();
                 if (name.equals(AbstractGridFormat.READ_GRIDGEOMETRY2D.getName().toString())) {
                     final GridGeometry2D gg = (GridGeometry2D) param.getValue();
-                    requestedEnvelope = new GeneralEnvelope((Envelope) gg.getEnvelope2D());
+                    requestedEnvelope = new GeneralBounds((Bounds) gg.getEnvelope2D());
                     dim = gg.getGridRange2D().getBounds();
                     continue;
                 }
@@ -787,9 +697,9 @@ public class GrassCoverageReader extends AbstractGridCoverage2DReader
             }
         }
         if (requestedEnvelope != null && dim != null) {
-            DirectPosition lowerCorner = requestedEnvelope.getLowerCorner();
+            Position lowerCorner = requestedEnvelope.getLowerCorner();
             double[] westSouth = lowerCorner.getCoordinate();
-            DirectPosition upperCorner = requestedEnvelope.getUpperCorner();
+            Position upperCorner = requestedEnvelope.getUpperCorner();
             double[] eastNorth = upperCorner.getCoordinate();
             JGrassRegion region =
                     new JGrassRegion(
@@ -802,9 +712,10 @@ public class GrassCoverageReader extends AbstractGridCoverage2DReader
             return readRaster(region);
         }
 
-        return readRaster((JGrassRegion) null);
+        return readRaster(null);
     }
 
+    @Override
     public Format getFormat() {
         return new GrassCoverageFormat();
     }

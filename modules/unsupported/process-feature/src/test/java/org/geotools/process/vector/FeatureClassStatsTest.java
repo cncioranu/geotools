@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNull;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
@@ -30,29 +31,27 @@ import org.geotools.process.vector.FeatureClassStats.Results;
 import org.jaitools.numeric.Statistic;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 public class FeatureClassStatsTest {
 
-    Object[][] data =
-            new Object[][] {
-                {'a', 1},
-                {'b', 1},
-                {'c', 2},
-                {'d', 3},
-                {'e', 3},
-                {'f', 8},
-                {'g', 8},
-                {'h', 9},
-                {'i', 11},
-                {'j', 14},
-                {'k', 16},
-                {'l', 24},
-                {'m', 26},
-                {'n', 26},
-                {'o', 45},
-                {'p', 53}
-            };
+    Object[][] data = {
+        {'a', 1},
+        {'b', 1},
+        {'c', 2},
+        {'d', 3},
+        {'e', 3},
+        {'f', 8},
+        {'g', 8},
+        {'h', 9},
+        {'i', 11},
+        {'j', 14},
+        {'k', 16},
+        {'l', 24},
+        {'m', 26},
+        {'n', 26},
+        {'o', 45},
+        {'p', 53}
+    };
     /*Object[][] data = new Object[][] { { 'd', 3 }, { 'e', 3 },
     { 'f', 8 }, { 'g', 8 }, { 'h', 9 }, { 'i', 11 }, { 'j', 14 }, { 'k', 16 }, { 'l', 24 },
     { 'm', 26 }, { 'n', 26 }, { 'o', 45 } };*/

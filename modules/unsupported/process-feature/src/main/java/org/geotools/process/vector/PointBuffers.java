@@ -21,6 +21,12 @@ import java.awt.geom.Point2D;
 import javax.measure.Unit;
 import javax.measure.UnitConverter;
 import javax.measure.quantity.Length;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
@@ -35,12 +41,6 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.util.ProgressListener;
 import si.uom.SI;
 import tech.units.indriya.function.AbstractConverter;
 
@@ -49,38 +49,33 @@ import tech.units.indriya.function.AbstractConverter;
  * central point The data layer must be a point layer, the reference layer must be a polygonal one"
  */
 @DescribeProcess(
-    title = "Point Buffers",
-    description =
-            "Returns a collection of circular buffer polygons with specified radii centered on a given point"
-)
+        title = "Point Buffers",
+        description =
+                "Returns a collection of circular buffer polygons with specified radii centered on a given point")
 public class PointBuffers implements VectorProcess {
 
     @DescribeResult(
-        name = "buffers",
-        description =
-                "Features for the circular buffer polygons around the point, with attributes geom and radius"
-    )
+            name = "buffers",
+            description =
+                    "Features for the circular buffer polygons around the point, with attributes geom and radius")
     public SimpleFeatureCollection execute(
             @DescribeParameter(name = "center", description = "Input point") Point center,
             @DescribeParameter(
-                        name = "crs",
-                        description =
-                                "Coordinate reference system of the point and the generated buffer polygons",
-                        min = 0
-                    )
+                            name = "crs",
+                            description =
+                                    "Coordinate reference system of the point and the generated buffer polygons",
+                            min = 0)
                     CoordinateReferenceSystem crs,
             @DescribeParameter(
-                        name = "distances",
-                        description = "Buffer radius distance, in meters"
-                    )
+                            name = "distances",
+                            description = "Buffer radius distance, in meters")
                     double[] distances,
             @DescribeParameter(
-                        name = "quadrantSegments",
-                        description =
-                                "Number of line segments per quarter-circle to be generated.  Larger numbers produce smoother shapes but larger numbers of vertices. Default is 8",
-                        min = 0,
-                        defaultValue = "8"
-                    )
+                            name = "quadrantSegments",
+                            description =
+                                    "Number of line segments per quarter-circle to be generated.  Larger numbers produce smoother shapes but larger numbers of vertices. Default is 8",
+                            min = 0,
+                            defaultValue = "8")
                     Integer quadrantSegments,
             ProgressListener listener) {
         SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();

@@ -29,8 +29,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
 
 /** @author tkunicki@boundlessgeo.com */
 public class MongoSchemaFileStore implements MongoSchemaStore {
@@ -62,12 +62,9 @@ public class MongoSchemaFileStore implements MongoSchemaStore {
             return;
         }
         File schemaFile = schemaFile(schema.getTypeName());
-        BufferedWriter writer = new BufferedWriter(new FileWriter(schemaFile));
-        try {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(schemaFile))) {
             BasicDBObject dbObject = FeatureTypeDBObject.convert(schema);
             writer.write(dbObject.toJson());
-        } finally {
-            writer.close();
         }
     }
 

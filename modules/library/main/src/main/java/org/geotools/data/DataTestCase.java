@@ -16,16 +16,28 @@
  */
 package org.geotools.data;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-import junit.framework.TestCase;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.junit.After;
+import org.junit.Before;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -33,11 +45,6 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.Id;
 
 /**
  * A set of constructs and utility methods used to test the data module.
@@ -52,7 +59,7 @@ import org.opengis.filter.Id;
  * @author Jody Garnett, Refractions Research
  * @todo It should be possible to move this class in the {@code sample-data} module.
  */
-public class DataTestCase extends TestCase {
+public abstract class DataTestCase {
     protected GeometryFactory gf;
     protected SimpleFeatureType roadType; // road: id,geom,name
     protected SimpleFeatureType subRoadType; // road: id,geom
@@ -82,14 +89,9 @@ public class DataTestCase extends TestCase {
     protected SimpleFeatureType buildingType; // building: id, geom, name
     protected SimpleFeature[] buildingFeatures;
     protected ReferencedEnvelope buildingBounds;
-    protected FilterFactory2 ff;
+    protected FilterFactory ff;
 
     public DataTestCase() {}
-
-    /** Creates a default test case with the given name. */
-    public DataTestCase(final String name) {
-        super(name);
-    }
 
     protected int expected(Filter filter) {
         if (filter instanceof Id) {
@@ -100,18 +102,19 @@ public class DataTestCase extends TestCase {
     }
 
     /** Invoked before a test is run. The default implementation invokes {@link #dataSetUp}. */
-    protected void setUp() throws Exception {
-        ff = (FilterFactory2) CommonFactoryFinder.getFilterFactory2(null);
+    @Before
+    public void init() throws Exception {
+        ff = CommonFactoryFinder.getFilterFactory(null);
         dataSetUp();
     }
 
     /**
      * Loads the data.
      *
-     * @see #setUp()
+     * @see #init()
      */
     protected void dataSetUp() throws Exception {
-        String namespace = getName();
+        String namespace = getClass().getSimpleName();
         roadType =
                 DataUtilities.createType(
                         namespace + ".road", "id:0,geom:LineString,name:String,uuid:UUID");
@@ -333,7 +336,8 @@ public class DataTestCase extends TestCase {
      * Set all data references to {@code null}, allowing garbage collection. This method is
      * automatically invoked after each test.
      */
-    protected void tearDown() throws Exception {
+    @After
+    public void tearDown() throws Exception {
         gf = null;
         roadType = null;
         subRoadType = null;
@@ -420,7 +424,7 @@ public class DataTestCase extends TestCase {
     }
 
     /** Compares two geometries for equality. */
-    protected void assertEquals(Geometry expected, Geometry actual) {
+    protected void assertGeometryEquals(Geometry expected, Geometry actual) {
         if (expected == actual) {
             return;
         }
@@ -430,7 +434,7 @@ public class DataTestCase extends TestCase {
     }
 
     /** Compares two geometries for equality. */
-    protected void assertEquals(String message, Geometry expected, Geometry actual) {
+    protected void assertGeometryEquals(String message, Geometry expected, Geometry actual) {
         if (expected == actual) {
             return;
         }

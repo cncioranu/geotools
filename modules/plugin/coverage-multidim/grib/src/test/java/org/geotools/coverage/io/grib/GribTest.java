@@ -20,7 +20,6 @@ import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,6 +27,13 @@ import java.util.Date;
 import java.util.List;
 import javax.imageio.spi.ImageReaderSpi;
 import org.apache.commons.io.FileUtils;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.DerivedCRS;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
@@ -38,8 +44,8 @@ import org.geotools.coverage.io.netcdf.NetCDFDriver;
 import org.geotools.coverage.io.netcdf.NetCDFReader;
 import org.geotools.coverage.io.netcdf.crs.NetCDFCoordinateReferenceSystemType;
 import org.geotools.coverage.io.netcdf.crs.NetCDFProjection;
-import org.geotools.geometry.DirectPosition2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
+import org.geotools.geometry.Position2D;
 import org.geotools.imageio.netcdf.NetCDFImageReaderSpi;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.parameter.DefaultParameterDescriptor;
@@ -48,16 +54,10 @@ import org.geotools.test.TestData;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.DerivedCRS;
-import org.opengis.referencing.operation.MathTransform;
 import ucar.nc2.Attribute;
 import ucar.nc2.Variable;
 import ucar.nc2.dataset.NetcdfDataset;
+import ucar.nc2.dataset.NetcdfDatasets;
 
 /** Unit test for testing Grib data. */
 public class GribTest extends Assert {
@@ -109,22 +109,23 @@ public class GribTest extends Assert {
 
         TestData.unzipFile(this, referenceDir + "/TT_FC_INCA_EarthShape.zip");
         final File file = new File(workDir, "TT_FC_INCA_EarthShape.grb2");
-        NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
-        Variable var = dataset.findVariable(null, "LambertConformal_Projection");
-        assertNotNull(var);
+        try (NetcdfDataset dataset = NetcdfDatasets.openDataset(file.getAbsolutePath())) {
+            Variable var = dataset.findVariable("LambertConformal_Projection");
+            assertNotNull(var);
 
-        // Before switching to NetCDF 4.6.2 there was a bug which was returning
-        // semi_major_axis = 6.377397248E9 and inverse_flattening = 299.15349328722255;
-        // https://github.com/Unidata/thredds/issues/133
+            // Before switching to NetCDF 4.6.2 there was a bug which was returning
+            // semi_major_axis = 6.377397248E9 and inverse_flattening = 299.15349328722255;
+            // https://github.com/Unidata/thredds/issues/133
 
-        // Checking that it's now reporting proper values
-        Attribute attribute = var.findAttribute("semi_major_axis");
-        assertNotNull(attribute);
+            // Checking that it's now reporting proper values
+            Attribute attribute = var.findAttribute("semi_major_axis");
+            assertNotNull(attribute);
 
-        assertEquals(6377397.0, attribute.getNumericValue().doubleValue(), DELTA);
-        attribute = var.findAttribute("inverse_flattening");
-        assertNotNull(attribute);
-        assertEquals(299.15550239234693, attribute.getNumericValue().doubleValue(), DELTA);
+            assertEquals(6377397.0, attribute.getNumericValue().doubleValue(), DELTA);
+            attribute = var.findAttribute("inverse_flattening");
+            assertNotNull(attribute);
+            assertEquals(299.15550239234693, attribute.getNumericValue().doubleValue(), DELTA);
+        }
     }
 
     /** Test if the Grib format is accepted by the NetCDF reader */
@@ -177,7 +178,7 @@ public class GribTest extends Assert {
 
     /** Test on a Grib image. */
     @Test
-    public void testGribImage() throws MalformedURLException, IOException {
+    public void testGribImage() throws IOException {
         // Selection of the input file
         final File file = TestData.file(this, "sampleGrib.grb2");
         // Testing the 2 points
@@ -190,10 +191,10 @@ public class GribTest extends Assert {
      * validpoint and nodatapoint should be inverted.
      */
     private void testGribFile(final File inputFile, Point2D validPoint, Point2D nodataPoint)
-            throws MalformedURLException, IOException {
+            throws IOException {
         // Get format
         final AbstractGridFormat format =
-                (AbstractGridFormat) GridFormatFinder.findFormat(inputFile.toURI().toURL(), null);
+                GridFormatFinder.findFormat(inputFile.toURI().toURL(), null);
 
         assertTrue(format.accepts(inputFile));
 
@@ -214,7 +215,7 @@ public class GribTest extends Assert {
             // value is not a NaN
             float[] result = new float[1];
             grid.evaluate(validPoint, result);
-            Assert.assertTrue(!Float.isNaN(result[0]));
+            Assert.assertFalse(Float.isNaN(result[0]));
             // Selection of one coordinate from the Coverage and check if the
             // value is NaN
             float[] result_2 = new float[1];
@@ -234,12 +235,12 @@ public class GribTest extends Assert {
 
     /** Test on a Grib image asking for a larger bounding box. */
     @Test
-    public void testGribImageWithLargeBBOX() throws MalformedURLException, IOException {
+    public void testGribImageWithLargeBBOX() throws IOException {
         // Selection of the input file
         final File inputFile = TestData.file(this, "sampleGrib.grb2");
         // Get format
         final AbstractGridFormat format =
-                (AbstractGridFormat) GridFormatFinder.findFormat(inputFile.toURI().toURL(), null);
+                GridFormatFinder.findFormat(inputFile.toURI().toURL(), null);
         assertTrue(format.accepts(inputFile));
         AbstractGridCoverage2DReader reader = null;
         assertNotNull(format);
@@ -261,19 +262,18 @@ public class GribTest extends Assert {
             // Expanding the envelope
             final ParameterValue<GridGeometry2D> gg =
                     AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-            final GeneralEnvelope originalEnvelope = reader.getOriginalEnvelope(coverageName);
-            final GeneralEnvelope newEnvelope = new GeneralEnvelope(originalEnvelope);
+            final GeneralBounds originalEnvelope = reader.getOriginalEnvelope(coverageName);
+            final GeneralBounds newEnvelope = new GeneralBounds(originalEnvelope);
             newEnvelope.setCoordinateReferenceSystem(
                     reader.getCoordinateReferenceSystem(coverageName));
             newEnvelope.add(
-                    new DirectPosition2D(
-                            newEnvelope.getMinimum(0) - 10, newEnvelope.getMinimum(1) - 10));
+                    new Position2D(newEnvelope.getMinimum(0) - 10, newEnvelope.getMinimum(1) - 10));
 
             // Selecting the same gridRange
             GridEnvelope gridRange = reader.getOriginalGridRange(coverageName);
             gg.setValue(new GridGeometry2D(gridRange, newEnvelope));
 
-            GeneralParameterValue[] values = new GeneralParameterValue[] {gg};
+            GeneralParameterValue[] values = {gg};
             // Read with the larger BBOX
             GridCoverage2D grid = reader.read(coverageName, values);
             // Check if the result is not null
@@ -292,12 +292,12 @@ public class GribTest extends Assert {
 
     /** Test on a Grib image with temporal bands, querying different bands */
     @Test
-    public void testGribImageWithTimeDimension() throws MalformedURLException, IOException {
+    public void testGribImageWithTimeDimension() throws IOException {
         // Selection of the input file
         final File inputFile = TestData.file(this, "tpcprblty.2019100912.incremental.grib2");
         // Get format
         final AbstractGridFormat format =
-                (AbstractGridFormat) GridFormatFinder.findFormat(inputFile.toURI().toURL(), null);
+                GridFormatFinder.findFormat(inputFile.toURI().toURL(), null);
         assertTrue(format.accepts(inputFile));
         AbstractGridCoverage2DReader reader = null;
         assertNotNull(format);
@@ -325,16 +325,12 @@ public class GribTest extends Assert {
             // Get the envelope
             final ParameterValue<GridGeometry2D> gg =
                     AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
-            final GeneralEnvelope originalEnvelope = reader.getOriginalEnvelope(coverageName);
-            // gg.setValue(originalEnvelope);
-
-            // Selecting the same gridRange
-            GridEnvelope gridRange = reader.getOriginalGridRange(coverageName);
 
             final ParameterValue<List> time =
                     new DefaultParameterDescriptor<>("TIME", List.class, null, null).createValue();
-            // 2019-10-09T18:00:00.000Z
-            time.setValue(new ArrayList<>(Collections.singletonList(new Date(1570644000000L))));
+            // Time value have changed with the NetCDF Version upgrade.
+            // 2019-10-09T15:00:00.000Z
+            time.setValue(new ArrayList<>(Collections.singletonList(new Date(1570633200000L))));
 
             // HEIGHT_ABOVE_GROUND = "[10.0]"
             final ParameterValue<List> height =
@@ -342,15 +338,15 @@ public class GribTest extends Assert {
                             .createValue();
             height.setValue(new ArrayList<>(Collections.singletonList(10.0)));
 
-            GeneralParameterValue[] values = new GeneralParameterValue[] {gg, time, height};
+            GeneralParameterValue[] values = {gg, time, height};
 
-            // Read with 0th date
+            // Read with 1st date
             GridCoverage2D grid = reader.read(coverageName, values);
             assertNotNull(grid);
 
             // Read with 12th date
-            // 2019-10-12T18:00:00.000Z
-            time.setValue(new ArrayList<>(Collections.singletonList(new Date(1570903200000L))));
+            // 2019-10-12T15:00:00.000Z
+            time.setValue(new ArrayList<>(Collections.singletonList(new Date(1570892400000L))));
             grid = reader.read(coverageName, values);
             assertNotNull(grid);
         } finally {

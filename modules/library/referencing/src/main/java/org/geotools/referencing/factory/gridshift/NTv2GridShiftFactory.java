@@ -19,22 +19,21 @@ package org.geotools.referencing.factory.gridshift;
 import au.com.objectix.jgridshift.GridShiftFile;
 import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.referencing.FactoryException;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.factory.ReferencingFactory;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.AbstractFactory;
 import org.geotools.util.factory.BufferedFactory;
 import org.geotools.util.logging.Logging;
-import org.opengis.referencing.FactoryException;
 
 /**
  * Loads and caches NTv2 grid files. Thisthat incorporates a soft cache mechanism to keep grids in
@@ -133,7 +132,8 @@ public class NTv2GridShiftFactory extends ReferencingFactory implements Buffered
                 File file = URLs.urlToFile(url);
 
                 if (!file.exists() || !file.canRead()) {
-                    throw new IOException(Errors.format(ErrorKeys.FILE_DOES_NOT_EXIST_$1, file));
+                    throw new IOException(
+                            MessageFormat.format(ErrorKeys.FILE_DOES_NOT_EXIST_$1, file));
                 }
 
                 try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
@@ -150,12 +150,9 @@ public class NTv2GridShiftFactory extends ReferencingFactory implements Buffered
             }
 
             return true; // No exception thrown => valid file.
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IOException e) {
             // This usually means resource is not a valid NTv2 file.
             // Let exception message describe the cause.
-            LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-            return false;
-        } catch (IOException e) {
             LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
             return false;
         }
@@ -170,30 +167,17 @@ public class NTv2GridShiftFactory extends ReferencingFactory implements Buffered
      * @return the grid, or {@code null} on error
      */
     private GridShiftFile loadNTv2Grid(URL location) throws FactoryException {
-        InputStream in = null;
-        try {
+        try (InputStream in = new BufferedInputStream(location.openStream())) {
             GridShiftFile grid = new GridShiftFile();
-            in = new BufferedInputStream(location.openStream());
             grid.loadGridShiftFile(in, false); // Load full grid in memory
             in.close();
             return grid;
-        } catch (FileNotFoundException e) {
-            LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
-            return null;
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
             return null;
         } catch (IllegalArgumentException e) {
             LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
             throw new FactoryException(e.getLocalizedMessage(), e);
-        } finally {
-            try {
-                if (in != null) {
-                    in.close();
-                }
-            } catch (IOException e) {
-                // never mind
-            }
         }
     }
 }

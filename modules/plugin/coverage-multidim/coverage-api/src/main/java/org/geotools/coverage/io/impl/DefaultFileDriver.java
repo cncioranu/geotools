@@ -26,14 +26,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.io.CoverageAccess;
 import org.geotools.coverage.io.FileDriver;
-import org.geotools.data.Parameter;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.util.ProgressListener;
 
 /**
  * Base class extending {@link DefaultDriver} leveraging on URLs.
@@ -70,6 +70,7 @@ public class DefaultFileDriver extends DefaultDriver implements FileDriver {
         this.fileExtensions = new ArrayList<>(fileExtensions);
     }
 
+    @Override
     public List<String> getFileExtensions() {
         return new ArrayList<>(fileExtensions);
     }
@@ -167,6 +168,7 @@ public class DefaultFileDriver extends DefaultDriver implements FileDriver {
         return delete(url, params, hints, listener);
     }
 
+    @Override
     public boolean canProcess(
             DriverCapabilities operation, URL url, Map<String, Serializable> params) {
 
@@ -198,6 +200,7 @@ public class DefaultFileDriver extends DefaultDriver implements FileDriver {
         }
     }
 
+    @Override
     public CoverageAccess process(
             DriverCapabilities operation,
             URL url,

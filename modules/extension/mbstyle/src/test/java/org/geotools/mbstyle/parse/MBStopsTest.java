@@ -22,13 +22,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.StyledLayerDescriptor;
 import org.geotools.mbstyle.MBStyle;
 import org.geotools.mbstyle.MapboxTestUtils;
 import org.geotools.mbstyle.layer.MBLayer;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.StyledLayer;
-import org.geotools.styling.StyledLayerDescriptor;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.ParseException;
@@ -36,7 +34,6 @@ import org.junit.Test;
 
 /** Created by vickdw on 4/17/17. */
 public class MBStopsTest {
-    private StyleFactory sf;
 
     @Test
     public void testHasPropertyAndZoomFunctions() throws IOException, ParseException {
@@ -216,7 +213,6 @@ public class MBStopsTest {
         JSONObject jsonObject = MapboxTestUtils.parseTestStyle("functionParseTest.json");
         MBStyle mbStyle = new MBStyle(jsonObject);
         StyledLayerDescriptor transformed = mbStyle.transform();
-        List<StyledLayer> styledLayers = transformed.layers();
         List<FeatureTypeStyle> fts = MapboxTestUtils.getStyle(transformed, 0).featureTypeStyles();
 
         int i = 0;
@@ -250,7 +246,6 @@ public class MBStopsTest {
         JSONObject jsonObject = MapboxTestUtils.parseTestStyle("functionParseFloatStopsTest.json");
         MBStyle mbStyle = new MBStyle(jsonObject);
         StyledLayerDescriptor transformed = mbStyle.transform();
-        List<StyledLayer> styledLayers = transformed.layers();
         List<FeatureTypeStyle> fts = MapboxTestUtils.getStyle(transformed, 0).featureTypeStyles();
 
         int i = 0;

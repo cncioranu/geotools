@@ -22,7 +22,7 @@ import org.geotools.coverage.Category;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -50,8 +50,7 @@ public class RootNodeTest {
                                 "name",
                                 PlanarImage.wrapRenderedImage(
                                         RasterSymbolizerTest.getSynthetic(Double.NaN)),
-                                new GeneralEnvelope(
-                                        new double[] {-90, -180}, new double[] {90, 180}),
+                                new GeneralBounds(new double[] {-90, -180}, new double[] {90, 180}),
                                 new GridSampleDimension[] {
                                     new GridSampleDimension(
                                             "sd",
@@ -85,7 +84,7 @@ public class RootNodeTest {
 
         try {
             root3.addSource(root2);
-            Assert.assertFalse(true);
+            Assert.fail();
         } catch (Exception e) {
 
         }
@@ -95,38 +94,38 @@ public class RootNodeTest {
     public final void getSource() {
         try {
             root1.getSource(2);
-            Assert.assertFalse(true);
+            Assert.fail();
         } catch (Exception e) {
 
         }
         try {
             root2.getSource(2);
-            Assert.assertFalse(true);
+            Assert.fail();
         } catch (Exception e) {
 
         }
         try {
             root3.getSource(2);
-            Assert.assertFalse(true);
+            Assert.fail();
         } catch (Exception e) {
 
         }
 
         try {
             Assert.assertNotNull(root3.getSource(0));
-            Assert.assertFalse(true);
+            Assert.fail();
         } catch (Exception e) {
 
         }
         try {
             Assert.assertNotNull(root2.getSource(0));
-            Assert.assertFalse(true);
+            Assert.fail();
         } catch (Exception e) {
 
         }
         try {
             Assert.assertNotNull(root1.getSource(0));
-            Assert.assertFalse(true);
+            Assert.fail();
         } catch (Exception e) {
 
         }
@@ -136,18 +135,18 @@ public class RootNodeTest {
     public final void getSources() {
         try {
             Assert.assertNotNull(root1.getSources());
-            Assert.assertTrue(root1.getSources().size() == 0);
+            Assert.assertEquals(0, root1.getSources().size());
         } catch (Exception e) {
         }
         try {
             Assert.assertNotNull(root2.getSources());
-            Assert.assertTrue(root2.getSources().size() == 0);
+            Assert.assertEquals(0, root2.getSources().size());
         } catch (Exception e) {
 
         }
         try {
             Assert.assertNotNull(root3.getSources());
-            Assert.assertTrue(root3.getSources().size() == 0);
+            Assert.assertEquals(0, root3.getSources().size());
         } catch (Exception e) {
 
         }

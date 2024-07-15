@@ -39,6 +39,7 @@ import java.util.regex.Pattern;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
+import org.elasticsearch.client.HttpAsyncResponseConsumerFactory;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.Response;
@@ -63,17 +64,24 @@ public class RestElasticClient implements ElasticClient {
 
     private final boolean enableRunAs;
 
+    private final int responseBufferLimit;
+
     private final ObjectMapper mapper;
 
     private Double version;
 
     public RestElasticClient(RestClient client) {
-        this(client, null, false);
+        this(client, null, false, (Integer) ElasticDataStoreFactory.RESPONSE_BUFFER_LIMIT.sample);
     }
 
-    public RestElasticClient(RestClient client, RestClient proxyClient, boolean enableRunAs) {
+    public RestElasticClient(
+            RestClient client,
+            RestClient proxyClient,
+            boolean enableRunAs,
+            int responseBufferLimit) {
         this.client = client;
         this.proxyClient = proxyClient;
+        this.responseBufferLimit = responseBufferLimit;
         this.mapper = new ObjectMapper();
         this.mapper.setDateFormat(DATE_FORMAT);
         this.enableRunAs = enableRunAs;
@@ -155,8 +163,7 @@ public class RestElasticClient implements ElasticClient {
                         this.mapper.readValue(
                                 inputStream, new TypeReference<Map<String, ElasticMappings>>() {});
             } else {
-                final Map<String, ElasticMappings.Untyped> res;
-                res =
+                final Map<String, ElasticMappings.Untyped> res =
                         this.mapper.readValue(
                                 inputStream,
                                 new TypeReference<Map<String, ElasticMappings.Untyped>>() {});
@@ -264,7 +271,11 @@ public class RestElasticClient implements ElasticClient {
 
         final Request request = new Request(method, path);
         request.setEntity(entity);
-
+        final RequestOptions.Builder optionsBuilder = RequestOptions.DEFAULT.toBuilder();
+        // Set the response buffer limit, default is 100MB
+        optionsBuilder.setHttpAsyncResponseConsumerFactory(
+                new HttpAsyncResponseConsumerFactory.HeapBufferedResponseConsumerFactory(
+                        responseBufferLimit));
         if (!isAdmin && enableRunAs) {
             final SecurityContext ctx = SecurityContextHolder.getContext();
             final Authentication auth = ctx.getAuthentication();
@@ -275,15 +286,14 @@ public class RestElasticClient implements ElasticClient {
                 throw new IllegalStateException(
                         String.format("User is not authenticated: %s", auth.getName()));
             }
-            final RequestOptions.Builder optionsBuilder = RequestOptions.DEFAULT.toBuilder();
             optionsBuilder.addHeader(RUN_AS, auth.getName());
-            request.setOptions(optionsBuilder);
             LOGGER.fine(String.format("Performing request on behalf of user %s", auth.getName()));
         } else {
             LOGGER.fine(
                     String.format(
                             "Performing request with %s credentials", isAdmin ? "user" : "proxy"));
         }
+        request.setOptions(optionsBuilder);
         final Response response = client.performRequest(request);
         if (response.getStatusLine().getStatusCode() >= 400) {
             throw new IOException(
@@ -349,14 +359,14 @@ public class RestElasticClient implements ElasticClient {
             } else if (entry.getValue() instanceof List) {
                 ((List<Object>) entry.getValue())
                         .stream()
-                        .filter(item -> item instanceof Map)
-                        .forEach(
-                                item ->
-                                        removeMapping(
-                                                parent,
-                                                key,
-                                                (Map<String, Object>) item,
-                                                currentParent));
+                                .filter(item -> item instanceof Map)
+                                .forEach(
+                                        item ->
+                                                removeMapping(
+                                                        parent,
+                                                        key,
+                                                        (Map<String, Object>) item,
+                                                        currentParent));
             }
         }
     }
@@ -366,8 +376,7 @@ public class RestElasticClient implements ElasticClient {
         try {
             final Response response = performRequest("GET", "/_alias/" + alias, null, true);
             try (final InputStream inputStream = response.getEntity().getContent()) {
-                final Map<String, Object> result;
-                result =
+                final Map<String, Object> result =
                         this.mapper.readValue(
                                 inputStream, new TypeReference<Map<String, Object>>() {});
                 indices = result.keySet();

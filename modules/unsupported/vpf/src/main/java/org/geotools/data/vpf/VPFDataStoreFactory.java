@@ -31,13 +31,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Level;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.vpf.file.VPFFile;
 import org.geotools.data.vpf.file.VPFFileFactory;
 import org.geotools.data.vpf.ifc.FileConstants;
 import org.geotools.feature.SchemaException;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * Class VPFDataSourceFactory.java is responsible for constructing appropriate VPFDataStore
@@ -63,7 +63,7 @@ public class VPFDataStoreFactory implements DataStoreFactorySpi {
     public VPFDataStoreFactory() {}
     /*
      *  (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#getDisplayName()
+     * @see org.geotools.api.data.DataStoreFactorySpi#getDisplayName()
      */
     @Override
     public String getDisplayName() {
@@ -71,7 +71,7 @@ public class VPFDataStoreFactory implements DataStoreFactorySpi {
     }
     /*
      *  (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#getDescription()
+     * @see org.geotools.api.data.DataStoreFactorySpi#getDescription()
      */
     @Override
     public String getDescription() {
@@ -79,8 +79,9 @@ public class VPFDataStoreFactory implements DataStoreFactorySpi {
     }
     /*
      *  (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#canProcess(java.util.Map)
+     * @see org.geotools.api.data.DataStoreFactorySpi#canProcess(java.util.Map)
      */
+    @Override
     public boolean canProcess(Map<String, ?> params) {
 
         boolean result = false;
@@ -98,7 +99,7 @@ public class VPFDataStoreFactory implements DataStoreFactorySpi {
 
     /*
      *  (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#createDataStore(java.util.Map)
+     * @see org.geotools.api.data.DataStoreFactorySpi#createDataStore(java.util.Map)
      */
     @Override
     public DataStore createDataStore(Map<String, ?> params) throws IOException {
@@ -177,7 +178,7 @@ public class VPFDataStoreFactory implements DataStoreFactorySpi {
                 VPFFeatureType.debugFeature(feature);
             }
 
-            feature = iter.hasNext() ? (SimpleFeature) iter.next() : null;
+            feature = iter.hasNext() ? iter.next() : null;
         }
 
         try {
@@ -225,8 +226,9 @@ public class VPFDataStoreFactory implements DataStoreFactorySpi {
     /*
      *
      *  (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#createNewDataStore(java.util.Map)
+     * @see org.geotools.api.data.DataStoreFactorySpi#createNewDataStore(java.util.Map)
      */
+    @Override
     public DataStore createNewDataStore(Map<String, ?> params) throws IOException {
 
         return create(params);
@@ -240,7 +242,7 @@ public class VPFDataStoreFactory implements DataStoreFactorySpi {
 
     /*
      *  (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#getParametersInfo()
+     * @see org.geotools.api.data.DataStoreFactorySpi#getParametersInfo()
      */
     @Override
     public Param[] getParametersInfo() {
@@ -250,7 +252,7 @@ public class VPFDataStoreFactory implements DataStoreFactorySpi {
     }
     /*
      *  (non-Javadoc)
-     * @see org.geotools.data.DataStoreFactorySpi#isAvailable()
+     * @see org.geotools.api.data.DataStoreFactorySpi#isAvailable()
      */
     @Override
     public boolean isAvailable() {

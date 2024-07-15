@@ -30,18 +30,18 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.geotools.api.style.NamedLayer;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.StyledLayerDescriptor;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.sld.SLDConfiguration;
-import org.geotools.styling.NamedLayer;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.StyledLayerDescriptor;
 import org.geotools.xml.styling.SLDParser;
 import org.geotools.xml.styling.SLDTransformer;
 import org.geotools.xsd.Parser;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.opengis.style.Style;
 import org.parboiled.parserunners.ReportingParseRunner;
 import org.parboiled.support.ParsingResult;
 import org.xml.sax.SAXException;
@@ -97,6 +97,14 @@ public abstract class AbstractIntegrationTest extends CssBaseTest {
                         FilenameUtils.getBaseName(file.getName())
                                 + (exclusiveRulesEnabled ? "" : "-first")
                                 + "_java9.sld");
+
+        // Java 17 pretty-print has slightly different indentation
+        File sldFile_java17 =
+                new File(
+                        file.getParentFile(),
+                        FilenameUtils.getBaseName(file.getName())
+                                + (exclusiveRulesEnabled ? "" : "-first")
+                                + "_java17.sld");
 
         if (!sldFile.exists()) {
             Stylesheet ss = CssParser.parse(css);
@@ -154,6 +162,13 @@ public abstract class AbstractIntegrationTest extends CssBaseTest {
                 }
             }
 
+            if (sldFile_java17.exists()) {
+                expectedSLD = parseToSld(FileUtils.readFileToString(sldFile_java17, "UTF-8"));
+                if (expectedSLD.equals(actualSLD)) {
+                    return;
+                }
+            }
+
             // System.err.println(message);
             fail(message);
         }
@@ -176,7 +191,7 @@ public abstract class AbstractIntegrationTest extends CssBaseTest {
             throws TransformerException, IOException, FileNotFoundException {
         StyledLayerDescriptor sld = STYLE_FACTORY.createStyledLayerDescriptor();
         NamedLayer layer = STYLE_FACTORY.createNamedLayer();
-        layer.addStyle((org.geotools.styling.Style) s);
+        layer.addStyle((org.geotools.api.style.Style) s);
         sld.layers().add(layer);
         if (!sldFile.getParentFile().exists()) {
             assertTrue(sldFile.getParentFile().mkdirs());

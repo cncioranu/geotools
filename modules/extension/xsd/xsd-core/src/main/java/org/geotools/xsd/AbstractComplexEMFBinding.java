@@ -78,6 +78,7 @@ public abstract class AbstractComplexEMFBinding extends AbstractComplexBinding {
      * <p>This implementation is a heuristic and is not guaranteed to work. Subclasses may override
      * to provide the type explicitly.
      */
+    @Override
     public Class<?> getType() {
         if (type != null) {
             return type;
@@ -120,6 +121,7 @@ public abstract class AbstractComplexEMFBinding extends AbstractComplexBinding {
      * match the name of a property on the object, subclasses may wish to extend this method and set
      * the property explicitly.
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         // does this binding actually map to an eObject?
         if (EObject.class.isAssignableFrom(getType()) && (factory != null)) {
@@ -180,15 +182,13 @@ public abstract class AbstractComplexEMFBinding extends AbstractComplexBinding {
     /** Helper method for settings properties of an eobject. */
     void setProperties(EObject eObject, Node node, boolean lax) {
         // reflectivley set the properties of it
-        for (Iterator c = node.getChildren().iterator(); c.hasNext(); ) {
-            Node child = (Node) c.next();
+        for (Node child : node.getChildren()) {
             String property = child.getComponent().getName();
 
             setProperty(eObject, property, child.getValue(), lax);
         }
 
-        for (Iterator a = node.getAttributes().iterator(); a.hasNext(); ) {
-            Node att = (Node) a.next();
+        for (Node att : node.getAttributes()) {
             String property = att.getComponent().getName();
 
             setProperty(eObject, property, att.getValue(), lax);
@@ -226,13 +226,11 @@ public abstract class AbstractComplexEMFBinding extends AbstractComplexBinding {
                         // try to convert based on method return type
                         // JD: this is a hack
                         try {
-                            Method g =
-                                    eObject.getClass()
-                                            .getMethod(
-                                                    "get"
-                                                            + property.substring(0, 1).toUpperCase()
-                                                            + property.substring(1),
-                                                    null);
+                            String methodName =
+                                    "get"
+                                            + property.substring(0, 1).toUpperCase()
+                                            + property.substring(1);
+                            Method g = eObject.getClass().getMethod(methodName, null);
                             if (g == null) {
                                 throw e;
                             }
@@ -305,6 +303,7 @@ public abstract class AbstractComplexEMFBinding extends AbstractComplexBinding {
      * property on the object, subclasses may wish to extend this method and set the property
      * explicitly.
      */
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         if (object instanceof EObject) {
             EObject eObject = (EObject) object;

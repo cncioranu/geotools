@@ -32,10 +32,10 @@ import java.sql.Types;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.util.Converters;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
 
 /**
  * SQL dialect which uses prepared statements for database interaction.
@@ -119,16 +119,23 @@ public abstract class PreparedStatementSQLDialect extends SQLDialect {
      *
      * @param value the value.
      * @param binding The class of the value.
+     * @param att Optionally the descriptor of the respective attribute to provide native type
+     *     information.
      * @param ps The prepared statement.
      * @param column The column the value maps to.
      * @param cx The database connection.
      */
     public void setValue(
-            Object value, Class binding, PreparedStatement ps, int column, Connection cx)
+            Object value,
+            Class<?> binding,
+            AttributeDescriptor att,
+            PreparedStatement ps,
+            int column,
+            Connection cx)
             throws SQLException {
 
         // get the sql type
-        Integer sqlType = dataStore.getMapping(binding);
+        Integer sqlType = dataStore.getMapping(binding, att);
 
         // handle null case
         if (value == null) {
@@ -138,38 +145,48 @@ public abstract class PreparedStatementSQLDialect extends SQLDialect {
 
         switch (sqlType) {
             case Types.VARCHAR:
-                ps.setString(column, (String) convert(value, String.class));
+            case Types.CHAR:
+            case Types.NCHAR:
+            case Types.LONGVARCHAR:
+            case Types.NVARCHAR:
+                ps.setString(column, convert(value, String.class));
                 break;
+            case Types.BIT:
             case Types.BOOLEAN:
-                ps.setBoolean(column, (Boolean) convert(value, Boolean.class));
+                ps.setBoolean(column, convert(value, Boolean.class));
                 break;
+            case Types.TINYINT:
             case Types.SMALLINT:
-                ps.setShort(column, (Short) convert(value, Short.class));
+                ps.setShort(column, convert(value, Short.class));
                 break;
             case Types.INTEGER:
-                ps.setInt(column, (Integer) convert(value, Integer.class));
+                ps.setInt(column, convert(value, Integer.class));
                 break;
             case Types.BIGINT:
-                ps.setLong(column, (Long) convert(value, Long.class));
+                ps.setLong(column, convert(value, Long.class));
                 break;
             case Types.REAL:
-                ps.setFloat(column, (Float) convert(value, Float.class));
+            case Types.FLOAT:
+                ps.setFloat(column, convert(value, Float.class));
                 break;
             case Types.DOUBLE:
-                ps.setDouble(column, (Double) convert(value, Double.class));
+                ps.setDouble(column, convert(value, Double.class));
                 break;
+            case Types.DECIMAL:
             case Types.NUMERIC:
                 ps.setBigDecimal(column, (BigDecimal) convert(value, BigDecimal.class));
                 break;
             case Types.DATE:
-                ps.setDate(column, (Date) convert(value, Date.class));
+                ps.setDate(column, convert(value, Date.class));
                 break;
             case Types.TIME:
-                ps.setTime(column, (Time) convert(value, Time.class));
+                ps.setTime(column, convert(value, Time.class));
                 break;
             case Types.TIMESTAMP:
-                ps.setTimestamp(column, (Timestamp) convert(value, Timestamp.class));
+                ps.setTimestamp(column, convert(value, Timestamp.class));
                 break;
+            case Types.BINARY:
+            case Types.VARBINARY:
             case Types.BLOB:
                 ps.setBytes(column, convert(value, byte[].class));
                 break;
@@ -222,8 +239,7 @@ public abstract class PreparedStatementSQLDialect extends SQLDialect {
         Map<String, Class<?>> mappings = dataStore.getSqlTypeNameToClassMappings();
         Class<?> componentType = att.getType().getBinding().getComponentType();
         List<String> sqlTypeNames =
-                mappings.entrySet()
-                        .stream()
+                mappings.entrySet().stream()
                         .filter(e -> e.getValue().equals(componentType))
                         .map(e -> e.getKey())
                         .collect(Collectors.toList());

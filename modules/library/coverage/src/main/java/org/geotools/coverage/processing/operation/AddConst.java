@@ -24,13 +24,13 @@ import java.awt.image.RenderedImage;
 import java.util.Map;
 import javax.media.jai.ParameterBlockJAI;
 import javax.media.jai.operator.AddConstDescriptor;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.processing.OperationJAI;
 import org.geotools.util.NumberRange;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.InternationalString;
 
 // Geotools dependencies
 
@@ -71,7 +71,8 @@ import org.opengis.util.InternationalString;
  * @since 2.2
  * @version $Id$
  * @author Martin Desruisseaux (IRD)
- * @see org.geotools.coverage.processing.Operations#add(org.opengis.coverage.Coverage, double[])
+ * @see org.geotools.coverage.processing.Operations#add(org.geotools.api.coverage.Coverage,
+ *     double[])
  * @see AddConstDescriptor
  * @todo Should operates on {@code sampleToGeophysics} transform when possible. See <A
  *     HREF="http://jira.codehaus.org/browse/GEOT-610">GEOT-610</A>.
@@ -87,11 +88,13 @@ public class AddConst extends OperationJAI {
         super(ADD_CONST, getOperationDescriptor(JAIExt.getOperationName(ADD_CONST)));
     }
 
+    @Override
     public String getName() {
         return ADD_CONST;
     }
 
     /** Returns the expected range of values for the resulting image. */
+    @Override
     protected NumberRange<? extends Number> deriveRange(
             final NumberRange<? extends Number>[] ranges, final Parameters parameters) {
         final double[] constants = (double[]) parameters.parameters.getObjectParameter("constants");
@@ -105,6 +108,7 @@ public class AddConst extends OperationJAI {
         return super.deriveRange(ranges, parameters);
     }
 
+    @Override
     protected void handleJAIEXTParams(
             ParameterBlockJAI parameters, ParameterValueGroup parameters2) {
         GridCoverage2D source = (GridCoverage2D) parameters2.parameter("source0").getValue();
@@ -114,6 +118,7 @@ public class AddConst extends OperationJAI {
         handleROINoDataInternal(parameters, source, OPERATION_CONST, 2, 3);
     }
 
+    @Override
     protected Map<String, ?> getProperties(
             RenderedImage data,
             CoordinateReferenceSystem crs,

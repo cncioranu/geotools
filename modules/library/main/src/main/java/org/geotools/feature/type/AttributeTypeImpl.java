@@ -17,11 +17,11 @@
 package org.geotools.feature.type;
 
 import java.util.List;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.util.InternationalString;
 import org.geotools.util.Classes;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.util.InternationalString;
 
 /**
  * Base class for attribute types.
@@ -45,6 +45,7 @@ public class AttributeTypeImpl extends PropertyTypeImpl implements AttributeType
         this.identified = identified;
     }
 
+    @Override
     public boolean isIdentified() {
         return identified;
     }
@@ -69,11 +70,13 @@ public class AttributeTypeImpl extends PropertyTypeImpl implements AttributeType
         return null;
     }
 
+    @Override
     public AttributeType getSuper() {
         return (AttributeType) super.getSuper();
     }
 
     /** Override of hashcode. */
+    @Override
     public int hashCode() {
         return super.hashCode() ^ Boolean.valueOf(identified).hashCode();
     }
@@ -84,6 +87,7 @@ public class AttributeTypeImpl extends PropertyTypeImpl implements AttributeType
      * @param other the object to be tested for equality.
      * @return whether other is equal to this attribute Type.
      */
+    @Override
     public boolean equals(Object other) {
         if (this == other) return true;
 
@@ -102,6 +106,7 @@ public class AttributeTypeImpl extends PropertyTypeImpl implements AttributeType
         return true;
     }
 
+    @Override
     public String toString() {
         StringBuffer sb = new StringBuffer(Classes.getShortClassName(this));
         sb.append(" ");

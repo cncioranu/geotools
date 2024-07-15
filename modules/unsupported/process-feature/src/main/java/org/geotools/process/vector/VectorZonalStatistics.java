@@ -17,9 +17,15 @@
  */
 package org.geotools.process.vector;
 
-import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.factory.CommonFactoryFinder;
@@ -35,42 +41,31 @@ import org.geotools.process.vector.AggregateProcess.AggregationFunction;
 import org.geotools.process.vector.AggregateProcess.Results;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Provides statistics for the distribution of a certain quantity in a set of reference areas. The
  * data layer must be a point layer, the reference layer must be a polygonal one
  */
 @DescribeProcess(
-    title = "Vector Zonal Statistics",
-    description =
-            "Computes statistics for the distribution of a given attribute in a set of polygonal zones.  Input must be points."
-)
+        title = "Vector Zonal Statistics",
+        description =
+                "Computes statistics for the distribution of a given attribute in a set of polygonal zones.  Input must be points.")
 public class VectorZonalStatistics implements VectorProcess {
 
     @DescribeResult(
-        name = "statistics",
-        description =
-                "A feature collection with the attributes of the zone layer (prefixed by 'z_') and the statistics fields count,min,max,sum,avg,stddev"
-    )
+            name = "statistics",
+            description =
+                    "A feature collection with the attributes of the zone layer (prefixed by 'z_') and the statistics fields count,min,max,sum,avg,stddev")
     public SimpleFeatureCollection execute(
             @DescribeParameter(name = "data", description = "Input collection of point features")
                     SimpleFeatureCollection data,
             @DescribeParameter(
-                        name = "dataAttribute",
-                        description = "Attribute to use for computing statistics"
-                    )
+                            name = "dataAttribute",
+                            description = "Attribute to use for computing statistics")
                     String dataAttribute,
             @DescribeParameter(
-                        name = "zones",
-                        description = "Zone polygon features for which to compute statistics"
-                    )
+                            name = "zones",
+                            description = "Zone polygon features for which to compute statistics")
                     SimpleFeatureCollection zones) {
 
         AttributeDescriptor dataDescriptor = data.getSchema().getDescriptor(dataAttribute);
@@ -136,18 +131,15 @@ public class VectorZonalStatistics implements VectorProcess {
     /** An iterator computing statistics as we go */
     static class ZonalStatisticsIterator implements SimpleFeatureIterator {
         Set<AggregationFunction> FUNCTIONS =
-                new HashSet<AggregationFunction>() {
-                    {
-                        add(AggregationFunction.Count);
-                        add(AggregationFunction.Max);
-                        add(AggregationFunction.Min);
-                        add(AggregationFunction.Sum);
-                        add(AggregationFunction.Average);
-                        add(AggregationFunction.StdDev);
-                    }
-                };
+                Set.of(
+                        AggregationFunction.Count,
+                        AggregationFunction.Max,
+                        AggregationFunction.Min,
+                        AggregationFunction.Sum,
+                        AggregationFunction.Average,
+                        AggregationFunction.StdDev);
 
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
         SimpleFeatureIterator zones;
 
@@ -171,14 +163,17 @@ public class VectorZonalStatistics implements VectorProcess {
             this.dataGeomName = data.getSchema().getGeometryDescriptor().getLocalName();
         }
 
+        @Override
         public void close() {
             zones.close();
         }
 
+        @Override
         public boolean hasNext() {
             return zones.hasNext();
         }
 
+        @Override
         public SimpleFeature next() throws NoSuchElementException {
             // grab the current zone
             SimpleFeature zone = zones.next();

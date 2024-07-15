@@ -28,12 +28,11 @@ import java.sql.SQLException;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import org.geotools.data.Transaction;
+import org.geotools.api.data.Transaction;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 /**
@@ -58,17 +57,18 @@ public class JDBCTransactionStateTest {
     public void setUp() {
         // when(mockLogHandler.publish(any(LogRecord.class)));
         doAnswer(
-                        new Answer<Object>() {
-                            public Object answer(InvocationOnMock invocation) {
-                                Object[] arguments = invocation.getArguments();
-                                LogRecord logRecord = (LogRecord) arguments[0];
-                                if (logRecord.getLevel() == Level.WARNING
-                                        && !logRecord.getSourceMethodName().equals("finalize")) {
-                                    warningsCount++;
-                                }
-                                return null;
-                            }
-                        })
+                        (Answer<Object>)
+                                invocation -> {
+                                    Object[] arguments = invocation.getArguments();
+                                    LogRecord logRecord = (LogRecord) arguments[0];
+                                    if (logRecord.getLevel() == Level.WARNING
+                                            && !logRecord
+                                                    .getSourceMethodName()
+                                                    .equals("finalize")) {
+                                        warningsCount++;
+                                    }
+                                    return null;
+                                })
                 .when(mockLogHandler)
                 .publish(any(LogRecord.class));
         dataStore = new JDBCDataStore();

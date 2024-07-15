@@ -1,11 +1,13 @@
 /*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
+ *    GeoTools Sample code and Tutorials by Open Source Geospatial Foundation, and others
+ *    https://docs.geotools.org
  *
- *    (C) 2006-2010, Open Source Geospatial Foundation (OSGeo)
+ *    To the extent possible under law, the author(s) have dedicated all copyright
+ *    and related and neighboring rights to this software to the public domain worldwide.
+ *    This software is distributed without any warranty.
  *
- *    This file is hereby placed into the Public Domain. This means anyone is
- *    free to do whatever they wish with this file. Use it well and enjoy!
+ *    You should have received a copy of the CC0 Public Domain Dedication along with this
+ *    software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 package org.geotools.render;
 
@@ -27,12 +29,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.xml.transform.TransformerException;
 import net.miginfocom.swing.MigLayout;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.StyledLayerDescriptor;
+import org.geotools.api.style.UserLayer;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.styling.FeatureTypeConstraint;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.StyledLayerDescriptor;
-import org.geotools.styling.UserLayer;
 import org.geotools.swing.data.JParameterListWizard;
 import org.geotools.swing.wizard.JWizard;
 import org.geotools.util.KVP;
@@ -40,7 +42,6 @@ import org.geotools.util.SuppressFBWarnings;
 import org.geotools.xml.styling.SLDParser;
 import org.geotools.xml.styling.SLDTransformer;
 import org.geotools.xsd.Encoder;
-import org.opengis.style.Style;
 
 /**
  * StyleConverter example used to demonstrate reading and writing of SLD and SE files.
@@ -291,9 +292,9 @@ public class StyleConverter extends JFrame {
 
         // FeatureTypeConstraint ftc =
         // styleFactory.createFeatureTypeConstraint(null, Filter.INCLUDE, null);
-        layer.setLayerFeatureConstraints(new FeatureTypeConstraint[] {null});
+        layer.setLayerFeatureConstraints(null);
         sld.addStyledLayer(layer);
-        layer.addUserStyle((org.geotools.styling.Style) style);
+        layer.addUserStyle(style);
 
         return sld;
     }

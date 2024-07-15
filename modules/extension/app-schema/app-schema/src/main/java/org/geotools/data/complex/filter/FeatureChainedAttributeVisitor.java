@@ -24,6 +24,11 @@ import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.data.complex.AttributeMapping;
 import org.geotools.data.complex.FeatureTypeMapping;
 import org.geotools.data.complex.NestedAttributeMapping;
@@ -35,11 +40,6 @@ import org.geotools.data.joining.JoiningNestedAttributeMapping;
 import org.geotools.filter.visitor.DefaultExpressionVisitor;
 import org.geotools.util.logging.Logging;
 import org.geotools.xlink.XLINK;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -182,7 +182,7 @@ public class FeatureChainedAttributeVisitor extends DefaultExpressionVisitor {
         if (searchIsOver && currentXPath != null && !currentXPath.isEmpty()) {
             StepList lastAttrPath = currentXPath;
             List<Expression> lastAttrExpressions = currentType.findMappingsFor(lastAttrPath, false);
-            if (lastAttrExpressions != null && lastAttrExpressions.size() > 0) {
+            if (lastAttrExpressions != null && !lastAttrExpressions.isEmpty()) {
                 attrDescr.setAttributePath(lastAttrPath);
 
                 // check whether this is a case of feature chaining by reference
@@ -417,7 +417,7 @@ public class FeatureChainedAttributeVisitor extends DefaultExpressionVisitor {
          * @throws IndexOutOfBoundsException if the feature types chain is empty
          */
         public FeatureChainLink getFirstLink() {
-            if (featureChain.size() == 0) {
+            if (featureChain.isEmpty()) {
                 throw new IndexOutOfBoundsException("the list is empty");
             }
             return featureChain.get(0);
@@ -430,7 +430,7 @@ public class FeatureChainedAttributeVisitor extends DefaultExpressionVisitor {
          * @throws IndexOutOfBoundsException if the feature types chain is empty
          */
         public FeatureChainLink getLastLink() {
-            if (featureChain.size() == 0) {
+            if (featureChain.isEmpty()) {
                 throw new IndexOutOfBoundsException("the list is empty");
             }
             return featureChain.get(featureChain.size() - 1);

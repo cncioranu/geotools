@@ -1,19 +1,13 @@
 /*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
+ *    GeoTools Sample code and Tutorials by Open Source Geospatial Foundation, and others
+ *    https://docs.geotools.org
  *
- * 	  (C) 2014 - 2015 Open Source Geospatial Foundation (OSGeo)
- * 	  (c) 2012 - 2014 OpenPlans
+ *    To the extent possible under law, the author(s) have dedicated all copyright
+ *    and related and neighboring rights to this software to the public domain worldwide.
+ *    This software is distributed without any warranty.
  *
- *    This library is free software; you can redistribute it and/or
- *    modify it under the terms of the GNU Lesser General Public
- *    License as published by the Free Software Foundation;
- *    version 2.1 of the License.
- *
- *    This library is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *    Lesser General Public License for more details.
+ *    You should have received a copy of the CC0 Public Domain Dedication along with this
+ *    software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 package org.geotools.tutorial.csv3.parse;
 
@@ -23,10 +17,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.tutorial.csv3.CSVFileState;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 // docs start CSVStrategy
 public abstract class CSVStrategy {
@@ -107,16 +101,15 @@ public abstract class CSVStrategy {
      */
     protected static Map<String, Class<?>> findMostSpecificTypesFromData(
             CsvReader csvReader, String[] headers) throws IOException {
-        Map<String, Class<?>> result = new HashMap<String, Class<?>>();
+        Map<String, Class<?>> result = new HashMap<>();
         // start off assuming Integers for everything
         for (String header : headers) {
             result.put(header, Integer.class);
         }
         // Read through the whole file in case the type changes in later rows
         while (csvReader.readRecord()) {
-            String[] record = csvReader.getValues();
-            List<String> values = Arrays.asList(record);
-            if (record.length >= headers.length) {
+            List<String> values = Arrays.asList(csvReader.getValues());
+            if (values.size() >= headers.length) {
                 values = values.subList(0, headers.length);
             }
             int i = 0;

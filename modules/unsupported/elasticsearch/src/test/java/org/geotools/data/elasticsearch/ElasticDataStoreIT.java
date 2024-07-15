@@ -36,10 +36,10 @@ import org.apache.http.StatusLine;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
-import org.geotools.data.DataStore;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.store.ContentFeatureSource;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 public class ElasticDataStoreIT extends ElasticTestSupport {
 
@@ -65,11 +65,12 @@ public class ElasticDataStoreIT extends ElasticTestSupport {
                 ElasticDataStoreFactory.getValue(ElasticDataStoreFactory.INDEX_NAME, params);
 
         HttpHost httpHost = new HttpHost(host, port, "http");
-        RestClient client = RestClient.builder(httpHost).build();
+        try (RestClient client = RestClient.builder(httpHost).build()) {
 
-        DataStore dataStore = new ElasticDataStore(client, indexName);
-        String[] typeNames = dataStore.getTypeNames();
-        assertTrue(typeNames.length > 0);
+            DataStore dataStore = new ElasticDataStore(client, indexName);
+            String[] typeNames = dataStore.getTypeNames();
+            assertTrue(typeNames.length > 0);
+        }
     }
 
     @Test
@@ -81,14 +82,22 @@ public class ElasticDataStoreIT extends ElasticTestSupport {
                 ElasticDataStoreFactory.getValue(ElasticDataStoreFactory.INDEX_NAME, params);
 
         HttpHost httpHost = new HttpHost(host, port, "http");
-        RestClient client = RestClient.builder(httpHost).build();
+        try (RestClient client = RestClient.builder(httpHost).build()) {
 
-        DataStore dataStore = new ElasticDataStore(client, client, indexName, false);
-        String[] typeNames = dataStore.getTypeNames();
-        assertTrue(typeNames.length > 0);
+            DataStore dataStore =
+                    new ElasticDataStore(
+                            client,
+                            client,
+                            indexName,
+                            false,
+                            (Integer) ElasticDataStoreFactory.RESPONSE_BUFFER_LIMIT.sample);
+            String[] typeNames = dataStore.getTypeNames();
+            assertTrue(typeNames.length > 0);
+        }
     }
 
     @Test(expected = IOException.class)
+    @SuppressWarnings("PMD.CloseResource") // all mocks
     public void testConstructionWithBadClient() throws IOException {
         Map<String, Serializable> params = createConnectionParams();
         String indexName =
@@ -107,6 +116,7 @@ public class ElasticDataStoreIT extends ElasticTestSupport {
     }
 
     @Test(expected = IOException.class)
+    @SuppressWarnings("PMD.CloseResource") // all mocks
     public void testConstructionWithBadProxyClient() throws IOException {
         Map<String, Serializable> params = createConnectionParams();
         String indexName =
@@ -123,7 +133,12 @@ public class ElasticDataStoreIT extends ElasticTestSupport {
         final AtomicInteger count = new AtomicInteger(0);
         when(mockStatusLine.getStatusCode())
                 .thenAnswer((invocation) -> count.getAndIncrement() == 0 ? 200 : 400);
-        new ElasticDataStore(mockClient, mockClient, indexName, false);
+        new ElasticDataStore(
+                mockClient,
+                mockClient,
+                indexName,
+                false,
+                (Integer) ElasticDataStoreFactory.RESPONSE_BUFFER_LIMIT.sample);
     }
 
     @Test

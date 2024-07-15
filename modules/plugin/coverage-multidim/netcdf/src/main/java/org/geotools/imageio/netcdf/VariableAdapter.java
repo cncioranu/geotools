@@ -16,6 +16,7 @@
  */
 package org.geotools.imageio.netcdf;
 
+import com.google.common.collect.ImmutableList;
 import java.awt.Color;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
@@ -36,6 +37,22 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import javax.measure.Unit;
 import javax.measure.format.MeasurementParseException;
+import org.apache.commons.lang3.StringUtils;
+import org.geotools.api.coverage.SampleDimension;
+import org.geotools.api.coverage.grid.GridEnvelope;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.metadata.spatial.PixelOrientation;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.TemporalCRS;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.util.InternationalString;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.Category;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridEnvelope2D;
@@ -75,23 +92,9 @@ import org.geotools.referencing.operation.transform.ProjectiveTransform;
 import org.geotools.util.DateRange;
 import org.geotools.util.NumberRange;
 import org.geotools.util.SimpleInternationalString;
+import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.SampleDimension;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.TemporalCRS;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.util.InternationalString;
-import org.opengis.util.ProgressListener;
 import ucar.nc2.Dimension;
 import ucar.nc2.constants.AxisType;
 import ucar.nc2.dataset.CoordinateAxis;
@@ -111,6 +114,10 @@ public class VariableAdapter extends CoverageSourceDescriptor {
     private static final AxisComparator AXIS_COMPARATOR = new CoordinateAxis.AxisComparator();
     public static final int Z = 0;
     public static final int T = 1;
+
+    // We can assume that once "m" has been parsed as Unit Meter object,
+    // we can cache that info.
+    private static final Map<String, Unit> UNITS_CACHE = new SoftValueHashMap<>();
 
     /**
      * Simple chars replacing classes to deal with "custom" chars. As an instance, to be compliant
@@ -330,6 +337,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
                             private DateRangeComparator dateRangeComparator =
                                     new DateRangeComparator();
 
+                            @Override
                             public int compare(Object o1, Object o2) {
                                 // assume that o1 and o2 are both not null
                                 boolean o1IsDateRange = true;
@@ -481,8 +489,8 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         return variableDS.getRank() - ignoredDimensions.size();
     }
 
-    /** @throws Exception */
-    private void initSlicesInfo() throws Exception {
+    @SuppressWarnings("deprecation") // no alternative for Dimension.getFullName
+    private void initSlicesInfo() {
         int[] shape = variableDS.getShape();
         numberOfSlices = 1;
         for (int i = 0; i < variableDS.getShape().length - 2; i++) {
@@ -637,8 +645,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
             // Find the descriptor related to the current dimension
             if (descriptor.getName().toUpperCase().equalsIgnoreCase(currentDimName)) {
                 final String updatedAttribute = attributeDescriptor.getLocalName();
-                if (!updatedAttribute.equals(
-                        ((DefaultDimensionDescriptor) descriptor).getStartAttribute())) {
+                if (!updatedAttribute.equals(descriptor.getStartAttribute())) {
                     // Remap attributes in case the schema's attribute doesn't match the current
                     // attribute
                     ((DefaultDimensionDescriptor) descriptor).setStartAttribute(updatedAttribute);
@@ -822,7 +829,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         spatialDomain.setGridGeometry(getGridGeometry());
     }
 
-    /** */
+    @SuppressWarnings("deprecation") // no alternative for Dimension.getFullName
     private void initRange() {
 
         width =
@@ -890,15 +897,19 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         // Parsing the unit of measure of this variable
         Unit unit = null;
         String unitString = variableDS.getUnitsString();
-        if (unitString != null) {
-            try {
-                unit = NetCDFUnitFormat.parse(unitString);
-            } catch (MeasurementParseException parseException) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine(
-                            "Unable to parse the unit:"
-                                    + unitString
-                                    + "\nNo unit will be assigned");
+        if (StringUtils.isNotEmpty(unitString)) {
+            unit = UNITS_CACHE.get(unitString);
+            if (unit == null) {
+                try {
+                    unit = NetCDFUnitFormat.getInstance().parse(unitString);
+                    UNITS_CACHE.put(unitString, unit);
+                } catch (MeasurementParseException parseException) {
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.fine(
+                                "Unable to parse the unit:"
+                                        + unitString
+                                        + "\nNo unit will be assigned");
+                    }
                 }
             }
         }
@@ -969,10 +980,10 @@ public class VariableAdapter extends CoverageSourceDescriptor {
                                         "Axis values contains NaN; finding first valid values");
                             }
                             for (int j = 0; j < vals.size(); j++) {
-                                double v = ((Number) vals.get(j)).doubleValue();
+                                double v = vals.get(j).doubleValue();
                                 if (!Double.isNaN(v)) {
                                     for (int k = vals.size(); k > j; k--) {
-                                        double vv = ((Number) vals.get(k)).doubleValue();
+                                        double vv = vals.get(k).doubleValue();
                                         if (!Double.isNaN(vv)) {
                                             origin[0] = v;
                                             scaleX = (vv - v) / vals.size();
@@ -1018,10 +1029,10 @@ public class VariableAdapter extends CoverageSourceDescriptor {
                                         "Axis values contains NaN; finding first valid values");
                             }
                             for (int j = 0; j < values.size(); j++) {
-                                double v = ((Number) values.get(j)).doubleValue();
+                                double v = values.get(j).doubleValue();
                                 if (!Double.isNaN(v)) {
                                     for (int k = values.size(); k > j; k--) {
-                                        double vv = ((Number) values.get(k)).doubleValue();
+                                        double vv = values.get(k).doubleValue();
                                         if (!Double.isNaN(vv)) {
                                             origin[1] = v;
                                             scaleY = -(vv - v) / values.size();
@@ -1140,6 +1151,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         return resultIndex;
     }
 
+    @SuppressWarnings("deprecation") // no alternative for Dimension.getFullName
     public Map<String, Integer> mapIndex(int[] splittedIndex) {
         Map<String, Integer> resultIndex = new HashMap<>();
         for (int n = 0; n < splittedIndex.length; n++) {
@@ -1310,7 +1322,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
      * @param dimensionIndex the index of the dimension
      * @return the value
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "deprecation"}) // no alternative for Dimension.getFullName
     private <T> T getValueByIndex(int dimensionIndex, final Map<String, Integer> mappedIndex) {
         final Dimension dimension = variableDS.getDimension(dimensionIndex);
         return (T)
@@ -1332,6 +1344,8 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         /** Boolean indicating that the vertical axis is present */
         private final boolean vertical;
 
+        @SuppressWarnings(
+                "deprecation") // We are actually wrapping the coordinateSystem, not building it
         CoordinateSystemAdapter(CoordinateSystem cs) {
             this.cs = cs;
             // Check if the Vertical axis is present
@@ -1371,8 +1385,13 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         }
 
         @Override
-        public List<CoordinateAxis> getCoordinateAxes() {
+        public ImmutableList<CoordinateAxis> getCoordinateAxes() {
             return cs.getCoordinateAxes();
         }
+    }
+
+    /** Clear the parsed unit cache */
+    public static void clearCache() {
+        UNITS_CACHE.clear();
     }
 }

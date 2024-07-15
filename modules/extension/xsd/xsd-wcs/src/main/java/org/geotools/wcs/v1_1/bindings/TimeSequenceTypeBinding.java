@@ -26,15 +26,15 @@ import javax.xml.namespace.QName;
 import net.opengis.wcs11.TimePeriodType;
 import net.opengis.wcs11.TimeSequenceType;
 import net.opengis.wcs11.Wcs111Factory;
+import org.geotools.api.temporal.Instant;
+import org.geotools.api.temporal.Period;
+import org.geotools.api.temporal.Position;
 import org.geotools.gml3.GML;
 import org.geotools.temporal.object.DefaultInstant;
 import org.geotools.wcs.v1_1.WCS;
 import org.geotools.xsd.AbstractComplexBinding;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
-import org.opengis.temporal.Instant;
-import org.opengis.temporal.Period;
-import org.opengis.temporal.Position;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -63,6 +63,7 @@ import org.w3c.dom.Element;
 public class TimeSequenceTypeBinding extends AbstractComplexBinding {
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WCS.TimeSequenceType;
     }
@@ -74,6 +75,7 @@ public class TimeSequenceTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return TimeSequenceType.class;
     }
@@ -85,6 +87,7 @@ public class TimeSequenceTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     @SuppressWarnings("unchecked")
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         List<Node> timePositions = node.getChildren("timePosition");
@@ -143,6 +146,7 @@ public class TimeSequenceTypeBinding extends AbstractComplexBinding {
         return null;
     }
 
+    @Override
     public Object getProperty(Object object, QName name) {
         List timeSequence = (List) object;
 

@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -48,7 +49,47 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import org.geotools.data.DataAccessFactory.Param;
+import org.apache.commons.lang3.SerializationUtils;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.data.DataAccess;
+import org.geotools.api.data.DataAccessFactory.Param;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureLocking;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.FeatureStore;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureLocking;
+import org.geotools.api.data.SimpleFeatureReader;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.FeatureFactory;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.GeometryType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.style.UserLayer;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.data.collection.CollectionFeatureSource;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.collection.SpatialIndexFeatureCollection;
@@ -56,10 +97,6 @@ import org.geotools.data.collection.SpatialIndexFeatureSource;
 import org.geotools.data.collection.TreeSetFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureLocking;
-import org.geotools.data.simple.SimpleFeatureReader;
-import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.data.view.DefaultView;
 import org.geotools.factory.CommonFactoryFinder;
@@ -86,7 +123,6 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.geometry.jts.WKTReader2;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.CRS;
-import org.geotools.styling.UserLayer;
 import org.geotools.util.Converters;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.Hints;
@@ -101,32 +137,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureFactory;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.GeometryType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.util.ProgressListener;
 
 /**
  * Utility functions for use with GeoTools with data classes.
@@ -192,13 +202,13 @@ import org.opengis.util.ProgressListener;
  * @author Jody Garnett, Refractions Research
  */
 public class DataUtilities {
-    /** Typemap used by {@link #createType(String, String)} methods */
+    /** Type map used by {@link #createType(String, String)} methods */
     static Map<String, Class> typeMap = new HashMap<>();
 
     /** Reverse type map used by {@link #encodeType(FeatureType)} */
     static Map<Class, String> typeEncode = new HashMap<>();
 
-    static FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+    static FilterFactory ff = CommonFactoryFinder.getFilterFactory();
 
     static {
         typeEncode.put(String.class, "String");
@@ -719,8 +729,8 @@ public class DataUtilities {
             List list = (List) src;
             List<Object> copy = new ArrayList<>(list.size());
 
-            for (Iterator i = list.iterator(); i.hasNext(); ) {
-                copy.add(duplicate(i.next()));
+            for (Object o : list) {
+                copy.add(duplicate(o));
             }
 
             return Collections.unmodifiableList(copy);
@@ -731,8 +741,8 @@ public class DataUtilities {
             Map<Object, Object> map = (Map) src;
             Map<Object, Object> copy = new HashMap<>(map.size());
 
-            for (Iterator i = map.entrySet().iterator(); i.hasNext(); ) {
-                Map.Entry entry = (Map.Entry) i.next();
+            for (Map.Entry<Object, Object> objectObjectEntry : map.entrySet()) {
+                Map.Entry entry = (Map.Entry) objectObjectEntry;
                 copy.put(entry.getKey(), duplicate(entry.getValue()));
             }
 
@@ -741,6 +751,11 @@ public class DataUtilities {
 
         if (src instanceof GridCoverage) {
             return src; // inmutable
+        }
+
+        // last ditch effort is the source is serializable
+        if (src instanceof Serializable) {
+            return SerializationUtils.clone((Serializable) src);
         }
 
         //
@@ -793,7 +808,7 @@ public class DataUtilities {
      * @throws ArrayIndexOutOfBoundsException If the number of provided values does not match the
      *     featureType
      */
-    public static SimpleFeature template(SimpleFeatureType featureType, Object[] providedValues) {
+    public static SimpleFeature template(SimpleFeatureType featureType, Object... providedValues) {
         return SimpleFeatureBuilder.build(
                 featureType, defaultValues(featureType, providedValues), null);
     }
@@ -808,7 +823,7 @@ public class DataUtilities {
      *     featureType
      */
     public static SimpleFeature template(
-            SimpleFeatureType featureType, String featureID, Object[] providedValues) {
+            SimpleFeatureType featureType, String featureID, Object... providedValues) {
         return SimpleFeatureBuilder.build(
                 featureType, defaultValues(featureType, providedValues), featureID);
     }
@@ -820,7 +835,7 @@ public class DataUtilities {
      * @throws ArrayIndexOutOfBoundsException If the number of provided values does not match the
      *     featureType
      */
-    public static Object[] defaultValues(SimpleFeatureType featureType, Object[] values) {
+    public static Object[] defaultValues(SimpleFeatureType featureType, Object... values) {
         if (values == null) {
             values = new Object[featureType.getAttributeCount()];
         } else if (values.length != featureType.getAttributeCount()) {
@@ -955,7 +970,7 @@ public class DataUtilities {
      * @throws IOException If provided features Are null or empty
      */
     public static FeatureReader<SimpleFeatureType, SimpleFeature> reader(
-            final SimpleFeature[] features) throws IOException {
+            final SimpleFeature... features) throws IOException {
         if ((features == null) || (features.length == 0)) {
             throw new IOException("Provided features where empty");
         }
@@ -965,10 +980,12 @@ public class DataUtilities {
 
             int offset = -1;
 
+            @Override
             public SimpleFeatureType getFeatureType() {
                 return features[0].getFeatureType();
             }
 
+            @Override
             public SimpleFeature next() {
                 if (!hasNext()) {
                     throw new NoSuchElementException("No more features");
@@ -977,10 +994,12 @@ public class DataUtilities {
                 return array[++offset];
             }
 
+            @Override
             public boolean hasNext() {
                 return (array != null) && (offset < (array.length - 1));
             }
 
+            @Override
             public void close() {
                 array = null;
                 offset = -1;
@@ -994,7 +1013,7 @@ public class DataUtilities {
      * @param featureArray Array of features
      * @return FeatureSource
      */
-    public static SimpleFeatureSource source(final SimpleFeature[] featureArray) {
+    public static SimpleFeatureSource source(final SimpleFeature... featureArray) {
         final SimpleFeatureType featureType;
 
         if ((featureArray == null) || (featureArray.length == 0)) {
@@ -1166,12 +1185,11 @@ public class DataUtilities {
      * @param features Array of features
      * @return FeatureCollection
      */
-    public static SimpleFeatureCollection collection(SimpleFeature[] features) {
+    public static SimpleFeatureCollection collection(SimpleFeature... features) {
         // JG: There may be some performance to be gained by using ListFeatureCollection here
         DefaultFeatureCollection collection = new DefaultFeatureCollection(null, null);
-        final int length = features.length;
-        for (int i = 0; i < length; i++) {
-            collection.add(features[i]);
+        for (SimpleFeature feature : features) {
+            collection.add(feature);
         }
         return collection;
     }
@@ -1215,8 +1233,7 @@ public class DataUtilities {
         if (featureCollection == null) {
             return null;
         }
-        FeatureIterator<F> iter = featureCollection.features();
-        try {
+        try (FeatureIterator<F> iter = featureCollection.features()) {
             while (iter.hasNext()) {
                 F feature = iter.next();
                 if (feature != null) {
@@ -1224,8 +1241,6 @@ public class DataUtilities {
                 }
             }
             return null; // not found!
-        } finally {
-            iter.close();
         }
     }
 
@@ -1341,9 +1356,8 @@ public class DataUtilities {
         }
         // go through the attributes and strip out complicated contents
         //
-        List<PropertyDescriptor> attributes;
         Collection<PropertyDescriptor> descriptors = featureType.getDescriptors();
-        attributes = new ArrayList<>(descriptors);
+        List<PropertyDescriptor> attributes = new ArrayList<>(descriptors);
 
         List<String> simpleProperties = new ArrayList<>();
         List<AttributeDescriptor> simpleAttributes = new ArrayList<>();
@@ -1446,14 +1460,11 @@ public class DataUtilities {
      */
     public static <F extends Feature> List<F> list(FeatureCollection<?, F> featureCollection) {
         final ArrayList<F> list = new ArrayList<>();
-        FeatureIterator<F> iter = featureCollection.features();
-        try {
+        try (FeatureIterator<F> iter = featureCollection.features()) {
             while (iter.hasNext()) {
                 F feature = iter.next();
                 list.add(feature);
             }
-        } finally {
-            iter.close();
         }
         return list;
     }
@@ -1466,14 +1477,11 @@ public class DataUtilities {
     public static <F extends Feature> List<F> list(
             FeatureCollection<?, F> featureCollection, int maxFeatures) {
         final ArrayList<F> list = new ArrayList<>();
-        FeatureIterator<F> iter = featureCollection.features();
-        try {
+        try (FeatureIterator<F> iter = featureCollection.features()) {
             for (int count = 0; iter.hasNext() && count < maxFeatures; count++) {
                 F feature = iter.next();
                 list.add(feature);
             }
-        } finally {
-            iter.close();
         }
         return list;
     }
@@ -1495,13 +1503,7 @@ public class DataUtilities {
     public static Set<String> fidSet(FeatureCollection<?, ?> featureCollection) {
         final HashSet<String> fids = new HashSet<>();
         try {
-            featureCollection.accepts(
-                    new FeatureVisitor() {
-                        public void visit(Feature feature) {
-                            fids.add(feature.getIdentifier().getID());
-                        }
-                    },
-                    null);
+            featureCollection.accepts(feature -> fids.add(feature.getIdentifier().getID()), null);
         } catch (IOException ignore) {
         }
         return fids;
@@ -1777,7 +1779,7 @@ public class DataUtilities {
      * @return type limited to the named properties provided
      */
     public static SimpleFeatureType createSubType(
-            SimpleFeatureType featureType, String[] properties) throws SchemaException {
+            SimpleFeatureType featureType, String... properties) throws SchemaException {
         if (properties == null) {
             return featureType;
         }
@@ -1795,9 +1797,9 @@ public class DataUtilities {
         SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
         tb.setName(featureType.getName());
         tb.setCRS(null); // not interested in warnings from this simple method
-        for (int i = 0; i < properties.length; i++) {
+        for (String property : properties) {
             // let's get the attribute descriptor corresponding to the current property
-            AttributeDescriptor attributeDescriptor = featureType.getDescriptor(properties[i]);
+            AttributeDescriptor attributeDescriptor = featureType.getDescriptor(property);
             if (attributeDescriptor != null) {
                 // if the property doesn't map to an attribute descriptor we ignore it
                 // an attribute descriptor may be omitted for security proposes for example
@@ -1850,17 +1852,21 @@ public class DataUtilities {
      *
      *     <ul>
      *       <li><code>nillable</code>
-     *       <li><code>srid=<#></code>
+     *       <li><code>authority=text</code>
+     *       <li><code>srid=number</code>
      *     </ul>
      *
      * <li>You may indicate the default Geometry with an astrix: "*geom:Geometry".
-     * <li>You may also indicate the srid (used to look up a EPSG code): "*point:Point:3226
+     * <li>You may also indicate the srid (used to look up a EPSG code): "*point:Point:3226"
+     * <li>The CRS authority can be specified using the <code>authority</code> hint, if it's not
+     *     EPSG (the default): "*point:Point:authority=IAU;srid=49900"
      *
      *     <p>Examples:
      *
      *     <ul>
      *       <li><code>name:"",age:0,geom:Geometry,centroid:Point,url:java.io.URL"</code>
      *       <li><code>id:String,polygonProperty:Polygon:srid=32615</code>
+     *       <li><code>id:String,polygonProperty:Polygon:authority=IAU;srid=1000</code>
      *       <li><code>identifier:UUID,location:Point,*area:MultiPolygon,created:Date</code>
      *       <li><code>uuid:UUID,name:String,description:String,time:java.sql.Timestamp</code>
      *     </ul>
@@ -1940,9 +1946,19 @@ public class DataUtilities {
             buf.append(typeMap(type.getType().getBinding()));
             if (type instanceof GeometryDescriptor) {
                 GeometryDescriptor gd = (GeometryDescriptor) type;
-                int srid = toSRID(gd.getCoordinateReferenceSystem());
-                if (srid != -1) {
-                    buf.append(":srid=" + srid);
+                Map.Entry<Citation, Integer> code = lookupCode(gd.getCoordinateReferenceSystem());
+                if (code != null) {
+                    Citation authority = code.getKey();
+                    Integer srid = code.getValue();
+                    if (authority == null
+                            || authority.getIdentifiers().isEmpty()
+                            || isEPSG(authority)) {
+                        buf.append(":srid=" + srid);
+                    } else {
+                        String authorityCode =
+                                authority.getIdentifiers().iterator().next().getCode();
+                        buf.append(":authority=" + authorityCode + ";srid=" + srid);
+                    }
                 }
             }
             buf.append(",");
@@ -1950,30 +1966,41 @@ public class DataUtilities {
         buf.delete(buf.length() - 1, buf.length()); // remove last ","
         return buf.toString();
     }
+
+    private static boolean isEPSG(Citation authority) {
+        // straightforward but does not always work
+        if (Citations.EPSG.equals(authority)) return true;
+        // a bit more laborious but should work
+        return authority.getIdentifiers().stream().anyMatch(id -> id.getCode().equals("EPSG"));
+    }
+
     /**
      * Quickly review provided crs checking for an "EPSG:SRID" reference identifier.
      *
      * <p>
      *
      * @see CRS#lookupEpsgCode(CoordinateReferenceSystem, boolean) for full search
-     * @return srid or -1 if not found
+     * @return an authority/srid pair, or null if not found
      */
-    private static int toSRID(CoordinateReferenceSystem crs) {
-        if (crs == null || crs.getIdentifiers() == null) {
-            return -1; // not found
+    private static Map.Entry<Citation, Integer> lookupCode(CoordinateReferenceSystem crs) {
+        Set<ReferenceIdentifier> identifiers;
+        if (crs == null || (identifiers = crs.getIdentifiers()) == null || identifiers.isEmpty()) {
+            return null; // not found
         }
-        for (Iterator<ReferenceIdentifier> it = crs.getIdentifiers().iterator(); it.hasNext(); ) {
-            ReferenceIdentifier id = it.next();
+        // search for EPSG:#### code, if there is one
+        for (ReferenceIdentifier id : identifiers) {
             Citation authority = id.getAuthority();
             if (authority != null && authority.getTitle().equals(Citations.EPSG.getTitle())) {
                 try {
-                    return Integer.parseInt(id.getCode());
+                    return Map.entry(authority, Integer.parseInt(id.getCode()));
                 } catch (NumberFormatException nanException) {
                     continue;
                 }
             }
         }
-        return -1;
+        // otherwise pick the first authority available
+        ReferenceIdentifier id = identifiers.iterator().next();
+        return Map.entry(id.getAuthority(), Integer.parseInt(id.getCode()));
     }
 
     /**
@@ -2013,7 +2040,7 @@ public class DataUtilities {
             fid = line.substring(0, fidSplit);
         }
         String data = line.substring(fidSplit + 1);
-        String text[] = splitIntoText(data, featureType);
+        String[] text = splitIntoText(data, featureType);
         Object[] values = new Object[text.length];
         for (int i = 0; i < text.length; i++) {
             AttributeDescriptor descriptor = featureType.getDescriptor(i);
@@ -2046,7 +2073,7 @@ public class DataUtilities {
         // return data.split("|", -1); // use -1 as a limit to include empty trailing spaces
         // return data.split("[.-^\\\\]\\|",-1); //use -1 as limit to include empty trailing spaces
 
-        String text[] = new String[type.getAttributeCount()];
+        String[] text = new String[type.getAttributeCount()];
         int i = 0;
         StringBuilder item = new StringBuilder();
         for (String str : data.split("\\|", -1)) {
@@ -2196,7 +2223,7 @@ public class DataUtilities {
      * @param text Text representation of values
      * @return newly created feature
      */
-    public static SimpleFeature parse(SimpleFeatureType type, String fid, String[] text)
+    public static SimpleFeature parse(SimpleFeatureType type, String fid, String... text)
             throws IllegalAttributeException {
         Object[] attributes = new Object[text.length];
 
@@ -2282,43 +2309,35 @@ public class DataUtilities {
      *
      * @return Comparator suitable for use with Arrays.sort( SimpleFeature[], comparator )
      */
+    @SuppressWarnings("unchecked")
     public static Comparator<SimpleFeature> sortComparator(SortBy sortBy) {
         if (sortBy == null) {
             sortBy = SortBy.NATURAL_ORDER;
         }
         if (sortBy == SortBy.NATURAL_ORDER) {
-            return new Comparator<SimpleFeature>() {
-                public int compare(SimpleFeature f1, SimpleFeature f2) {
-                    return f1.getID().compareTo(f2.getID());
-                }
-            };
+            return (f1, f2) -> f1.getID().compareTo(f2.getID());
         } else if (sortBy == SortBy.REVERSE_ORDER) {
-            return new Comparator<SimpleFeature>() {
-                public int compare(SimpleFeature f1, SimpleFeature f2) {
-                    int compare = f1.getID().compareTo(f2.getID());
-                    return -compare;
-                }
+            return (f1, f2) -> {
+                int compare = f1.getID().compareTo(f2.getID());
+                return -compare;
             };
         } else {
             final PropertyName propertyName = sortBy.getPropertyName();
             final SortOrder sortOrder = sortBy.getSortOrder();
-            return new Comparator<SimpleFeature>() {
-                @SuppressWarnings("unchecked")
-                public int compare(SimpleFeature f1, SimpleFeature f2) {
-                    Object value1 = propertyName.evaluate(f1, Comparable.class);
-                    Object value2 = propertyName.evaluate(f2, Comparable.class);
-                    if (value1 == null || value2 == null) {
-                        return 0; // cannot perform comparison
-                    }
-                    if (value1 instanceof Comparable && value1.getClass().isInstance(value2)) {
-                        if (sortOrder == SortOrder.ASCENDING) {
-                            return ((Comparable<Object>) value1).compareTo(value2);
-                        } else {
-                            return ((Comparable<Object>) value2).compareTo(value1);
-                        }
+            return (f1, f2) -> {
+                Object value1 = propertyName.evaluate(f1, Comparable.class);
+                Object value2 = propertyName.evaluate(f2, Comparable.class);
+                if (value1 == null || value2 == null) {
+                    return 0; // cannot perform comparison
+                }
+                if (value1 instanceof Comparable && value1.getClass().isInstance(value2)) {
+                    if (sortOrder == SortOrder.ASCENDING) {
+                        return ((Comparable<Object>) value1).compareTo(value2);
                     } else {
-                        return 0; // cannot perform comparison
+                        return ((Comparable<Object>) value2).compareTo(value1);
                     }
+                } else {
+                    return 0; // cannot perform comparison
                 }
             };
         }
@@ -2509,9 +2528,9 @@ public class DataUtilities {
         }
 
         if (atts2 != null) {
-            for (int i = 0; i < atts2.size(); i++) {
-                if (!atts.contains(atts2.get(i))) {
-                    atts.add(atts2.get(i));
+            for (PropertyName propertyName : atts2) {
+                if (!atts.contains(propertyName)) {
+                    atts.add(propertyName);
                 }
             }
         }
@@ -2584,6 +2603,8 @@ public class DataUtilities {
             boolean nillable = true;
             CoordinateReferenceSystem crs = null;
 
+            int srid = -1;
+            String authority = "EPSG";
             if (hint != null) {
                 StringTokenizer st = new StringTokenizer(hint, ";");
                 while (st.hasMoreTokens()) {
@@ -2596,17 +2617,22 @@ public class DataUtilities {
                     if (h.equals("nillable")) {
                         nillable = true;
                     }
+                    if (h.startsWith("authority=")) {
+                        authority = h.split("=")[1];
+                    }
                     // spatial reference identifier
                     if (h.startsWith("srid=")) {
-                        String srid = h.split("=")[1];
-                        Integer.parseInt(srid);
-                        try {
-                            crs = CRS.decode("EPSG:" + srid);
-                        } catch (Exception e) {
-                            String msg = "Error decoding srs: " + srid;
-                            throw new SchemaException(msg, e);
-                        }
+                        String value = h.split("=")[1];
+                        srid = Integer.parseInt(value);
                     }
+                }
+            }
+            if (srid != -1) {
+                try {
+                    crs = CRS.decode(authority + ":" + srid);
+                } catch (Exception e) {
+                    String msg = "Error decoding srs: " + srid;
+                    throw new SchemaException(msg, e);
                 }
             }
 
@@ -2652,8 +2678,7 @@ public class DataUtilities {
         if (iterator != null) {
             try {
                 while (iterator.hasNext()) {
-                    @SuppressWarnings("unused")
-                    Feature feature = iterator.next();
+                    iterator.next();
                     count++;
                 }
                 return count;
@@ -2675,18 +2700,13 @@ public class DataUtilities {
     public static int count(
             FeatureCollection<? extends FeatureType, ? extends Feature> collection) {
         int count = 0;
-        FeatureIterator<? extends Feature> i = collection.features();
-        try {
+        try (FeatureIterator<? extends Feature> i = collection.features()) {
             while (i.hasNext()) {
                 @SuppressWarnings("unused")
-                Feature feature = (Feature) i.next();
+                Feature feature = i.next();
                 count++;
             }
             return count;
-        } finally {
-            if (i != null) {
-                i.close();
-            }
         }
     }
     /**
@@ -2731,8 +2751,7 @@ public class DataUtilities {
      */
     public static ReferencedEnvelope bounds(
             FeatureCollection<? extends FeatureType, ? extends Feature> collection) {
-        FeatureIterator<? extends Feature> i = collection.features();
-        try {
+        try (FeatureIterator<? extends Feature> i = collection.features()) {
             // Implementation taken from DefaultFeatureCollection implementation - thanks IanS
             CoordinateReferenceSystem crs = collection.getSchema().getCoordinateReferenceSystem();
             ReferencedEnvelope bounds = new ReferencedEnvelope(crs);
@@ -2750,10 +2769,6 @@ public class DataUtilities {
                 }
             }
             return bounds;
-        } finally {
-            if (i != null) {
-                i.close();
-            }
         }
     }
 
@@ -2767,15 +2782,14 @@ public class DataUtilities {
     public static void visit(
             FeatureCollection<?, ?> collection, FeatureVisitor visitor, ProgressListener progress)
             throws IOException {
-        FeatureIterator<?> iterator = null;
+
         float size = progress != null ? collection.size() : 0;
         if (progress == null) {
             progress = new NullProgressListener();
         }
-        try {
-            float position = 0;
-            progress.started();
-            iterator = collection.features();
+        float position = 0;
+        progress.started();
+        try (FeatureIterator<?> iterator = collection.features()) {
             while (!progress.isCanceled() && iterator.hasNext()) {
                 Feature feature = null;
                 try {
@@ -2794,9 +2808,6 @@ public class DataUtilities {
             }
         } finally {
             progress.complete();
-            if (iterator != null) {
-                iterator.close();
-            }
         }
     }
 
@@ -2892,12 +2903,11 @@ public class DataUtilities {
      * @return true if params is in agreement with getParametersInfo, override for additional
      *     checks.
      */
-    public static boolean canProcess(Map<String, ?> params, Param[] arrayParameters) {
+    public static boolean canProcess(Map<String, ?> params, Param... arrayParameters) {
         if (params == null) {
             return false;
         }
-        for (int i = 0; i < arrayParameters.length; i++) {
-            Param param = arrayParameters[i];
+        for (Param param : arrayParameters) {
             Object value;
             if (!params.containsKey(param.key)) {
                 if (param.required) {
@@ -2948,18 +2958,16 @@ public class DataUtilities {
      */
     public static FilenameFilter excludeFilters(
             final FilenameFilter inputFilter, final FilenameFilter... filters) {
-        return new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                if (inputFilter.accept(dir, name)) {
-                    for (FilenameFilter exclude : filters) {
-                        if (exclude.accept(dir, name)) {
-                            return false;
-                        }
+        return (dir, name) -> {
+            if (inputFilter.accept(dir, name)) {
+                for (FilenameFilter exclude : filters) {
+                    if (exclude.accept(dir, name)) {
+                        return false;
                     }
-                    return true;
                 }
-                return false;
+                return true;
             }
+            return false;
         };
     }
 
@@ -2973,18 +2981,16 @@ public class DataUtilities {
      */
     public static FilenameFilter includeFilters(
             final FilenameFilter inputFilter, final FilenameFilter... filters) {
-        return new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                if (inputFilter.accept(dir, name)) {
+        return (dir, name) -> {
+            if (inputFilter.accept(dir, name)) {
+                return true;
+            }
+            for (FilenameFilter include : filters) {
+                if (include.accept(dir, name)) {
                     return true;
                 }
-                for (FilenameFilter include : filters) {
-                    if (include.accept(dir, name)) {
-                        return true;
-                    }
-                }
-                return false;
             }
+            return false;
         };
     }
 
@@ -3016,8 +3022,7 @@ public class DataUtilities {
             }
         }
 
-        return ff.createFeature(
-                value, (FeatureType) schema, SimpleFeatureBuilder.createDefaultFeatureId());
+        return ff.createFeature(value, schema, SimpleFeatureBuilder.createDefaultFeatureId());
     }
 
     /**
@@ -3026,9 +3031,7 @@ public class DataUtilities {
      * String} keys, and may contain any kind of object as values.
      */
     public static Map<String, Object> toConnectionParameters(Properties properties) {
-        return properties
-                .entrySet()
-                .stream()
+        return properties.entrySet().stream()
                 .collect(Collectors.toMap(e -> (String) e.getKey(), e -> e.getValue()));
     }
 }

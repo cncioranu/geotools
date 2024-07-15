@@ -22,24 +22,24 @@ import java.awt.Point;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.style.Displacement;
+import org.geotools.api.style.ExternalGraphic;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.Fill;
+import org.geotools.api.style.GraphicFill;
+import org.geotools.api.style.PolygonSymbolizer;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.SemanticType;
 import org.geotools.mbstyle.MBStyle;
 import org.geotools.mbstyle.parse.MBFilter;
 import org.geotools.mbstyle.parse.MBFormatException;
 import org.geotools.mbstyle.parse.MBObjectParser;
 import org.geotools.mbstyle.transform.MBStyleTransformer;
 import org.geotools.measure.Units;
-import org.geotools.styling.ExternalGraphic;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Fill;
-import org.geotools.styling.PolygonSymbolizer;
-import org.geotools.styling.Rule;
 import org.geotools.text.Text;
 import org.json.simple.JSONObject;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
-import org.opengis.style.Displacement;
-import org.opengis.style.GraphicFill;
-import org.opengis.style.SemanticType;
 
 /**
  * MBLayer wrapper for "Fill" layers.
@@ -264,11 +264,11 @@ public class FillMBLayer extends MBLayer {
      *     like resolving sprite and glyph names to full urls.
      * @return FeatureTypeStyle
      */
+    @Override
     public List<FeatureTypeStyle> transformInternal(MBStyle styleContext) {
         MBStyleTransformer transformer = new MBStyleTransformer(parse);
-        PolygonSymbolizer symbolizer;
         // use factory to avoid defaults values
-        org.geotools.styling.Stroke stroke =
+        org.geotools.api.style.Stroke stroke =
                 sf.stroke(
                         fillOutlineColor(),
                         fillOpacity(),
@@ -310,7 +310,7 @@ public class FillMBLayer extends MBLayer {
             fill = sf.fill(null, fillColor(), fillOpacity());
         }
 
-        symbolizer =
+        PolygonSymbolizer symbolizer =
                 sf.polygonSymbolizer(
                         getId(),
                         ff.property((String) null),

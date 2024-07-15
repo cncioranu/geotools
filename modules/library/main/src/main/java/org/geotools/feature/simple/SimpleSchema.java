@@ -23,6 +23,9 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Collections;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.FeatureTypeFactory;
+import org.geotools.api.feature.type.GeometryType;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.type.FeatureTypeFactoryImpl;
 import org.geotools.feature.type.SchemaImpl;
@@ -34,9 +37,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.FeatureTypeFactory;
-import org.opengis.feature.type.GeometryType;
 
 /**
  * Schema containing a set of "simple" types.
@@ -67,7 +67,7 @@ public class SimpleSchema extends SchemaImpl {
                     false,
                     false,
                     Collections.emptyList(),
-                    (AttributeType) null,
+                    null,
                     null);
     /** STRING to String.class */
     public static final AttributeType STRING =
@@ -77,7 +77,7 @@ public class SimpleSchema extends SchemaImpl {
                     false,
                     false,
                     Collections.emptyList(),
-                    (AttributeType) null,
+                    null,
                     null);
     /** HEXBINRAY to byte[].class */
     public static final AttributeType HEXBINARY =
@@ -87,7 +87,7 @@ public class SimpleSchema extends SchemaImpl {
                     false,
                     false,
                     Collections.emptyList(),
-                    (AttributeType) null,
+                    null,
                     null);
     /** QNAME to byte[].class */
     public static final AttributeType QNAME =
@@ -97,7 +97,7 @@ public class SimpleSchema extends SchemaImpl {
                     false,
                     false,
                     Collections.emptyList(),
-                    (AttributeType) null,
+                    null,
                     null);
     /** QNAME to byte[].class */
     public static final AttributeType URI =
@@ -107,7 +107,7 @@ public class SimpleSchema extends SchemaImpl {
                     false,
                     false,
                     Collections.emptyList(),
-                    (AttributeType) null,
+                    null,
                     null);
     //
     // Numerics
@@ -199,7 +199,7 @@ public class SimpleSchema extends SchemaImpl {
                     false,
                     false,
                     Collections.emptyList(),
-                    (AttributeType) null,
+                    null,
                     null);
     /** TIME to java.sq1.Time.class */
     public static final AttributeType TIME =
@@ -209,7 +209,7 @@ public class SimpleSchema extends SchemaImpl {
                     false,
                     false,
                     Collections.emptyList(),
-                    (AttributeType) null,
+                    null,
                     null);
     /**
      * DATETIME to java.sql.Timestamp
@@ -223,7 +223,7 @@ public class SimpleSchema extends SchemaImpl {
                     false,
                     false,
                     Collections.emptyList(),
-                    (AttributeType) null,
+                    null,
                     null);
 
     //

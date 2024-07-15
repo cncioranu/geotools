@@ -23,10 +23,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import org.geotools.data.Base64;
-import org.geotools.data.DataSourceException;
+import org.geotools.api.data.DataSourceException;
 import org.geotools.geometry.jts.LiteCoordinateSequence;
 import org.geotools.geometry.jts.LiteCoordinateSequenceFactory;
+import org.geotools.util.Base64;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequences;
 import org.locationtech.jts.geom.Geometry;
@@ -61,6 +61,7 @@ class TWKBAttributeIO {
             super(geometryFactory);
         }
 
+        @Override
         protected CoordinateSequence readCoordinateSequence(int numPts, TWKBMetadata metadata)
                 throws IOException {
             if (!(csFactory instanceof LiteCoordinateSequenceFactory)) {
@@ -140,7 +141,7 @@ class TWKBAttributeIO {
     /** @see org.geotools.data.jdbc.attributeio.AttributeIO#read(ResultSet, int) */
     public Object read(ResultSet rs, String columnName) throws IOException {
         try {
-            byte bytes[] = rs.getBytes(columnName);
+            byte[] bytes = rs.getBytes(columnName);
             if (bytes == null) // ie. its a null column -> return a null geometry!
             return null;
             if (base64EncodingEnabled) {
@@ -155,7 +156,7 @@ class TWKBAttributeIO {
     /** @see org.geotools.data.jdbc.attributeio.AttributeIO#read(ResultSet, int) */
     public Object read(ResultSet rs, int columnIndex, Class<?> binding) throws IOException {
         try {
-            byte bytes[] = rs.getBytes(columnIndex);
+            byte[] bytes = rs.getBytes(columnIndex);
             if (bytes == null) // ie. its a null column -> return a null geometry!
             return null;
 
@@ -177,7 +178,7 @@ class TWKBAttributeIO {
     /** @see org.geotools.data.jdbc.attributeio.AttributeIO#read(ResultSet, int) */
     public Object read(ResultSet rs, String columnName, Class<?> binding) throws IOException {
         try {
-            byte bytes[] = rs.getBytes(columnName);
+            byte[] bytes = rs.getBytes(columnName);
             if (bytes == null) // ie. its a null column -> return a null geometry!
             return null;
 

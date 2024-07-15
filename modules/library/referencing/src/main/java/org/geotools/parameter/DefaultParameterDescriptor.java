@@ -19,26 +19,26 @@
  */
 package org.geotools.parameter;
 
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import javax.measure.Unit;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.util.CodeList;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.util.Utilities;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.util.CodeList;
-import org.opengis.util.InternationalString;
 
 /**
  * The definition of a parameter used by an operation method. For {@linkplain
- * org.opengis.referencing.crs.CoordinateReferenceSystem Coordinate Reference Systems} most
+ * org.geotools.api.referencing.crs.CoordinateReferenceSystem Coordinate Reference Systems} most
  * parameter values are numeric, but other types of parameter values are possible.
  *
  * <p>For numeric values, the {@linkplain #getValueClass value class} is usually <code>
@@ -69,8 +69,9 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
     private final Class<T> valueClass;
 
     /**
-     * A immutable, finite set of valid values (usually from a {linkplain org.opengis.util.CodeList
-     * code list}) or {@code null} if it doesn't apply. This set is immutable.
+     * A immutable, finite set of valid values (usually from a {linkplain
+     * org.geotools.api.util.CodeList code list}) or {@code null} if it doesn't apply. This set is
+     * immutable.
      */
     private final Set<T> validValues;
 
@@ -109,7 +110,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      * @param name The parameter name.
      * @param valueClass The class that describe the type of the parameter.
      * @param validValues A finite set of valid values (usually from a {linkplain
-     *     org.opengis.util.CodeList code list}) or {@code null} if it doesn't apply.
+     *     org.geotools.api.util.CodeList code list}) or {@code null} if it doesn't apply.
      * @param defaultValue The default value for the parameter, or {@code null}.
      */
     public DefaultParameterDescriptor(
@@ -136,7 +137,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      * @param name The parameter name.
      * @param valueClass The class that describe the type of the parameter.
      * @param validValues A finite set of valid values (usually from a {linkplain
-     *     org.opengis.util.CodeList code list}) or {@code null} if it doesn't apply.
+     *     org.geotools.api.util.CodeList code list}) or {@code null} if it doesn't apply.
      * @param defaultValue The default value for the parameter, or {@code null}.
      * @param minimum The minimum parameter value, or {@code null}.
      * @param maximum The maximum parameter value, or {@code null}.
@@ -173,7 +174,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      * @param properties Set of properties. Should contains at least {@code "name"}.
      * @param valueClass The class that describe the type of the parameter.
      * @param validValues A finite set of valid values (usually from a {linkplain
-     *     org.opengis.util.CodeList code list}) or {@code null} if it doesn't apply.
+     *     org.geotools.api.util.CodeList code list}) or {@code null} if it doesn't apply.
      * @param defaultValue The default value for the parameter, or {@code null}.
      * @param minimum The minimum parameter value, or {@code null}.
      * @param maximum The maximum parameter value, or {@code null}.
@@ -205,7 +206,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      *     optional.
      * @param valueClass The class that describe the type of the parameter.
      * @param validValues A finite set of valid values (usually from a {linkplain
-     *     org.opengis.util.CodeList code list}) or {@code null} if it doesn't apply.
+     *     org.geotools.api.util.CodeList code list}) or {@code null} if it doesn't apply.
      * @param defaultValue The default value for the parameter, or {@code null}.
      * @param minimum The minimum parameter value, or {@code null}.
      * @param maximum The maximum parameter value, or {@code null}.
@@ -233,13 +234,12 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
         if (minimum != null && maximum != null) {
             if (minimum.compareTo(valueClass.cast(maximum)) > 0) {
                 throw new IllegalArgumentException(
-                        Errors.format(ErrorKeys.BAD_RANGE_$2, minimum, maximum));
+                        MessageFormat.format(ErrorKeys.BAD_RANGE_$2, minimum, maximum));
             }
         }
         if (validValues != null) {
             final Set<T> valids = new HashSet<>(Math.max(validValues.length * 4 / 3 + 1, 8), 0.75f);
-            for (int i = 0; i < validValues.length; i++) {
-                final T value = validValues[i];
+            for (final T value : validValues) {
                 AbstractParameter.ensureValidClass(valueClass, value);
                 valids.add(value);
             }
@@ -387,7 +387,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
         }
         final Map<String, CharSequence> properties;
         if (remarks == null) {
-            properties = Collections.singletonMap(NAME_KEY, (CharSequence) name);
+            properties = Collections.singletonMap(NAME_KEY, name);
         } else {
             properties = new HashMap<>(4);
             properties.put(NAME_KEY, name);
@@ -405,6 +405,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      * @return The maximum occurence.
      * @see #getMinimumOccurs
      */
+    @Override
     public int getMaximumOccurs() {
         return 1;
     }
@@ -417,6 +418,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      *
      * @return A parameter initialized to the default value.
      */
+    @Override
     @SuppressWarnings("unchecked")
     public ParameterValue<T> createValue() {
         if (Double.class.equals(valueClass) && unit == null) {
@@ -430,18 +432,20 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      *
      * @return The parameter value class.
      */
+    @Override
     public Class<T> getValueClass() {
         return valueClass;
     }
 
     /**
      * If this parameter allows only a finite set of values, returns this set. This set is usually a
-     * {linkplain org.opengis.util.CodeList code list} or enumerations. This method returns {@code
-     * null} if this parameter doesn't limits values to a finite set.
+     * {linkplain org.geotools.api.util.CodeList code list} or enumerations. This method returns
+     * {@code null} if this parameter doesn't limits values to a finite set.
      *
-     * @return A finite set of valid values (usually from a {linkplain org.opengis.util.CodeList
-     *     code list}), or {@code null} if it doesn't apply.
+     * @return A finite set of valid values (usually from a {linkplain
+     *     org.geotools.api.util.CodeList code list}), or {@code null} if it doesn't apply.
      */
+    @Override
     public Set<T> getValidValues() {
         return validValues;
     }
@@ -453,6 +457,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      *
      * @return The default value, or {@code null} in none.
      */
+    @Override
     public T getDefaultValue() {
         return defaultValue;
     }
@@ -464,6 +469,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      *
      * @return The minimum parameter value (often an instance of {@link Double}), or {@code null}.
      */
+    @Override
     public Comparable<T> getMinimumValue() {
         return minimum;
     }
@@ -475,6 +481,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      *
      * @return The minimum parameter value (often an instance of {@link Double}), or {@code null}.
      */
+    @Override
     public Comparable<T> getMaximumValue() {
         return maximum;
     }
@@ -486,6 +493,7 @@ public class DefaultParameterDescriptor<T> extends AbstractParameterDescriptor
      *
      * @return The unit for numeric value, or {@code null} if it doesn't apply to the value type.
      */
+    @Override
     public Unit<?> getUnit() {
         return unit;
     }

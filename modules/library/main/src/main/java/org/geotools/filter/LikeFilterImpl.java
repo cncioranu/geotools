@@ -16,12 +16,12 @@
  */
 package org.geotools.filter;
 
+import com.google.re2j.Matcher;
+import com.google.re2j.Pattern;
 import java.util.Collection;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import org.opengis.filter.FilterVisitor;
-import org.opengis.filter.PropertyIsLike;
+import org.geotools.api.filter.FilterVisitor;
+import org.geotools.api.filter.PropertyIsLike;
 
 /**
  * Defines a like filter, which checks to see if an attribute matches a REGEXP.
@@ -32,7 +32,7 @@ import org.opengis.filter.PropertyIsLike;
 public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
 
     /** The attribute value, which must be an attribute expression. */
-    private org.opengis.filter.expression.Expression attribute = null;
+    private org.geotools.api.filter.expression.Expression attribute = null;
 
     /** The (limited) REGEXP pattern. */
     private String pattern = null;
@@ -79,13 +79,49 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
      * have a special char as another special char. Using this will throw an error
      * (IllegalArgumentException).
      */
+    @Deprecated
     public static String convertToSQL92(
             char escape, char multi, char single, boolean matchCase, String pattern)
             throws IllegalArgumentException {
+        return convertToSQL92(escape, multi, single, matchCase, pattern, true);
+    }
+
+    /**
+     * Given OGC PropertyIsLike Filter information, construct an SQL-compatible 'like' pattern.
+     *
+     * <p>SQL % --> match any number of characters _ --> match a single character
+     *
+     * <p>NOTE; the SQL command is 'string LIKE pattern [ESCAPE escape-character]' We could
+     * re-define the escape character, but I'm not doing to do that in this code since some
+     * databases will not handle this case.
+     *
+     * <p>Method: 1.
+     *
+     * <p>Examples: ( escape ='!', multi='*', single='.' ) broadway* -> 'broadway%' broad_ay ->
+     * 'broad_ay' broadway -> 'broadway'
+     *
+     * <p>broadway!* -> 'broadway*' (* has no significance and is escaped) can't -> 'can''t' ( '
+     * escaped for SQL compliance)
+     *
+     * <p>NOTE: when the escapeSingleQuote parameter is false, this method will not convert ' to ''
+     * (double single quote) and it is the caller's responsibility to ensure that the resulting
+     * pattern is used safely in SQL queries.
+     *
+     * <p>NOTE: we dont handle "'" as a 'special' character because it would be too confusing to
+     * have a special char as another special char. Using this will throw an error
+     * (IllegalArgumentException).
+     */
+    public static String convertToSQL92(
+            char escape,
+            char multi,
+            char single,
+            boolean matchCase,
+            String pattern,
+            boolean escapeSingleQuote) {
         if ((escape == '\'') || (multi == '\'') || (single == '\''))
             throw new IllegalArgumentException("do not use single quote (') as special char!");
 
-        StringBuffer result = new StringBuffer(pattern.length() + 5);
+        StringBuilder result = new StringBuilder(pattern.length() + 5);
         for (int i = 0; i < pattern.length(); i++) {
             char chr = pattern.charAt(i);
             if (chr == escape) {
@@ -96,7 +132,7 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
                 result.append('_');
             } else if (chr == multi) {
                 result.append('%');
-            } else if (chr == '\'') {
+            } else if (chr == '\'' && escapeSingleQuote) {
                 result.append('\'');
                 result.append('\'');
             } else {
@@ -108,6 +144,7 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
     }
 
     /** see convertToSQL92 */
+    @Deprecated
     public String getSQL92LikePattern() throws IllegalArgumentException {
         if (escape.length() != 1) {
             throw new IllegalArgumentException(
@@ -126,20 +163,41 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
                 wildcardMulti.charAt(0),
                 wildcardSingle.charAt(0),
                 matchingCase,
-                pattern);
+                pattern,
+                true);
     }
 
     public void setWildCard(String wildCard) {
+        if (wildCard == null || wildCard.isEmpty() || wildCard.length() > 1) {
+            throw new IllegalArgumentException(
+                    "Like Pattern --> wildcardMulti char should be of length exactly 1");
+        }
         this.wildcardMulti = wildCard;
         compPattern = null;
     }
 
     public void setSingleChar(String singleChar) {
+        if (singleChar == null || singleChar.length() != 1) {
+            throw new IllegalArgumentException(
+                    "Like Pattern --> wildcardSingle char should be of length exactly 1");
+        }
         this.wildcardSingle = singleChar;
         compPattern = null;
     }
 
     public void setEscape(String escape) {
+
+        if (escape.startsWith("\\")) {
+            if (escape.length() < 1 || escape.length() > 3) {
+                throw new IllegalArgumentException(
+                        "Like Pattern --> escape char should be of length exactly 1, not "
+                                + escape.length());
+            }
+        } else if (!escape.isEmpty() && escape.length() > 1) {
+            throw new IllegalArgumentException(
+                    "Like Pattern --> escape char should be of length exactly 1, not "
+                            + escape.length());
+        }
         this.escape = escape;
         compPattern = null;
     }
@@ -149,10 +207,12 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
         compPattern = null;
     }
 
+    @Override
     public boolean isMatchingCase() {
         return matchingCase;
     }
 
+    @Override
     public MatchAction getMatchAction() {
         return matchAction;
     }
@@ -168,7 +228,7 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
                     isMatchingCase()
                             ? Pattern.compile(pattern)
                             : Pattern.compile(
-                                    pattern, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+                                    pattern, Pattern.CASE_INSENSITIVE /* | Pattern.UNICODE_CASE */);
         }
         return compPattern.matcher(string);
     }
@@ -179,7 +239,7 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
     }
 
     public LikeFilterImpl(
-            org.opengis.filter.expression.Expression expr,
+            org.geotools.api.filter.expression.Expression expr,
             String pattern,
             String wildcardMulti,
             String wildcardSingle,
@@ -197,7 +257,7 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
     }
 
     public LikeFilterImpl(
-            org.opengis.filter.expression.Expression expr,
+            org.geotools.api.filter.expression.Expression expr,
             String pattern,
             String wildcardMulti,
             String wildcardSingle,
@@ -217,15 +277,17 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
      * <p>This method calls th deprecated {@link #getValue()} for backwards compatability with
      * subclasses.
      */
-    public org.opengis.filter.expression.Expression getExpression() {
+    @Override
+    public org.geotools.api.filter.expression.Expression getExpression() {
         return attribute;
     }
 
-    public void setExpression(org.opengis.filter.expression.Expression e) {
+    public void setExpression(org.geotools.api.filter.expression.Expression e) {
         this.attribute = e;
     }
 
     /** Returns the pattern. */
+    @Override
     public String getLiteral() {
         return this.pattern;
     }
@@ -243,6 +305,7 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
      * @return Flag confirming whether or not this feature is inside the filter.
      * @task REVISIT: could the pattern be null such that a null = null?
      */
+    @Override
     public boolean evaluate(Object feature) {
         // Checks to ensure that the attribute has been set
         if (attribute == null) {
@@ -308,6 +371,7 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
      *
      * @return String representation of this like filter.
      */
+    @Override
     public String toString() {
         return "[ " + attribute.toString() + " is like " + pattern + " ]";
     }
@@ -317,6 +381,7 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
      *
      * @return Value of property escape.
      */
+    @Override
     public java.lang.String getEscape() {
         return escape;
     }
@@ -324,8 +389,9 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
     /**
      * Getter for property wildcardMulti
      *
-     * @see org.opengis.filter.PropertyIsLike#getWildCard().
+     * @see org.geotools.api.filter.PropertyIsLike#getWildCard().
      */
+    @Override
     public String getWildCard() {
         return wildcardMulti;
     }
@@ -333,8 +399,9 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
     /**
      * Getter for property wildcardSingle.
      *
-     * @see org.opengis.filter.PropertyIsLike#getSingleChar()().
+     * @see org.geotools.api.filter.PropertyIsLike#getSingleChar()().
      */
+    @Override
     public String getSingleChar() {
         return wildcardSingle;
     }
@@ -378,6 +445,7 @@ public class LikeFilterImpl extends AbstractFilter implements PropertyIsLike {
      * @param visitor The visitor which requires access to this filter, the method must call
      *     visitor.visit(this);
      */
+    @Override
     public Object accept(FilterVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }

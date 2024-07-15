@@ -36,9 +36,9 @@ import javax.annotation.Nullable;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
+import org.geotools.api.style.ResourceLocator;
+import org.geotools.api.style.StyledLayerDescriptor;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.styling.ResourceLocator;
-import org.geotools.styling.StyledLayerDescriptor;
 import org.geotools.xml.styling.SLDParser;
 import org.geotools.ysld.encode.YsldEncoder;
 import org.geotools.ysld.parse.YsldParser;
@@ -178,7 +178,7 @@ public class Ysld {
      * @return The GeoTools SLD object.
      */
     public static StyledLayerDescriptor parse(Object ysld) throws IOException {
-        return parse(ysld, (List<ZoomContextFinder>) null, (ResourceLocator) null, new UomMapper());
+        return parse(ysld, null, null, new UomMapper());
     }
 
     /**
@@ -236,7 +236,7 @@ public class Ysld {
      */
     public static List<MarkedYAMLException> validate(Object ysld) throws IOException {
 
-        return validate(ysld, Collections.<ZoomContextFinder>emptyList(), new UomMapper());
+        return validate(ysld, Collections.emptyList(), new UomMapper());
     }
 
     /**

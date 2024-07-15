@@ -22,12 +22,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.filter.Filter;
 import org.geotools.coverage.util.FeatureUtilities;
 import org.geotools.gce.imagemosaic.MergeBehavior;
 import org.geotools.gce.imagemosaic.RasterLayerRequest;
 import org.geotools.gce.imagemosaic.RasterLayerResponse;
 import org.geotools.gce.imagemosaic.RasterManager;
-import org.opengis.filter.Filter;
 
 /**
  * Create SubmosaicProducer based on whether the request was for a stacked mosaic with additional
@@ -82,9 +82,9 @@ public class DefaultSubmosaicProducerFactory implements SubmosaicProducerFactory
 
                 // Anding all filters together
                 Filter andFilter =
-                        filters.size() > 0
-                                ? FeatureUtilities.DEFAULT_FILTER_FACTORY.and(filters)
-                                : null;
+                        filters.isEmpty()
+                                ? null
+                                : FeatureUtilities.DEFAULT_FILTER_FACTORY.and(filters);
 
                 if (multipleSelectionEntry == null) {
                     // Simpler case... no multiple selections. All filter have already been combined

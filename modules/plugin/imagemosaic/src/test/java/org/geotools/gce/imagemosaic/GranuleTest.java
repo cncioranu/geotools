@@ -30,11 +30,17 @@ import javax.imageio.ImageReadParam;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
-import org.geotools.coverage.grid.io.footprint.MultiLevelROI;
 import org.geotools.gce.imagemosaic.GranuleDescriptor.GranuleOverviewLevelDescriptor;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -46,13 +52,6 @@ import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
 
 /**
  * Testing {@link GranuleDescriptor} class.
@@ -104,7 +103,7 @@ public class GranuleTest extends Assert {
                         null,
                         spi,
                         null,
-                        (MultiLevelROI) null);
+                        null);
         assertNotNull(granuleDescriptor.toString());
 
         // Get a GranuleOverviewLevelDescriptor
@@ -169,15 +168,14 @@ public class GranuleTest extends Assert {
                         null,
                         spi,
                         null,
-                        (MultiLevelROI) null);
+                        null);
         final GranuleOverviewLevelDescriptor granuleOverviewLevelDescriptor =
                 granuleDescriptor.getLevel(0);
         assertNotNull(granuleOverviewLevelDescriptor);
 
         final Hints crsHints =
                 new Hints(Hints.DEFAULT_COORDINATE_REFERENCE_SYSTEM, DefaultGeographicCRS.WGS84);
-        final ImageMosaicReader reader =
-                (ImageMosaicReader) new ImageMosaicFormat().getReader(testMosaic, crsHints);
+        final ImageMosaicReader reader = new ImageMosaicFormat().getReader(testMosaic, crsHints);
         assertNotNull(reader);
         final RasterManager manager = reader.getRasterManager(reader.getGridCoverageNames()[0]);
 
@@ -293,8 +291,7 @@ public class GranuleTest extends Assert {
         final DefaultProjectedCRS crs_EN = (DefaultProjectedCRS) parser.parseObject(NZTM_WKT_EN);
         final DefaultProjectedCRS crs_NE = (DefaultProjectedCRS) parser.parseObject(NZTM_WKT_NE);
 
-        final ImageMosaicReader reader =
-                (ImageMosaicReader) new ImageMosaicFormat().getReader(testMosaic);
+        final ImageMosaicReader reader = new ImageMosaicFormat().getReader(testMosaic);
 
         assertNotNull(reader);
         final RasterManager manager = reader.getRasterManager(reader.getGridCoverageNames()[0]);
@@ -305,7 +302,7 @@ public class GranuleTest extends Assert {
                 new ReferencedEnvelope(
                         1587997.8835, 1612003.2265, 6162000.4515, 6198002.1165, crs_EN);
         manager.spatialDomainManager.coverageBBox = mosaicBounds;
-        manager.spatialDomainManager.coverageEnvelope = new GeneralEnvelope(mosaicBounds);
+        manager.spatialDomainManager.coverageEnvelope = new GeneralBounds(mosaicBounds);
 
         // set up the request (north-east version)
         final ReferencedEnvelope requestBBoxNE =

@@ -20,6 +20,10 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.xsd.XSDElementDeclaration;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.geometry.jts.CircularRing;
 import org.geotools.geometry.jts.CircularString;
@@ -44,10 +48,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
@@ -180,16 +180,19 @@ public class GML32FeatureCollectionEncoderDelegate
             }
         }
 
+        @Override
         public List getFeatureProperties(
                 SimpleFeature f, XSDElementDeclaration element, Encoder e) {
             return encodingUtils.AbstractFeatureTypeGetProperties(
                     f, element, e.getSchemaIndex(), e.getConfiguration());
         }
 
+        @Override
         public EnvelopeEncoder createEnvelopeEncoder(Encoder e) {
             return new EnvelopeEncoder(e, gmlPrefix, gmlUri);
         }
 
+        @Override
         public void setSrsNameAttribute(AttributesImpl atts, CoordinateReferenceSystem crs) {
 
             URI srsName = GML3EncodingUtils.toURI(crs, srsSyntax);
@@ -203,20 +206,25 @@ public class GML32FeatureCollectionEncoderDelegate
                     null, "srsDimension", "srsDimension", null, String.valueOf(dimension));
         }
 
+        @Override
         public void initFidAttribute(AttributesImpl atts) {
             atts.addAttribute(GML.NAMESPACE, "id", "gml:id", null, "");
         }
 
+        @Override
         public void startFeatures(GMLWriter handler) throws Exception {}
 
+        @Override
         public void startFeature(GMLWriter handler) throws Exception {
             handler.startElement(member, null);
         }
 
+        @Override
         public void endFeature(GMLWriter handler) throws Exception {
             handler.endElement(member);
         }
 
+        @Override
         public void endFeatures(GMLWriter handler) throws Exception {}
 
         @Override

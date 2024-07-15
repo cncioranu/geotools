@@ -16,16 +16,16 @@
  */
 package org.geotools.referencing.operation.projection;
 
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.ConicProjection;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.ConicProjection;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Lambert Conical Conformal 1SP Projection.
@@ -53,6 +53,7 @@ public class LambertConformal1SP extends LambertConformal {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -121,6 +122,7 @@ public class LambertConformal1SP extends LambertConformal {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             return new LambertConformal1SP(parameters);

@@ -16,15 +16,14 @@
  */
 package org.geotools.ows.wms;
 
-import org.geotools.geometry.GeneralDirectPosition;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.geometry.GeneralPosition;
 import org.geotools.ows.wms.request.AbstractGetMapRequest;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultEngineeringCRS;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.geometry.Envelope;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * A pair of coordinates and a reference system that represents a section of the Earth.
@@ -47,7 +46,7 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  *
  * @author Richard Gould
  */
-public class CRSEnvelope implements Envelope {
+public class CRSEnvelope implements Bounds {
     /**
      * Represents the Coordinate Reference System this bounding box is in. This is usually an EPSG
      * code such as "EPSG:4326"
@@ -95,7 +94,7 @@ public class CRSEnvelope implements Envelope {
         this.maxY = maxY;
     }
 
-    public CRSEnvelope(Envelope envelope) {
+    public CRSEnvelope(Bounds envelope) {
         this.srsName = CRS.toSRS(envelope.getCoordinateReferenceSystem());
         // this.srsName = epsgCode;
         this.minX = envelope.getMinimum(0);
@@ -108,6 +107,7 @@ public class CRSEnvelope implements Envelope {
      * Returns the coordinate reference system for this envelope (if known). return
      * CoordinateReferenceSystem if known, or {@code null}
      */
+    @Override
     public CoordinateReferenceSystem getCoordinateReferenceSystem() {
         synchronized (this) {
             if (crs == null) {
@@ -118,8 +118,6 @@ public class CRSEnvelope implements Envelope {
                     } else {
                         crs = AbstractGetMapRequest.toServerCRS(srsName, forceXY);
                     }
-                } catch (NoSuchAuthorityCodeException e) {
-                    crs = DefaultEngineeringCRS.CARTESIAN_2D;
                 } catch (FactoryException e) {
                     crs = DefaultEngineeringCRS.CARTESIAN_2D;
                 }
@@ -174,10 +172,12 @@ public class CRSEnvelope implements Envelope {
         this.forceXY = forceXY;
     }
 
+    @Override
     public int getDimension() {
         return 2;
     }
 
+    @Override
     public double getMinimum(int dimension) {
         if (dimension == 0) {
             return getMinX();
@@ -186,6 +186,7 @@ public class CRSEnvelope implements Envelope {
         return getMinY();
     }
 
+    @Override
     public double getMaximum(int dimension) {
         if (dimension == 0) {
             return getMaxX();
@@ -198,6 +199,7 @@ public class CRSEnvelope implements Envelope {
         return getMedian(dimension);
     }
 
+    @Override
     public double getMedian(int dimension) {
         double min; // , max;
         if (dimension == 0) {
@@ -214,6 +216,7 @@ public class CRSEnvelope implements Envelope {
         return getSpan(dimension);
     }
 
+    @Override
     public double getSpan(int dimension) {
         double min, max;
         if (dimension == 0) {
@@ -227,12 +230,14 @@ public class CRSEnvelope implements Envelope {
         return max - min;
     }
 
-    public DirectPosition getUpperCorner() {
-        return new GeneralDirectPosition(getMaxX(), getMaxY());
+    @Override
+    public Position getUpperCorner() {
+        return new GeneralPosition(getMaxX(), getMaxY());
     }
 
-    public DirectPosition getLowerCorner() {
-        return new GeneralDirectPosition(getMinX(), getMinY());
+    @Override
+    public Position getLowerCorner() {
+        return new GeneralPosition(getMinX(), getMinY());
     }
 
     /**
@@ -341,6 +346,7 @@ public class CRSEnvelope implements Envelope {
         this.resY = resY;
     }
 
+    @Override
     public String toString() {
         StringBuilder build = new StringBuilder();
         build.append("[");

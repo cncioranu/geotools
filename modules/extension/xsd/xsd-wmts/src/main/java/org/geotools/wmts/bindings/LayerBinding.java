@@ -59,6 +59,7 @@ public class LayerBinding extends AbstractSimpleBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WMTS.Layer;
     }
@@ -71,6 +72,7 @@ public class LayerBinding extends AbstractSimpleBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class<LayerType> getType() {
         return LayerType.class;
     }
@@ -85,8 +87,7 @@ public class LayerBinding extends AbstractSimpleBinding {
     @SuppressWarnings("unchecked")
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         LayerType layer = factory.createLayerType();
-        List<Node> children;
-        children = node.getChildren("Abstract");
+        List<Node> children = node.getChildren("Abstract");
         for (Node c : children) {
             layer.getAbstract().add(c.getValue());
         }

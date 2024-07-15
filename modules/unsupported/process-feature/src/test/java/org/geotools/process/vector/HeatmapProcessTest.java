@@ -19,6 +19,8 @@ package org.geotools.process.vector;
 import static org.junit.Assert.assertTrue;
 
 import java.awt.geom.Point2D;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.DefaultFeatureCollection;
@@ -32,8 +34,6 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.util.ProgressListener;
 
 /** @author Martin Davis - OpenGeo */
 public class HeatmapProcessTest {
@@ -51,14 +51,13 @@ public class HeatmapProcessTest {
 
         ReferencedEnvelope bounds =
                 new ReferencedEnvelope(0, 10, 0, 10, DefaultGeographicCRS.WGS84);
-        Coordinate[] data =
-                new Coordinate[] {
-                    new Coordinate(4, 4),
-                    new Coordinate(4, 6),
-                    // include a coordinate outside the heatmap buffer bounds, to ensure it is
-                    // filtered correctly
-                    new Coordinate(100, 100)
-                };
+        Coordinate[] data = {
+            new Coordinate(4, 4),
+            new Coordinate(4, 6),
+            // include a coordinate outside the heatmap buffer bounds, to ensure it is
+            // filtered correctly
+            new Coordinate(100, 100)
+        };
         SimpleFeatureCollection fc = createPoints(data, bounds);
 
         ProgressListener monitor = null;

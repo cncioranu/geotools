@@ -18,19 +18,18 @@ package org.geotools.filter.text.ecql;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.Subtract;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.util.factory.Hints;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.Not;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Subtract;
 
 /**
  * Filter Samples for ECQL language
@@ -38,9 +37,8 @@ import org.opengis.filter.expression.Subtract;
  * @author Mauricio Pazos (Axios Engineering)
  * @since 2.6
  */
-final class FilterECQLSample {
-    protected static final FilterFactory FACTORY =
-            CommonFactoryFinder.getFilterFactory((Hints) null);
+public final class FilterECQLSample {
+    protected static final FilterFactory FACTORY = CommonFactoryFinder.getFilterFactory(null);
 
     // ECQL Samples
     public static final String ABS_FUNCTION_LESS_PROPERTY = "abs(10) < aProperty";
@@ -97,13 +95,12 @@ final class FilterECQLSample {
     public static Map<String, Object> SAMPLES = new HashMap<>();
 
     static {
-        Filter filter;
 
         // (1+3)
         Add simpleAddExpression = FACTORY.add(FACTORY.literal(1), FACTORY.literal(3));
 
         // sample "(1+3) > prop1"
-        filter = FACTORY.greater(simpleAddExpression, FACTORY.property("aProperty"));
+        Filter filter = FACTORY.greater(simpleAddExpression, FACTORY.property("aProperty"));
 
         SAMPLES.put(EXPRESION_GREATER_PROPERTY, filter);
 

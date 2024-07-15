@@ -36,7 +36,7 @@ public abstract class Classifier {
         return titles;
     }
 
-    public void setTitles(String[] titles) {
+    public void setTitles(String... titles) {
         this.titles = titles;
     }
 
@@ -49,7 +49,7 @@ public abstract class Classifier {
     }
 
     /** Returns the slot containing the passed expression's value. */
-    public int classify(org.opengis.filter.expression.Expression expr, Object feature) {
+    public int classify(org.geotools.api.filter.expression.Expression expr, Object feature) {
         Object value = expr.evaluate(feature); // retrive value from context
         return classify(value);
     }

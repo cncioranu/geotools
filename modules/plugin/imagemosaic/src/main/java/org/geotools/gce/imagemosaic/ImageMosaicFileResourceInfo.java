@@ -16,6 +16,7 @@
  */
 package org.geotools.gce.imagemosaic;
 
+import it.geosolutions.imageio.pam.PAMDataset;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -26,12 +27,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import org.geotools.api.data.CloseableIterator;
+import org.geotools.api.data.FileResourceInfo;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.coverage.grid.io.DimensionDescriptor;
+import org.geotools.coverage.grid.io.PAMResourceInfo;
 import org.geotools.coverage.util.FeatureUtilities;
-import org.geotools.data.CloseableIterator;
 import org.geotools.data.DefaultResourceInfo;
-import org.geotools.data.FileResourceInfo;
-import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.visitor.BoundsVisitor;
@@ -47,17 +54,13 @@ import org.geotools.util.NumberRange;
 import org.geotools.util.Range;
 import org.geotools.util.URLs;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
 
 /**
  * {@link FileResourceInfo} implementation for ImageMosaic. The specific implementation is able to
  * retrieve support files such as, as an instance, prj and world file for TIFFs.
  */
-public class ImageMosaicFileResourceInfo extends DefaultResourceInfo implements FileResourceInfo {
+public class ImageMosaicFileResourceInfo extends DefaultResourceInfo
+        implements FileResourceInfo, PAMResourceInfo {
 
     static final Logger LOGGER = Logging.getLogger(ImageMosaicFileResourceInfo.class);
 
@@ -112,7 +115,7 @@ public class ImageMosaicFileResourceInfo extends DefaultResourceInfo implements 
             SimpleFeature firstFeature = null;
 
             // resolve the location
-            String granuleLocation = (String) next.getAttribute(locationAttributeName);
+            String granuleLocation = (String) Utils.getAttribute(next, locationAttributeName);
             URL resolved = pathType.resolvePath(parentLocation, granuleLocation);
             File file = null;
             if (resolved != null) {
@@ -129,7 +132,7 @@ public class ImageMosaicFileResourceInfo extends DefaultResourceInfo implements 
             while (featureIterator.hasNext()) {
                 // Group features sharing same location
                 next = featureIterator.next();
-                String nextLocation = (String) next.getAttribute(locationAttributeName);
+                String nextLocation = (String) Utils.getAttribute(next, locationAttributeName);
                 if (granuleLocation.equalsIgnoreCase(nextLocation)) {
                     groupedFeatures++;
                 } else {
@@ -200,7 +203,7 @@ public class ImageMosaicFileResourceInfo extends DefaultResourceInfo implements 
                             granuleCatalog.computeAggregateFunction(query, minVisitor);
                             min = minVisitor.getMin();
                         } else {
-                            max = min = (Comparable) firstFeature.getAttribute(attribute);
+                            max = min = (Comparable) Utils.getAttribute(firstFeature, attribute);
                         }
                         addMetadaElement(name, min, max, metadataMap);
                     }
@@ -260,7 +263,7 @@ public class ImageMosaicFileResourceInfo extends DefaultResourceInfo implements 
         }
     }
 
-    private static final FilterFactory2 FF = FeatureUtilities.DEFAULT_FILTER_FACTORY;
+    private static final FilterFactory FF = FeatureUtilities.DEFAULT_FILTER_FACTORY;
 
     /**
      * parentLocation used to rebuild full file paths in case the imageMosaic is storing granules
@@ -355,5 +358,16 @@ public class ImageMosaicFileResourceInfo extends DefaultResourceInfo implements 
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
+    }
+
+    @Override
+    public PAMDataset getPAMDataset() {
+        return rasterManager.getPamDataset();
+    }
+
+    @Override
+    public boolean reloadPAMDataset() throws IOException {
+        rasterManager.reloadPamDataset();
+        return true;
     }
 }

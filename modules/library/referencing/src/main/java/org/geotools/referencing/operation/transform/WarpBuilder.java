@@ -32,11 +32,11 @@ import java.util.logging.Logger;
 import javax.media.jai.Warp;
 import javax.media.jai.WarpAffine;
 import javax.media.jai.WarpGrid;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.util.logging.Logging;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Builds {@link Warp} objects that approximate a specified {@link MathTransform} in a certain
@@ -83,8 +83,11 @@ public class WarpBuilder {
     }
 
     /**
-     * Returns true if the given domain is valid for the splitting alghoritm. Can be called before
-     * getRowColsSplit to prevent exceptions.
+     * Returns true if the given domain is valid for the splitting algorithm. Can be called before
+     * getRowColsSplit to prevent exceptions. Unlike {@link #buildWarp(MathTransform2D, Rectangle)}
+     * the domain here can be expressed in geographic coordinates, so there is no requirement that
+     * the area is at least 1x1 (in geographic coordiantes, that's a massive area), but only that
+     * it's not empty
      *
      * @param domain domain to check
      */
@@ -94,8 +97,8 @@ public class WarpBuilder {
     }
 
     private boolean isValidDomain(double minx, double maxx, double miny, double maxy) {
-        final int width = (int) (maxx - minx);
-        final int height = (int) (maxy - miny);
+        final double width = maxx - minx;
+        final double height = maxy - miny;
         return width > 0 && height > 0;
     }
 
@@ -503,27 +506,20 @@ public class WarpBuilder {
     void dumpPropertyFile(float[] points, String name) {
         long start = System.currentTimeMillis();
 
-        BufferedWriter writer = null;
         try {
             File output = File.createTempFile(start + name, ".properties");
-            writer = new BufferedWriter(new FileWriter(output));
-            writer.write("_=geom:Point:srid=32632");
-            writer.newLine();
-            for (int i = 0; i < points.length; i += 2) {
-                writer.write("p." + (i / 2) + "=POINT(" + points[i] + " " + points[i + 1] + ")");
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(output))) {
+                writer.write("_=geom:Point:srid=32632");
                 writer.newLine();
+                for (int i = 0; i < points.length; i += 2) {
+                    writer.write(
+                            "p." + (i / 2) + "=POINT(" + points[i] + " " + points[i + 1] + ")");
+                    writer.newLine();
+                }
+                LOGGER.info(name + " dumped as " + output.getName());
             }
-            LOGGER.info(name + " dumped as " + output.getName());
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Failed to dump points: " + e.getMessage(), e);
-        } finally {
-            if (writer != null) {
-                try {
-                    writer.close();
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
         }
     }
 }

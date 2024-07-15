@@ -16,11 +16,11 @@
  */
 package org.geotools.geometry.jts;
 
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
 import org.locationtech.jts.geom.impl.CoordinateArraySequenceFactory;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * This coordinate sequence transformer will take a Geometry and transform in a set of curved lines
@@ -44,6 +44,7 @@ public class PreciseCoordinateSequenceTransformer implements CoordinateSequenceT
      *     org.geotools.geometry.jts.CoordinateSequenceTransformer#transform(org.locationtech.jts.geom.CoordinateSequence,
      *     org.geotools.ct.MathTransform2D)
      */
+    @Override
     public CoordinateSequence transform(CoordinateSequence cs, MathTransform transform)
             throws TransformException {
         //        Coordinate[] scs = cs.toCoordinateArray();

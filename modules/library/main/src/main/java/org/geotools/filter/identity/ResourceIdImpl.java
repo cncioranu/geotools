@@ -17,10 +17,10 @@
 package org.geotools.filter.identity;
 
 import java.util.Date;
+import org.geotools.api.filter.identity.FeatureId;
+import org.geotools.api.filter.identity.ResourceId;
+import org.geotools.api.filter.identity.Version;
 import org.geotools.util.Utilities;
-import org.opengis.filter.identity.FeatureId;
-import org.opengis.filter.identity.ResourceId;
-import org.opengis.filter.identity.Version;
 
 /**
  * Implementation of {@link ResourceId} used for Query.
@@ -56,7 +56,7 @@ public class ResourceIdImpl extends FeatureIdVersionedImpl implements ResourceId
      * (essentially the quivalent of {@link FeatureId})
      */
     public ResourceIdImpl(String fid, String featureVersion) {
-        this(fid, featureVersion, (Version) null);
+        this(fid, featureVersion, null);
     }
 
     /**
@@ -70,7 +70,7 @@ public class ResourceIdImpl extends FeatureIdVersionedImpl implements ResourceId
      *     null}
      */
     public ResourceIdImpl(String fid, Date start, Date end) {
-        this(fid, (String) null, (Version) null);
+        this(fid, null, (Version) null);
         if (start == null && end == null) {
             throw new NullPointerException(
                     "At least one of start and end time are required for a lookup based on a date range");

@@ -16,20 +16,20 @@
  */
 package org.geotools.geopkg;
 
-import org.geotools.data.Query;
+import static org.junit.Assert.assertEquals;
+
+import org.geotools.api.data.Query;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsLike;
 import org.geotools.jdbc.JDBCFeatureSourceOnlineTest;
 import org.geotools.jdbc.JDBCTestSetup;
-import org.geotools.referencing.CRS;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.junit.Test;
 
 public class GeoPkgFeatureSourceOnlineTest extends JDBCFeatureSourceOnlineTest {
 
-    /** Allows subclasses to use a axis order specific version of it */
-    protected CoordinateReferenceSystem getWGS84() throws FactoryException {
-        return CRS.decode("EPSG:4326", true);
+    public GeoPkgFeatureSourceOnlineTest() {
+        super();
+        this.forceLongitudeFirst = true;
     }
 
     @Override
@@ -37,10 +37,14 @@ public class GeoPkgFeatureSourceOnlineTest extends JDBCFeatureSourceOnlineTest {
         return new GeoPkgTestSetup();
     }
 
+    @Override
+    @Test
     public void testGetFeaturesWithArithmeticOpFilter() throws Exception {
         // seems there are rounding issues here - consider new test
     }
 
+    @Override
+    @Test
     public void testConversionFilter() throws Exception {
         // seems there are rounding issues here - consider new test
     }
@@ -48,10 +52,11 @@ public class GeoPkgFeatureSourceOnlineTest extends JDBCFeatureSourceOnlineTest {
      * SQLite's LIKE is usually case insensitive - there are many possible "fixes" out there but all
      * are hard to implement or seem not to work for all CharacterSets.
      */
+    @Override
     public void testLikeFilter() throws Exception {
-        FilterFactory2 ff = (FilterFactory2) dataStore.getFilterFactory();
-        PropertyIsLike caseSensitiveLike =
-                ff.like(ff.property(aname("stringProperty")), "Z*", "*", "?", "\\", true);
+        FilterFactory ff = (FilterFactory) dataStore.getFilterFactory();
+        //        PropertyIsLike caseSensitiveLike =
+        //                ff.like(ff.property(aname("stringProperty")), "Z*", "*", "?", "\\", true);
         PropertyIsLike caseInsensitiveLike =
                 ff.like(ff.property(aname("stringProperty")), "Z*", "*", "?", "\\", false);
         PropertyIsLike caseInsensitiveLike2 =

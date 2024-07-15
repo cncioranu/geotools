@@ -22,17 +22,17 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.FilterAttributeExtractor;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.util.Converters;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Implementation of "Categorize" as a normal function.
@@ -157,26 +157,32 @@ public class CategorizeFunction implements Function {
         }
     }
 
+    @Override
     public String getName() {
         return NAME.getName();
     }
 
+    @Override
     public FunctionName getFunctionName() {
         return NAME;
     }
 
+    @Override
     public List<Expression> getParameters() {
         return Collections.unmodifiableList(parameters);
     }
 
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
 
+    @Override
     public Object evaluate(Object object) {
         return evaluate(object, Object.class);
     }
 
+    @Override
     public <T> T evaluate(Object object, Class<T> context) {
         final Expression lookupExp = parameters.get(0);
 
@@ -234,7 +240,7 @@ public class CategorizeFunction implements Function {
             splits = parameters.subList(2, parameters.size() - 1);
         }
 
-        FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+        FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         for (int i = 0; i < splits.size(); i += 2) {
             Expression threshholdExp = splits.get(i);
             Expression rangedExp = splits.get(i + 1);
@@ -254,6 +260,7 @@ public class CategorizeFunction implements Function {
         return currentExp.evaluate(object, context);
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallback;
     }
@@ -266,10 +273,10 @@ public class CategorizeFunction implements Function {
         StringBuilder sb = new StringBuilder();
         sb.append(getName());
         sb.append("(");
-        List<org.opengis.filter.expression.Expression> params = getParameters();
+        List<org.geotools.api.filter.expression.Expression> params = getParameters();
         if (params != null) {
-            org.opengis.filter.expression.Expression exp;
-            for (Iterator<org.opengis.filter.expression.Expression> it = params.iterator();
+            org.geotools.api.filter.expression.Expression exp;
+            for (Iterator<org.geotools.api.filter.expression.Expression> it = params.iterator();
                     it.hasNext(); ) {
                 exp = it.next();
                 sb.append("[");

@@ -7,22 +7,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import org.geotools.data.DataStore;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.test.OnlineTestCase;
 import org.geotools.util.URLs;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
+import org.junit.Test;
 
 /** @author jody */
 public class VPFTest extends OnlineTestCase {
@@ -50,6 +50,7 @@ public class VPFTest extends OnlineTestCase {
         super.disconnect();
     }
 
+    @Override
     protected String getFixtureId() {
         return "vpf.vmap";
     }
@@ -60,12 +61,14 @@ public class VPFTest extends OnlineTestCase {
      *
      * @return fixture listing where vmap folder (that contains lht)
      */
+    @Override
     protected Properties createExampleFixture() {
         Properties fixture = new Properties();
         fixture.put("vmap", "C:\\data\\v0noa_5\\vmaplv0\\noamer");
         return fixture;
     }
 
+    @Test
     public void testFactory() throws Exception {
         assertNotNull("Check fixture is provided", vmap);
         assertTrue("vmap found", vmap.exists());
@@ -90,6 +93,7 @@ public class VPFTest extends OnlineTestCase {
         VPFLogger.log(names.toString());
     }
 
+    @Test
     public void testSchema() throws Exception {
         assertNotNull("Check fixture is provided", vmap);
         assertTrue("vmap found", vmap.exists());
@@ -110,16 +114,10 @@ public class VPFTest extends OnlineTestCase {
         GeometryDescriptor geom = schema.getGeometryDescriptor();
         assertNotNull("spatial", geom);
         // assertNotNull("crs", geom.getCoordinateReferenceSystem() );
-
-        for (AttributeDescriptor attribute : schema.getAttributeDescriptors()) {
-            System.out.print(attribute.getName());
-            System.out.print(",");
-        }
-        VPFLogger.log("");
     }
 
+    @Test
     public void testFeatureReader() throws Exception {
-        File lht = new File(vmap, "lht");
         VPFDataStoreFactory factory = new VPFDataStoreFactory();
         URL url = URLs.fileToUrl(vmap);
         Map<String, Serializable> params = new HashMap<>();
@@ -128,28 +126,23 @@ public class VPFTest extends OnlineTestCase {
         List<Name> names = store.getNames();
 
         Name name = names.get(0);
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader =
-                store.getFeatureReader(new Query(name.getLocalPart()), Transaction.AUTO_COMMIT);
 
         int count = 0;
         ReferencedEnvelope bounds = new ReferencedEnvelope(DefaultGeographicCRS.WGS84);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader =
+                store.getFeatureReader(new Query(name.getLocalPart()), Transaction.AUTO_COMMIT)) {
             while (reader.hasNext()) {
                 SimpleFeature feature = reader.next();
                 count++;
                 bounds.include(feature.getBounds());
-            }
-        } finally {
-            if (reader != null) {
-                reader.close();
             }
         }
         VPFLogger.log("count:" + count);
         VPFLogger.log("bounds:" + bounds);
     }
 
+    @Test
     public void testFeatureSource() throws Exception {
-        File lht = new File(vmap, "lht");
         VPFDataStoreFactory factory = new VPFDataStoreFactory();
         URL url = URLs.fileToUrl(vmap);
         Map<String, Serializable> params = new HashMap<>();
@@ -164,19 +157,14 @@ public class VPFTest extends OnlineTestCase {
         VPFLogger.log("extent:" + extent);
 
         SimpleFeatureCollection features = source.getFeatures();
-        SimpleFeatureIterator iterator = null;
+
         int count = 0;
         ReferencedEnvelope bounds = new ReferencedEnvelope(DefaultGeographicCRS.WGS84);
-        try {
-            iterator = features.features();
+        try (SimpleFeatureIterator iterator = features.features()) {
             while (iterator.hasNext()) {
                 SimpleFeature feature = iterator.next();
                 count++;
                 bounds.include(feature.getBounds());
-            }
-        } finally {
-            if (iterator != null) {
-                iterator.close();
             }
         }
         VPFLogger.log("count:" + count);

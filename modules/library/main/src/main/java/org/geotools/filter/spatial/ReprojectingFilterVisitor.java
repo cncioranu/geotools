@@ -17,40 +17,40 @@
 package org.geotools.filter.spatial;
 
 import java.util.List;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsNotEqualTo;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
+import org.geotools.api.filter.spatial.Contains;
+import org.geotools.api.filter.spatial.Crosses;
+import org.geotools.api.filter.spatial.DWithin;
+import org.geotools.api.filter.spatial.Disjoint;
+import org.geotools.api.filter.spatial.Equals;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.filter.spatial.Overlaps;
+import org.geotools.api.filter.spatial.Touches;
+import org.geotools.api.filter.spatial.Within;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.filter.function.BoundedByFunction;
 import org.geotools.filter.visitor.DuplicatingFilterVisitor;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsNotEqualTo;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.BinarySpatialOperator;
-import org.opengis.filter.spatial.Contains;
-import org.opengis.filter.spatial.Crosses;
-import org.opengis.filter.spatial.DWithin;
-import org.opengis.filter.spatial.Disjoint;
-import org.opengis.filter.spatial.Equals;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.filter.spatial.Overlaps;
-import org.opengis.filter.spatial.Touches;
-import org.opengis.filter.spatial.Within;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Returns a clone of the provided filter where all geometries and bboxes have been reprojected to
@@ -65,12 +65,12 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
 
     private final CoordinateReferenceSystem targetCrs;
 
-    public ReprojectingFilterVisitor(FilterFactory2 factory, FeatureType featureType) {
+    public ReprojectingFilterVisitor(FilterFactory factory, FeatureType featureType) {
         this(factory, featureType, null);
     }
 
     public ReprojectingFilterVisitor(
-            FilterFactory2 factory, FeatureType featureType, CoordinateReferenceSystem targetCrs) {
+            FilterFactory factory, FeatureType featureType, CoordinateReferenceSystem targetCrs) {
         super(factory);
         this.featureType = featureType;
         this.targetCrs = targetCrs;
@@ -103,6 +103,7 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }
     }
 
+    @Override
     public Object visit(BBOX filter, Object extraData) {
 
         // grab the original envelope data
@@ -128,9 +129,7 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
             ReferencedEnvelope envelope = ReferencedEnvelope.reference(boundaries);
             try {
                 envelope = envelope.transform(targetCrs, true);
-            } catch (TransformException e) {
-                throw new RuntimeException(e);
-            } catch (FactoryException e) {
+            } catch (TransformException | FactoryException e) {
                 throw new RuntimeException(e);
             }
             boundaries = envelope;
@@ -139,13 +138,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         return getFactory(extraData).bbox(propertyName, boundaries);
     }
 
+    @Override
     public Object visit(PropertyIsEqualTo filter, Object extraData) {
         return new BinaryComparisonTransformer() {
 
+            @Override
             Object cloneFilter(BinaryComparisonOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((PropertyIsEqualTo) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinaryComparisonOperator bso,
                     Object extraData,
@@ -156,14 +158,17 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(PropertyIsNotEqualTo filter, Object extraData) {
         return new BinaryComparisonTransformer() {
 
+            @Override
             Object cloneFilter(BinaryComparisonOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit(
                         (PropertyIsNotEqualTo) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinaryComparisonOperator bso,
                     Object extraData,
@@ -174,13 +179,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Beyond filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((Beyond) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 Beyond filter = (Beyond) bso;
@@ -189,13 +197,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Contains filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((Contains) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 return ff.contains(ex1, ex2);
@@ -203,13 +214,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Crosses filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((Crosses) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 return ff.crosses(ex1, ex2);
@@ -217,13 +231,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Disjoint filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((Disjoint) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 return ff.disjoint(ex1, ex2);
@@ -231,13 +248,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(DWithin filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((DWithin) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 DWithin filter = (DWithin) bso;
@@ -246,13 +266,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Intersects filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((Intersects) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 return ff.intersects(ex1, ex2);
@@ -260,13 +283,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Overlaps filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((Overlaps) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 return ff.overlaps(ex1, ex2);
@@ -274,13 +300,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Touches filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((Touches) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 return ff.touches(ex1, ex2);
@@ -288,13 +317,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Within filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((Within) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 return ff.within(ex1, ex2);
@@ -302,13 +334,16 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Equals filter, Object extraData) {
         return new GeometryFilterTransformer() {
 
+            @Override
             Object cloneFilter(BinarySpatialOperator filter, Object extraData) {
                 return ReprojectingFilterVisitor.super.visit((Equals) filter, extraData);
             }
 
+            @Override
             Object cloneFilter(
                     BinarySpatialOperator bso, Object extraData, Expression ex1, Expression ex2) {
                 return ff.equal(ex1, ex2);
@@ -316,10 +351,11 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
         }.transform(filter, extraData);
     }
 
+    @Override
     public Object visit(Literal expression, Object extraData) {
         Object value = expression.getValue();
         if (value instanceof Geometry) {
-            value = reproject((Geometry) value, featureType.getCoordinateReferenceSystem());
+            value = reproject(value, featureType.getCoordinateReferenceSystem());
         }
 
         return getFactory(extraData).literal(value);
@@ -485,23 +521,28 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
             this.delegate = delegate;
         }
 
+        @Override
         public String getName() {
             return delegate.getName();
         }
 
+        @Override
         public List<Expression> getParameters() {
             return delegate.getParameters();
         }
 
+        @Override
         public Object accept(ExpressionVisitor visitor, Object extraData) {
             return delegate.accept(visitor, extraData);
         }
 
+        @Override
         public Object evaluate(Object object) {
             Object value = delegate.evaluate(object);
-            return reproject((Geometry) value, propertyCrs);
+            return reproject(value, propertyCrs);
         }
 
+        @Override
         public <T> T evaluate(Object object, Class<T> context) {
             T value = delegate.evaluate(object, context);
             @SuppressWarnings("unchecked")
@@ -509,10 +550,12 @@ public class ReprojectingFilterVisitor extends DuplicatingFilterVisitor {
             return reprojected;
         }
 
+        @Override
         public Literal getFallbackValue() {
             return null;
         }
 
+        @Override
         public FunctionName getFunctionName() {
             return delegate.getFunctionName();
         }

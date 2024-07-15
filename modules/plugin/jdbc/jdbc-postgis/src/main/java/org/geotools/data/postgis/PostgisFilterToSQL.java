@@ -18,22 +18,24 @@ package org.geotools.data.postgis;
 
 import java.io.IOException;
 import java.util.Date;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
+import org.geotools.api.filter.spatial.DistanceBufferOperator;
 import org.geotools.data.jdbc.FilterToSQL;
 import org.geotools.filter.FilterCapabilities;
+import org.geotools.filter.function.JsonArrayContainsFunction;
 import org.geotools.filter.function.JsonPointerFunction;
 import org.geotools.jdbc.JDBCDataStore;
+import org.geotools.util.Version;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.spatial.BinarySpatialOperator;
-import org.opengis.filter.spatial.DistanceBufferOperator;
 
 public class PostgisFilterToSQL extends FilterToSQL {
 
@@ -43,6 +45,11 @@ public class PostgisFilterToSQL extends FilterToSQL {
 
     public PostgisFilterToSQL(PostGISDialect dialect) {
         helper = new FilterToSqlHelper(this);
+        pgDialect = dialect;
+    }
+
+    public PostgisFilterToSQL(PostGISDialect dialect, Version pgVersion) {
+        helper = new FilterToSqlHelper(this, pgVersion);
         pgDialect = dialect;
     }
 
@@ -99,6 +106,7 @@ public class PostgisFilterToSQL extends FilterToSQL {
         return helper.createFilterCapabilities(functionEncodingEnabled);
     }
 
+    @Override
     protected Object visitBinarySpatialOperator(
             BinarySpatialOperator filter,
             PropertyName property,
@@ -109,6 +117,7 @@ public class PostgisFilterToSQL extends FilterToSQL {
         return helper.visitBinarySpatialOperator(filter, property, geometry, swapped, extraData);
     }
 
+    @Override
     protected Object visitBinarySpatialOperator(
             BinarySpatialOperator filter, Expression e1, Expression e2, Object extraData) {
         helper.out = out;
@@ -164,11 +173,6 @@ public class PostgisFilterToSQL extends FilterToSQL {
     }
 
     @Override
-    public double getDistanceInMeters(DistanceBufferOperator operator) {
-        return super.getDistanceInMeters(operator);
-    }
-
-    @Override
     public double getDistanceInNativeUnits(DistanceBufferOperator operator) {
         return super.getDistanceInNativeUnits(operator);
     }
@@ -178,6 +182,7 @@ public class PostgisFilterToSQL extends FilterToSQL {
      *
      * @param filter the comparison to be turned into SQL.
      */
+    @Override
     protected void visitBinaryComparisonOperator(BinaryComparisonOperator filter, Object extraData)
             throws RuntimeException {
         Expression left = filter.getExpression1();
@@ -208,6 +213,7 @@ public class PostgisFilterToSQL extends FilterToSQL {
      * @param filter the Filter to be visited.
      * @throws RuntimeException for io exception with writer
      */
+    @Override
     public Object visit(PropertyIsBetween filter, Object extraData) throws RuntimeException {
         LOGGER.finer("exporting PropertyIsBetween");
 
@@ -222,9 +228,23 @@ public class PostgisFilterToSQL extends FilterToSQL {
         }
     }
 
+    @Override
     public Object visit(PropertyIsEqualTo filter, Object extraData) {
+        Expression left = filter.getExpression1();
+        Expression right = filter.getExpression2();
+
         helper.out = out;
-        if (helper.isSupportedEqualFunction(filter)) {
+        if (left instanceof JsonArrayContainsFunction
+                || right instanceof JsonArrayContainsFunction) {
+            Class leftContext = super.getExpressionType(left);
+            try {
+                writeBinaryExpression(left, leftContext);
+            } catch (java.io.IOException ioe) {
+                throw new RuntimeException(IO_ERROR, ioe);
+            }
+
+            return extraData;
+        } else if (helper.isSupportedEqualFunction(filter)) {
             return helper.visitSupportedEqualFunction(
                     filter,
                     pgDialect,

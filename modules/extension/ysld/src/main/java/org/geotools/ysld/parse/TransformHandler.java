@@ -26,15 +26,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.style.FeatureTypeStyle;
 import org.geotools.filter.FunctionFactory;
-import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.ysld.ProcessUtil;
 import org.geotools.ysld.YamlMap;
 import org.geotools.ysld.YamlObject;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
 
 /** Handles parsing a Ysld "transform" property into a transformation {@link Function} object. */
 public class TransformHandler extends YsldParseHandler {
@@ -153,7 +153,7 @@ public class TransformHandler extends YsldParseHandler {
             input = "data";
         }
         if (input != null) {
-            processArgs.add(paramExpression(input, Collections.<Expression>emptyList()));
+            processArgs.add(paramExpression(input, Collections.emptyList()));
         }
         if (outputBBOX != null) {
             processArgs.add(outputBBOX);

@@ -142,6 +142,7 @@ public class LiteShape implements Shape, Cloneable {
      *     <code>true</code> and the containment calculations would be too expensive to perform.
      * @see #contains(double, double, double, double)
      */
+    @Override
     public boolean contains(Rectangle2D r) {
         Geometry rect = rectangleToGeometry(r);
 
@@ -155,6 +156,7 @@ public class LiteShape implements Shape, Cloneable {
      * @return <code>true</code> if the specified <code>Point2D</code> is inside the boundary of the
      *     <code>Shape</code>; <code>false</code> otherwise.
      */
+    @Override
     public boolean contains(Point2D p) {
         Coordinate coord = new Coordinate(p.getX(), p.getY());
         Geometry point = geometry.getFactory().createPoint(coord);
@@ -170,6 +172,7 @@ public class LiteShape implements Shape, Cloneable {
      * @return <code>true</code> if the specified coordinates are inside the <code>Shape</code>
      *     boundary; <code>false</code> otherwise.
      */
+    @Override
     public boolean contains(double x, double y) {
         Coordinate coord = new Coordinate(x, y);
         Geometry point = geometry.getFactory().createPoint(coord);
@@ -207,6 +210,7 @@ public class LiteShape implements Shape, Cloneable {
      * @see java.awt.geom.Area
      * @see #intersects
      */
+    @Override
     public boolean contains(double x, double y, double w, double h) {
         Geometry rect = createRectangle(x, y, w, h);
 
@@ -225,16 +229,15 @@ public class LiteShape implements Shape, Cloneable {
      * @return an integer <code>Rectangle</code> that completely encloses the <code>Shape</code>.
      * @see #getBounds2D
      */
+    @Override
     public Rectangle getBounds() {
         Coordinate[] coords = geometry.getEnvelope().getCoordinates();
 
         // get out corners. the documentation doens't specify in which
         // order the bounding box coordinates are returned
-        double x1;
 
         // get out corners. the documentation doens't specify in which
         // order the bounding box coordinates are returned
-        double y1;
 
         // get out corners. the documentation doens't specify in which
         // order the bounding box coordinates are returned
@@ -243,8 +246,8 @@ public class LiteShape implements Shape, Cloneable {
         // get out corners. the documentation doens't specify in which
         // order the bounding box coordinates are returned
         double y2;
-        x1 = x2 = coords[0].x;
-        y1 = y2 = coords[0].y;
+        double x1 = x2 = coords[0].x;
+        double y1 = y2 = coords[0].y;
 
         for (int i = 1; i < 3; i++) {
             double x = coords[i].x;
@@ -289,6 +292,7 @@ public class LiteShape implements Shape, Cloneable {
      *     <code>Shape</code>.
      * @see #getBounds
      */
+    @Override
     public Rectangle2D getBounds2D() {
         Envelope env = geometry.getEnvelopeInternal();
         return new Rectangle2D.Double(
@@ -319,6 +323,7 @@ public class LiteShape implements Shape, Cloneable {
      * @return a new <code>PathIterator</code> object, which independently traverses the geometry of
      *     the <code>Shape</code>.
      */
+    @Override
     public PathIterator getPathIterator(AffineTransform at) {
         AbstractLiteIterator pi = null;
 
@@ -405,6 +410,7 @@ public class LiteShape implements Shape, Cloneable {
      * @return a new <code>PathIterator</code> that independently traverses the <code>Shape</code>
      *     geometry.
      */
+    @Override
     public PathIterator getPathIterator(AffineTransform at, double flatness) {
         return getPathIterator(at);
     }
@@ -429,6 +435,7 @@ public class LiteShape implements Shape, Cloneable {
      *     otherwise.
      * @see #intersects(double, double, double, double)
      */
+    @Override
     public boolean intersects(Rectangle2D r) {
         Geometry rect = rectangleToGeometry(r);
 
@@ -463,6 +470,7 @@ public class LiteShape implements Shape, Cloneable {
      *     calculations would be too expensive to perform; <code>false</code> otherwise.
      * @see java.awt.geom.Area
      */
+    @Override
     public boolean intersects(double x, double y, double w, double h) {
         Geometry rect = createRectangle(x, y, w, h);
 

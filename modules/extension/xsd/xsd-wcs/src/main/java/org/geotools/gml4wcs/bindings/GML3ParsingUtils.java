@@ -18,6 +18,10 @@ package org.geotools.gml4wcs.bindings;
 
 import java.util.List;
 import org.eclipse.xsd.XSDElementDeclaration;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.gml2.FeatureTypeCache;
 import org.geotools.gml2.bindings.GML2ParsingUtils;
@@ -31,10 +35,6 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Utility class for gml3 parsing.
@@ -91,14 +91,14 @@ public class GML3ParsingUtils {
 
     static LineString line(
             Node node, GeometryFactory gf, CoordinateSequenceFactory csf, boolean ring) {
-        if (node.hasChild(DirectPosition.class)) {
-            List dps = node.getChildValues(DirectPosition.class);
-            DirectPosition dp = (DirectPosition) dps.get(0);
+        if (node.hasChild(Position.class)) {
+            List dps = node.getChildValues(Position.class);
+            Position dp = (Position) dps.get(0);
 
             CoordinateSequence seq = JTS.createCS(csf, dps.size(), dp.getDimension());
 
             for (int i = 0; i < dps.size(); i++) {
-                dp = (DirectPosition) dps.get(i);
+                dp = (Position) dps.get(i);
 
                 for (int j = 0; j < dp.getDimension(); j++) {
                     seq.setOrdinate(i, j, dp.getOrdinate(j));
@@ -121,13 +121,13 @@ public class GML3ParsingUtils {
 
         if (node.hasChild(Coordinate.class)) {
             List<Coordinate> list = node.getChildValues(Coordinate.class);
-            Coordinate[] coordinates = (Coordinate[]) list.toArray(new Coordinate[list.size()]);
+            Coordinate[] coordinates = list.toArray(new Coordinate[list.size()]);
 
             return ring ? gf.createLinearRing(coordinates) : gf.createLineString(coordinates);
         }
 
-        if (node.hasChild(DirectPosition[].class)) {
-            DirectPosition[] dps = (DirectPosition[]) node.getChildValue(DirectPosition[].class);
+        if (node.hasChild(Position[].class)) {
+            Position[] dps = node.getChildValue(Position[].class);
 
             CoordinateSequence seq = null;
 
@@ -137,7 +137,7 @@ public class GML3ParsingUtils {
                 seq = JTS.createCS(csf, dps.length, dps[0].getDimension());
 
                 for (int i = 0; i < dps.length; i++) {
-                    DirectPosition dp = (DirectPosition) dps[i];
+                    Position dp = dps[i];
 
                     for (int j = 0; j < dp.getDimension(); j++) {
                         seq.setOrdinate(i, j, dp.getOrdinate(j));
@@ -149,8 +149,7 @@ public class GML3ParsingUtils {
         }
 
         if (node.hasChild(CoordinateSequence.class)) {
-            CoordinateSequence seq =
-                    (CoordinateSequence) node.getChildValue(CoordinateSequence.class);
+            CoordinateSequence seq = node.getChildValue(CoordinateSequence.class);
 
             return ring ? gf.createLinearRing(seq) : gf.createLineString(seq);
         }

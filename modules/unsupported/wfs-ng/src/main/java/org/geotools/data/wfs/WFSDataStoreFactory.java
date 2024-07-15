@@ -22,17 +22,18 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
-import org.geotools.data.DataStoreFinder;
-import org.geotools.data.ows.HTTPClient;
-import org.geotools.data.ows.SimpleHttpClient;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFactorySpi;
+import org.geotools.api.data.DataStoreFinder;
 import org.geotools.data.wfs.impl.WFSDataAccessFactory;
 import org.geotools.data.wfs.internal.Versions;
 import org.geotools.data.wfs.internal.WFSClient;
 import org.geotools.data.wfs.internal.WFSConfig;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.type.FeatureTypeFactoryImpl;
+import org.geotools.http.HTTPClient;
+import org.geotools.http.HTTPClientFinder;
+import org.geotools.http.HTTPConnectionPooling;
 import org.geotools.ows.ServiceException;
 import org.geotools.util.Version;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -59,7 +60,7 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
  * @see WFSDataStore
  * @see WFSClient
  */
-@SuppressWarnings({"unchecked", "nls"})
+@SuppressWarnings("unchecked")
 public class WFSDataStoreFactory extends WFSDataAccessFactory implements DataStoreFactorySpi {
 
     private static int GMLComplianceLevel = 0;
@@ -74,7 +75,7 @@ public class WFSDataStoreFactory extends WFSDataAccessFactory implements DataSto
      * GetCapabilities request to be generated from a base URL build the URL with the {@link
      * #createGetCapabilitiesRequest} first.
      *
-     * @see org.geotools.data.DataStoreFactorySpi#createDataStore(java.util.Map)
+     * @see DataStoreFactorySpi#createDataStore(java.util.Map)
      */
     @Override
     public WFSDataStore createDataStore(final Map<String, ?> params) throws IOException {
@@ -91,7 +92,7 @@ public class WFSDataStoreFactory extends WFSDataAccessFactory implements DataSto
             }
         }
 
-        final URL capabilitiesURL = (URL) URL.lookUp(params);
+        final URL capabilitiesURL = URL.lookUp(params);
 
         final HTTPClient http = getHttpClient(params);
         http.setTryGzip(config.isTryGZIP());
@@ -130,15 +131,18 @@ public class WFSDataStoreFactory extends WFSDataAccessFactory implements DataSto
      * @return the HttpClient instance
      */
     public HTTPClient getHttpClient(final Map<String, ?> params) throws IOException {
-        final URL capabilitiesURL = (URL) URL.lookUp(params);
         final WFSConfig config = WFSConfig.fromParams(params);
-        return config.isUseHttpConnectionPooling() && isHttp(capabilitiesURL)
-                ? new MultithreadedHttpClient(config)
-                : new SimpleHttpClient();
-    }
+        if (config.isUseHttpConnectionPooling()) {
+            HTTPClient client = HTTPClientFinder.createClient(HTTPConnectionPooling.class);
 
-    private static boolean isHttp(java.net.URL capabilitiesURL) {
-        return capabilitiesURL.getProtocol().toLowerCase().matches("http(s)?");
+            client.setReadTimeout(config.getTimeoutMillis() / 1000);
+            client.setConnectTimeout(config.getTimeoutMillis() / 1000);
+            ((HTTPConnectionPooling) client).setMaxConnections(config.getMaxConnectionPoolSize());
+
+            return client;
+        } else {
+            return HTTPClientFinder.createClient();
+        }
     }
 
     @Override
@@ -168,7 +172,7 @@ public class WFSDataStoreFactory extends WFSDataAccessFactory implements DataSto
      * </ul>
      */
     @Override
-    public boolean canProcess(@SuppressWarnings("rawtypes") final Map params) {
+    public boolean canProcess(final Map params) {
         return super.canProcess(params, GMLComplianceLevel);
     }
 
@@ -256,6 +260,7 @@ public class WFSDataStoreFactory extends WFSDataAccessFactory implements DataSto
      *
      * @return <code>true</code>
      */
+    @Override
     public boolean isAvailable() {
         return true;
     }

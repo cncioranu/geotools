@@ -22,6 +22,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.ArrayList;
@@ -34,9 +35,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.geotools.data.DataAccess;
-import org.geotools.data.DataAccessFinder;
-import org.geotools.data.FeatureSource;
+import org.geotools.api.data.DataAccess;
+import org.geotools.api.data.DataAccessFinder;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.complex.feature.type.Types;
 import org.geotools.data.solr.TestsSolrUtils;
 import org.geotools.feature.FeatureIterator;
@@ -48,10 +53,6 @@ import org.junit.AfterClass;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.opengis.feature.Feature;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
 
 /**
  * This class contains the integration tests (online tests) for the integration between App-Schema
@@ -82,11 +83,12 @@ public final class ComplexFeaturesTest extends OnlineTestCase {
     }
 
     @Override
-    public void setUpInternal() {
+    public void setUpInternal() throws IOException {
         // instantiate the Apache Solr client
-        HttpSolrClient client = new HttpSolrClient.Builder(getSolrCoreURL()).build();
-        // configure the target Apache Solr core
-        StationsSetup.setupSolrIndex(client);
+        try (HttpSolrClient client = new HttpSolrClient.Builder(getSolrCoreURL()).build()) {
+            // configure the target Apache Solr core
+            StationsSetup.setupSolrIndex(client);
+        }
         // prepare the App-Schema configuration files
         StationsSetup.prepareAppSchemaFiles(TESTS_ROOT_DIR, getSolrCoreURL());
         instantiateAppSchemaDataStore();
@@ -165,7 +167,6 @@ public final class ComplexFeaturesTest extends OnlineTestCase {
                     assertThat(index >= 0, is(true));
                     assertThat(tags[index], is(tagValue));
                 }
-                for (String tag : tags) {}
 
                 // feature found, we are done
                 return feature;

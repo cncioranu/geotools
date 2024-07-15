@@ -56,10 +56,12 @@ public class PointHandler implements ShapeHandler {
      *
      * @return int Shapefile.POINT
      */
+    @Override
     public ShapeType getShapeType() {
         return shapeType;
     }
 
+    @Override
     public int getLength(Object geometry) {
         int length;
         if (shapeType == ShapeType.POINT) {
@@ -74,6 +76,7 @@ public class PointHandler implements ShapeHandler {
         return length;
     }
 
+    @Override
     public Object read(ByteBuffer buffer, ShapeType type, boolean flatGeometry) {
         if (type == ShapeType.NULL) {
             return createNull();
@@ -92,7 +95,13 @@ public class PointHandler implements ShapeHandler {
         c.setY(buffer.getDouble());
 
         if (shapeType == ShapeType.POINTM && !flatGeometry) {
-            c.setM(buffer.getDouble());
+            double m = buffer.getDouble();
+            // Page 2 of the spec says that values less than 10E-38 are
+            // NaNs
+            if (m < -10e38) {
+                m = Double.NaN;
+            }
+            c.setM(m);
         }
 
         if (shapeType == ShapeType.POINTZ && !flatGeometry) {
@@ -107,6 +116,7 @@ public class PointHandler implements ShapeHandler {
         return geometryFactory.createPoint(new Coordinate(Double.NaN, Double.NaN, Double.NaN));
     }
 
+    @Override
     public void write(ByteBuffer buffer, Object geometry) {
         Point point = (Point) geometry;
         Coordinate c = point.getCoordinate();

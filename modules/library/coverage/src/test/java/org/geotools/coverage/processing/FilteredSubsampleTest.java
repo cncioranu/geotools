@@ -24,12 +24,12 @@ import java.awt.image.IndexColorModel;
 import java.awt.image.RenderedImage;
 import javax.media.jai.Interpolation;
 import javax.media.jai.InterpolationNearest;
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.Viewer;
 import org.geotools.util.factory.Hints;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.parameter.ParameterValueGroup;
 
 /**
  * Tests the "filtered subsample" operation.
@@ -58,7 +58,7 @@ public final class FilteredSubsampleTest extends GridProcessingTestBase {
         final GridCoverage2D floatCoverage = EXAMPLES.get(4);
 
         // On this one the Subsample average should do an RGB expansion
-        float[] filter = new float[] {1};
+        float[] filter = {1};
         Interpolation interp = Interpolation.getInstance(Interpolation.INTERP_NEAREST);
         filteredSubsample(indexedCoverage, interp, filter);
 

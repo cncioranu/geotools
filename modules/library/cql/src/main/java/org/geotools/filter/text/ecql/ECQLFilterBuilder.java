@@ -21,6 +21,20 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.Not;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.identity.FeatureId;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.filter.text.commons.AbstractFilterBuilder;
 import org.geotools.filter.text.commons.BuildResultStack;
 import org.geotools.filter.text.commons.IToken;
@@ -36,20 +50,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.Id;
-import org.opengis.filter.Not;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.identity.FeatureId;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.BinarySpatialOperator;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Builds the filters required by the {@link ECQLCompiler}.
@@ -99,7 +99,7 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
             idList.add(id);
             getResultStack().popResult();
         }
-        assert idList.size() >= 1 : "must have one or more FeatureIds";
+        assert !idList.isEmpty() : "must have one or more FeatureIds";
 
         // shorts the id list and builds the filter Id
         Collections.reverse(idList);
@@ -164,11 +164,11 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
             }
             getResultStack().popResult();
 
-            Expression expr = (Expression) getResultStack().popExpression();
+            Expression expr = getResultStack().popExpression();
             exprList.add(expr);
         }
 
-        assert exprList.size() >= 1 : "must have one or more expressions";
+        assert !exprList.isEmpty() : "must have one or more expressions";
 
         // retrieve the left hand expression from the stack
         final Expression leftHandExpr = getResultStack().popExpression();
@@ -325,6 +325,7 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return getResultStack().popLiteral();
     }
 
+    @Override
     public BinarySpatialOperator buildSpatialEqualFilter() throws CQLException {
 
         SpatialOperationBuilder builder =
@@ -334,6 +335,7 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return filter;
     }
 
+    @Override
     public BinarySpatialOperator buildSpatialDisjointFilter() throws CQLException {
         SpatialOperationBuilder builder =
                 new SpatialOperationBuilder(getResultStack(), getFilterFactory());
@@ -343,6 +345,7 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return filter;
     }
 
+    @Override
     public BinarySpatialOperator buildSpatialIntersectsFilter() throws CQLException {
 
         SpatialOperationBuilder builder =
@@ -353,6 +356,7 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return filter;
     }
 
+    @Override
     public BinarySpatialOperator buildSpatialTouchesFilter() throws CQLException {
 
         SpatialOperationBuilder builder =
@@ -363,6 +367,7 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return filter;
     }
 
+    @Override
     public BinarySpatialOperator buildSpatialCrossesFilter() throws CQLException {
 
         SpatialOperationBuilder builder =
@@ -429,13 +434,13 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         // validates that the pattern has only the characters T,F,*,0,1,2
         String patternUC = pattern.toUpperCase();
 
-        char[] validFlags = new char[] {'T', 'F', '*', '0', '1', '2'};
+        char[] validFlags = {'T', 'F', '*', '0', '1', '2'};
         for (int i = 0; i < validFlags.length; i++) {
             char character = patternUC.charAt(i);
 
             boolean found = false;
-            for (int j = 0; j < validFlags.length; j++) {
-                if (validFlags[j] == character) {
+            for (char validFlag : validFlags) {
+                if (validFlag == character) {
                     found = true;
                     break;
                 }
@@ -453,6 +458,7 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return patternExpr;
     }
 
+    @Override
     public BinarySpatialOperator buildSpatialWithinFilter() throws CQLException {
 
         SpatialOperationBuilder builder =
@@ -463,6 +469,7 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return filter;
     }
 
+    @Override
     public BinarySpatialOperator buildSpatialContainsFilter() throws CQLException {
 
         SpatialOperationBuilder builder =
@@ -473,6 +480,7 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return filter;
     }
 
+    @Override
     public BinarySpatialOperator buildSpatialOverlapsFilter() throws CQLException {
 
         SpatialOperationBuilder builder =
@@ -499,7 +507,8 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return eq;
     }
 
-    public org.opengis.filter.spatial.BBOX buildBBox() throws CQLException {
+    @Override
+    public org.geotools.api.filter.spatial.BBOX buildBBox() throws CQLException {
 
         SpatialOperationBuilder builder =
                 new SpatialOperationBuilder(getResultStack(), getFilterFactory());
@@ -509,7 +518,8 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         return filter;
     }
 
-    public org.opengis.filter.spatial.BBOX buildBBoxWithCRS() throws CQLException {
+    @Override
+    public org.geotools.api.filter.spatial.BBOX buildBBoxWithCRS() throws CQLException {
 
         SpatialOperationBuilder builder =
                 new SpatialOperationBuilder(getResultStack(), getFilterFactory());
@@ -517,5 +527,20 @@ final class ECQLFilterBuilder extends AbstractFilterBuilder {
         BBOX filter = builder.buildBBoxWithCRS();
 
         return filter;
+    }
+
+    @Override
+    public Literal buildEnvelope(IToken token) throws CQLException {
+        Literal result = super.buildEnvelope(token);
+
+        // unlike CQL, in ECQL the numbers are tokens loaded on the stack, they need to be
+        // removed
+        BuildResultStack stack = getResultStack();
+        stack.popResult();
+        stack.popResult();
+        stack.popResult();
+        stack.popResult();
+
+        return result;
     }
 }

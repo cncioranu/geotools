@@ -19,14 +19,14 @@ package org.geotools.filter;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.VolatileFunction;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.function.FilterFunction_property;
 import org.geotools.filter.visitor.DefaultFilterVisitor;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.VolatileFunction;
 
 /**
  * A simple visitor that extracts every attribute used by a filter or an expression
@@ -48,7 +48,7 @@ import org.opengis.filter.expression.VolatileFunction;
  */
 public class FilterAttributeExtractor extends DefaultFilterVisitor {
 
-    static final FilterFactory2 FF = CommonFactoryFinder.getFilterFactory2();
+    static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
 
     /** Last set visited */
     protected Set<String> attributeNames = new HashSet<>();
@@ -91,7 +91,7 @@ public class FilterAttributeExtractor extends DefaultFilterVisitor {
      * @return an array of the attribute names found so far during the visit
      */
     public String[] getAttributeNames() {
-        return (String[]) attributeNames.toArray(new String[attributeNames.size()]);
+        return attributeNames.toArray(new String[attributeNames.size()]);
     }
 
     /** Resets the attributes found so that a new attribute search can be performed */
@@ -100,6 +100,7 @@ public class FilterAttributeExtractor extends DefaultFilterVisitor {
         usingVolatileFunctions = false;
     }
 
+    @Override
     public Object visit(PropertyName expression, Object data) {
         if (data instanceof Set && data != attributeNames) {
             @SuppressWarnings("unchecked")
@@ -112,7 +113,7 @@ public class FilterAttributeExtractor extends DefaultFilterVisitor {
             // evaluate against the feature type instead of using straight name
             // since the path from the property name may be an XPath or a
             // namespace prefixed string
-            AttributeDescriptor type = (AttributeDescriptor) expression.evaluate(featureType);
+            AttributeDescriptor type = expression.evaluate(featureType, AttributeDescriptor.class);
             if (type != null) {
                 attributeNames.add(type.getLocalName());
             } else {
@@ -125,7 +126,8 @@ public class FilterAttributeExtractor extends DefaultFilterVisitor {
         return attributeNames;
     }
 
-    public Object visit(org.opengis.filter.expression.Function expression, Object data) {
+    @Override
+    public Object visit(org.geotools.api.filter.expression.Function expression, Object data) {
         if (expression instanceof VolatileFunction) {
             usingVolatileFunctions = true;
         }
@@ -133,7 +135,7 @@ public class FilterAttributeExtractor extends DefaultFilterVisitor {
             boolean foundLiteral = false;
             // dynamic property usage
             if (expression.getParameters() != null && expression.getParameters().size() > 0) {
-                org.opengis.filter.expression.Expression firstParam =
+                org.geotools.api.filter.expression.Expression firstParam =
                         expression.getParameters().get(0);
 
                 FilterAttributeExtractor secondary = new FilterAttributeExtractor();

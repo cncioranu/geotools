@@ -17,8 +17,8 @@
 package org.geotools.temporal.object;
 
 import javax.measure.Unit;
+import org.geotools.api.temporal.IntervalLength;
 import org.geotools.util.Utilities;
-import org.opengis.temporal.IntervalLength;
 
 /**
  * A data type for intervals of time which supports the expression of duration in terms of a
@@ -52,20 +52,24 @@ public class DefaultIntervalLength extends DefaultDuration implements IntervalLe
     }
 
     /** The unit of measure used to express the length of the interval. */
+    @Override
     public Unit getUnit() {
         return unit;
     }
 
     /** A positive integer that is the base of the mulitplier of the unit. */
+    @Override
     public int getRadix() {
         return radix;
     }
 
     /** The exponent of the base. */
+    @Override
     public int getFactor() {
         return factor;
     }
 
+    @Override
     public int getValue() {
         return value;
     }

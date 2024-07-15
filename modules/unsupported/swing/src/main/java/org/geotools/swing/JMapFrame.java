@@ -62,7 +62,7 @@ import org.geotools.swing.tool.ScrollWheelTool;
  * }</pre>
  *
  * @see MapLayerTable
- * @see StatusBar
+ * @see JMapStatusBar
  * @author Michael Bedward
  * @since 2.6
  * @version $Id$
@@ -135,14 +135,7 @@ public class JMapFrame extends JFrame {
         if (SwingUtilities.isEventDispatchThread()) {
             doShowMap(content);
         } else {
-            SwingUtilities.invokeLater(
-                    new Runnable() {
-
-                        @Override
-                        public void run() {
-                            doShowMap(content);
-                        }
-                    });
+            SwingUtilities.invokeLater(() -> doShowMap(content));
         }
     }
 

@@ -19,11 +19,11 @@ package org.geotools.gce.imagemosaic.properties.string;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.gce.imagemosaic.properties.PropertiesCollector;
 import org.geotools.gce.imagemosaic.properties.PropertiesCollectorSPI;
 import org.geotools.gce.imagemosaic.properties.RegExPropertiesCollector;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * {@link PropertiesCollector} that is able to collect properties from a file name.
@@ -45,7 +45,7 @@ class StringFileNameExtractor extends RegExPropertiesCollector {
         List<String> matches = getMatches();
 
         // set the properties, only if we have matches!
-        if (matches.size() <= 0) {
+        if (matches.isEmpty()) {
             if (LOGGER.isLoggable(Level.FINE))
                 LOGGER.fine("No matches found for this property extractor:");
         }

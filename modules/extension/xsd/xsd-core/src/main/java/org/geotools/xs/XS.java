@@ -19,9 +19,9 @@ package org.geotools.xs;
 import java.util.HashSet;
 import java.util.Set;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.Schema;
 import org.geotools.xsd.XSD;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.Schema;
 
 /**
  * This interface contains the qualified names of all the types in the
@@ -221,10 +221,12 @@ public final class XS extends XSD {
     }
 
     /** Returns 'http://www.w3.org/2001/XMLSchema'. */
+    @Override
     public String getNamespaceURI() {
         return NAMESPACE;
     }
 
+    @Override
     public String getSchemaLocation() {
         return getClass().getResource("XMLSchema.xsd").toString();
     }

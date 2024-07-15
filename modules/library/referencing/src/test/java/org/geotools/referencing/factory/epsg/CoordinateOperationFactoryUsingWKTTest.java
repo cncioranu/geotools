@@ -26,6 +26,11 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.util.Properties;
 import java.util.Set;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.CoordinateOperation;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
@@ -33,11 +38,6 @@ import org.geotools.util.factory.AbstractFactory;
 import org.geotools.util.factory.Hints;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.CoordinateOperation;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Tests the {@link testCoordinateOperationFactoryUsingWKT} public methods.
@@ -124,7 +124,7 @@ public class CoordinateOperationFactoryUsingWKTTest {
     /** Test method for {@link CoordinateOperationFactoryUsingWKT#getAuthority}. */
     @Test
     public void testGetAuthority() {
-        assertTrue(factory.getAuthority().equals(Citations.EPSG));
+        assertEquals(factory.getAuthority(), Citations.EPSG);
     }
 
     /** Test method for {@link CoordinateOperationFactoryUsingWKT#createCoordinateOperation}. */
@@ -186,7 +186,7 @@ public class CoordinateOperationFactoryUsingWKTTest {
             // Test CoordinateOperation
             Set<CoordinateOperation> cos =
                     factory.createFromCoordinateReferenceSystemCodes(SOURCE_CRS, TARGET_CRS);
-            assertTrue(cos.size() == 1);
+            assertEquals(1, cos.size());
             CoordinateOperation co = cos.iterator().next();
             assertNotNull(co);
 

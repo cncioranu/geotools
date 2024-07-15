@@ -29,6 +29,7 @@ import java.awt.image.ColorModel;
 import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,29 +39,27 @@ import java.util.Set;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
 import javax.media.jai.ROI;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.ContrastEnhancement;
+import org.geotools.api.style.ContrastMethod;
+import org.geotools.api.style.StyleVisitor;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
-import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.image.ImageWorker;
 import org.geotools.renderer.i18n.ErrorKeys;
-import org.geotools.renderer.i18n.Errors;
 import org.geotools.renderer.i18n.Vocabulary;
 import org.geotools.renderer.i18n.VocabularyKeys;
 import org.geotools.styling.AbstractContrastMethodStrategy;
-import org.geotools.styling.ContrastEnhancement;
 import org.geotools.styling.ExponentialContrastMethodStrategy;
 import org.geotools.styling.HistogramContrastMethodStrategy;
 import org.geotools.styling.LogarithmicContrastMethodStrategy;
 import org.geotools.styling.NormalizeContrastMethodStrategy;
-import org.geotools.styling.StyleVisitor;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.filter.expression.Expression;
-import org.opengis.style.ContrastMethod;
-import org.opengis.util.InternationalString;
 
 /**
  * This implementations of {@link CoverageProcessingNode} takes care of the {@link
@@ -76,6 +75,7 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
      * (non-Javadoc)
      * @see CoverageProcessingNode#getName()
      */
+    @Override
     public InternationalString getName() {
         return Vocabulary.formatInternational(VocabularyKeys.CONTRAST_ENHANCEMENT);
     }
@@ -115,6 +115,7 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
      *
      * @see org.geotools.renderer.lite.gridcoverage2d.StyleVisitorAdapter#visit(org.geotools.styling.ContrastEnhancement)
      */
+    @Override
     public void visit(final ContrastEnhancement ce) {
         // /////////////////////////////////////////////////////////////////////
         //
@@ -139,7 +140,8 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
                 this.type = type.toUpperCase();
                 if (!SUPPORTED_HE_ALGORITHMS.contains(type.toUpperCase()))
                     throw new IllegalArgumentException(
-                            Errors.format(ErrorKeys.OPERATION_NOT_FOUND_$1, type.toUpperCase()));
+                            MessageFormat.format(
+                                    ErrorKeys.OPERATION_NOT_FOUND_$1, type.toUpperCase()));
                 this.contrastEnhancementMethod =
                         parseContrastEnhancementMethod(contrastMethod, ce.getOptions());
             }
@@ -158,10 +160,10 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
                 // check the gamma value
                 if (gammaValue < 0)
                     throw new IllegalArgumentException(
-                            Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "Gamma", number));
+                            MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "Gamma", number));
                 if (Double.isNaN(gammaValue) || Double.isInfinite(gammaValue))
                     throw new IllegalArgumentException(
-                            Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "Gamma", number));
+                            MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "Gamma", number));
             }
         }
     }
@@ -184,7 +186,7 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
             ceMethod = new HistogramContrastMethodStrategy();
         } else {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.UNSUPPORTED_METHOD_$1, method));
+                    MessageFormat.format(ErrorKeys.UNSUPPORTED_METHOD_$1, method));
         }
         ceMethod.setOptions(options);
         return ceMethod;
@@ -215,6 +217,7 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
      *
      * @see org.geotools.renderer.lite.gridcoverage2d.StyleVisitorCoverageProcessingNodeAdapter#execute()
      */
+    @Override
     @SuppressWarnings("unchecked")
     protected GridCoverage2D execute() {
         final Hints hints = getHints();
@@ -462,20 +465,19 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
                             factory.create(
                                     name,
                                     finalImage,
-                                    (GridGeometry2D) source.getGridGeometry(),
+                                    source.getGridGeometry(),
                                     source.getSampleDimensions(),
                                     new GridCoverage[] {source},
                                     props);
                 } else {
                     // replicate input bands
-                    final GridSampleDimension sd[] = new GridSampleDimension[numActualBands];
-                    for (int i = 0; i < numActualBands; i++)
-                        sd[i] = (GridSampleDimension) source.getSampleDimension(0);
+                    final GridSampleDimension[] sd = new GridSampleDimension[numActualBands];
+                    for (int i = 0; i < numActualBands; i++) sd[i] = source.getSampleDimension(0);
                     output =
                             factory.create(
                                     "ce_coverage" + source.getName().toString(),
                                     finalImage,
-                                    (GridGeometry2D) source.getGridGeometry(),
+                                    source.getGridGeometry(),
                                     sd,
                                     new GridCoverage[] {source},
                                     props);
@@ -492,8 +494,9 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
                 output = source;
             return output;
         }
+        final Object arg0 = this.getName().toString();
         throw new IllegalStateException(
-                Errors.format(ErrorKeys.SOURCE_CANT_BE_NULL_$1, this.getName().toString()));
+                MessageFormat.format(ErrorKeys.SOURCE_CANT_BE_NULL_$1, arg0));
     }
 
     /**
@@ -535,7 +538,6 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
         assert inputImage.getSampleModel().getNumBands() == 1 : inputImage;
 
         final int dataType = inputImage.getSampleModel().getDataType();
-        RenderedImage result = inputImage;
         if (!Double.isNaN(gammaValue) && Math.abs(gammaValue - 1.0) > 1E-6) {
             if (dataType == DataBuffer.TYPE_BYTE) {
 
@@ -571,7 +573,7 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
                 worker.piecewise(transform, Integer.valueOf(0));
             }
         }
-        result = worker.getRenderedImage();
+        RenderedImage result = worker.getRenderedImage();
         assert result.getSampleModel().getNumBands() == 1 : result;
         return result;
     }

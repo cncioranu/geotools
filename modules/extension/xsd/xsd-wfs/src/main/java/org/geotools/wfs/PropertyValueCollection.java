@@ -25,6 +25,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.FeatureFactory;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.FeatureTypeFactory;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.Schema;
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.AttributeTypeBuilder;
 import org.geotools.feature.FeatureCollection;
@@ -33,17 +44,6 @@ import org.geotools.feature.NameImpl;
 import org.geotools.feature.type.FeatureTypeFactoryImpl;
 import org.geotools.gml3.v3_2.GML;
 import org.geotools.xs.XS;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureFactory;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.FeatureTypeFactory;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.Schema;
-import org.opengis.filter.expression.PropertyName;
 
 /**
  * Wrapping feature collection used by GetPropertyValue operation.
@@ -122,7 +122,7 @@ public class PropertyValueCollection extends AbstractCollection<Attribute> {
             if (values.isEmpty()) {
                 Object value = null;
                 while (it.hasNext()) {
-                    Feature f = (Feature) it.next();
+                    Feature f = it.next();
                     value = propertyName.evaluate(f);
                     if (value != null
                             && !(value instanceof Collection && ((Collection) value).isEmpty())) {
@@ -155,7 +155,7 @@ public class PropertyValueCollection extends AbstractCollection<Attribute> {
         public Attribute next() {
             Object value = values.remove();
 
-            // create a new descriptor based on teh xml type
+            // create a new descriptor based on the xml type
             AttributeType xmlType = findType(descriptor.getType().getBinding());
             if (xmlType == null) {
                 throw new RuntimeException(
@@ -186,9 +186,7 @@ public class PropertyValueCollection extends AbstractCollection<Attribute> {
             if (value instanceof ComplexAttribute) {
                 result =
                         factory.createComplexAttribute(
-                                Collections.<Property>singletonList((Property) value),
-                                newDescriptor,
-                                null);
+                                Collections.singletonList((Property) value), newDescriptor, null);
             } else {
                 value = value instanceof Attribute ? ((Attribute) value).getValue() : value;
                 result = factory.createAttribute(value, newDescriptor, null);

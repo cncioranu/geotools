@@ -118,39 +118,38 @@ public class TableWriter extends FilterWriter {
      * Drawing-box characters. The last two characters are horizontal and vertical line
      * respectively.
      */
-    private static final char[][] BOX =
-            new char[][] {
-                { // [0000]: single horizontal, single vertical
-                    '\u250C', '\u252C', '\u2510',
-                    '\u251C', '\u253C', '\u2524',
-                    '\u2514', '\u2534', '\u2518',
-                    '\u2500', '\u2502'
-                },
-                { // [0001]: single horizontal, double vertical
-                    '\u2553', '\u2565', '\u2556',
-                    '\u255F', '\u256B', '\u2562',
-                    '\u2559', '\u2568', '\u255C',
-                    '\u2500', '\u2551'
-                },
-                { // [0010]: double horizontal, single vertical
-                    '\u2552', '\u2564', '\u2555',
-                    '\u255E', '\u256A', '\u2561',
-                    '\u2558', '\u2567', '\u255B',
-                    '\u2550', '\u2502'
-                },
-                { // [0011]: double horizontal, double vertical
-                    '\u2554', '\u2566', '\u2557',
-                    '\u2560', '\u256C', '\u2563',
-                    '\u255A', '\u2569', '\u255D',
-                    '\u2550', '\u2551'
-                },
-                { // [0100]: ASCII characters only
-                    '+', '+', '+',
-                    '+', '+', '+',
-                    '+', '+', '+',
-                    '-', '|'
-                }
-            };
+    private static final char[][] BOX = {
+        { // [0000]: single horizontal, single vertical
+            '\u250C', '\u252C', '\u2510',
+            '\u251C', '\u253C', '\u2524',
+            '\u2514', '\u2534', '\u2518',
+            '\u2500', '\u2502'
+        },
+        { // [0001]: single horizontal, double vertical
+            '\u2553', '\u2565', '\u2556',
+            '\u255F', '\u256B', '\u2562',
+            '\u2559', '\u2568', '\u255C',
+            '\u2500', '\u2551'
+        },
+        { // [0010]: double horizontal, single vertical
+            '\u2552', '\u2564', '\u2555',
+            '\u255E', '\u256A', '\u2561',
+            '\u2558', '\u2567', '\u255B',
+            '\u2550', '\u2502'
+        },
+        { // [0011]: double horizontal, double vertical
+            '\u2554', '\u2566', '\u2557',
+            '\u2560', '\u256C', '\u2563',
+            '\u255A', '\u2569', '\u255D',
+            '\u2550', '\u2551'
+        },
+        { // [0100]: ASCII characters only
+            '+', '+', '+',
+            '+', '+', '+',
+            '+', '+', '+',
+            '-', '|'
+        }
+    };
 
     /** Default character for space. */
     private static final char SPACE = ' ';
@@ -184,7 +183,7 @@ public class TableWriter extends FilterWriter {
      * Maximum width for each columns. This array's length must be equals to the number of columns
      * in this table.
      */
-    private int width[] = new int[0];
+    private int[] width = new int[0];
 
     /** The column separator. */
     private final String separator;
@@ -290,9 +289,9 @@ public class TableWriter extends FilterWriter {
          */
         int boxCount = 0;
         final char[][] box = new char[BOX.length][];
-        for (int i = 0; i < BOX.length; i++) {
-            if (BOX[i][9] == horizontalChar) {
-                box[boxCount++] = BOX[i];
+        for (char[] chars : BOX) {
+            if (chars[9] == horizontalChar) {
+                box[boxCount++] = chars;
             }
         }
         /*
@@ -574,7 +573,7 @@ public class TableWriter extends FilterWriter {
      * @param cbuf Array of characters to be written.
      */
     @Override
-    public void write(final char cbuf[]) {
+    public void write(final char[] cbuf) {
         write(cbuf, 0, cbuf.length);
     }
 
@@ -587,7 +586,7 @@ public class TableWriter extends FilterWriter {
      * @param length Number of characters to write.
      */
     @Override
-    public void write(final char cbuf[], int offset, int length) {
+    public void write(final char[] cbuf, int offset, int length) {
         if (offset < 0 || length < 0 || (offset + length) > cbuf.length) {
             throw new IndexOutOfBoundsException();
         }
@@ -898,7 +897,7 @@ public class TableWriter extends FilterWriter {
     }
 
     /** Checks if {@code array} contains only {@code null} elements. */
-    private static boolean isEmpty(final Object[] array) {
+    private static boolean isEmpty(final Object... array) {
         for (int i = array.length; --i >= 0; ) {
             if (array[i] != null) {
                 return false;
@@ -929,8 +928,8 @@ public class TableWriter extends FilterWriter {
                 nextColumn();
             }
             int capacity = 2; // Room for EOL.
-            for (int i = 0; i < width.length; i++) {
-                capacity += width[i];
+            for (int j : width) {
+                capacity += j;
             }
             capacity *= getRowCount();
             final StringWriter writer;

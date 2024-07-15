@@ -17,12 +17,12 @@
 
 package org.geotools.filter.text.cql2;
 
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.PropertyIsEqualTo;
 import org.geotools.filter.text.commons.CompilerUtil;
 import org.geotools.filter.text.commons.Language;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opengis.filter.Filter;
-import org.opengis.filter.PropertyIsEqualTo;
 
 /**
  * Test Existence Predicate.
@@ -63,15 +63,17 @@ public class CQLExistenceTest {
         // -------------------------------------------------------------
         // <attribute_name> DOES-NOT-EXIST
         // -------------------------------------------------------------
-        Filter resultFilter =
-                CompilerUtil.parseFilter(
-                        this.language, FilterCQLSample.ATTRIBUTE_NAME_DOES_NOT_EXIST);
+        Filter resultFilter = parseFilter(FilterCQLSample.ATTRIBUTE_NAME_DOES_NOT_EXIST);
 
         Assert.assertNotNull("Filter expected", resultFilter);
 
         Filter expected = FilterCQLSample.getSample(FilterCQLSample.ATTRIBUTE_NAME_DOES_NOT_EXIST);
 
         Assert.assertEquals(expected, resultFilter);
+    }
+
+    protected Filter parseFilter(String attributeNameDoesNotExist) throws CQLException {
+        return CompilerUtil.parseFilter(this.language, attributeNameDoesNotExist);
     }
 
     /** Sample: attribute_name EXISTS */
@@ -82,8 +84,7 @@ public class CQLExistenceTest {
         // <attribute_name> EXISTS
         // TODO Exist function must be implemented in Geotools
         // -------------------------------------------------------------
-        Filter resultFilter =
-                CompilerUtil.parseFilter(this.language, FilterCQLSample.ATTRIBUTE_NAME_EXISTS);
+        Filter resultFilter = parseFilter(FilterCQLSample.ATTRIBUTE_NAME_EXISTS);
 
         Assert.assertNotNull("Filter expected", resultFilter);
 

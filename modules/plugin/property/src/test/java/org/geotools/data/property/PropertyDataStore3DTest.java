@@ -26,10 +26,15 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.identity.FeatureId;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.data.store.ContentFeatureCollection;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
@@ -46,17 +51,12 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.WKTReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.Id;
-import org.opengis.filter.identity.FeatureId;
 
 /** Makes sure PropertyDatastore can read and write 3d data */
 public class PropertyDataStore3DTest {
     PropertyDataStore store;
 
-    static FilterFactory2 ff = (FilterFactory2) CommonFactoryFinder.getFilterFactory(null);
+    static FilterFactory ff = (FilterFactory) CommonFactoryFinder.getFilterFactory(null);
 
     @Before
     public void setUp() throws Exception {
@@ -67,17 +67,17 @@ public class PropertyDataStore3DTest {
         if (file.exists()) {
             file.delete();
         }
-        BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-        writer.write("_=name:String,geom:Geometry:srid=7415");
-        writer.newLine();
-        writer.write(
-                "full3d.poly=poly|POLYGON((94000 471000 12, 94001 471000 12, 94001 471001 12, 94000 471001 12, 94000 471000 12))");
-        writer.newLine();
-        writer.write("full3d.point=point|POINT(94330 471816 16)");
-        writer.newLine();
-        writer.write("full3d.ls=line|LINESTRING(94330 471816 16, 194319 471814 17)");
-        writer.newLine();
-        writer.close();
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            writer.write("_=name:String,geom:Geometry:srid=7415");
+            writer.newLine();
+            writer.write(
+                    "full3d.poly=poly|POLYGON((94000 471000 12, 94001 471000 12, 94001 471001 12, 94000 471001 12, 94000 471000 12))");
+            writer.newLine();
+            writer.write("full3d.point=point|POINT(94330 471816 16)");
+            writer.newLine();
+            writer.write("full3d.ls=line|LINESTRING(94330 471816 16, 194319 471814 17)");
+            writer.newLine();
+        }
 
         store = new PropertyDataStore(dir);
     }
@@ -93,7 +93,7 @@ public class PropertyDataStore3DTest {
 
     @Test
     public void testRead3D() throws Exception {
-        String names[] = store.getTypeNames();
+        String[] names = store.getTypeNames();
         assertEquals(1, names.length);
         assertEquals("full3d", names[0]);
         SimpleFeature poly = getOneFeature("full3d.poly");

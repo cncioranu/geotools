@@ -18,15 +18,15 @@ package org.geotools.tile.impl;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.ows.HTTPClient;
-import org.geotools.data.ows.SimpleHttpClient;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.http.HTTPClient;
+import org.geotools.http.HTTPClientFinder;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.tile.TileService;
 import org.geotools.util.logging.Logging;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * The WebMercatorTileService is an abstract class that holds some of the tile service logic for
@@ -63,13 +63,14 @@ public abstract class WebMercatorTileService extends TileService {
     }
 
     protected WebMercatorTileService(String name, String baseURL) {
-        this(name, baseURL, new SimpleHttpClient());
+        this(name, baseURL, HTTPClientFinder.createClient());
     }
 
     protected WebMercatorTileService(String name, String baseURL, HTTPClient client) {
         super(name, baseURL, client);
     }
 
+    @Override
     public ReferencedEnvelope getBounds() {
         return new ReferencedEnvelope(
                 MIN_LONGITUDE,
@@ -79,6 +80,7 @@ public abstract class WebMercatorTileService extends TileService {
                 DefaultGeographicCRS.WGS84);
     }
 
+    @Override
     public CoordinateReferenceSystem getProjectedTileCrs() {
         return WEB_MERCATOR_CRS;
     }

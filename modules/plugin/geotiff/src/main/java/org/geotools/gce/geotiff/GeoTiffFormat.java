@@ -48,23 +48,23 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageInputStream;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.coverage.grid.GridCoverageWriter;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.imageio.GeoToolsWriteParams;
 import org.geotools.coverage.grid.io.imageio.geotiff.GeoTiffIIOMetadataDecoder;
 import org.geotools.coverage.grid.io.imageio.geotiff.TiePoint;
-import org.geotools.data.DataSourceException;
 import org.geotools.data.MapInfoFileReader;
 import org.geotools.parameter.DefaultParameterDescriptor;
 import org.geotools.parameter.DefaultParameterDescriptorGroup;
 import org.geotools.parameter.ParameterGroup;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.coverage.grid.GridCoverageWriter;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Provides basic information about the GeoTIFF format IO. This is currently an extension of the
@@ -155,7 +155,8 @@ public class GeoTiffFormat extends AbstractGridFormat implements Format {
                                     READ_GRIDGEOMETRY2D,
                                     INPUT_TRANSPARENT_COLOR,
                                     SUGGESTED_TILE_SIZE,
-                                    RESCALE_PIXELS
+                                    RESCALE_PIXELS,
+                                    BANDS
                                 }));
 
         // writing parameters
@@ -181,7 +182,10 @@ public class GeoTiffFormat extends AbstractGridFormat implements Format {
      *     resource.
      */
     @Override
-    @SuppressWarnings("PMD.CloseResource") // might need to close, or not, conditional
+    @SuppressWarnings({
+        "PMD.CloseResource", // might need to close, or not, conditional
+        "PMD.UseTryWithResources" // image input stream is provided from outside
+    })
     public boolean accepts(Object o, Hints hints) {
 
         if (o == null) {

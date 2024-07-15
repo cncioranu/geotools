@@ -16,11 +16,11 @@
  */
 package org.geotools.temporal.object;
 
+import org.geotools.api.temporal.IndeterminateValue;
+import org.geotools.api.temporal.OrdinalEra;
+import org.geotools.api.temporal.OrdinalPosition;
+import org.geotools.api.temporal.TemporalReferenceSystem;
 import org.geotools.util.Utilities;
-import org.opengis.temporal.IndeterminateValue;
-import org.opengis.temporal.OrdinalEra;
-import org.opengis.temporal.OrdinalPosition;
-import org.opengis.temporal.TemporalReferenceSystem;
 
 /**
  * A data type that shall be used for identifying temporal position within an ordinal temporal
@@ -46,6 +46,7 @@ public class DefaultOrdinalPosition extends DefaultTemporalPosition implements O
      *
      * @todo The method name doesn't match the return type.
      */
+    @Override
     public OrdinalEra getOrdinalPosition() {
         return ordinalPosition;
     }

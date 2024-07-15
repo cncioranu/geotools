@@ -24,15 +24,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.metadata.quality.Element;
+import org.geotools.api.metadata.quality.EvaluationMethodType;
+import org.geotools.api.metadata.quality.Result;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.iso.MetadataEntity;
-import org.opengis.metadata.Identifier;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.metadata.quality.Element;
-import org.opengis.metadata.quality.EvaluationMethodType;
-import org.opengis.metadata.quality.Result;
-import org.opengis.util.InternationalString;
 
 /**
  * Type of test applied to the data specified by a data quality scope.
@@ -95,6 +94,7 @@ public class ElementImpl extends MetadataEntity implements Element {
     }
 
     /** Returns the name of the test applied to the data. */
+    @Override
     public Collection<InternationalString> getNamesOfMeasure() {
         return namesOfMeasure = nonNullCollection(namesOfMeasure, InternationalString.class);
     }
@@ -105,6 +105,7 @@ public class ElementImpl extends MetadataEntity implements Element {
     }
 
     /** Returns the code identifying a registered standard procedure, or {@code null} if none. */
+    @Override
     public Identifier getMeasureIdentification() {
         return measureIdentification;
     }
@@ -116,6 +117,7 @@ public class ElementImpl extends MetadataEntity implements Element {
     }
 
     /** Returns the description of the measure being determined. */
+    @Override
     public InternationalString getMeasureDescription() {
         return measureDescription;
     }
@@ -130,6 +132,7 @@ public class ElementImpl extends MetadataEntity implements Element {
      * Returns the type of method used to evaluate quality of the dataset, or {@code null} if
      * unspecified.
      */
+    @Override
     public EvaluationMethodType getEvaluationMethodType() {
         return evaluationMethodType;
     }
@@ -141,6 +144,7 @@ public class ElementImpl extends MetadataEntity implements Element {
     }
 
     /** Returns the description of the evaluation method. */
+    @Override
     public InternationalString getEvaluationMethodDescription() {
         return evaluationMethodDescription;
     }
@@ -152,6 +156,7 @@ public class ElementImpl extends MetadataEntity implements Element {
     }
 
     /** Returns the reference to the procedure information, or {@code null} if none. */
+    @Override
     public Citation getEvaluationProcedure() {
         return evaluationProcedure;
     }
@@ -169,6 +174,7 @@ public class ElementImpl extends MetadataEntity implements Element {
      *
      * @since 2.4
      */
+    @Override
     public Collection<Date> getDates() {
         if (date1 == Long.MIN_VALUE) {
             return Collections.emptyList();
@@ -194,8 +200,7 @@ public class ElementImpl extends MetadataEntity implements Element {
             if (it.hasNext()) {
                 date2 = it.next().getTime();
                 if (it.hasNext()) {
-                    throw new IllegalArgumentException(
-                            Errors.format(ErrorKeys.MISMATCHED_ARRAY_LENGTH));
+                    throw new IllegalArgumentException(ErrorKeys.MISMATCHED_ARRAY_LENGTH);
                 }
             }
         }
@@ -208,6 +213,7 @@ public class ElementImpl extends MetadataEntity implements Element {
      *
      * @since 2.4
      */
+    @Override
     public Collection<Result> getResults() {
         return results = nonNullCollection(results, Result.class);
     }

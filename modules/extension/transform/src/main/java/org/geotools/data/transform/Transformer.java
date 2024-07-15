@@ -25,25 +25,25 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.filter.FilterAttributeExtractor;
 import org.geotools.util.logging.Logging;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.sort.SortBy;
 
 /**
  * The central class that perform transformations on filters, queries and feature types. Can invert
@@ -55,7 +55,7 @@ class Transformer {
 
     static final Logger LOGGER = Logging.getLogger(Transformer.class);
 
-    static final FilterFactory2 FF = CommonFactoryFinder.getFilterFactory2();
+    static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
 
     SimpleFeatureSource source;
 
@@ -117,22 +117,17 @@ class Transformer {
         // by static analysis (we don't use it first since the feature coudl contain null
         // values that result the expression into returning us a null
         SimpleFeature sample = null;
-        SimpleFeatureIterator iterator = null;
-        try {
-            iterator = source.getFeatures().features();
+        try (SimpleFeatureIterator iterator = source.getFeatures().features()) {
             if (iterator.hasNext()) {
                 sample = iterator.next();
-            }
-        } finally {
-            if (iterator != null) {
-                iterator.close();
             }
         }
 
         if (sample == null) {
             throw new IllegalStateException(
                     "Cannot compute the target feature type from the "
-                            + "definitions by static analysis, and the source does not have any feature "
+                            + "definitions by static analysis, and the source does not have any "
+                            + "feature "
                             + "that we can use as a sample to compute the target type dynamically");
         }
 
@@ -231,7 +226,9 @@ class Transformer {
      * original data
      */
     Filter transformFilter(Filter filter) {
-        TransformFilterVisitor transformer = new TransformFilterVisitor(expressions);
+        TransformFilterVisitor transformer =
+                new TransformFilterVisitor(
+                        source.getSchema().getTypeName(), name.getLocalPart(), expressions);
         return (Filter) filter.accept(transformer, null);
     }
 
@@ -240,7 +237,9 @@ class Transformer {
      * the original data
      */
     Expression transformExpression(Expression expression) {
-        TransformFilterVisitor transformer = new TransformFilterVisitor(expressions);
+        TransformFilterVisitor transformer =
+                new TransformFilterVisitor(
+                        source.getSchema().getTypeName(), name.getLocalPart(), expressions);
         return (Expression) expression.accept(transformer, null);
     }
 
@@ -256,11 +255,13 @@ class Transformer {
         txQuery.setSortBy(getTransformedSortBy(query));
         txQuery.setFilter(txFilter);
 
+        // Right now source is responsible for handling reprojection
+        // (we may change this in the future, to provide geometry for functions such as buffer)
+        txQuery.setCoordinateSystem(query.getCoordinateSystem());
+        txQuery.setCoordinateSystemReproject(query.getCoordinateSystemReproject());
+
         // can we support the required sorting?
         QueryCapabilities caps = source.getQueryCapabilities();
-        if (query.getStartIndex() != null && !caps.isJoiningSupported()) {
-            txQuery.setStartIndex(null);
-        }
         if (query.getSortBy() != null && !caps.supportsSorting(txQuery.getSortBy())) {
             txQuery.setSortBy(null);
         }
@@ -275,6 +276,7 @@ class Transformer {
         // if the wrapped store cannot apply offsets we have to remove them too
         if (!caps.isOffsetSupported()) {
             txQuery.setStartIndex(null);
+            txQuery.setMaxFeatures(Query.DEFAULT_MAX);
         }
 
         return txQuery;

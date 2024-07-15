@@ -25,20 +25,21 @@ import java.util.Set;
 import java.util.TreeSet;
 import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
+import org.geotools.api.feature.Attribute;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.feature.type.PropertyType;
+import org.geotools.api.filter.Filter;
 import org.geotools.feature.NameImpl;
 import org.geotools.util.Converters;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.feature.type.PropertyType;
-import org.opengis.filter.Filter;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -63,7 +64,7 @@ public class Types {
      * Ensures an attribute value is withing the restrictions of the AttributeDescriptor and
      * AttributeType.
      *
-     * @return true if the attribute value is valid
+     * @return true if the attribute value is valid.
      */
     public static boolean isValid(Attribute attribute) {
 
@@ -74,8 +75,11 @@ public class Types {
             return false;
         }
     }
+
     /**
      * Validates content against an attribute.
+     *
+     * <p>Same result as calling: {@code validate(attribute.getType(), attribute, attributeContent)}
      *
      * @param attribute The attribute.
      * @param attributeContent Content of attribute (often attribute.getValue()
@@ -84,10 +88,12 @@ public class Types {
      */
     public static void validate(Attribute attribute, Object attributeContent)
             throws IllegalAttributeException {
-
         validate(attribute.getType(), attribute, attributeContent, false);
     }
+
     /**
+     * Validates content against attribute (using the supplied attribute type).
+     *
      * @param type AttributeType (often attribute.getType() )
      * @param attribute Attribute being tested
      * @param attributeContent Content of the attribute (often attribute.getValue() )
@@ -99,6 +105,8 @@ public class Types {
     }
 
     /**
+     * Validates content against attribute (using the supplied attribute type).
+     *
      * @param type AttributeType (often attribute.getType() )
      * @param attribute Attribute being tested
      * @param attributeContent Content of the attribute (often attribute.getValue() )
@@ -124,13 +132,11 @@ public class Types {
         }
 
         if (!isSuper) {
-
-            // JD: This is an issue with how the xml simpel type hierarchy
-            // maps to our current Java Type hiearchy, the two are inconsitent.
+            // JD: This is an issue with how the xml simple type hierarchy
+            // maps to our current Java Type hierarchy, the two are inconsistent.
             // For instance, xs:integer, and xs:int, the later extend the
             // former, but their associated java bindings, (BigDecimal, and
-            // Integer)
-            // dont.
+            // Integer) do not.
             Class<?> clazz = attributeContent.getClass();
             Class<?> binding = type.getBinding();
             if (binding != null && binding != clazz && !binding.isAssignableFrom(clazz)) {
@@ -140,6 +146,19 @@ public class Types {
                                 + type.getName()
                                 + " as it is not assignable from "
                                 + binding);
+            }
+        }
+
+        if (type instanceof ComplexType
+                && attribute instanceof ComplexAttribute
+                && attributeContent instanceof Collection) {
+            if (!isSuper || attribute instanceof Feature) {
+                // JG: If we are going to check super, only validate once for ComplexAttribute
+                // (not subclasses like Feature and SimpleFeature)
+
+                @SuppressWarnings("unchecked")
+                Collection<Attribute> attributeList = (Collection<Attribute>) attributeContent;
+                validateAll((ComplexType) type, (ComplexAttribute) attribute, attributeList);
             }
         }
 
@@ -432,7 +451,7 @@ public class Types {
      *
      * <p>The ith name has getLocalPart() == names[i] and getNamespaceURI() == null
      */
-    public static Name[] toNames(String[] names) {
+    public static Name[] toNames(String... names) {
         if (names == null) {
             return null;
         }
@@ -452,7 +471,7 @@ public class Types {
      *
      * <p>The ith name has getLocalPart() == names[i] and getNamespaceURI() == null
      */
-    public static Name[] toTypeNames(String[] names) {
+    public static Name[] toTypeNames(String... names) {
         if (names == null) {
             return null;
         }
@@ -470,7 +489,7 @@ public class Types {
      * Convenience method for turning an array of qualified names into a list of non qualified
      * names.
      */
-    public static String[] fromNames(Name[] attributeNames) {
+    public static String[] fromNames(Name... attributeNames) {
         if (attributeNames == null) {
             return null;
         }
@@ -487,7 +506,7 @@ public class Types {
      * Convenience method for turning an array of qualified names into a list of non qualified
      * names.
      */
-    public static String[] fromTypeNames(Name[] typeNames) {
+    public static String[] fromTypeNames(Name... typeNames) {
         if (typeNames == null) return null;
 
         String[] names = new String[typeNames.length];
@@ -535,7 +554,6 @@ public class Types {
      */
     public static Name degloseName(String prefixedName, NamespaceSupport namespaces)
             throws IllegalArgumentException {
-        Name name = null;
 
         if (prefixedName == null) {
             return null;
@@ -563,7 +581,7 @@ public class Types {
                             + " [Check the Namespaces section in the config file] ");
         }
 
-        name = Types.typeName(nsUri, localName);
+        Name name = Types.typeName(nsUri, localName);
 
         return name;
     }
@@ -645,36 +663,57 @@ public class Types {
     }
 
     /**
-     * Validates anattribute. <br>
+     * Validates attribute. <br>
      *
-     * <p>Same result as calling:
-     *
-     * <pre>
-     *  &lt;code&gt;
-     * validate(attribute.type(), attribute)
-     * &lt;/code&gt;
-     * </pre>
+     * <p>Same result as calling: {@code validate(attribute, attribute.getValue())}
      *
      * @param attribute The attribute.
      * @throws IllegalAttributeException In the event that content violates any restrictions
      *     specified by the attribute.
      */
     public static void validate(Attribute attribute) throws IllegalAttributeException {
-
         validate(attribute, attribute.getValue());
     }
 
-    public static void validate(ComplexAttribute attribute) throws IllegalArgumentException {}
+    /**
+     * Validate complex attribute, including all properties.
+     *
+     * <p>Same result as calling: {@code validate(attribute,attribute.getProperties())}
+     *
+     * @param attribute
+     * @throws IllegalArgumentException
+     */
+    public static void validate(ComplexAttribute attribute) throws IllegalArgumentException {
+        validate(attribute, attribute.getProperties());
+    }
 
-    public static void validate(ComplexAttribute attribute, Collection content)
-            throws IllegalArgumentException {}
+    /**
+     * Validate content using complex attribute restrictions.
+     *
+     * <p>Same result as calling: {@code validate(attribute.type(), attribute)}
+     *
+     * @param attribute
+     * @throws IllegalArgumentException
+     */
+    public static void validate(ComplexAttribute attribute, Collection<Attribute> content)
+            throws IllegalArgumentException {
+        validate(attribute.getType(), attribute, content);
+    }
 
+    /**
+     * Validate content using complex attribute and type restrictions.
+     *
+     * @param type
+     * @param attribute
+     * @param content
+     * @throws IllegalAttributeException
+     */
     protected static void validate(
             ComplexType type, ComplexAttribute attribute, Collection<Attribute> content)
             throws IllegalAttributeException {
 
         // do normal validation
-        validate((AttributeType) type, (Attribute) attribute, (Object) content, false);
+        validate(type, attribute, content, false);
 
         if (content == null) {
             // not really much else we can do
@@ -684,9 +723,7 @@ public class Types {
         Collection<PropertyDescriptor> schema = type.getDescriptors();
 
         int index = 0;
-        for (Iterator itr = content.iterator(); itr.hasNext(); ) {
-            Attribute att = (Attribute) itr.next();
-
+        for (Attribute att : content) {
             // att shall not be null
             if (att == null) {
                 throw new NullPointerException(
@@ -699,8 +736,8 @@ public class Types {
             // and has to be of one of the allowed types
             AttributeType attType = att.getType();
             boolean contains = false;
-            for (Iterator sitr = schema.iterator(); sitr.hasNext(); ) {
-                AttributeDescriptor ad = (AttributeDescriptor) sitr.next();
+            for (PropertyDescriptor propertyDescriptor : schema) {
+                AttributeDescriptor ad = (AttributeDescriptor) propertyDescriptor;
                 if (ad.getType().equals(attType)) {
                     contains = true;
                     break;
@@ -738,38 +775,62 @@ public class Types {
         }
     }
 
+    /**
+     * Validate attribute content values, and check also that attributes follow min / max occurs
+     * restrictions.
+     *
+     * @param type ComplexType being validated, may be a super type or abstract
+     * @param att ComplexAttribute
+     * @param content Attributes in order provided for validation
+     * @throws IllegalAttributeException
+     */
     private static void validateAll(
             ComplexType type, ComplexAttribute att, Collection<Attribute> content)
             throws IllegalAttributeException {
-        processAll(type.getDescriptors(), content);
+
+        // JG: validate each attribute individually
+        for (Attribute attribute : content) {
+            validate(attribute);
+        }
+        if (!type.isAbstract()) {
+            // Check content follows min / max occurs restrictions
+            processAll(descriptors(type), content);
+        }
     }
 
+    /**
+     * Check the content follows the property min / max occurs restrictions.
+     *
+     * @param all Descriptors providing min / max occurs restrictions
+     * @param content attribute content in supplied in order
+     * @throws IllegalAttributeException
+     */
     private static void processAll(
             Collection<PropertyDescriptor> all, Collection<Attribute> content)
             throws IllegalAttributeException {
 
-        // TODO: JD: this can be definitley be optimzed, as written its O(n^2)
+        // TODO: JD: this can be definitely be optimized, as written its O(n^2)
 
-        // for each descriptor, count occurences of each matching attribute
+        // for each descriptor, count occurrences of each matching attribute
         ArrayList<Attribute> remaining = new ArrayList<>(content);
         for (PropertyDescriptor ad : all) {
             int min = ad.getMinOccurs();
             int max = ad.getMaxOccurs();
-            int occurences = 0;
+            int occurrences = 0;
 
             for (Iterator citr = remaining.iterator(); citr.hasNext(); ) {
                 Attribute a = (Attribute) citr.next();
                 if (a.getName().equals(ad.getName())) {
-                    occurences++;
+                    occurrences++;
                     citr.remove();
                 }
             }
 
-            if (occurences < ad.getMinOccurs() || occurences > ad.getMaxOccurs()) {
+            if (occurrences < ad.getMinOccurs() || occurrences > ad.getMaxOccurs()) {
                 throw new IllegalAttributeException(
                         (AttributeDescriptor) ad,
                         "Found "
-                                + occurences
+                                + occurrences
                                 + " of "
                                 + ad.getName()
                                 + " when type"
@@ -781,9 +842,10 @@ public class Types {
         }
 
         if (!remaining.isEmpty()) {
+            Attribute next = remaining.iterator().next();
             throw new IllegalAttributeException(
-                    (AttributeDescriptor) remaining.iterator().next(),
-                    "Extra content found beyond the specified in the schema: " + remaining);
+                    next.getDescriptor(),
+                    "Extra content found beyond that specified in the schema: " + remaining);
         }
     }
 
@@ -856,8 +918,7 @@ public class Types {
 
         List<PropertyDescriptor> match = new ArrayList<>();
 
-        for (Iterator itr = type.getDescriptors().iterator(); itr.hasNext(); ) {
-            PropertyDescriptor descriptor = (PropertyDescriptor) itr.next();
+        for (PropertyDescriptor descriptor : type.getDescriptors()) {
             String localPart = descriptor.getName().getLocalPart();
             if (name.equals(localPart)) {
                 match.add(descriptor);
@@ -866,7 +927,7 @@ public class Types {
 
         // only look up in the super type if the descriptor is not found
         // as a direct child definition
-        if (match.size() == 0) {
+        if (match.isEmpty()) {
             AttributeType superType = type.getSuper();
             if (superType instanceof ComplexType) {
                 match.addAll(descriptors((ComplexType) superType, name));
@@ -896,7 +957,7 @@ public class Types {
 
         // only look up in the super type if the descriptor is not found
         // as a direct child definition
-        if (match.size() == 0) {
+        if (match.isEmpty()) {
             AttributeType superType = type.getSuper();
             if (superType instanceof ComplexType) {
                 List<PropertyDescriptor> superDescriptors =
@@ -939,22 +1000,19 @@ public class Types {
         List<PropertyDescriptor> descriptors = descriptors(parentType);
 
         // find matching descriptor
-        for (Iterator<PropertyDescriptor> it = descriptors.iterator(); it.hasNext(); ) {
-            PropertyDescriptor d = it.next();
+        for (PropertyDescriptor d : descriptors) {
             if (d.getName().equals(name)) {
                 return d;
             }
         }
 
         // nothing found, perhaps polymorphism?? let's loop again
-        for (Iterator<PropertyDescriptor> it = descriptors.iterator(); it.hasNext(); ) {
+        for (PropertyDescriptor descriptor : descriptors) {
             @SuppressWarnings("unchecked")
             List<AttributeDescriptor> substitutionGroup =
-                    (List<AttributeDescriptor>) it.next().getUserData().get("substitutionGroup");
+                    (List<AttributeDescriptor>) descriptor.getUserData().get("substitutionGroup");
             if (substitutionGroup != null) {
-                for (Iterator<AttributeDescriptor> it2 = substitutionGroup.iterator();
-                        it2.hasNext(); ) {
-                    AttributeDescriptor d = it2.next();
+                for (AttributeDescriptor d : substitutionGroup) {
                     if (d.getName().equals(name)) { // BINGOOO !!
                         return d;
                     }
@@ -977,22 +1035,19 @@ public class Types {
         List<PropertyDescriptor> descriptors = descriptors(parentType);
 
         // find matching descriptor
-        for (Iterator<PropertyDescriptor> it = descriptors.iterator(); it.hasNext(); ) {
-            PropertyDescriptor d = it.next();
+        for (PropertyDescriptor d : descriptors) {
             if (d.getName().getLocalPart().equals(name)) {
                 return d;
             }
         }
 
         // nothing found, perhaps polymorphism?? let's loop again
-        for (Iterator<PropertyDescriptor> it = descriptors.iterator(); it.hasNext(); ) {
+        for (PropertyDescriptor descriptor : descriptors) {
             @SuppressWarnings("unchecked")
             List<AttributeDescriptor> substitutionGroup =
-                    (List<AttributeDescriptor>) it.next().getUserData().get("substitutionGroup");
+                    (List<AttributeDescriptor>) descriptor.getUserData().get("substitutionGroup");
             if (substitutionGroup != null) {
-                for (Iterator<AttributeDescriptor> it2 = substitutionGroup.iterator();
-                        it2.hasNext(); ) {
-                    AttributeDescriptor d = it2.next();
+                for (AttributeDescriptor d : substitutionGroup) {
                     if (d.getName().getLocalPart().equals(name)) { // BINGOOO !!
                         return d;
                     }

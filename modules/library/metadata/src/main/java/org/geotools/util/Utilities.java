@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.AbstractQueue;
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,7 +37,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.factory.Hints;
 
 /**
@@ -114,27 +114,32 @@ public final class Utilities {
         }
 
         /** Returns the size, which is always 0. */
+        @Override
         public int size() {
             return 0;
         }
 
         /** Returns an empty iterator. */
+        @Override
         public Iterator<E> iterator() {
             final Set<E> empty = Collections.emptySet();
             return empty.iterator();
         }
 
         /** Always returns {@code false} since this queue doesn't accept any element. */
+        @Override
         public boolean offer(E e) {
             return false;
         }
 
         /** Always returns {@code null} since this queue is always empty. */
+        @Override
         public E poll() {
             return null;
         }
 
         /** Always returns {@code null} since this queue is always empty. */
+        @Override
         public E peek() {
             return null;
         }
@@ -556,7 +561,7 @@ public final class Utilities {
      *       invoked.
      *   <li>Otherwise if the object is an array of primitive type, then the corresponding {@link
      *       Arrays#toString(double[]) Arrays.toString(...)} method is invoked.
-     *   <li>Otherwise {@link String#valueOf(String)} is invoked.
+     *   <li>Otherwise {@link String#valueOf(Object)} is invoked.
      *   <li>
      * </ul>
      *
@@ -652,7 +657,7 @@ public final class Utilities {
     public static void ensureNonNull(final String name, final Object object)
             throws NullPointerException {
         if (object == null) {
-            throw new NullPointerException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, name));
+            throw new NullPointerException(MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, name));
         }
     }
 
@@ -667,7 +672,8 @@ public final class Utilities {
     public static void ensureArgumentNonNull(final String name, final Object object)
             throws IllegalArgumentException {
         if (object == null) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, name));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, name));
         }
     }
 

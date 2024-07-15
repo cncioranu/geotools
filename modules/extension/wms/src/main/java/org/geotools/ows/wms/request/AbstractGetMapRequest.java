@@ -25,6 +25,10 @@ import java.util.Properties;
 import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.ows.wms.Layer;
 import org.geotools.ows.wms.StyleImpl;
 import org.geotools.referencing.CRS;
@@ -33,11 +37,6 @@ import org.geotools.referencing.crs.DefaultEngineeringCRS;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
-import org.opengis.geometry.Envelope;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.TransformException;
 
 /** @author Richard Gould */
 public abstract class AbstractGetMapRequest extends AbstractWMSRequest implements GetMapRequest {
@@ -56,6 +55,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
         super(onlineResource, properties);
     }
 
+    @Override
     public URL getFinalURL() {
         if (!layers.isEmpty()) {
             String layerString = ""; // $NON-NLS-1$
@@ -101,8 +101,10 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
         return super.getFinalURL();
     }
 
+    @Override
     protected abstract void initVersion();
 
+    @Override
     protected void initRequest() {
         setProperty(REQUEST, "GetMap"); // $NON-NLS-1$
     }
@@ -112,18 +114,22 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      *
      * @param version A String indicting a WMS Version ("1.0.0", "1.1.0", "1.1.1", or "1.3.0")
      */
+    @Override
     public void setVersion(String version) {
         properties.setProperty(VERSION, version);
     }
 
+    @Override
     public void addLayer(Layer layer, String style) {
         addLayer(layer.getName(), style);
     }
 
+    @Override
     public void addLayer(Layer layer) {
         addLayer(layer, "");
     }
 
+    @Override
     public void addLayer(String layerName, String style) {
         layers.push(layerName);
         if (style == null) {
@@ -132,6 +138,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
         styles.push(style);
     }
 
+    @Override
     public void addLayer(Layer layer, StyleImpl style) {
         if (style == null) {
             addLayer(layer.getName(), "");
@@ -140,6 +147,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
         addLayer(layer.getName(), style.getName());
     }
 
+    @Override
     public void addLayer(String layerName, StyleImpl style) {
         if (style == null) {
             addLayer(layerName, "");
@@ -160,6 +168,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      *
      * @param srs A String indicating the Spatial Reference System to render the layers in.
      */
+    @Override
     public void setSRS(String srs) {
         properties.setProperty(SRS, srs);
     }
@@ -177,6 +186,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      *
      * @param bbox A string representing a bounding box in the format "minx,miny,maxx,maxy"
      */
+    @Override
     public void setBBox(String bbox) {
         // TODO enforce non-subsettable layers
         // make sure there are no spaces in the bbox
@@ -211,14 +221,6 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
             } else {
                 return CRS.decode("CRS:84");
             }
-        } catch (NoSuchAuthorityCodeException e) {
-            LOGGER.log(
-                    Level.FINE,
-                    "Failed to build a coordiante reference system from "
-                            + srsName
-                            + " with forceXY "
-                            + forceXY,
-                    e);
         } catch (FactoryException e) {
             LOGGER.log(
                     Level.FINE,
@@ -237,13 +239,14 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
                         == Boolean.TRUE;
     }
     /** Sets BBOX and SRS using the provided Envelope. */
-    public void setBBox(Envelope envelope) {
+    @Override
+    public void setBBox(Bounds envelope) {
         String version = properties.getProperty(VERSION);
         boolean forceXY = version == null || !version.startsWith("1.3");
         String srsName = CRS.toSRS(envelope.getCoordinateReferenceSystem());
 
         CoordinateReferenceSystem crs = toServerCRS(srsName, forceXY);
-        Envelope bbox;
+        Bounds bbox;
         try {
             bbox = CRS.transform(envelope, crs);
         } catch (TransformException e) {
@@ -266,6 +269,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      *
      * @param format The desired format for the GetMap response
      */
+    @Override
     public void setFormat(String format) {
         properties.setProperty(FORMAT, format);
     }
@@ -279,11 +283,13 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      * height, then the Client shall specify exactly those WIDTH and HEIGHT values in the GetMap
      * request and the Server may issue a Service Exception otherwise."
      */
+    @Override
     public void setDimensions(String width, String height) {
         properties.setProperty(HEIGHT, height);
         properties.setProperty(WIDTH, width);
     }
 
+    @Override
     public void setDimensions(Dimension imageDimension) {
         setDimensions(imageDimension.width, imageDimension.height);
     }
@@ -298,6 +304,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      *
      * @param transparent true for transparency, false otherwise
      */
+    @Override
     public void setTransparent(boolean transparent) {
         String value = "FALSE"; // $NON-NLS-1$
 
@@ -315,6 +322,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      *
      * @param bgColour the background colour of the map, in the format 0xRRGGBB
      */
+    @Override
     public void setBGColour(String bgColour) {
         properties.setProperty(BGCOLOR, bgColour);
     }
@@ -330,6 +338,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      *   <li>"application/vnd.ogc.se_blank"
      * </ul>
      */
+    @Override
     public void setExceptions(String exceptions) {
         properties.setProperty(EXCEPTIONS, exceptions);
     }
@@ -339,6 +348,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      *
      * @param time See the Web Map Server Implementation Specification 1.1.1, Annexes B and C
      */
+    @Override
     public void setTime(String time) {
         properties.setProperty(TIME, time);
     }
@@ -348,6 +358,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      *
      * @param elevation See the Web Map Server Implementation Specification 1.1.1, Annex C
      */
+    @Override
     public void setElevation(String elevation) {
         properties.setProperty(ELEVATION, elevation);
     }
@@ -362,6 +373,7 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      * @param name the request parameter name to set (usually with 'dim_' as prefix)
      * @param value the value of the request parameter (value, interval or comma-separated list)
      */
+    @Override
     public void setSampleDimensionValue(String name, String value) {
         properties.setProperty(name, value);
     }
@@ -372,14 +384,17 @@ public abstract class AbstractGetMapRequest extends AbstractWMSRequest implement
      * @param name a request parameter name
      * @param value a value to accompany the name
      */
+    @Override
     public void setVendorSpecificParameter(String name, String value) {
         properties.setProperty(name, value);
     }
 
+    @Override
     public void setDimensions(int width, int height) {
         setDimensions("" + width, "" + height);
     }
 
+    @Override
     public void setProperties(Properties p) {
         properties = p;
     }

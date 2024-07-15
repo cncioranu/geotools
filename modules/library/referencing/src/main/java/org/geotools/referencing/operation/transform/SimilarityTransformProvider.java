@@ -16,14 +16,14 @@
  */
 package org.geotools.referencing.operation.transform;
 
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.operation.MathTransformProvider;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform;
 import si.uom.NonSI;
 import si.uom.SI;
 import tech.units.indriya.AbstractUnit;
@@ -139,6 +139,7 @@ public class SimilarityTransformProvider extends MathTransformProvider {
      * @return an {@link AffineTransform2D}.
      * @throws ParameterNotFoundException if a required parameter was not found.
      */
+    @Override
     protected MathTransform createMathTransform(ParameterValueGroup values)
             throws ParameterNotFoundException {
 

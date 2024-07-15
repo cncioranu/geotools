@@ -17,8 +17,8 @@
 package org.geotools.referencing.cs;
 
 import java.util.Arrays;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
 
 /**
  * Wraps a {@linkplain CoordinateSystemAxis coordinate system axis} for comparaison purpose. The
@@ -51,8 +51,9 @@ final class ComparableAxisWrapper implements Comparable<ComparableAxisWrapper> {
     /**
      * Compares with the specified object. See class javadoc for a description of the sorting order.
      */
+    @Override
     public int compareTo(final ComparableAxisWrapper other) {
-        final ComparableAxisWrapper that = (ComparableAxisWrapper) other;
+        final ComparableAxisWrapper that = other;
         final AxisDirection d1 = this.axis.getDirection();
         final AxisDirection d2 = that.axis.getDirection();
         final int compass = DefaultCoordinateSystemAxis.getCompassAngle(d2, d1);
@@ -82,7 +83,7 @@ final class ComparableAxisWrapper implements Comparable<ComparableAxisWrapper> {
      * Sorts the specified axis in an attempt to create a right-handed system. The sorting is
      * performed in place. This method returns {@code true} if at least one axis moved.
      */
-    public static boolean sort(final CoordinateSystemAxis[] axis) {
+    public static boolean sort(final CoordinateSystemAxis... axis) {
         final ComparableAxisWrapper[] wrappers = new ComparableAxisWrapper[axis.length];
         for (int i = 0; i < axis.length; i++) {
             wrappers[i] = new ComparableAxisWrapper(axis[i]);

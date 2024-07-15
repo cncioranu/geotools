@@ -67,7 +67,8 @@ public class UnmodifiableArrayList<E> extends AbstractList<E>
      *
      * @param array The array to wrap.
      */
-    protected UnmodifiableArrayList(final E[] array) {
+    @SafeVarargs
+    protected UnmodifiableArrayList(final E... array) {
         this.array = array;
     }
 
@@ -81,7 +82,8 @@ public class UnmodifiableArrayList<E> extends AbstractList<E>
      * @return The given array wrapped in an unmodifiable list.
      * @since 2.5
      */
-    public static <E> UnmodifiableArrayList<E> wrap(final E[] array) {
+    @SafeVarargs
+    public static <E> UnmodifiableArrayList<E> wrap(final E... array) {
         return new UnmodifiableArrayList<>(array);
     }
 
@@ -90,17 +92,20 @@ public class UnmodifiableArrayList<E> extends AbstractList<E>
      *
      * @return The type of elements in the list.
      */
+    @Override
     @SuppressWarnings("unchecked") // Safe if this instance was created safely with wrap(E[]).
     public Class<E> getElementType() {
         return (Class) array.getClass().getComponentType();
     }
 
     /** Returns the list size. */
+    @Override
     public int size() {
         return array.length;
     }
 
     /** Returns the element at the specified index. */
+    @Override
     public E get(final int index) {
         return array[index];
     }

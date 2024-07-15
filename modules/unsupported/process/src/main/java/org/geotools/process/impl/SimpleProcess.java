@@ -18,9 +18,9 @@ package org.geotools.process.impl;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.process.ProcessFactory;
-import org.opengis.util.ProgressListener;
 
 /**
  * Provide an implementation for a simple process (ie so quick and easy it is not going to need to
@@ -39,6 +39,7 @@ public abstract class SimpleProcess extends AbstractProcess {
         super(factory);
     }
 
+    @Override
     public final Map<String, Object> execute(Map<String, Object> input, ProgressListener monitor) {
         if (started) throw new IllegalStateException("Process can only be run once");
         started = true;

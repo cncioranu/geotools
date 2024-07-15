@@ -21,13 +21,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.IllegalFilterException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Calculates the median of an attribute in all features of a collection
@@ -81,10 +81,11 @@ public class MedianVisitor implements FeatureCalc, FeatureAttributeVisitor {
     }
 
     public void visit(SimpleFeature feature) {
-        visit((org.opengis.feature.Feature) feature);
+        visit((org.geotools.api.feature.Feature) feature);
     }
 
-    public void visit(org.opengis.feature.Feature feature) {
+    @Override
+    public void visit(org.geotools.api.feature.Feature feature) {
         /** Visitor function */
         Object result = expr.evaluate(feature);
         if (result == null) {
@@ -124,12 +125,12 @@ public class MedianVisitor implements FeatureCalc, FeatureAttributeVisitor {
         this.median = null;
     }
 
+    @Override
     public CalcResult getResult() {
         if (median != null) {
             // median was overwritten by an optimization
             return new MedianResult(median);
-        } else if (list.size() < 1) {
-            // no items in the list
+        } else if (list.isEmpty()) {
             return CalcResult.NULL_RESULT;
         } else {
             // we have a list; create a CalcResult containing the list
@@ -169,6 +170,7 @@ public class MedianVisitor implements FeatureCalc, FeatureAttributeVisitor {
             return list;
         }
 
+        @Override
         public Object getValue() {
             if (median != null) {
                 return median;
@@ -177,6 +179,7 @@ public class MedianVisitor implements FeatureCalc, FeatureAttributeVisitor {
             }
         }
 
+        @Override
         public boolean isCompatible(CalcResult targetResults) {
             // list each calculation result which can merge with this type of result
             if (targetResults instanceof MedianResult || targetResults == CalcResult.NULL_RESULT)
@@ -189,6 +192,7 @@ public class MedianVisitor implements FeatureCalc, FeatureAttributeVisitor {
             else return false;
         }
 
+        @Override
         public CalcResult merge(CalcResult resultsToAdd) {
             if (!isCompatible(resultsToAdd)) {
                 throw new IllegalArgumentException("Parameter is not a compatible type");
@@ -218,7 +222,7 @@ public class MedianVisitor implements FeatureCalc, FeatureAttributeVisitor {
                 for (int k = 0; k < size; k++) {
                     if (values[k].getClass() != bestClass)
                         values[k] = (Comparable) CalcUtil.convert(values[k], bestClass);
-                    newList.add((Comparable) values[k]);
+                    newList.add(values[k]);
                 }
                 return new MedianResult(newList);
             } else {
@@ -239,14 +243,13 @@ public class MedianVisitor implements FeatureCalc, FeatureAttributeVisitor {
      */
     @SuppressWarnings("unchecked") // tried various ways to make this work, failed
     private static Object findMedian(List<Comparable> list) {
-        if (list.size() < 1) {
+        if (list.isEmpty()) {
             return null;
         }
         Object median;
         Collections.sort(list);
 
-        int index = -1;
-        index = (int) list.size() / 2;
+        int index = list.size() / 2;
 
         if ((list.size() % 2) == 0) {
             // even number of elements, so we must average the 2 middle ones, or

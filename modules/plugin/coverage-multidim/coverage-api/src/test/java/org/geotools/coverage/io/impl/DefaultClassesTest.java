@@ -19,6 +19,7 @@ package org.geotools.coverage.io.impl;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -31,14 +32,16 @@ import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.geometry.BoundingBox;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.io.CoverageAccess.AccessType;
 import org.geotools.coverage.io.Driver.DriverCapabilities;
 import org.geotools.coverage.io.driver.TestDriver;
-import org.geotools.data.Parameter;
 import org.geotools.feature.NameImpl;
-import org.geotools.geometry.DirectPosition2D;
+import org.geotools.geometry.Position2D;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.util.DateRange;
@@ -46,7 +49,6 @@ import org.geotools.util.NumberRange;
 import org.geotools.util.factory.Hints;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opengis.feature.type.Name;
 
 /** @author Nicola Lagomarsini Geosolutions */
 public class DefaultClassesTest {
@@ -207,13 +209,13 @@ public class DefaultClassesTest {
 
         // ParameterInfo
         Map<String, Parameter<?>> connectParameterInfo = driver.getConnectParameterInfo();
-        assertTrue(connectParameterInfo != null);
+        assertNotNull(connectParameterInfo);
         assertTrue(connectParameterInfo.containsKey(DefaultFileDriver.URL.key));
         Map<String, Parameter<?>> createParameterInfo = driver.getCreateParameterInfo();
-        assertTrue(createParameterInfo != null);
+        assertNotNull(createParameterInfo);
         assertTrue(createParameterInfo.containsKey(DefaultFileDriver.URL.key));
         Map<String, Parameter<?>> deleteParameterInfo = driver.getDeleteParameterInfo();
-        assertTrue(deleteParameterInfo != null);
+        assertNotNull(deleteParameterInfo);
         assertTrue(deleteParameterInfo.containsKey(DefaultFileDriver.URL.key));
     }
 
@@ -238,8 +240,10 @@ public class DefaultClassesTest {
                 CRS.equalsIgnoreMetadata(
                         response.getCoordinateReferenceSystem(),
                         cov.getCoordinateReferenceSystem()));
-        assertTrue(new ReferencedEnvelope(response.getEnvelope()).contains(cov.getEnvelope2D()));
-        assertTrue(response.isDataEditable() == cov.isDataEditable());
+        assertTrue(
+                new ReferencedEnvelope(response.getEnvelope())
+                        .contains((BoundingBox) cov.getEnvelope2D()));
+        assertEquals(response.isDataEditable(), cov.isDataEditable());
         assertSame(response.getGridGeometry(), cov.getGridGeometry());
         assertSame(response.getGridCoverage2D(), cov);
         assertSame(response.getRenderedImage(), cov.getRenderedImage());
@@ -250,9 +254,8 @@ public class DefaultClassesTest {
         assertArrayEquals(response.getOptimalDataBlockSizes(), cov.getOptimalDataBlockSizes());
 
         // Evaluation of the same position
-        DirectPosition2D pos =
-                new DirectPosition2D(
-                        cov.getEnvelope2D().getCenterX(), cov.getEnvelope2D().getCenterY());
+        Position2D pos =
+                new Position2D(cov.getEnvelope2D().getCenterX(), cov.getEnvelope2D().getCenterY());
 
         assertArrayEquals(response.evaluate(pos, new byte[1]), cov.evaluate(pos, new byte[1]));
     }

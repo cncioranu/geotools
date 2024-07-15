@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import com.mockrunner.mock.jdbc.JDBCMockObjectFactory;
 import com.mockrunner.mock.jdbc.MockConnection;
+import com.mockrunner.mock.jdbc.MockDataSource;
 import com.mockrunner.mock.jdbc.MockDatabaseMetaData;
 import com.mockrunner.mock.jdbc.MockResultSet;
 import com.mockrunner.mock.jdbc.MockStatement;
@@ -36,16 +37,24 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.*;
-import org.geotools.data.Query;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.data.DefaultTransaction;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.util.factory.Hints;
+import org.junit.Assert;
 import org.junit.Test;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.type.GeometryDescriptor;
 
 /** @author Dean Povey */
 public class JDBCDataStoreTest {
@@ -107,21 +116,18 @@ public class JDBCDataStoreTest {
             for (int j = 0; j < nThreads; j++) {
                 Future f =
                         executorService.submit(
-                                new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        try {
-                                            // Get all the threads to the same point to increase the
-                                            // likelihood
-                                            // of finding the issue
-                                            latch.countDown();
-                                            latch.await();
-                                        } catch (InterruptedException e) {
-                                            Thread.interrupted();
-                                            return;
-                                        }
-                                        jdbcDataStore.getMapping(DateSubClass.class);
+                                () -> {
+                                    try {
+                                        // Get all the threads to the same point to increase the
+                                        // likelihood
+                                        // of finding the issue
+                                        latch.countDown();
+                                        latch.await();
+                                    } catch (InterruptedException e) {
+                                        Thread.interrupted();
+                                        return;
                                     }
+                                    jdbcDataStore.getMapping(DateSubClass.class);
                                 });
                 futures.add(f);
             }
@@ -142,6 +148,7 @@ public class JDBCDataStoreTest {
     }
 
     @Test
+    @SuppressWarnings("PMD.CloseResource") // mock resources
     public void testReaderCallback() throws Exception {
         JDBCReaderCallback callback = mock(JDBCReaderCallback.class);
 
@@ -217,5 +224,32 @@ public class JDBCDataStoreTest {
         verify(callback, times(3)).afterNext(rowData, true);
         verify(callback, times(1)).afterNext(rowData, false);
         verify(callback, times(1)).finish(reader);
+    }
+
+    @Test
+    @SuppressWarnings("PMD.EmptyControlStatement")
+    public void testGetConnectionAutocommit() throws Exception {
+
+        JDBCMockObjectFactory jdbcMock = new JDBCMockObjectFactory();
+        MockDataSource dataSource = jdbcMock.getMockDataSource();
+        dataSource.setupConnection(jdbcMock.getMockConnection());
+        JDBCDataStore store = new JDBCDataStore();
+        store.setSQLDialect(mock(BasicSQLDialect.class));
+        store.setDataSource(dataSource);
+
+        try (Connection conn = store.getConnection(Transaction.AUTO_COMMIT)) {
+            Assert.assertEquals(Boolean.TRUE, conn.getAutoCommit());
+        }
+
+        try (Transaction transaction = new DefaultTransaction();
+                Connection conn2 = store.getConnection(transaction)) {
+            Assert.assertEquals(Boolean.FALSE, conn2.getAutoCommit());
+        }
+
+        Assert.assertThrows(
+                Exception.class,
+                () -> {
+                    try (Connection connection = store.getConnection((Transaction) null)) {}
+                });
     }
 }

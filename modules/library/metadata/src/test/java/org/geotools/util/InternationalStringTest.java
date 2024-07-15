@@ -25,9 +25,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Locale;
+import org.geotools.api.util.GenericName;
+import org.geotools.api.util.InternationalString;
 import org.junit.Test;
-import org.opengis.util.GenericName;
-import org.opengis.util.InternationalString;
 
 /**
  * Tests the various {@link InternationalString} implementations.
@@ -92,7 +92,7 @@ public final class InternationalStringTest {
     }
 
     /** Performs basic test on the given object. */
-    @SuppressWarnings({"unchecked", "SelfComparison"})
+    @SuppressWarnings({"unchecked", "SelfComparison", "BanSerializableRead"})
     private <T extends Comparable> void basicTests(final T toTest)
             throws IOException, ClassNotFoundException {
         assertEquals("CompareTo: ", 0, toTest.compareTo(toTest));

@@ -19,10 +19,10 @@
  */
 package org.geotools.util;
 
+import java.text.MessageFormat;
 import java.util.Locale;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
-import org.opengis.util.InternationalString;
 
 /**
  * A {@linkplain String string} that has been internationalized into several {@linkplain Locale
@@ -66,7 +66,8 @@ public abstract class AbstractInternationalString implements InternationalString
     static void ensureNonNull(final String name, final Object object)
             throws IllegalArgumentException {
         if (object == null) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NULL_ARGUMENT_$1, name));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, name));
         }
     }
 
@@ -74,6 +75,7 @@ public abstract class AbstractInternationalString implements InternationalString
      * Returns the length of the string in the {@linkplain Locale#getDefault default locale}. This
      * is the length of the string returned by {@link #toString()}.
      */
+    @Override
     public int length() {
         if (defaultValue == null) {
             defaultValue = toString();
@@ -92,6 +94,7 @@ public abstract class AbstractInternationalString implements InternationalString
      * @return The character at the specified index.
      * @throws IndexOutOfBoundsException if the specified index is out of bounds.
      */
+    @Override
     public char charAt(final int index) throws IndexOutOfBoundsException {
         if (defaultValue == null) {
             defaultValue = toString();
@@ -112,6 +115,7 @@ public abstract class AbstractInternationalString implements InternationalString
      * @return The specified subsequence.
      * @throws IndexOutOfBoundsException if {@code start} or {@code end} is out of range.
      */
+    @Override
     public CharSequence subSequence(final int start, final int end) {
         if (defaultValue == null) {
             defaultValue = toString();
@@ -131,6 +135,7 @@ public abstract class AbstractInternationalString implements InternationalString
      *     in the implementation default locale.
      * @return The string in the given locale if available, or in the default locale otherwise.
      */
+    @Override
     public abstract String toString(final Locale locale);
 
     /**
@@ -160,6 +165,7 @@ public abstract class AbstractInternationalString implements InternationalString
      * @return A negative number if this string is before the given string, a positive number if
      *     after, or 0 if equals.
      */
+    @Override
     public int compareTo(final InternationalString object) {
         return toString().compareTo(object.toString());
     }

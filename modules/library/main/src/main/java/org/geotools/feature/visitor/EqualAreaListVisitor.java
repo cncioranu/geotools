@@ -19,9 +19,9 @@ package org.geotools.feature.visitor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Obtains the data needed for a Equal Area operation (classification of features into classes each
@@ -76,6 +76,7 @@ public class EqualAreaListVisitor implements FeatureCalc {
         // do nothing
     }
 
+    @Override
     public CalcResult getResult() {
         if (binCount == 0 || count == 0) {
             return CalcResult.NULL_RESULT;
@@ -106,10 +107,10 @@ public class EqualAreaListVisitor implements FeatureCalc {
                 currentBin = new ArrayList<>();
             }
         }
-        if (currentBin.size() > 0) {
-            bins[binIndex] = currentBin;
-        } else {
+        if (currentBin.isEmpty()) {
             binIndex--;
+        } else {
+            bins[binIndex] = currentBin;
         }
 
         // it is possible that we have created less bin than requested
@@ -121,6 +122,7 @@ public class EqualAreaListVisitor implements FeatureCalc {
         }
 
         return new AbstractCalcResult() {
+            @Override
             public Object getValue() {
                 return bins;
             }
@@ -134,10 +136,11 @@ public class EqualAreaListVisitor implements FeatureCalc {
     }
 
     public void visit(SimpleFeature feature) {
-        visit((org.opengis.feature.Feature) feature);
+        visit((org.geotools.api.feature.Feature) feature);
     }
 
-    public void visit(org.opengis.feature.Feature feature) {
+    @Override
+    public void visit(org.geotools.api.feature.Feature feature) {
         Object value = expression.evaluate(feature);
 
         if (value == null) {

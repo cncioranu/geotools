@@ -17,16 +17,16 @@
 
 package org.geotools.referencing.factory;
 
-import org.opengis.referencing.AuthorityFactory;
-import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CSAuthorityFactory;
-import org.opengis.referencing.cs.RangeMeaning;
-import org.opengis.referencing.datum.DatumAuthorityFactory;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.datum.VerticalDatumType;
-import org.opengis.referencing.operation.CoordinateOperationAuthorityFactory;
-import org.opengis.util.CodeList;
+import org.geotools.api.referencing.AuthorityFactory;
+import org.geotools.api.referencing.crs.CRSAuthorityFactory;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CSAuthorityFactory;
+import org.geotools.api.referencing.cs.RangeMeaning;
+import org.geotools.api.referencing.datum.DatumAuthorityFactory;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.datum.VerticalDatumType;
+import org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory;
+import org.geotools.api.util.CodeList;
 
 /**
  * An "object type" in a URI.
@@ -84,8 +84,7 @@ final class URI_Type {
 
     /** Returns an instance of the specified name (case-insensitive), or {@code null} if none. */
     public static URI_Type get(final String name) {
-        for (int i = 0; i < TYPES.length; i++) {
-            final URI_Type candidate = TYPES[i];
+        for (final URI_Type candidate : TYPES) {
             if (name.equalsIgnoreCase(candidate.name)) {
                 return candidate;
             }

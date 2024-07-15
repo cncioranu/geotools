@@ -20,10 +20,10 @@ import java.io.InvalidClassException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.type.Name;
 import org.geotools.feature.NameImpl;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Property;
-import org.opengis.feature.type.Name;
 
 /**
  * You can make feature wrappers for specific types by extending this class and annotating the
@@ -108,17 +108,18 @@ public abstract class FeatureWrapper {
                     if (!path.equals("")) {
                         String[] steps = path.split("/");
 
-                        for (int i = 0; i < steps.length; i++) {
+                        for (String step : steps) {
                             if (targetAttribute == null) {
                                 throw new InvalidClassException(
                                         String.format(
-                                                "Unable to wrap attribute in class '%s'. Reference to %s could not be found in the attribute.",
+                                                "Unable to wrap attribute in class '%s'. "
+                                                        + "Reference to %s could not be found in "
+                                                        + "the attribute.",
                                                 clazz, xsdMapping.local()));
                             }
 
                             // Dig through the attribute to get to the end node.
-                            targetAttribute =
-                                    (ComplexAttribute) targetAttribute.getProperty(steps[i]);
+                            targetAttribute = (ComplexAttribute) targetAttribute.getProperty(step);
                         }
                     }
 

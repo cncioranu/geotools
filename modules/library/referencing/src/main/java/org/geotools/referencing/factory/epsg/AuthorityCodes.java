@@ -31,10 +31,10 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import org.geotools.api.referencing.operation.Projection;
 import org.geotools.metadata.i18n.LoggingKeys;
 import org.geotools.metadata.i18n.Loggings;
 import org.geotools.util.logging.Logging;
-import org.opengis.referencing.operation.Projection;
 
 /**
  * A set of EPSG authority codes. This set requires a living connection to the EPSG database. All
@@ -250,6 +250,7 @@ public final class AuthorityCodes extends AbstractSet<String> implements Seriali
     }
 
     /** Count the number of elements in the underlying result set. */
+    @Override
     public synchronized int size() {
         if (size >= 0) {
             return size;
@@ -393,11 +394,13 @@ public final class AuthorityCodes extends AbstractSet<String> implements Seriali
         }
 
         /** Returns {@code true} if there is more elements. */
+        @Override
         public boolean hasNext() {
             return results != null;
         }
 
         /** Returns the next element. */
+        @Override
         public String next() {
             if (results == null) {
                 throw new NoSuchElementException();
@@ -413,6 +416,7 @@ public final class AuthorityCodes extends AbstractSet<String> implements Seriali
         }
 
         /** Always throws an exception, since this iterator is read-only. */
+        @Override
         public void remove() {
             throw new UnsupportedOperationException();
         }
@@ -508,6 +512,7 @@ public final class AuthorityCodes extends AbstractSet<String> implements Seriali
          *
          * @todo Not yet implemented.
          */
+        @Override
         public Set<java.util.Map.Entry<String, String>> entrySet() {
             throw new UnsupportedOperationException();
         }

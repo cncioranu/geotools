@@ -19,32 +19,31 @@
  */
 package org.geotools.parameter;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.InvalidParameterCardinalityException;
+import org.geotools.api.parameter.InvalidParameterTypeException;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.util.Utilities;
-import org.opengis.metadata.Identifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.InvalidParameterCardinalityException;
-import org.opengis.parameter.InvalidParameterTypeException;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
 
 /**
  * A group of related parameter values. The same group can be repeated more than once in an
- * {@linkplain org.opengis.referencing.operation.Operation operation} or higher level {@link
+ * {@linkplain org.geotools.api.referencing.operation.Operation operation} or higher level {@link
  * ParameterValueGroup}, if those instances contain different values of one or more {@link
  * ParameterValue}s which suitably distinquish among those groups.
  *
@@ -115,7 +114,7 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
      *     ParameterDescriptorGroup descriptor}.
      */
     public ParameterGroup(
-            final ParameterDescriptorGroup descriptor, final GeneralParameterValue[] values) {
+            final ParameterDescriptorGroup descriptor, final GeneralParameterValue... values) {
         super(descriptor);
         ensureNonNull("values", values);
         this.values = new ArrayList<>(values.length);
@@ -141,7 +140,7 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
      *     occurences doesn't matches the number declared in the {@linkplain
      *     ParameterDescriptorGroup descriptor}.
      */
-    public ParameterGroup(final Map<String, ?> properties, final GeneralParameterValue[] values) {
+    public ParameterGroup(final Map<String, ?> properties, final GeneralParameterValue... values) {
         super(createDescriptor(properties, values));
         this.values = new ArrayList<>(values.length);
         this.values.addAll(Arrays.asList(values));
@@ -156,7 +155,7 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
      *     ParameterDescriptorGroup descriptor}.
      */
     private static ParameterDescriptorGroup createDescriptor(
-            final Map<String, ?> properties, final GeneralParameterValue[] values) {
+            final Map<String, ?> properties, final GeneralParameterValue... values) {
         ensureNonNull("values", values);
         final Map<GeneralParameterDescriptor, int[]> occurences =
                 new LinkedHashMap<>(Math.round(values.length / 0.75f) + 1, 0.75f);
@@ -196,7 +195,8 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
             if (count == null) {
                 final String name = getName(descriptor);
                 throw new InvalidParameterTypeException(
-                        Errors.format(ErrorKeys.ILLEGAL_DESCRIPTOR_FOR_PARAMETER_$1, name), name);
+                        MessageFormat.format(ErrorKeys.ILLEGAL_DESCRIPTOR_FOR_PARAMETER_$1, name),
+                        name);
             }
             count[0]++;
         }
@@ -211,7 +211,7 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
             if (!(count >= min && count <= max)) {
                 final String name = getName(descriptor);
                 throw new InvalidParameterCardinalityException(
-                        Errors.format(
+                        MessageFormat.format(
                                 ErrorKeys.ILLEGAL_OCCURS_FOR_PARAMETER_$4, name, count, min, max),
                         name);
             }
@@ -228,6 +228,7 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
      * Returns the values in this group. Changes in this list are reflected on this {@code
      * ParameterValueGroup}. The returned list supports the {@link List#add(Object) add} operation.
      */
+    @Override
     public List<GeneralParameterValue> values() {
         if (asList == null) {
             asList = new ParameterValueList((ParameterDescriptorGroup) descriptor, values);
@@ -277,6 +278,7 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
      * @throws ParameterNotFoundException if there is no parameter value for the given identifier
      *     code.
      */
+    @Override
     public ParameterValue parameter(String name) throws ParameterNotFoundException {
         ensureNonNull("name", name);
         name = name.trim();
@@ -302,7 +304,7 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
             }
         }
         throw new ParameterNotFoundException(
-                Errors.format(ErrorKeys.MISSING_PARAMETER_$1, name), name);
+                MessageFormat.format(ErrorKeys.MISSING_PARAMETER_$1, name), name);
     }
 
     /**
@@ -317,6 +319,7 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
      * @throws ParameterNotFoundException if no {@linkplain ParameterDescriptorGroup descriptor} was
      *     found for the given name.
      */
+    @Override
     public List<ParameterValueGroup> groups(String name) throws ParameterNotFoundException {
         ensureNonNull("name", name);
         name = name.trim();
@@ -338,7 +341,7 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
                     ((ParameterDescriptorGroup) descriptor).descriptor(name);
             if (!(check instanceof ParameterDescriptorGroup)) {
                 throw new ParameterNotFoundException(
-                        Errors.format(ErrorKeys.MISSING_PARAMETER_$1, name), name);
+                        MessageFormat.format(ErrorKeys.MISSING_PARAMETER_$1, name), name);
             }
         }
         return groups;
@@ -358,24 +361,24 @@ public class ParameterGroup extends AbstractParameter implements ParameterValueG
      *     {@linkplain ParameterDescriptorGroup#getMaximumOccurs maximum number of occurences} of
      *     subgroups of the given name.
      */
+    @Override
     public ParameterValueGroup addGroup(String name)
             throws ParameterNotFoundException, InvalidParameterCardinalityException {
         final GeneralParameterDescriptor check =
                 ((ParameterDescriptorGroup) descriptor).descriptor(name);
         if (!(check instanceof ParameterDescriptorGroup)) {
             throw new ParameterNotFoundException(
-                    Errors.format(ErrorKeys.MISSING_PARAMETER_$1, name), name);
+                    MessageFormat.format(ErrorKeys.MISSING_PARAMETER_$1, name), name);
         }
         int count = 0;
-        for (final Iterator it = values.iterator(); it.hasNext(); ) {
-            final GeneralParameterValue value = (GeneralParameterValue) it.next();
+        for (final GeneralParameterValue value : values) {
             if (AbstractIdentifiedObject.nameMatches(value.getDescriptor(), name)) {
                 count++;
             }
         }
         if (count >= check.getMaximumOccurs()) {
             throw new InvalidParameterCardinalityException(
-                    Errors.format(ErrorKeys.TOO_MANY_OCCURENCES_$2, name, count), name);
+                    MessageFormat.format(ErrorKeys.TOO_MANY_OCCURENCES_$2, name, count), name);
         }
         final ParameterValueGroup value = ((ParameterDescriptorGroup) check).createValue();
         values.add(value);

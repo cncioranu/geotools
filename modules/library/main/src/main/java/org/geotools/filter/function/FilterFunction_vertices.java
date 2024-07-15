@@ -20,6 +20,7 @@ import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.util.Converters;
@@ -29,7 +30,6 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
-import org.opengis.filter.capability.FunctionName;
 
 public class FilterFunction_vertices extends FunctionExpressionImpl {
 
@@ -43,6 +43,7 @@ public class FilterFunction_vertices extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public <T> T evaluate(Object feature, Class<T> context) {
         Geometry g = getExpression(0).evaluate(feature, Geometry.class);
         if (g == null) return null;
@@ -55,6 +56,7 @@ public class FilterFunction_vertices extends FunctionExpressionImpl {
     static class MultiPointExtractor implements CoordinateFilter {
         List<Coordinate> coordinates = new ArrayList<>();
 
+        @Override
         public void filter(Coordinate c) {
             coordinates.add(c);
         }

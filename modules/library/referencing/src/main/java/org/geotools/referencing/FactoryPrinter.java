@@ -24,15 +24,15 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.referencing.AuthorityFactory;
+import org.geotools.api.referencing.Factory;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.util.Classes;
 import org.geotools.util.TableWriter;
 import org.geotools.util.factory.FactoryRegistry;
-import org.opengis.metadata.Identifier;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.referencing.AuthorityFactory;
-import org.opengis.referencing.Factory;
 
 /**
  * Prints a list of factory. This is used for {@link ReferencingFactoryFinder#listProviders}
@@ -49,6 +49,7 @@ final class FactoryPrinter implements Comparator<Class<?>> {
      * Compares two factories for order. This is used for sorting out the factories before to
      * display them.
      */
+    @Override
     public int compare(final Class<?> factory1, final Class<?> factory2) {
         // Or sort by name
         return Classes.getShortName(factory1).compareToIgnoreCase(Classes.getShortName(factory2));
@@ -89,11 +90,10 @@ final class FactoryPrinter implements Comparator<Class<?>> {
         table.nextLine(TableWriter.DOUBLE_HORIZONTAL_LINE);
         final StringBuilder vendors = new StringBuilder();
         final StringBuilder implementations = new StringBuilder();
-        for (final Iterator<Class<?>> it = categories.iterator(); it.hasNext(); ) {
+        for (final Class<?> category : categories) {
             /*
              * Writes the category name (CRSFactory, DatumFactory, etc.)
              */
-            final Class<?> category = it.next();
             table.write(Classes.getShortName(category));
             table.nextColumn();
             /*

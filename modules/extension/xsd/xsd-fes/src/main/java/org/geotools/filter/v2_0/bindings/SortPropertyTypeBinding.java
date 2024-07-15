@@ -18,9 +18,9 @@ package org.geotools.filter.v2_0.bindings;
 
 import javax.xml.namespace.QName;
 import net.opengis.fes20.SortPropertyType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.sort.SortBy;
 import org.geotools.filter.v2_0.FES;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.sort.SortBy;
 
 /**
  * Binding object for the type http://www.opengis.net/ogc:SortPropertyType.
@@ -48,6 +48,7 @@ public class SortPropertyTypeBinding extends org.geotools.filter.v1_1.SortProper
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return FES.SortPropertyType;
     }
@@ -59,10 +60,12 @@ public class SortPropertyTypeBinding extends org.geotools.filter.v1_1.SortProper
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return SortPropertyType.class;
     }
 
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         SortBy sortBy = (SortBy) object;
 

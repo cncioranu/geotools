@@ -18,10 +18,10 @@ package org.geotools.data.store;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import org.geotools.data.FeatureWriter;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
  * An iterator wrapper for a FeatureWriter - for use with an AbstractFeatureCollection.
@@ -45,6 +45,7 @@ final class FeatureWriterFeatureIterator implements SimpleFeatureIterator {
         this.writer = writer;
     }
 
+    @Override
     public boolean hasNext() {
         try {
             if (writer == null) {
@@ -65,6 +66,7 @@ final class FeatureWriterFeatureIterator implements SimpleFeatureIterator {
         }
     }
 
+    @Override
     public SimpleFeature next() {
         if (writer == null) {
             throw new NoSuchElementException("Iterator has been closed");
@@ -88,6 +90,7 @@ final class FeatureWriterFeatureIterator implements SimpleFeatureIterator {
         }
     }
 
+    @Override
     public void close() {
         if (writer != null) {
             try {

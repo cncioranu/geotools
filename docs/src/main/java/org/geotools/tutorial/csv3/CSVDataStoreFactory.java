@@ -1,19 +1,13 @@
 /*
- *    GeoTools - The Open Source Java GIS Toolkit
- *    http://geotools.org
+ *    GeoTools Sample code and Tutorials by Open Source Geospatial Foundation, and others
+ *    https://docs.geotools.org
  *
- *    (C) 2014 - 2015 Open Source Geospatial Foundation (OSGeo)
- *    (c) 2012 - 2014 OpenPlans
+ *    To the extent possible under law, the author(s) have dedicated all copyright
+ *    and related and neighboring rights to this software to the public domain worldwide.
+ *    This software is distributed without any warranty.
  *
- *    This library is free software; you can redistribute it and/or
- *    modify it under the terms of the GNU Lesser General Public
- *    License as published by the Free Software Foundation;
- *    version 2.1 of the License.
- *
- *    This library is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *    Lesser General Public License for more details.
+ *    You should have received a copy of the CC0 Public Domain Dedication along with this
+ *    software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 package org.geotools.tutorial.csv3;
 
@@ -26,9 +20,9 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.commons.io.FilenameUtils;
-import org.geotools.data.DataStore;
-import org.geotools.data.FileDataStore;
-import org.geotools.data.FileDataStoreFactorySpi;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FileDataStore;
+import org.geotools.api.data.FileDataStoreFactorySpi;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.type.FeatureTypeFactoryImpl;
 import org.geotools.tutorial.csv3.parse.CSVAttributesOnlyStrategy;
@@ -55,7 +49,7 @@ public class CSVDataStoreFactory implements FileDataStoreFactorySpi {
 
     private static final String FILE_TYPE = "csv";
 
-    public static final String[] EXTENSIONS = new String[] {"." + FILE_TYPE};
+    public static final String[] EXTENSIONS = {"." + FILE_TYPE};
 
     public static final Param FILE_PARAM =
             new Param("file", File.class, FILE_TYPE + " file", false);
@@ -118,8 +112,9 @@ public class CSVDataStoreFactory implements FileDataStoreFactorySpi {
                     false,
                     ',',
                     new KVP(Param.LEVEL, "advanced"));
-    public static final Param[] parametersInfo =
-            new Param[] {FILE_PARAM, NAMESPACEP, STRATEGYP, LATFIELDP, LnGFIELDP, WKTP};
+    public static final Param[] parametersInfo = {
+        FILE_PARAM, NAMESPACEP, STRATEGYP, LATFIELDP, LnGFIELDP, WKTP
+    };
 
     @Override
     public String getDisplayName() {
@@ -169,6 +164,7 @@ public class CSVDataStoreFactory implements FileDataStoreFactorySpi {
 
     // docs start isAvailable
     @Override
+    @SuppressWarnings("ReturnValueIgnored")
     public boolean isAvailable() {
         try {
             CSVDataStore.class.getName();

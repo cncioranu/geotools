@@ -23,6 +23,14 @@ import java.math.BigInteger;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.filter.LengthFunction;
 import org.geotools.xml.transform.TransformerBase;
 import org.geotools.xml.transform.Translator;
@@ -34,14 +42,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.Filter;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
@@ -182,6 +182,7 @@ public class FeatureTypeTransformer extends TransformerBase {
      *
      * @param handler the content handler to use
      */
+    @Override
     public Translator createTranslator(ContentHandler handler) {
         FeatureTypeTranslator translator = new FeatureTypeTranslator(handler);
 
@@ -211,6 +212,7 @@ public class FeatureTypeTransformer extends TransformerBase {
          * @throws IllegalArgumentException if supplied object is not an instance of FeatureType
          * @see org.geotools.xml.transform.Translator#encode(java.lang.Object)
          */
+        @Override
         public void encode(Object o) throws IllegalArgumentException {
             if (o instanceof SimpleFeatureType) {
                 encode((SimpleFeatureType) o);
@@ -231,8 +233,8 @@ public class FeatureTypeTransformer extends TransformerBase {
             try {
                 startSchemaType(type.getTypeName(), type.getName().getNamespaceURI());
 
-                for (int i = 0; i < attributes.size(); i++) {
-                    encode((AttributeDescriptor) attributes.get(i));
+                for (Object attribute : attributes) {
+                    encode((AttributeDescriptor) attribute);
                 }
 
                 endSchemaType();

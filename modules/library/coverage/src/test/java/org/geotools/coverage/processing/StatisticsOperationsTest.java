@@ -24,13 +24,14 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.DataBuffer;
 import java.awt.image.WritableRaster;
 import javax.media.jai.RasterFactory;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.processing.operation.Extrema;
 import org.geotools.coverage.processing.operation.Histogram;
-import org.geotools.geometry.Envelope2D;
-import org.geotools.referencing.crs.DefaultGeographicCRS;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
@@ -38,9 +39,6 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.opengis.geometry.Envelope;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Testing Extrema and {@link Histogram} operations.
@@ -65,8 +63,7 @@ public final class StatisticsOperationsTest extends GridProcessingTestBase {
                 raster.setSample(x, y, 0, x + y);
             }
         }
-        final CoordinateReferenceSystem crs = DefaultGeographicCRS.WGS84;
-        final Envelope envelope = new Envelope2D(crs, 0, 0, 30, 30);
+        final Bounds envelope = ReferencedEnvelope.rect(0, 0, 30, 30);
         final GridCoverageFactory factory = CoverageFactoryFinder.getGridCoverageFactory(null);
         return factory.create("My grayscale float coverage", raster, envelope);
     }
@@ -88,19 +85,18 @@ public final class StatisticsOperationsTest extends GridProcessingTestBase {
          */
         final PrecisionModel pm = new PrecisionModel();
         final GeometryFactory gf = new GeometryFactory(pm, 0);
-        final Envelope2D envelope = sampleFloatCoverage.getEnvelope2D();
+        final ReferencedEnvelope envelope = sampleFloatCoverage.getEnvelope2D();
         final double minX = envelope.getMinX();
         final double minY = envelope.getMinY();
         final double maxX = envelope.getCenterX();
         final double maxY = envelope.getCenterY();
-        final Coordinate[] corners =
-                new Coordinate[] {
-                    new Coordinate(minX, minY),
-                    new Coordinate(maxX, minY),
-                    new Coordinate(maxX, maxY),
-                    new Coordinate(minX, maxY),
-                    new Coordinate(minX, minY)
-                };
+        final Coordinate[] corners = {
+            new Coordinate(minX, minY),
+            new Coordinate(maxX, minY),
+            new Coordinate(maxX, maxY),
+            new Coordinate(minX, maxY),
+            new Coordinate(minX, minY)
+        };
         final LinearRing ring = gf.createLinearRing(corners);
         final Polygon roi = new Polygon(ring, null, gf);
         /*
@@ -155,19 +151,18 @@ public final class StatisticsOperationsTest extends GridProcessingTestBase {
          */
         final PrecisionModel pm = new PrecisionModel();
         final GeometryFactory gf = new GeometryFactory(pm, 0);
-        final Envelope2D envelope = sampleByteCoverage.getEnvelope2D();
+        final ReferencedEnvelope envelope = sampleByteCoverage.getEnvelope2D();
         final double minX = envelope.getMinX();
         final double maxY = envelope.getMaxY();
         final double minY = maxY - envelope.getHeight() / 16;
         final double maxX = minX + envelope.getWidth() / 16;
-        final Coordinate[] coord =
-                new Coordinate[] {
-                    new Coordinate(minX, maxY),
-                    new Coordinate(maxX, maxY),
-                    new Coordinate(maxX, minY),
-                    new Coordinate(minX, minY),
-                    new Coordinate(minX, maxY)
-                };
+        final Coordinate[] coord = {
+            new Coordinate(minX, maxY),
+            new Coordinate(maxX, maxY),
+            new Coordinate(maxX, minY),
+            new Coordinate(minX, minY),
+            new Coordinate(minX, maxY)
+        };
         final LinearRing ring = gf.createLinearRing(coord);
         final Polygon roi = new Polygon(ring, null, gf);
         /*

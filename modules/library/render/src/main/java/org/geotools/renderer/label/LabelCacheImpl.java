@@ -16,47 +16,6 @@
  */
 package org.geotools.renderer.label;
 
-import static org.geotools.styling.TextSymbolizer.ALLOW_OVERRUNS_KEY;
-import static org.geotools.styling.TextSymbolizer.AUTO_WRAP_KEY;
-import static org.geotools.styling.TextSymbolizer.CONFLICT_RESOLUTION_KEY;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_ALLOW_OVERRUNS;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_AUTO_WRAP;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_CONFLICT_RESOLUTION;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_FOLLOW_LINE;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_FONT_SHRINK_SIZE_MIN;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_FORCE_LEFT_TO_RIGHT;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_GOODNESS_OF_FIT;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_LABEL_ALL_GROUP;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_LABEL_REPEAT;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_MAX_ANGLE_DELTA;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_MAX_DISPLACEMENT;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_MIN_GROUP_DISTANCE;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_PARTIALS;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_POLYGONALIGN;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_REMOVE_OVERLAPS;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_SPACE_AROUND;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_STRIKETHROUGH_TEXT;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_UNDERLINE_TEXT;
-import static org.geotools.styling.TextSymbolizer.DEFAULT_WORD_SPACING;
-import static org.geotools.styling.TextSymbolizer.DISPLACEMENT_MODE_KEY;
-import static org.geotools.styling.TextSymbolizer.FOLLOW_LINE_KEY;
-import static org.geotools.styling.TextSymbolizer.FONT_SHRINK_SIZE_MIN;
-import static org.geotools.styling.TextSymbolizer.FORCE_LEFT_TO_RIGHT_KEY;
-import static org.geotools.styling.TextSymbolizer.GOODNESS_OF_FIT_KEY;
-import static org.geotools.styling.TextSymbolizer.GRAPHIC_PLACEMENT_KEY;
-import static org.geotools.styling.TextSymbolizer.LABEL_ALL_GROUP_KEY;
-import static org.geotools.styling.TextSymbolizer.LABEL_REPEAT_KEY;
-import static org.geotools.styling.TextSymbolizer.MAX_ANGLE_DELTA_KEY;
-import static org.geotools.styling.TextSymbolizer.MAX_DISPLACEMENT_KEY;
-import static org.geotools.styling.TextSymbolizer.MIN_GROUP_DISTANCE_KEY;
-import static org.geotools.styling.TextSymbolizer.PARTIALS_KEY;
-import static org.geotools.styling.TextSymbolizer.POLYGONALIGN_KEY;
-import static org.geotools.styling.TextSymbolizer.REMOVE_OVERLAPS_KEY;
-import static org.geotools.styling.TextSymbolizer.SPACE_AROUND_KEY;
-import static org.geotools.styling.TextSymbolizer.STRIKETHROUGH_TEXT_KEY;
-import static org.geotools.styling.TextSymbolizer.UNDERLINE_TEXT_KEY;
-import static org.geotools.styling.TextSymbolizer.WORD_SPACING_KEY;
-
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -80,6 +39,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.style.TextSymbolizer;
+import org.geotools.api.style.TextSymbolizer.GraphicPlacement;
+import org.geotools.api.style.TextSymbolizer.PolygonAlignOptions;
 import org.geotools.geometry.jts.GeometryClipper;
 import org.geotools.geometry.jts.LiteShape2;
 import org.geotools.geometry.jts.OffsetCurveBuilder;
@@ -90,10 +55,6 @@ import org.geotools.renderer.lite.LabelCache;
 import org.geotools.renderer.lite.RendererUtilities;
 import org.geotools.renderer.style.SLDStyleFactory;
 import org.geotools.renderer.style.TextStyle2D;
-import org.geotools.styling.TextSymbolizer;
-import org.geotools.styling.TextSymbolizer.DisplacementMode;
-import org.geotools.styling.TextSymbolizer.GraphicPlacement;
-import org.geotools.styling.TextSymbolizer.PolygonAlignOptions;
 import org.geotools.util.NumberRange;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Coordinate;
@@ -112,9 +73,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.operation.linemerge.LineMerger;
-import org.opengis.feature.Feature;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Default LabelCache Implementation.
@@ -172,8 +130,7 @@ public class LabelCacheImpl implements LabelCache {
     public double DEFAULT_PRIORITY = 1000.0;
 
     // list of displacement angles to be used for polys
-    public static final int[] DEFAULT_DISPLACEMENT_ANGLES =
-            new int[] {0, 45, 90, 135, 180, 225, 270, 315};
+    public static final int[] DEFAULT_DISPLACEMENT_ANGLES = {0, 45, 90, 135, 180, 225, 270, 315};
 
     /** The angle delta at which we switch from curved rendering to straight rendering */
     public static double MIN_CURVED_DELTA = Math.PI / 60;
@@ -188,20 +145,20 @@ public class LabelCacheImpl implements LabelCache {
     private List<Rectangle2D> reserved = new ArrayList<>();
 
     // Anchor candidate values used when looping to find a point label that can be drawn
-    static final double[] RIGHT_ANCHOR_CANDIDATES = new double[] {0, 0.5, 0, 0, 0, 1};
-    static final double[] MID_ANCHOR_CANDIDATES = new double[] {0.5, 0.5, 0, 0.5, 1, 0.5};
-    static final double[] LEFT_ANCHOR_CANDIDATES = new double[] {1, 0.5, 1, 0, 1, 1};
+    static final double[] RIGHT_ANCHOR_CANDIDATES = {0, 0.5, 0, 0, 0, 1};
+    static final double[] MID_ANCHOR_CANDIDATES = {0.5, 0.5, 0, 0.5, 1, 0.5};
+    static final double[] LEFT_ANCHOR_CANDIDATES = {1, 0.5, 1, 0, 1, 1};
 
     // Anchor candidate values used when looping to find a point label that can be drawn
     // applicable only in case displacementMode is set
-    static final double[] RIGHT_UP_ANCHOR_CANDIDATES = new double[] {0, 0, 0, 0.5};
-    static final double[] RIGHT_DOWN_ANCHOR_CANDIDATES = new double[] {0, 1, 0, 0.5};
-    static final double[] VERTICAL_UP_ANCHOR_CANDIDATES = new double[] {0.5, 0.5, 0.5, 0.0};
-    static final double[] VERTICAL_DOWN_ANCHOR_CANDIDATES = new double[] {0.5, 0.5, 0.5, 1};
-    static final double[] HORIZONTAL_LEFT_ANCHOR_CANDIDATES = new double[] {0.5, 0.5, 1.0, 0.5};
-    static final double[] HORIZONTAL_RIGHT_ANCHOR_CANDIDATES = new double[] {0.5, 0.5, 0, 0.5};
-    static final double[] LEFT_UP_ANCHOR_CANDIDATES = new double[] {1, 0, 1, 0.5};
-    static final double[] LEFT_DOWN_ANCHOR_CANDIDATES = new double[] {1, 1, 1, 0.5};
+    static final double[] RIGHT_UP_ANCHOR_CANDIDATES = {0, 0, 0, 0.5};
+    static final double[] RIGHT_DOWN_ANCHOR_CANDIDATES = {0, 1, 0, 0.5};
+    static final double[] VERTICAL_UP_ANCHOR_CANDIDATES = {0.5, 0.5, 0.5, 0.0};
+    static final double[] VERTICAL_DOWN_ANCHOR_CANDIDATES = {0.5, 0.5, 0.5, 1};
+    static final double[] HORIZONTAL_LEFT_ANCHOR_CANDIDATES = {0.5, 0.5, 1.0, 0.5};
+    static final double[] HORIZONTAL_RIGHT_ANCHOR_CANDIDATES = {0.5, 0.5, 0, 0.5};
+    static final double[] LEFT_UP_ANCHOR_CANDIDATES = {1, 0, 1, 0.5};
+    static final double[] LEFT_DOWN_ANCHOR_CANDIDATES = {1, 1, 1, 0.5};
 
     protected LabelRenderingMode labelRenderingMode = LabelRenderingMode.STRING;
 
@@ -228,6 +185,7 @@ public class LabelCacheImpl implements LabelCache {
     private BiFunction<Graphics2D, LabelRenderingMode, LabelPainter> constructPainter =
             LabelPainter::new;
 
+    @Override
     public void enableLayer(String layerId) {
         needsOrdering = true;
         enabledLayers.add(layerId);
@@ -251,16 +209,19 @@ public class LabelCacheImpl implements LabelCache {
         this.constructPainter = constructPainter;
     }
 
+    @Override
     public void stop() {
         stop = true;
         activeLayers.clear();
     }
 
     /** @see org.geotools.renderer.lite.LabelCache#start() */
+    @Override
     public void start() {
         stop = false;
     }
 
+    @Override
     public void clear() {
         if (!activeLayers.isEmpty()) {
             throw new IllegalStateException(
@@ -274,6 +235,7 @@ public class LabelCacheImpl implements LabelCache {
         enabledLayers.clear();
     }
 
+    @Override
     public void clear(String layerId) {
         if (activeLayers.contains(layerId)) {
             throw new IllegalStateException(
@@ -292,12 +254,14 @@ public class LabelCacheImpl implements LabelCache {
         enabledLayers.remove(layerId);
     }
 
+    @Override
     public void disableLayer(String layerId) {
         needsOrdering = true;
         enabledLayers.remove(layerId);
     }
 
     /** @see org.geotools.renderer.lite.LabelCache#startLayer(String) */
+    @Override
     public void startLayer(String layerId) {
         enabledLayers.add(layerId);
         activeLayers.add(layerId);
@@ -325,6 +289,7 @@ public class LabelCacheImpl implements LabelCache {
      * @see org.geotools.renderer.lite.LabelCache#put(String,TextSymbolizer,Feature,
      *     LiteShape2,NumberRange)
      */
+    @Override
     public void put(
             String layerId,
             TextSymbolizer symbolizer,
@@ -346,7 +311,9 @@ public class LabelCacheImpl implements LabelCache {
                 return; // dont label something with nothing!
             }
             double priorityValue = getPriority(symbolizer, feature);
-            boolean group = voParser.getBooleanOption(symbolizer, TextSymbolizer.GROUP_KEY, false);
+            boolean group =
+                    voParser.getBooleanOption(
+                            symbolizer, org.geotools.api.style.TextSymbolizer.GROUP_KEY, false);
             LabelCacheItem item =
                     buildLabelCacheItem(
                             layerId, symbolizer, feature, shape, scaleRange, label, priorityValue);
@@ -375,6 +342,7 @@ public class LabelCacheImpl implements LabelCache {
         }
     }
 
+    @Override
     public void put(Rectangle2D area) {
         reserved.add(area);
     }
@@ -393,29 +361,58 @@ public class LabelCacheImpl implements LabelCache {
         LabelCacheItem item = new LabelCacheItem(layerId, textStyle, shape, label, symbolizer);
         item.setPriority(priorityValue);
         item.setSpaceAround(
-                voParser.getIntOption(symbolizer, SPACE_AROUND_KEY, DEFAULT_SPACE_AROUND));
+                voParser.getIntOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.SPACE_AROUND_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_SPACE_AROUND));
         item.setMaxDisplacement(
-                voParser.getIntOption(symbolizer, MAX_DISPLACEMENT_KEY, DEFAULT_MAX_DISPLACEMENT));
+                voParser.getIntOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.MAX_DISPLACEMENT_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_MAX_DISPLACEMENT));
         item.setMinGroupDistance(
                 voParser.getIntOption(
-                        symbolizer, MIN_GROUP_DISTANCE_KEY, DEFAULT_MIN_GROUP_DISTANCE));
-        item.setRepeat(voParser.getIntOption(symbolizer, LABEL_REPEAT_KEY, DEFAULT_LABEL_REPEAT));
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.MIN_GROUP_DISTANCE_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_MIN_GROUP_DISTANCE));
+        item.setRepeat(
+                voParser.getIntOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.LABEL_REPEAT_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_LABEL_REPEAT));
         item.setLabelAllGroup(
                 voParser.getBooleanOption(
-                        symbolizer, LABEL_ALL_GROUP_KEY, DEFAULT_LABEL_ALL_GROUP));
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.LABEL_ALL_GROUP_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_LABEL_ALL_GROUP));
         item.setRemoveGroupOverlaps(
                 voParser.getBooleanOption(
-                        symbolizer, REMOVE_OVERLAPS_KEY, DEFAULT_REMOVE_OVERLAPS));
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.REMOVE_OVERLAPS_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_REMOVE_OVERLAPS));
         item.setAllowOverruns(
-                voParser.getBooleanOption(symbolizer, ALLOW_OVERRUNS_KEY, DEFAULT_ALLOW_OVERRUNS));
+                voParser.getBooleanOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.ALLOW_OVERRUNS_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_ALLOW_OVERRUNS));
         item.setFollowLineEnabled(
-                voParser.getBooleanOption(symbolizer, FOLLOW_LINE_KEY, DEFAULT_FOLLOW_LINE));
+                voParser.getBooleanOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.FOLLOW_LINE_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_FOLLOW_LINE));
         double maxAngleDelta =
-                voParser.getDoubleOption(symbolizer, MAX_ANGLE_DELTA_KEY, DEFAULT_MAX_ANGLE_DELTA);
+                voParser.getDoubleOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.MAX_ANGLE_DELTA_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_MAX_ANGLE_DELTA);
         item.setMaxAngleDelta(Math.toRadians(maxAngleDelta));
         // follow line and write don't work toghether, disable it while we wait for a fix
         if (!item.isFollowLineEnabled()) {
-            item.setAutoWrap(voParser.getIntOption(symbolizer, AUTO_WRAP_KEY, DEFAULT_AUTO_WRAP));
+            item.setAutoWrap(
+                    voParser.getIntOption(
+                            symbolizer,
+                            org.geotools.api.style.TextSymbolizer.AUTO_WRAP_KEY,
+                            org.geotools.api.style.TextSymbolizer.DEFAULT_AUTO_WRAP));
         } else {
             // at fine level cause it would show up for every label with this setup
             LOGGER.log(
@@ -425,47 +422,75 @@ public class LabelCacheImpl implements LabelCache {
         }
         item.setForceLeftToRightEnabled(
                 voParser.getBooleanOption(
-                        symbolizer, FORCE_LEFT_TO_RIGHT_KEY, DEFAULT_FORCE_LEFT_TO_RIGHT));
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.FORCE_LEFT_TO_RIGHT_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_FORCE_LEFT_TO_RIGHT));
         item.setConflictResolutionEnabled(
                 voParser.getBooleanOption(
-                        symbolizer, CONFLICT_RESOLUTION_KEY, DEFAULT_CONFLICT_RESOLUTION));
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.CONFLICT_RESOLUTION_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_CONFLICT_RESOLUTION));
         item.setGoodnessOfFit(
-                voParser.getDoubleOption(symbolizer, GOODNESS_OF_FIT_KEY, DEFAULT_GOODNESS_OF_FIT));
+                voParser.getDoubleOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.GOODNESS_OF_FIT_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_GOODNESS_OF_FIT));
         item.setPolygonAlign(
                 (PolygonAlignOptions)
-                        voParser.getEnumOption(symbolizer, POLYGONALIGN_KEY, DEFAULT_POLYGONALIGN));
+                        voParser.getEnumOption(
+                                symbolizer,
+                                org.geotools.api.style.TextSymbolizer.POLYGONALIGN_KEY,
+                                org.geotools.api.style.TextSymbolizer.DEFAULT_POLYGONALIGN));
         item.setGraphicsResize(
                 (GraphicResize)
                         voParser.getEnumOption(symbolizer, "graphic-resize", GraphicResize.NONE));
         item.setGraphicMargin(voParser.getGraphicMargin(symbolizer, "graphic-margin"));
         item.setPartialsEnabled(
-                voParser.getBooleanOption(symbolizer, PARTIALS_KEY, DEFAULT_PARTIALS));
+                voParser.getBooleanOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.PARTIALS_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_PARTIALS));
         item.setTextUnderlined(
-                voParser.getBooleanOption(symbolizer, UNDERLINE_TEXT_KEY, DEFAULT_UNDERLINE_TEXT));
+                voParser.getBooleanOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.UNDERLINE_TEXT_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_UNDERLINE_TEXT));
         item.setTextStrikethrough(
                 voParser.getBooleanOption(
-                        symbolizer, STRIKETHROUGH_TEXT_KEY, DEFAULT_STRIKETHROUGH_TEXT));
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.STRIKETHROUGH_TEXT_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_STRIKETHROUGH_TEXT));
         item.setWordSpacing(
-                voParser.getDoubleOption(symbolizer, WORD_SPACING_KEY, DEFAULT_WORD_SPACING));
+                voParser.getDoubleOption(
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.WORD_SPACING_KEY,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_WORD_SPACING));
         item.setDisplacementAngles(
-                voParser.getDisplacementAngles(symbolizer, DISPLACEMENT_MODE_KEY));
+                voParser.getDisplacementAngles(
+                        symbolizer, org.geotools.api.style.TextSymbolizer.DISPLACEMENT_MODE_KEY));
 
         item.setFontShrinkSizeMin(
                 voParser.getIntOption(
-                        symbolizer, FONT_SHRINK_SIZE_MIN, DEFAULT_FONT_SHRINK_SIZE_MIN));
+                        symbolizer,
+                        org.geotools.api.style.TextSymbolizer.FONT_SHRINK_SIZE_MIN,
+                        org.geotools.api.style.TextSymbolizer.DEFAULT_FONT_SHRINK_SIZE_MIN));
         item.setGraphicPlacement(
                 (GraphicPlacement)
                         voParser.getEnumOption(
-                                symbolizer, GRAPHIC_PLACEMENT_KEY, GraphicPlacement.LABEL));
+                                symbolizer,
+                                org.geotools.api.style.TextSymbolizer.GRAPHIC_PLACEMENT_KEY,
+                                org.geotools.api.style.TextSymbolizer.GraphicPlacement.LABEL));
         return item;
     }
 
     /** @see org.geotools.renderer.lite.LabelCache#endLayer(String,Graphics2D,Rectangle) */
+    @Override
     public void endLayer(String layerId, Graphics2D graphics, Rectangle displayArea) {
         activeLayers.remove(layerId);
     }
 
     /** Return a list with all the values in priority order. Both grouped and non-grouped */
+    @Override
     public List<LabelCacheItem> orderedLabels() {
         List<LabelCacheItem> al = getActiveLabels();
         Collections.sort(al);
@@ -492,6 +517,7 @@ public class LabelCacheImpl implements LabelCache {
     }
 
     /** @see org.geotools.renderer.lite.LabelCache#end(java.awt.Graphics2D, java.awt.Rectangle) */
+    @Override
     public void end(Graphics2D graphics, Rectangle displayArea) {
         final Object antialiasing = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
         final Object textAntialiasing =
@@ -723,7 +749,7 @@ public class LabelCacheImpl implements LabelCache {
                         labelItem.removeGroupOverlaps(),
                         labelItem.isPartialsEnabled());
 
-        if (lines == null || lines.size() == 0) return false;
+        if (lines == null || lines.isEmpty()) return false;
 
         // if we just want to label the longest line, remove the others
         if (!labelItem.labelAllGroup() && lines.size() > 1) {
@@ -829,8 +855,7 @@ public class LabelCacheImpl implements LabelCache {
                     }
 
                     // We check each letters for collision
-                    boolean collision = false;
-                    collision =
+                    boolean collision =
                             glyphVectorProcessor.process(
                                     new GlyphProcessor.ConflictDetector(
                                             painter, displayArea, paintedBounds, groupLabels),
@@ -945,7 +970,7 @@ public class LabelCacheImpl implements LabelCache {
                         labelItem.removeGroupOverlaps(),
                         labelItem.isPartialsEnabled());
 
-        if (lines == null || lines.size() == 0) return false;
+        if (lines == null || lines.isEmpty()) return false;
 
         // if we just want to label the longest line, remove the others
         if (!labelItem.labelAllGroup() && lines.size() > 1) {
@@ -1070,21 +1095,20 @@ public class LabelCacheImpl implements LabelCache {
                         if (labelItem.isFollowLineEnabled()) {
                             // for curved labels we never paint in case of
                             // overrun
-                            if ((startOrdinate > 0
-                                    && endOrdinate <= cursor.getLineStringLength())) {
-                                if (maxAngleChange < maxAngleDelta) {
-                                    // if straight segment connecting the start and end ordinate is
-                                    // really close, paint as a straight label
-                                    if (maxAngleChange == 0
-                                            || cursor.getMaxDistanceFromStraightLine(
-                                                            startOrdinate, endOrdinate)
-                                                    < painter.getLineHeight() / 2) {
-                                        painter.paintStraightLabel(tx);
-                                    } else {
-                                        painter.paintCurvedLabel(cursor);
-                                    }
-                                    painted = true;
+                            if (startOrdinate > 0
+                                    && endOrdinate <= cursor.getLineStringLength()
+                                    && maxAngleChange < maxAngleDelta) {
+                                // if straight segment connecting the start and end ordinate is
+                                // really close, paint as a straight label
+                                if (maxAngleChange == 0
+                                        || cursor.getMaxDistanceFromStraightLine(
+                                                        startOrdinate, endOrdinate)
+                                                < painter.getLineHeight() / 2) {
+                                    painter.paintStraightLabel(tx);
+                                } else {
+                                    painter.paintCurvedLabel(cursor);
                                 }
+                                painted = true;
                             }
                         } else {
                             // for straight labels, check overrun only if
@@ -1271,7 +1295,6 @@ public class LabelCacheImpl implements LabelCache {
 
         // undo the above if its point placement!
         double rotation;
-        double displacementX = 0;
         double displacementY = 0;
         Rectangle2D textBounds = painter.getLabelBounds();
         if (textStyle.isPointPlacement() && !followLine) {
@@ -1294,7 +1317,7 @@ public class LabelCacheImpl implements LabelCache {
             anchorY = painter.getLinePlacementYAnchor();
         }
 
-        displacementX = (anchorX * (-textBounds.getWidth())) + textStyle.getDisplacementX();
+        double displacementX = (anchorX * (-textBounds.getWidth())) + textStyle.getDisplacementX();
         displacementY += (anchorY * (textBounds.getHeight())) - textStyle.getDisplacementY();
 
         if (Double.isNaN(rotation) || Double.isInfinite(rotation)) rotation = 0.0;
@@ -1396,22 +1419,38 @@ public class LabelCacheImpl implements LabelCache {
                     double dx = radius * Math.cos(Math.toRadians(angle));
                     double dy = radius * Math.sin(Math.toRadians(angle));
 
-                    double[] anchorPointCandidates = new double[] {0.5, 0.5};
-                    if (angle == DisplacementMode.NE.getAngle()) {
+                    double[] anchorPointCandidates = {0.5, 0.5};
+                    if (angle
+                            == org.geotools.api.style.TextSymbolizer.DisplacementMode.NE
+                                    .getAngle()) {
                         anchorPointCandidates = RIGHT_UP_ANCHOR_CANDIDATES;
-                    } else if (angle == DisplacementMode.SE.getAngle()) {
+                    } else if (angle
+                            == org.geotools.api.style.TextSymbolizer.DisplacementMode.SE
+                                    .getAngle()) {
                         anchorPointCandidates = RIGHT_DOWN_ANCHOR_CANDIDATES;
-                    } else if (angle == DisplacementMode.N.getAngle()) {
+                    } else if (angle
+                            == org.geotools.api.style.TextSymbolizer.DisplacementMode.N
+                                    .getAngle()) {
                         anchorPointCandidates = VERTICAL_UP_ANCHOR_CANDIDATES;
-                    } else if (angle == DisplacementMode.S.getAngle()) {
+                    } else if (angle
+                            == org.geotools.api.style.TextSymbolizer.DisplacementMode.S
+                                    .getAngle()) {
                         anchorPointCandidates = VERTICAL_DOWN_ANCHOR_CANDIDATES;
-                    } else if (angle == DisplacementMode.NW.getAngle()) {
+                    } else if (angle
+                            == org.geotools.api.style.TextSymbolizer.DisplacementMode.NW
+                                    .getAngle()) {
                         anchorPointCandidates = LEFT_UP_ANCHOR_CANDIDATES;
-                    } else if (angle == DisplacementMode.SW.getAngle()) {
+                    } else if (angle
+                            == org.geotools.api.style.TextSymbolizer.DisplacementMode.SW
+                                    .getAngle()) {
                         anchorPointCandidates = LEFT_DOWN_ANCHOR_CANDIDATES;
-                    } else if (angle == DisplacementMode.E.getAngle()) {
+                    } else if (angle
+                            == org.geotools.api.style.TextSymbolizer.DisplacementMode.E
+                                    .getAngle()) {
                         anchorPointCandidates = HORIZONTAL_LEFT_ANCHOR_CANDIDATES;
-                    } else if (angle == DisplacementMode.W.getAngle()) {
+                    } else if (angle
+                            == org.geotools.api.style.TextSymbolizer.DisplacementMode.W
+                                    .getAngle()) {
                         anchorPointCandidates = HORIZONTAL_RIGHT_ANCHOR_CANDIDATES;
                     }
 
@@ -1577,7 +1616,8 @@ public class LabelCacheImpl implements LabelCache {
 
         AffineTransform tx = null;
         boolean allowShrinking =
-                labelItem.getFontShrinkSizeMin() > DEFAULT_FONT_SHRINK_SIZE_MIN
+                labelItem.getFontShrinkSizeMin()
+                                > org.geotools.api.style.TextSymbolizer.DEFAULT_FONT_SHRINK_SIZE_MIN
                         && labelItem.getFontShrinkSizeMin() < textStyle.getFont().getSize();
         int shrinkSize =
                 allowShrinking ? labelItem.getFontShrinkSizeMin() : textStyle.getFont().getSize();
@@ -1762,7 +1802,7 @@ public class LabelCacheImpl implements LabelCache {
                 }
             }
         }
-        if (pts.size() == 0) return null;
+        if (pts.isEmpty()) return null;
 
         // do better metric than this:
         return pts.get(0);
@@ -1799,7 +1839,7 @@ public class LabelCacheImpl implements LabelCache {
         for (Geometry g : geoms) {
             accumulateLineStrings(g, lines);
         }
-        if (lines.size() == 0) return null;
+        if (lines.isEmpty()) return null;
 
         // clip all the lines to the current bounds
         List<LineString> clippedLines = new ArrayList<>();
@@ -1843,16 +1883,16 @@ public class LabelCacheImpl implements LabelCache {
             clippedLines = cleanedLines;
         }
 
-        if (clippedLines == null || clippedLines.size() == 0) return null;
+        if (clippedLines == null || clippedLines.isEmpty()) return null;
 
         // at this point "lines" now is a list of linestring
         // join this algo doesnt always do what you want it to do, but its
         // pretty good
         List<LineString> merged = mergeLines(clippedLines);
 
-        // clippedLines is a list of LineString, all cliped (hopefully) to the
+        // clippedLines is a list of LineString, all clipped (hopefully) to the
         // display geometry. we choose longest one
-        if (merged.size() == 0) return null;
+        if (merged.isEmpty()) return null;
 
         // sort have the longest lines first
         Collections.sort(merged, new LineLengthComparator());
@@ -1961,7 +2001,7 @@ public class LabelCacheImpl implements LabelCache {
                 }
             }
         }
-        if (polys.size() == 0) return null;
+        if (polys.isEmpty()) return null;
 
         // at this point "polys" is a list of polygons. Clip them
         List<Polygon> clippedPolys = new ArrayList<>();
@@ -1983,14 +2023,14 @@ public class LabelCacheImpl implements LabelCache {
 
         // clippedPolys is a list of Polygon, all cliped (hopefully) to the
         // display geometry. we choose largest one
-        if (clippedPolys.size() == 0) {
+        if (clippedPolys.isEmpty()) {
             return null;
         }
         double maxSize = -1;
         Polygon maxPoly = null;
         Polygon cpoly;
-        for (int t = 0; t < clippedPolys.size(); t++) {
-            cpoly = clippedPolys.get(t);
+        for (Polygon clippedPoly : clippedPolys) {
+            cpoly = clippedPoly;
             final double area = cpoly.getArea();
             if (area > maxSize) {
                 maxPoly = cpoly;
@@ -2057,7 +2097,7 @@ public class LabelCacheImpl implements LabelCache {
         }
 
         // convert to multipoly
-        if (polys.size() == 0) return null;
+        if (polys.isEmpty()) return null;
 
         return poly.getFactory().createMultiPolygon(polys.toArray(new Polygon[1]));
     }
@@ -2074,7 +2114,7 @@ public class LabelCacheImpl implements LabelCache {
         @SuppressWarnings("unchecked")
         List<LineString> merged = new ArrayList<>(lm.getMergedLineStrings());
 
-        if (merged.size() == 0) {
+        if (merged.isEmpty()) {
             return null; // shouldnt happen
         } else if (merged.size() == 1) { // simple case - no need to continue
             // merging
@@ -2125,19 +2165,19 @@ public class LabelCacheImpl implements LabelCache {
             List<LineString> nodeList2 = nodes.get(key2);
 
             // case 1 -- this line is independent
-            if ((nodeList.size() == 0) && (nodeList2.size() == 0)) {
+            if ((nodeList.isEmpty()) && (nodeList2.isEmpty())) {
                 result.add(ls);
                 index++; // move to next line
                 continue;
             }
 
-            if (nodeList.size() > 0) // touches something at the start
+            if (!nodeList.isEmpty()) // touches something at the start
             {
                 LineString ls2 = getLongest(nodeList); // merge with this one
                 ls = merge(ls, ls2);
                 removeFromHash(nodes, ls2);
             }
-            if (nodeList2.size() > 0) // touches something at the start
+            if (!nodeList2.isEmpty()) // touches something at the start
             {
                 LineString ls2 = getLongest(nodeList2); // merge with this one
                 ls = merge(ls, ls2);
@@ -2234,6 +2274,7 @@ public class LabelCacheImpl implements LabelCache {
 
     /** sorts a list of LineStrings by length (long=1st) */
     private final class LineLengthComparator implements java.util.Comparator<LineString> {
+        @Override
         public int compare(LineString o1, LineString o2) {
             // sort big->small
             return Double.compare(o2.getLength(), o1.getLength());

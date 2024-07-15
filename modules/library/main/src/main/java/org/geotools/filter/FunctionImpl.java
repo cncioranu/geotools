@@ -23,17 +23,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.ExpressionVisitor;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.parameter.Parameter;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.geotools.filter.expression.ExpressionAbstract;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.ExpressionVisitor;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.parameter.Parameter;
 
 /**
  * Default implementation of a Function; you may extend this class to implement specific
@@ -65,6 +65,7 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
      *
      * @return the name of the function.
      */
+    @Override
     public String getName() {
         if (name == null && functionName != null) {
             return functionName.getName();
@@ -72,6 +73,7 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
         return name;
     }
 
+    @Override
     public synchronized FunctionName getFunctionName() {
         if (functionName == null) {
             functionName = new FunctionNameImpl(name, getParameters().size());
@@ -85,6 +87,7 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
     }
 
     /** Returns the function parameters. */
+    @Override
     public List<Expression> getParameters() {
         return new ArrayList<>(params);
     }
@@ -97,6 +100,7 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
      * @param object Object being evaluated; often a Feature
      * @return value for the provided object
      */
+    @Override
     public Object evaluate(Object object) {
         if (fallbackValue != null) {
             return fallbackValue.evaluate(object);
@@ -106,7 +110,6 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
     }
 
     /** Sets the function parameters. */
-    @SuppressWarnings("unchecked")
     public void setParameters(List<Expression> params) {
         this.params = params == null ? Collections.emptyList() : new ArrayList<>(params);
     }
@@ -115,10 +118,12 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
         this.fallbackValue = fallbackValue;
     }
 
+    @Override
     public Literal getFallbackValue() {
         return fallbackValue;
     }
 
+    @Override
     public Object accept(ExpressionVisitor visitor, Object extraData) {
         return visitor.visit(this, extraData);
     }
@@ -128,14 +133,15 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
      * The String created should be good for most subclasses
      */
     // Copied from FunctionExpressionImpl KS
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(getName());
         sb.append("(");
-        List<org.opengis.filter.expression.Expression> params = getParameters();
+        List<org.geotools.api.filter.expression.Expression> params = getParameters();
         if (params != null) {
-            org.opengis.filter.expression.Expression exp;
-            for (Iterator<org.opengis.filter.expression.Expression> it = params.iterator();
+            org.geotools.api.filter.expression.Expression exp;
+            for (Iterator<org.geotools.api.filter.expression.Expression> it = params.iterator();
                     it.hasNext(); ) {
                 exp = it.next();
                 sb.append("[");
@@ -198,7 +204,7 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
      * Gathers up and groups the parameters to the function based on the declared parameters.
      *
      * <p>This method calls {@link #validateArguments()} which enforces java style argument
-     * conventions for multi valued parameters. Basically enforcing that only teh last argument in a
+     * conventions for multi valued parameters. Basically enforcing that only the last argument in a
      * function can be variable.
      */
     protected LinkedHashMap<String, Object> dispatchArguments(Object obj) {
@@ -263,7 +269,7 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
     }
 
     /** filter factory */
-    static FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+    static FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
     /** regex for parameter specification */
     static Pattern PARAM = Pattern.compile("(\\w+)(?::([\\.\\w]*)(?::(\\d*),(\\d*))?+)?+");
@@ -377,7 +383,7 @@ public class FunctionImpl extends ExpressionAbstract implements Function {
             max = !"".equals(grp) ? Integer.parseInt(grp) : -1;
         }
 
-        return new org.geotools.data.Parameter<>(name, type, min, max);
+        return new org.geotools.api.data.Parameter<>(name, type, min, max);
     }
 
     @Override

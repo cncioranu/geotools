@@ -29,8 +29,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.data.Parameter;
-import org.geotools.data.Query;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.coverage.grid.GridGeometry;
+import org.geotools.api.data.Parameter;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.util.InternationalString;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.process.Process;
 import org.geotools.process.ProcessException;
 import org.geotools.process.ProcessFactory;
@@ -38,12 +44,6 @@ import org.geotools.process.RenderingProcess;
 import org.geotools.util.Converters;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.coverage.grid.GridGeometry;
-import org.opengis.feature.type.Name;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.util.InternationalString;
-import org.opengis.util.ProgressListener;
 
 /**
  * A process factory that uses annotations to determine much of the metadata needed to describe a
@@ -69,18 +69,15 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
     InternationalString title;
 
     private static Map<Class, Class> PRIMITIVE_MAPPER =
-            new HashMap<Class, Class>() {
-                {
-                    put(boolean.class, Boolean.class);
-                    put(char.class, Character.class);
-                    put(byte.class, Byte.class);
-                    put(short.class, Short.class);
-                    put(int.class, Integer.class);
-                    put(long.class, Long.class);
-                    put(double.class, Double.class);
-                    put(float.class, Float.class);
-                }
-            };
+            Map.of(
+                    boolean.class, Boolean.class,
+                    char.class, Character.class,
+                    byte.class, Byte.class,
+                    short.class, Short.class,
+                    int.class, Integer.class,
+                    long.class, Long.class,
+                    double.class, Double.class,
+                    float.class, Float.class);
 
     public AnnotationDrivenProcessFactory(InternationalString title, String namespace) {
         this.namespace = namespace;
@@ -91,10 +88,12 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
 
     protected abstract Method method(String localPart);
 
+    @Override
     public InternationalString getTitle() {
         return title;
     }
 
+    @Override
     public InternationalString getDescription(Name name) {
         DescribeProcess info = getProcessDescription(name);
         if (info != null) {
@@ -104,6 +103,7 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
         }
     }
 
+    @Override
     public Map<String, Parameter<?>> getParameterInfo(Name name) {
         // build the parameter descriptions by using the DescribeParameter
         // annotations
@@ -135,6 +135,7 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
         return paramTypes;
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     public Map<String, Parameter<?>> getResultInfo(Name name, Map<String, Object> parameters)
             throws IllegalArgumentException {
@@ -201,6 +202,7 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
         result.put(resultParam.key, resultParam);
     }
 
+    @Override
     public InternationalString getTitle(Name name) {
         DescribeProcess info = getProcessDescription(name);
         if (info != null) {
@@ -210,6 +212,7 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
         }
     }
 
+    @Override
     public String getVersion(Name name) {
         DescribeProcess info = getProcessDescription(name);
         if (info != null) {
@@ -219,14 +222,17 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
         }
     }
 
+    @Override
     public boolean supportsProgress(Name name) {
         return false;
     }
 
+    @Override
     public boolean isAvailable() {
         return true;
     }
 
+    @Override
     public Map<Key, ?> getImplementationHints() {
         return null;
     }
@@ -454,10 +460,11 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
      * <p>Subclasses can control the process using their implementation of:
      *
      * <ul>
-     *   <li>{@ #method(String)}: must return a non null method
+     *   <li>{@link #method(String)}: must return a non null method
      *   <li>{@link #createProcessBean(Name)}: return a bean to use; or null for static methods
      * </ul>
      */
+    @Override
     public Process create(Name name) {
         String methodName = name.getLocalPart();
         Method meth = method(methodName);
@@ -610,6 +617,7 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
             this.targetObject = targetObject;
         }
 
+        @Override
         @SuppressWarnings("unchecked")
         public Map<String, Object> execute(Map<String, Object> input, ProgressListener monitor)
                 throws ProcessException {
@@ -643,7 +651,7 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
             if (value instanceof Object[]) {
                 // handle the case the implementor used a positional array for
                 // returning multiple outputs
-                Object values[] = (Object[]) value;
+                Object[] values = (Object[]) value;
                 Map<String, Object> result = new LinkedHashMap<>();
                 int i = 0;
                 for (Annotation annotation : method.getAnnotations()) {
@@ -718,7 +726,7 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
             // build the array of arguments we'll use to invoke the method
             Class<?>[] paramTypes = getMethodParamTypes(method);
             Annotation[][] annotations = method.getParameterAnnotations();
-            Object args[] = new Object[paramTypes.length];
+            Object[] args = new Object[paramTypes.length];
             for (int i = 0; i < args.length; i++) {
                 if (ProgressListener.class.equals(paramTypes[i])) {
                     // pass in the monitor
@@ -821,6 +829,7 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
             super(method, targetObject);
         }
 
+        @Override
         public Query invertQuery(
                 Map<String, Object> input, Query targetQuery, GridGeometry targetGridGeometry)
                 throws ProcessException {
@@ -848,6 +857,7 @@ public abstract class AnnotationDrivenProcessFactory implements ProcessFactory {
             }
         }
 
+        @Override
         public GridGeometry invertGridGeometry(
                 Map<String, Object> input, Query targetQuery, GridGeometry targetGridGeometry)
                 throws ProcessException {

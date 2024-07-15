@@ -21,6 +21,8 @@ import javax.xml.namespace.QName;
 import net.opengis.wfs.IdentifierGenerationOptionType;
 import net.opengis.wfs.InsertElementType;
 import net.opengis.wfs.WfsFactory;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.FeatureCollection;
@@ -30,8 +32,6 @@ import org.geotools.wfs.WFS;
 import org.geotools.xsd.AbstractComplexEMFBinding;
 import org.geotools.xsd.ElementInstance;
 import org.geotools.xsd.Node;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.picocontainer.MutablePicoContainer;
 
 /**
@@ -121,6 +121,7 @@ public class InsertElementTypeBinding extends AbstractComplexEMFBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WFS.InsertElementType;
     }
@@ -132,10 +133,12 @@ public class InsertElementTypeBinding extends AbstractComplexEMFBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return InsertElementType.class;
     }
 
+    @Override
     public void initializeChildContext(
             ElementInstance childInstance, Node node, MutablePicoContainer context) {
         // if an srsName is set for this geometry, put it in the context for
@@ -159,6 +162,7 @@ public class InsertElementTypeBinding extends AbstractComplexEMFBinding {
      *
      * @generated modifiable
      */
+    @Override
     @SuppressWarnings("unchecked")
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         InsertElementType insertElement = wfsfactory.createInsertElementType();
@@ -203,6 +207,7 @@ public class InsertElementTypeBinding extends AbstractComplexEMFBinding {
         return insertElement;
     }
 
+    @Override
     public Object getProperty(Object object, QName name) throws Exception {
         InsertElementType insert = (InsertElementType) object;
 

@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import org.opengis.filter.capability.TemporalOperator;
-import org.opengis.filter.capability.TemporalOperators;
+import org.geotools.api.filter.capability.TemporalOperator;
+import org.geotools.api.filter.capability.TemporalOperators;
 
 public class TemporalOperatorsImpl implements TemporalOperators {
 
@@ -36,10 +36,12 @@ public class TemporalOperatorsImpl implements TemporalOperators {
         this.operators.addAll(operators);
     }
 
+    @Override
     public Collection<TemporalOperator> getOperators() {
         return operators;
     }
 
+    @Override
     public TemporalOperator getOperator(String name) {
         for (TemporalOperator op : operators) {
             if (op.getName().equals(name)) {

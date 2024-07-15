@@ -18,6 +18,7 @@ package org.geotools.metadata;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -26,10 +27,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.metadata.citation.Citation;
 import org.geotools.metadata.iso.citation.CitationImpl;
 import org.geotools.metadata.iso.citation.Citations;
 import org.junit.Test;
-import org.opengis.metadata.citation.Citation;
 
 /**
  * Tests the {@link MetadataStandard} class.
@@ -99,8 +100,8 @@ public final class MetadataStandardTest {
 
         map.remove("identifiers");
         final int newHashCode = citation.hashCode();
-        assertFalse(map.equals(copy));
-        assertFalse(hashCode == newHashCode);
+        assertNotEquals(map, copy);
+        assertNotEquals(hashCode, newHashCode);
         assertEquals(newHashCode, new HashSet<>(map.values()).hashCode());
     }
 }

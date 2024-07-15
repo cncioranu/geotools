@@ -23,7 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.jface.wizard.Wizard;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
 import org.geotools.util.URLs;
 
 /**
@@ -55,8 +55,7 @@ public class JParameterListWizard extends Wizard {
             List<Parameter<?>> contents,
             Map<String, Object> connectionParams) {
 
-        this.connectionParameters =
-                connectionParams == null ? new HashMap<>() : connectionParams;
+        this.connectionParameters = connectionParams == null ? new HashMap<>() : connectionParams;
         fillInDefaults(contents, this.connectionParameters);
 
         List<Parameter<?>> userContents = contentsForLevel(contents, "user");

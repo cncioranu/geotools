@@ -17,16 +17,16 @@
 package org.geotools.referencing.operation.transform;
 
 import java.io.Serializable;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform1D;
+import org.geotools.api.referencing.operation.Matrix;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.referencing.operation.LinearTransform;
 import org.geotools.referencing.operation.matrix.Matrix1;
 import org.geotools.referencing.operation.matrix.Matrix2;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform1D;
-import org.opengis.referencing.operation.Matrix;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A one dimensional, linear transform. Input values <var>x</var> are converted into output values
@@ -108,16 +108,19 @@ public class LinearTransform1D extends AbstractMathTransform
     }
 
     /** Gets the dimension of input points, which is 1. */
+    @Override
     public int getSourceDimensions() {
         return 1;
     }
 
     /** Gets the dimension of output points, which is 1. */
+    @Override
     public int getTargetDimensions() {
         return 1;
     }
 
     /** Returns this transform as an affine transform matrix. */
+    @Override
     public Matrix getMatrix() {
         return new Matrix2(scale, offset, 0, 1);
     }
@@ -129,8 +132,7 @@ public class LinearTransform1D extends AbstractMathTransform
             if (isIdentity()) {
                 inverse = this;
             } else if (scale != 0) {
-                final LinearTransform1D inverse;
-                inverse = create(1 / scale, -offset / scale);
+                final LinearTransform1D inverse = create(1 / scale, -offset / scale);
                 inverse.inverse = this;
                 this.inverse = inverse;
             } else {
@@ -153,6 +155,7 @@ public class LinearTransform1D extends AbstractMathTransform
      *
      * @since 2.3.1
      */
+    @Override
     public boolean isIdentity(double tolerance) {
         tolerance = Math.abs(tolerance);
         return Math.abs(offset) <= tolerance && Math.abs(scale - 1) <= tolerance;
@@ -164,16 +167,18 @@ public class LinearTransform1D extends AbstractMathTransform
      * is required and {@link Double#NaN} may be a legal output value for some users.
      */
     @Override
-    public Matrix derivative(final DirectPosition point) throws TransformException {
+    public Matrix derivative(final Position point) throws TransformException {
         return new Matrix1(scale);
     }
 
     /** Gets the derivative of this function at a value. */
+    @Override
     public double derivative(final double value) {
         return scale;
     }
 
     /** Transforms the specified value. */
+    @Override
     public double transform(double value) {
         return offset + scale * value;
     }
@@ -196,6 +201,7 @@ public class LinearTransform1D extends AbstractMathTransform
     }
 
     /** Transforms a list of coordinate point ordinal values. */
+    @Override
     public void transform(
             final double[] srcPts, int srcOff, final double[] dstPts, int dstOff, int numPts) {
         if (srcPts != dstPts || srcOff >= dstOff) {

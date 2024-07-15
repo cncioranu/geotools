@@ -22,6 +22,10 @@ import static org.junit.Assert.assertNotNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.mbstyle.MapboxTestUtils;
@@ -31,10 +35,6 @@ import org.json.simple.JSONObject;
 import org.junit.Before;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Abstract Test class the implements common/shared functionality for setting up tests for the
@@ -60,13 +60,12 @@ public abstract class AbstractMBExpressionTest {
 
     protected Map<String, JSONObject> testLayersById = new HashMap<>();
     protected MBObjectParser parse;
-    protected FilterFactory2 ff;
+    protected FilterFactory ff;
     protected JSONObject mbstyle;
     protected SimpleFeature[] testFeatures;
     protected final GeometryFactory geometryFactory = new GeometryFactory();
-    protected final int[] intVals = new int[] {4, 90, 20, 43, 29, -61, 8, 12};
-    protected final double[] doubleVals =
-            new double[] {11.11, 22.22, 99.9, 78.654, 0.01, 100.0, -4.2, 44.44};
+    protected final int[] intVals = {4, 90, 20, 43, 29, -61, 8, 12};
+    protected final double[] doubleVals = {11.11, 22.22, 99.9, 78.654, 0.01, 100.0, -4.2, 44.44};
 
     @Before
     public void setUp() throws Exception {

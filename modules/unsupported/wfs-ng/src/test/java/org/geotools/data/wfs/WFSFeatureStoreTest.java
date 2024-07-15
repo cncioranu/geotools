@@ -27,12 +27,17 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 import javax.xml.namespace.QName;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.identity.FeatureId;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
 import org.geotools.data.memory.MemoryFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.store.ContentFeatureCollection;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.data.wfs.integration.IntegrationTestWFSClient;
@@ -50,12 +55,6 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.identity.FeatureId;
 
 public class WFSFeatureStoreTest {
 
@@ -96,7 +95,7 @@ public class WFSFeatureStoreTest {
     @Test
     public void testAddFeaturesAutoCommit() throws Exception {
         GeometryFactory geomfac = new GeometryFactory(new PrecisionModel(10));
-        FilterFactory2 filterfac = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterfac = CommonFactoryFinder.getFilterFactory();
 
         ContentFeatureSource source =
                 (ContentFeatureSource) dataStore.getFeatureSource(simpleTypeName1);
@@ -141,7 +140,7 @@ public class WFSFeatureStoreTest {
     @Test
     public void testRemoveFeaturesAutoCommit() throws Exception {
 
-        FilterFactory2 filterfac = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterfac = CommonFactoryFinder.getFilterFactory();
 
         ContentFeatureSource source =
                 (ContentFeatureSource) dataStore.getFeatureSource(simpleTypeName1);
@@ -162,7 +161,7 @@ public class WFSFeatureStoreTest {
     @Test
     public void testUpdateFeaturesAutoCommit() throws Exception {
 
-        FilterFactory2 filterfac = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterfac = CommonFactoryFinder.getFilterFactory();
 
         ContentFeatureSource source =
                 (ContentFeatureSource) dataStore.getFeatureSource(simpleTypeName1);
@@ -184,7 +183,7 @@ public class WFSFeatureStoreTest {
     @Test
     public void testTransaction() throws Exception {
         GeometryFactory geomfac = new GeometryFactory(new PrecisionModel(10));
-        FilterFactory2 filterfac = CommonFactoryFinder.getFilterFactory2();
+        FilterFactory filterfac = CommonFactoryFinder.getFilterFactory();
 
         ContentFeatureSource source =
                 (ContentFeatureSource) dataStore.getFeatureSource(simpleTypeName1);
@@ -207,50 +206,45 @@ public class WFSFeatureStoreTest {
 
         collection.add(feat);
 
-        Transaction transaction = new DefaultTransaction();
-        store.setTransaction(transaction);
+        try (Transaction transaction = new DefaultTransaction()) {
+            store.setTransaction(transaction);
 
-        List<FeatureId> fids = store.addFeatures((SimpleFeatureCollection) collection);
-        assertEquals(1, fids.size());
+            List<FeatureId> fids = store.addFeatures((SimpleFeatureCollection) collection);
+            assertEquals(1, fids.size());
 
-        Filter filterRemove = filterfac.id(filterfac.featureId("poi.2"));
-        store.removeFeatures(filterRemove);
+            Filter filterRemove = filterfac.id(filterfac.featureId("poi.2"));
+            store.removeFeatures(filterRemove);
 
-        Filter filterUpdate = filterfac.id(filterfac.featureId("poi.3"));
-        store.modifyFeatures("NAME", "blah", filterUpdate);
+            Filter filterUpdate = filterfac.id(filterfac.featureId("poi.3"));
+            store.modifyFeatures("NAME", "blah", filterUpdate);
 
-        transaction.commit();
+            transaction.commit();
 
-        ContentFeatureCollection coll = store.getFeatures();
-        SimpleFeatureIterator it = coll.features();
-        // while (it.hasNext()) {
-        // System.err.println(it.next());
-        // }
-        assertEquals(3, coll.size());
+            ContentFeatureCollection coll = store.getFeatures();
+            assertEquals(3, coll.size());
 
-        coll =
-                store.getFeatures(
-                        new Query(
-                                simpleTypeName1.getLocalPart(),
-                                filterfac.equals(
-                                        filterfac.property("NAME"), filterfac.literal("mypoint"))));
-        it = coll.features();
-        // while (it.hasNext()) {
-        // System.err.println(it.next());
-        // }
-        assertEquals(1, coll.size());
+            coll =
+                    store.getFeatures(
+                            new Query(
+                                    simpleTypeName1.getLocalPart(),
+                                    filterfac.equals(
+                                            filterfac.property("NAME"),
+                                            filterfac.literal("mypoint"))));
 
-        SimpleFeature feature = coll.features().next();
-        assertEquals(feat.getAttributes(), feature.getAttributes());
+            assertEquals(1, coll.size());
 
-        coll = store.getFeatures(new Query(simpleTypeName1.getLocalPart(), filterRemove));
-        assertEquals(0, coll.size());
+            SimpleFeature feature = coll.features().next();
+            assertEquals(feat.getAttributes(), feature.getAttributes());
 
-        coll = store.getFeatures(new Query(simpleTypeName1.getLocalPart(), filterUpdate));
-        assertEquals(1, coll.size());
+            coll = store.getFeatures(new Query(simpleTypeName1.getLocalPart(), filterRemove));
+            assertEquals(0, coll.size());
 
-        feature = coll.features().next();
-        assertEquals("blah", feature.getAttribute("NAME"));
+            coll = store.getFeatures(new Query(simpleTypeName1.getLocalPart(), filterUpdate));
+            assertEquals(1, coll.size());
+
+            feature = coll.features().next();
+            assertEquals("blah", feature.getAttribute("NAME"));
+        }
     }
 
     /** Tests that WFS Transactions causing an ExceptionReport also end in a proper WFSException. */
@@ -276,13 +270,12 @@ public class WFSFeatureStoreTest {
 
         collection.add(feat);
 
-        Transaction transaction = new DefaultTransaction();
-        store.setTransaction(transaction);
+        try (Transaction transaction = new DefaultTransaction()) {
+            store.setTransaction(transaction);
 
-        List<FeatureId> fids = store.addFeatures((SimpleFeatureCollection) collection);
-        assertEquals(1, fids.size());
+            List<FeatureId> fids = store.addFeatures((SimpleFeatureCollection) collection);
+            assertEquals(1, fids.size());
 
-        try {
             transaction.commit();
         } catch (WFSException e) {
             // WFS 1.0.0: Parser fails to parse the response properly
@@ -291,7 +284,7 @@ public class WFSFeatureStoreTest {
             // So here, in WFS 1.0 case textual information is available only.
             StringWriter writer = new StringWriter();
             PrintWriter printer = new PrintWriter(writer);
-            e.printStackTrace(printer);
+            e.printStackTrace(printer); // NOPMD
             printer.close();
             assertTrue(writer.toString().contains("MyErrorMessage"));
             return;

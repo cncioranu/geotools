@@ -22,36 +22,37 @@ package org.geotools.referencing.wkt;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.text.FieldPosition;
+import java.text.MessageFormat;
 import java.text.NumberFormat;
 import java.util.Collection;
 import java.util.Locale;
 import javax.measure.IncommensurableException;
 import javax.measure.UnconvertibleException;
 import javax.measure.Unit;
-import javax.measure.format.UnitFormat;
 import javax.measure.quantity.Angle;
 import javax.measure.quantity.Length;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.IdentifiedObject;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.datum.Datum;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.OperationMethod;
+import org.geotools.api.util.CodeList;
+import org.geotools.api.util.GenericName;
+import org.geotools.api.util.InternationalString;
+import org.geotools.measure.UnitFormatter;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.metadata.math.XMath;
+import org.geotools.referencing.CRS;
 import org.geotools.util.Arguments;
 import org.geotools.util.Utilities;
 import org.geotools.util.X364;
-import org.opengis.metadata.Identifier;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.IdentifiedObject;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.datum.Datum;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.OperationMethod;
-import org.opengis.util.CodeList;
-import org.opengis.util.GenericName;
-import org.opengis.util.InternationalString;
 import si.uom.SI;
 import tech.units.indriya.AbstractUnit;
 
@@ -62,7 +63,7 @@ import tech.units.indriya.AbstractUnit;
  *
  * <p>A formatter is constructed with a specified set of symbols. The {@linkplain Locale locale}
  * associated with the symbols is used for querying {@linkplain
- * org.opengis.metadata.citation.Citation#getTitle authority titles}.
+ * org.geotools.api.metadata.citation.Citation#getTitle authority titles}.
  *
  * @since 2.0
  * @version $Id$
@@ -78,7 +79,7 @@ public class Formatter {
      *
      * @see #authorityAllowed
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "PMD.UseShortArrayInitializer"})
     private static final Class<? extends IdentifiedObject>[] AUTHORITY_EXCLUDE =
             new Class[] {CoordinateSystemAxis.class};
 
@@ -134,14 +135,17 @@ public class Formatter {
 
     public void setAuthority(Citation authority) {
         this.authority = authority;
-        this.unitFormat = GeoToolsCRSUnitFormat.getInstance(authority);
+        this.unitFormatter =
+                CRS.equalsIgnoreMetadata(Citations.ESRI, authority)
+                        ? EsriUnitFormat.getInstance()
+                        : EpsgUnitFormat.getInstance();
     }
 
     /** The object to use for formatting numbers. */
     private final NumberFormat numberFormat;
 
     /** The object to use for formatting units. */
-    private UnitFormat unitFormat = GeoToolsCRSUnitFormat.getInstance(Citations.EPSG);
+    private UnitFormatter unitFormatter = EpsgUnitFormat.getInstance();
 
     /** Dummy field position. */
     private final FieldPosition dummy = new FieldPosition(0);
@@ -184,7 +188,7 @@ public class Formatter {
 
     /**
      * Non-null if the WKT is invalid. If non-null, then this field contains the interface class of
-     * the problematic part (e.g. {@link org.opengis.referencing.crs.EngineeringCRS}).
+     * the problematic part (e.g. {@link org.geotools.api.referencing.crs.EngineeringCRS}).
      */
     private Class<?> unformattable;
 
@@ -219,11 +223,12 @@ public class Formatter {
         this.indentation = indentation;
         if (symbols == null) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.NULL_ARGUMENT_$1, "symbols"));
+                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "symbols"));
         }
         if (indentation < 0) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "indentation", indentation));
+                    MessageFormat.format(
+                            ErrorKeys.ILLEGAL_ARGUMENT_$2, "indentation", indentation));
         }
         numberFormat = (NumberFormat) symbols.numberFormat.clone();
         buffer = new StringBuffer();
@@ -579,7 +584,7 @@ public class Formatter {
                 buffer.append("UNIT").append(symbols.open);
                 setColor(UNIT_COLOR);
                 buffer.append(symbols.quote);
-                unitFormat.format(unit, buffer);
+                unitFormatter.format(unit, buffer);
                 buffer.append(symbols.quote);
                 resetColor();
                 Unit<?> base = null;
@@ -649,8 +654,8 @@ public class Formatter {
 
     /** Tells if an {@code "AUTHORITY"} element is allowed for the specified object. */
     private static boolean authorityAllowed(final IdentifiedObject info) {
-        for (int i = 0; i < AUTHORITY_EXCLUDE.length; i++) {
-            if (AUTHORITY_EXCLUDE[i].isInstance(info)) {
+        for (Class<? extends IdentifiedObject> aClass : AUTHORITY_EXCLUDE) {
+            if (aClass.isInstance(info)) {
                 return false;
             }
         }
@@ -760,7 +765,8 @@ public class Formatter {
      */
     public void setLinearUnit(final Unit<Length> unit) {
         if (unit != null && !SI.METRE.isCompatible(unit)) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NON_LINEAR_UNIT_$1, unit));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NON_LINEAR_UNIT_$1, unit));
         }
         linearUnit = unit;
     }
@@ -783,7 +789,8 @@ public class Formatter {
      */
     public void setAngularUnit(final Unit<Angle> unit) {
         if (unit != null && (!SI.RADIAN.isCompatible(unit) || AbstractUnit.ONE.equals(unit))) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.NON_ANGULAR_UNIT_$1, unit));
+            throw new IllegalArgumentException(
+                    MessageFormat.format(ErrorKeys.NON_ANGULAR_UNIT_$1, unit));
         }
         angularUnit = unit;
     }
@@ -822,7 +829,7 @@ public class Formatter {
      * #isInvalidWKT} later for checking WKT validity.
      *
      * @param unformattable The type of the component that can't be formatted, for example {@link
-     *     org.opengis.referencing.crs.EngineeringCRS}.
+     *     org.geotools.api.referencing.crs.EngineeringCRS}.
      * @see UnformattableObjectException#getUnformattableClass
      * @since 2.4
      */
@@ -869,7 +876,7 @@ public class Formatter {
      *
      * @param args The command-line arguments.
      */
-    public static void main(String[] args) {
+    public static void main(String... args) {
         final Arguments arguments = new Arguments(args);
         final int indentation = arguments.getRequiredInteger(Formattable.INDENTATION);
         arguments.getRemainingArguments(0);

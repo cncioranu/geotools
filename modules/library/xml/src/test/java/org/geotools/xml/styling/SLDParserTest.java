@@ -25,35 +25,34 @@ import static org.junit.Assert.fail;
 import java.awt.Color;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.style.ContrastEnhancement;
+import org.geotools.api.style.ContrastMethod;
+import org.geotools.api.style.ExternalGraphic;
+import org.geotools.api.style.FeatureTypeStyle;
+import org.geotools.api.style.GraphicalSymbol;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.PointSymbolizer;
+import org.geotools.api.style.RasterSymbolizer;
+import org.geotools.api.style.ResourceLocator;
+import org.geotools.api.style.Rule;
+import org.geotools.api.style.Stroke;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.Symbolizer;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.styling.ContrastEnhancement;
-import org.geotools.styling.ExternalGraphic;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Mark;
-import org.geotools.styling.PointSymbolizer;
-import org.geotools.styling.ResourceLocator;
-import org.geotools.styling.Rule;
-import org.geotools.styling.Stroke;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
-import org.geotools.styling.Symbolizer;
 import org.junit.Test;
-import org.opengis.filter.expression.Expression;
-import org.opengis.style.ContrastMethod;
-import org.opengis.style.GraphicalSymbol;
-import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
 
 public class SLDParserTest {
 
@@ -75,6 +74,27 @@ public class SLDParserTest {
                     + "  </UserStyle>"
                     + " </NamedLayer>"
                     + "</StyledLayerDescriptor>";
+
+    public static String SLDWithNamespace =
+            "<sld:StyledLayerDescriptor xmlns=\"http://www.opengis.net/sld\" xmlns:sld=\"http://www.opengis.net/sld\" "
+                    + "version=\"1.0.0\">"
+                    + "  <sld:NamedLayer>"
+                    + "    <sld:Name>layer</sld:Name>"
+                    + "    <sld:UserStyle>"
+                    + "      <sld:Name>style</sld:Name>"
+                    + "      <sld:FeatureTypeStyle>"
+                    + "        <sld:Name>name</sld:Name>"
+                    + "        <sld:Rule>"
+                    + "          <sld:PolygonSymbolizer>"
+                    + "            <sld:Fill>"
+                    + "              <sld:CssParameter name=\"fill\">#FF0000</sld:CssParameter>"
+                    + "            </sld:Fill>"
+                    + "          </sld:PolygonSymbolizer>"
+                    + "        </sld:Rule>"
+                    + "      </sld:FeatureTypeStyle>"
+                    + "    </sld:UserStyle>"
+                    + "  </sld:NamedLayer>"
+                    + "</sld:StyledLayerDescriptor>";
 
     public static String LocalizedSLD =
             "<StyledLayerDescriptor xmlns=\"http://www.opengis.net/sld\" version=\"1.0.0\">"
@@ -105,6 +125,31 @@ public class SLDParserTest {
                     + "  </UserStyle>"
                     + " </NamedLayer>"
                     + "</StyledLayerDescriptor>";
+
+    public static String LocalizedSLDWithNamespace =
+            "<sld:StyledLayerDescriptor xmlns=\"http://www.opengis.net/sld\" xmlns:sld=\"http://www.opengis.net/sld\" "
+                    + "version=\"1.0.0\">"
+                    + "  <sld:NamedLayer>"
+                    + "    <sld:Name>style</sld:Name>"
+                    + "    <sld:UserStyle>"
+                    + "      <sld:Name>style</sld:Name>"
+                    + "      <sld:FeatureTypeStyle>"
+                    + "        <sld:Name>name</sld:Name>"
+                    + "        <sld:Rule>"
+                    + "          <sld:Title>sldtitle"
+                    + "            <sld:Localized lang=\"en\">english</sld:Localized>"
+                    + "          </sld:Title>"
+                    + "          <sld:Abstract>sld abstract</sld:Abstract>"
+                    + "          <sld:PolygonSymbolizer>"
+                    + "            <sld:Fill>"
+                    + "              <sld:CssParameter name=\"fill\">#FF0000</sld:CssParameter>"
+                    + "            </sld:Fill>"
+                    + "          </sld:PolygonSymbolizer>"
+                    + "        </sld:Rule>"
+                    + "      </sld:FeatureTypeStyle>"
+                    + "    </sld:UserStyle>"
+                    + "  </sld:NamedLayer>"
+                    + "</sld:StyledLayerDescriptor>";
 
     public static String EmptyTitleSLD =
             "<StyledLayerDescriptor xmlns=\"http://www.opengis.net/sld\" version=\"1.0.0\">"
@@ -375,11 +420,74 @@ public class SLDParserTest {
                     + "    </UserStyle>\n"
                     + "</StyledLayerDescriptor>";
 
+    static String SLD_RASTER_SYMBOLIZER_WITH_VENDOR_OPTIONS =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                    + "<StyledLayerDescriptor version=\"1.0.0\" \n"
+                    + "        xsi:schemaLocation=\"http://www.opengis.net/sld StyledLayerDescriptor.xsd\" \n"
+                    + "        xmlns=\"http://www.opengis.net/sld\" xmlns:ogc=\"http://www.opengis.net/ogc\" \n"
+                    + "        xmlns:xlink=\"http://www.w3.org/1999/xlink\" \n"
+                    + "        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n"
+                    + "    <UserStyle>\n"
+                    + "        <Name>Default Styler</Name>\n"
+                    + "        <Title>Default Styler</Title>\n"
+                    + "        <Abstract></Abstract>\n"
+                    + "        <FeatureTypeStyle>\n"
+                    + "            <Rule>\n"
+                    + "                <RasterSymbolizer>\n"
+                    + "                    <ColorMap>\n"
+                    + "                     <ColorMapEntry color=\"#FF0000\" quantity=\"0\" />\n"
+                    + "                     <ColorMapEntry color=\"#FFFFFF\" quantity=\"100\"/>\n"
+                    + "                     <ColorMapEntry color=\"#00FF00\" quantity=\"2000\"/>\n"
+                    + "                     <ColorMapEntry color=\"#0000FF\" quantity=\"5000\"/>\n"
+                    + "                    </ColorMap>\n"
+                    + "					   <VendorOption name=\"FirstVendorOption\">FIRST_VENDOR_OPTION</VendorOption>\n"
+                    + "					   <VendorOption name=\"SecondVendorOption\">SECOND_VENDOR_OPTION</VendorOption>\n"
+                    + "                </RasterSymbolizer>\n"
+                    + "            </Rule>\n"
+                    + "        </FeatureTypeStyle>\n"
+                    + "    </UserStyle>\n"
+                    + "</StyledLayerDescriptor>";
+
+    static String SLD_RULE_WITH_VENDOR_OPTIONS =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                    + "<StyledLayerDescriptor version=\"1.0.0\" \n"
+                    + "        xsi:schemaLocation=\"http://www.opengis.net/sld StyledLayerDescriptor.xsd\" \n"
+                    + "        xmlns=\"http://www.opengis.net/sld\" xmlns:ogc=\"http://www.opengis.net/ogc\" \n"
+                    + "        xmlns:xlink=\"http://www.w3.org/1999/xlink\" \n"
+                    + "        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n"
+                    + "    <UserStyle>\n"
+                    + "        <Name>Default Styler</Name>\n"
+                    + "        <Title>Default Styler</Title>\n"
+                    + "        <Abstract></Abstract>\n"
+                    + "        <FeatureTypeStyle>\n"
+                    + "            <Rule>\n"
+                    + "                <RasterSymbolizer>\n"
+                    + "                    <ColorMap>\n"
+                    + "                     <ColorMapEntry color=\"#FF0000\" quantity=\"0\" />\n"
+                    + "                     <ColorMapEntry color=\"#FFFFFF\" quantity=\"100\"/>\n"
+                    + "                     <ColorMapEntry color=\"#00FF00\" quantity=\"2000\"/>\n"
+                    + "                     <ColorMapEntry color=\"#0000FF\" quantity=\"5000\"/>\n"
+                    + "                    </ColorMap>\n"
+                    + "                </RasterSymbolizer>\n"
+                    + "			       <VendorOption name=\"FirstVendorOption\">FIRST_VENDOR_OPTION</VendorOption>\n"
+                    + "				   <VendorOption name=\"SecondVendorOption\">SECOND_VENDOR_OPTION</VendorOption>\n"
+                    + "            </Rule>\n"
+                    + "        </FeatureTypeStyle>\n"
+                    + "    </UserStyle>\n"
+                    + "</StyledLayerDescriptor>";
+
     static StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
 
     @Test
     public void testBasic() throws Exception {
         SLDParser parser = new SLDParser(styleFactory, input(SLD));
+        Style[] styles = parser.readXML();
+        assertStyles(styles);
+    }
+
+    @Test
+    public void testWithNamespace() throws Exception {
+        SLDParser parser = new SLDParser(styleFactory, input(SLDWithNamespace));
         Style[] styles = parser.readXML();
         assertStyles(styles);
     }
@@ -522,6 +630,22 @@ public class SLDParserTest {
     }
 
     @Test
+    public void testLocalizedWithNamespace() throws Exception {
+        SLDParser parser = new SLDParser(styleFactory, input(LocalizedSLDWithNamespace));
+        Style[] styles = parser.readXML();
+        assertEquals(
+                "english",
+                styles[0]
+                        .featureTypeStyles()
+                        .get(0)
+                        .rules()
+                        .get(0)
+                        .getDescription()
+                        .getTitle()
+                        .toString(Locale.ENGLISH));
+    }
+
+    @Test
     public void testEmptyTitle() throws Exception {
         SLDParser parser = new SLDParser(styleFactory, input(EmptyTitleSLD));
         Style[] styles = parser.readXML();
@@ -629,6 +753,7 @@ public class SLDParserTest {
         parser.setOnLineResourceLocator(
                 new ResourceLocator() {
 
+                    @Override
                     public URL locateResource(String uri) {
                         assertEquals("test-data/blob.gif", uri);
                         return getClass().getResource(uri);
@@ -669,14 +794,7 @@ public class SLDParserTest {
         // system.
         // When resolving an XML entity, the empty InputSource returned by this resolver provokes
         // a MalformedURLException
-        parser.setEntityResolver(
-                new EntityResolver() {
-                    @Override
-                    public InputSource resolveEntity(String publicId, String systemId)
-                            throws SAXException, IOException {
-                        return new InputSource();
-                    }
-                });
+        parser.setEntityResolver((publicId, systemId) -> new InputSource());
 
         try {
             parser.readXML();
@@ -688,15 +806,11 @@ public class SLDParserTest {
         parser = new SLDParser(styleFactory, input(SLD_EXTERNALENTITY));
         // Set another EntityResolver
         parser.setEntityResolver(
-                new EntityResolver() {
-                    @Override
-                    public InputSource resolveEntity(String publicId, String systemId)
-                            throws SAXException, IOException {
-                        if ("file:///this/file/is/top/secret".equals(systemId)) {
-                            return new InputSource(new StringReader("hello"));
-                        } else {
-                            return new InputSource();
-                        }
+                (publicId, systemId) -> {
+                    if ("file:///this/file/is/top/secret".equals(systemId)) {
+                        return new InputSource(new StringReader("hello"));
+                    } else {
+                        return new InputSource();
                     }
                 });
 
@@ -709,7 +823,8 @@ public class SLDParserTest {
         DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
         org.w3c.dom.Document node =
                 builder.parse(
-                        new ByteArrayInputStream(formattedCssStrokeParameter.getBytes("UTF-8")));
+                        new ByteArrayInputStream(
+                                formattedCssStrokeParameter.getBytes(StandardCharsets.UTF_8)));
         SLDParser parser = new SLDParser(styleFactory);
         Stroke stroke = parser.parseStroke(node.getDocumentElement());
         // <strConcat([#], [env([stroke_color], [" + color + "])])>";
@@ -796,6 +911,42 @@ public class SLDParserTest {
 
         assertEquals(1, ps.getOptions().size());
         assertTrue(ps.getOptions().containsKey(OK_KEY));
+    }
+
+    @Test
+    public void testVendorOptionsInRasterSymbolizer() throws Exception {
+        // tests that VendorOptions placed under a RasterSymbolizer
+        // are correctly parsed
+        SLDParser parser =
+                new SLDParser(styleFactory, input(SLD_RASTER_SYMBOLIZER_WITH_VENDOR_OPTIONS));
+        Style[] styles = parser.readXML();
+        List<FeatureTypeStyle> fts = styles[0].featureTypeStyles();
+        List<Rule> rules = fts.get(0).rules();
+        List<Symbolizer> symbolizers = rules.get(0).symbolizers();
+
+        RasterSymbolizer ps = (RasterSymbolizer) symbolizers.get(0);
+
+        assertEquals(2, ps.getOptions().size());
+        assertTrue(ps.getOptions().containsKey("FirstVendorOption"));
+        assertTrue(ps.getOptions().containsKey("SecondVendorOption"));
+        assertEquals("FIRST_VENDOR_OPTION", ps.getOptions().get("FirstVendorOption"));
+        assertEquals("SECOND_VENDOR_OPTION", ps.getOptions().get("SecondVendorOption"));
+    }
+
+    @Test
+    public void testVendorOptionsInRule() throws Exception {
+        // tests that VendorOptions placed under a RasterSymbolizer
+        // are correctly parsed
+        SLDParser parser = new SLDParser(styleFactory, input(SLD_RULE_WITH_VENDOR_OPTIONS));
+        Style[] styles = parser.readXML();
+        List<FeatureTypeStyle> fts = styles[0].featureTypeStyles();
+        Rule rule = fts.get(0).rules().get(0);
+
+        assertEquals(2, rule.getOptions().size());
+        assertTrue(rule.getOptions().containsKey("FirstVendorOption"));
+        assertTrue(rule.getOptions().containsKey("SecondVendorOption"));
+        assertEquals("FIRST_VENDOR_OPTION", rule.getOptions().get("FirstVendorOption"));
+        assertEquals("SECOND_VENDOR_OPTION", rule.getOptions().get("SecondVendorOption"));
     }
 
     void assertStyles(Style[] styles) {

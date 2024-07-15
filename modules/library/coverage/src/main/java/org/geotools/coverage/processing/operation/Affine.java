@@ -29,16 +29,16 @@ import javax.media.jai.PropertyGenerator;
 import javax.media.jai.ROI;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.registry.RenderedRegistryMode;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.processing.BaseScaleOperationJAI;
 import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.image.ImageWorker;
 import org.geotools.util.factory.GeoTools;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.InternationalString;
 
 /**
  * This operation is simply a wrapper for the JAI Affine operation
@@ -120,12 +120,14 @@ public class Affine extends BaseScaleOperationJAI {
         return worker.getRenderedImage();
     }
 
+    @Override
     protected void handleJAIEXTParams(
             ParameterBlockJAI parameters, ParameterValueGroup parameters2) {
         GridCoverage2D source = (GridCoverage2D) parameters2.parameter("source0").getValue();
         handleROINoDataInternal(parameters, source, AFFINE, 3, 6);
     }
 
+    @Override
     protected Map<String, ?> getProperties(
             RenderedImage data,
             CoordinateReferenceSystem crs,

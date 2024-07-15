@@ -37,6 +37,19 @@ import javax.media.jai.InterpolationNearest;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
 import org.geotools.TestData;
+import org.geotools.api.coverage.grid.GridCoverageReader;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.metadata.spatial.PixelOrientation;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
@@ -57,25 +70,12 @@ import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.renderer.lite.RendererUtilities;
 import org.geotools.renderer.lite.StreamingRenderer;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyleFactory;
 import org.geotools.util.factory.GeoTools;
 import org.geotools.xml.styling.SLDParser;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.locationtech.jts.geom.Point;
-import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
 
 public class RasterAsPointCollectionProcessTest {
 
@@ -110,6 +110,10 @@ public class RasterAsPointCollectionProcessTest {
 
     private static final String NORTH = "N";
 
+    private static final String SOUTH = "S";
+
+    private static CoverageProcessor processor;
+
     private static GridCoverage2D coverage;
 
     private static GridCoverage2D inputCoverage;
@@ -131,8 +135,7 @@ public class RasterAsPointCollectionProcessTest {
         // Read the input Coverage
         inputCoverage = (GridCoverage2D) reader.read(null);
         // Reproject to the default WGS84 CRS
-        final CoverageProcessor processor =
-                CoverageProcessor.getInstance(GeoTools.getDefaultHints());
+        processor = CoverageProcessor.getInstance(GeoTools.getDefaultHints());
         final ParameterValueGroup param = processor.getOperation("Resample").getParameters();
         param.parameter("Source").setValue(inputCoverage);
         param.parameter("CoordinateReferenceSystem").setValue(DefaultGeographicCRS.WGS84);
@@ -311,6 +314,108 @@ public class RasterAsPointCollectionProcessTest {
         checkCollectionPoints(collection, hemisphere, scaleFactor, targetCRS);
     }
 
+    @Test
+    public void testCoverageInNorthEastCoordinatesNorthern() throws Exception {
+        // Load the test coverage cropped to the northern hemisphere and
+        // reprojected to LatLon coordinates
+        String wkt =
+                "GEOGCS[\"WGS 84\","
+                        + "DATUM[\"World Geodetic System 1984\","
+                        + "SPHEROID[\"WGS 84\", 6378137.0, 298.257223563, AUTHORITY[\"EPSG\",\"7030\"]],"
+                        + "AUTHORITY[\"EPSG\",\"6326\"]],"
+                        + "PRIMEM[\"Greenwich\", 0.0, AUTHORITY[\"EPSG\",\"8901\"]],"
+                        + "UNIT[\"degree\", 0.017453292519943295],"
+                        + "AXIS[\"Geodetic latitude\", NORTH],"
+                        + "AXIS[\"Geodetic longitude\", EAST],"
+                        + "AUTHORITY[\"EPSG\",\"4326\"]]";
+        CoordinateReferenceSystem crs = CRS.parseWKT(wkt);
+        GridCoverage2D coverage = readCropAndResampleCoverage(-180, 180, 0, 90, crs);
+        // Execution of the RasterAsPointCollectionProcess setting hemisphere
+        SimpleFeatureCollection collection = process.execute(coverage, null, null, null, true);
+        // Check if each point is in the northern hemisphere
+        assertPointsInHemisphere(coverage, collection, NORTH);
+    }
+
+    @Test
+    public void testCoverageInNorthEastCoordinatesSouthern() throws Exception {
+        // Load the test coverage cropped to the southern hemisphere and
+        // reprojected to LatLon coordinates
+        String wkt =
+                "GEOGCS[\"WGS 84\","
+                        + "DATUM[\"World Geodetic System 1984\","
+                        + "SPHEROID[\"WGS 84\", 6378137.0, 298.257223563, AUTHORITY[\"EPSG\",\"7030\"]],"
+                        + "AUTHORITY[\"EPSG\",\"6326\"]],"
+                        + "PRIMEM[\"Greenwich\", 0.0, AUTHORITY[\"EPSG\",\"8901\"]],"
+                        + "UNIT[\"degree\", 0.017453292519943295],"
+                        + "AXIS[\"Geodetic latitude\", NORTH],"
+                        + "AXIS[\"Geodetic longitude\", EAST],"
+                        + "AUTHORITY[\"EPSG\",\"4326\"]]";
+        CoordinateReferenceSystem crs = CRS.parseWKT(wkt);
+        GridCoverage2D coverage = readCropAndResampleCoverage(-180, 180, -90, -1, crs);
+        // Execution of the RasterAsPointCollectionProcess setting hemisphere
+        SimpleFeatureCollection collection = process.execute(coverage, null, null, null, true);
+        // Check if each point is in the southern hemisphere
+        assertPointsInHemisphere(coverage, collection, SOUTH);
+    }
+
+    @Test
+    public void testCoverageInPolarStereographicProjectionsNorthern() throws Exception {
+        // Load the test coverage cropped to the northern hemisphere polar stereographic
+        // projection area of validity and reprojected to the projection
+        CoordinateReferenceSystem crs = CRS.decode("EPSG:5041");
+        GridCoverage2D coverage = readCropAndResampleCoverage(-180, 180, 60, 90, crs);
+        // Execution of the RasterAsPointCollectionProcess setting hemisphere
+        SimpleFeatureCollection collection = process.execute(coverage, null, null, null, true);
+        // Check if each point is in the northern hemisphere
+        assertPointsInHemisphere(coverage, collection, NORTH);
+    }
+
+    @Test
+    public void testCoverageInPolarStereographicProjectionsSouthern() throws Exception {
+        // Load the test coverage cropped to the southern hemisphere polar stereographic
+        // projection area of validity and reprojected to the projection
+        CoordinateReferenceSystem crs = CRS.decode("EPSG:5042");
+        GridCoverage2D coverage = readCropAndResampleCoverage(-180, 180, -90, -60, crs);
+        // Execution of the RasterAsPointCollectionProcess setting hemisphere
+        SimpleFeatureCollection collection = process.execute(coverage, null, null, null, true);
+        // Check if each point is in the southern hemisphere
+        assertPointsInHemisphere(coverage, collection, SOUTH);
+    }
+
+    private GridCoverage2D readCropAndResampleCoverage(
+            double x1, double x2, double y1, double y2, CoordinateReferenceSystem outCRS)
+            throws IOException {
+        // Read the global coverage in LonLat coordinates
+        GeoTiffReader reader = new GeoTiffReader(TestData.file(this, "current.tif"));
+        GridCoverage2D coverage = reader.read(null);
+        reader.dispose();
+        // Crop the global coverage to the specified envelope
+        CoordinateReferenceSystem inCRS = coverage.getCoordinateReferenceSystem();
+        ParameterValueGroup param = processor.getOperation("CoverageCrop").getParameters();
+        param.parameter("Source").setValue(coverage);
+        param.parameter("Envelope").setValue(new ReferencedEnvelope(x1, x2, y1, y2, inCRS));
+        // Resample the coverage to to the specified coordinate system
+        coverage = (GridCoverage2D) processor.doOperation(param);
+        param = processor.getOperation("Resample").getParameters();
+        param.parameter("Source").setValue(coverage);
+        param.parameter("CoordinateReferenceSystem").setValue(outCRS);
+        return (GridCoverage2D) processor.doOperation(param);
+    }
+
+    private static void assertPointsInHemisphere(
+            GridCoverage2D coverage, SimpleFeatureCollection collection, String hemisphere) {
+        // Check if the points are exactly as the number of pixel number
+        int pixelNumber =
+                coverage.getRenderedImage().getHeight() * coverage.getRenderedImage().getWidth();
+        Assert.assertEquals(pixelNumber, collection.size());
+        // Check if each point is in the correct hemisphere
+        try (SimpleFeatureIterator it = collection.features()) {
+            while (it.hasNext()) {
+                Assert.assertEquals(hemisphere, it.next().getAttribute("emisphere"));
+            }
+        }
+    }
+
     private void checkCollectionPoints(
             SimpleFeatureCollection collection,
             boolean hemisphere,
@@ -321,13 +426,12 @@ public class RasterAsPointCollectionProcessTest {
         MathTransform2D w2g =
                 coverage.getGridGeometry().getCRSToGrid2D(PixelOrientation.UPPER_LEFT);
         // Iterator on the FeatureCollection
-        SimpleFeatureIterator it = collection.features();
         // Iterator on the input image
-        RandomIter imageIterator = RandomIterFactory.create(coverage.getRenderedImage(), null);
         // Boolean indicating that the TargetCRS is not null
-        boolean crsExists = targetCRS != null;
         // Cycle on the Collection
-        try {
+        try (SimpleFeatureIterator it = collection.features()) {
+            RandomIter imageIterator = RandomIterFactory.create(coverage.getRenderedImage(), null);
+            boolean crsExists = targetCRS != null;
             while (it.hasNext()) {
                 // Selection of the feature
                 SimpleFeature ft = it.next();
@@ -353,12 +457,8 @@ public class RasterAsPointCollectionProcessTest {
                 // Check the GridConvergenceAngle
                 if (crsExists) {
                     double angle = (double) ft.getAttribute("gridConvergenceAngleCorrection");
-                    Assert.assertTrue(angle != 0);
+                    Assert.assertNotEquals(0, angle);
                 }
-            }
-        } finally {
-            if (it != null) {
-                it.close();
             }
         }
     }

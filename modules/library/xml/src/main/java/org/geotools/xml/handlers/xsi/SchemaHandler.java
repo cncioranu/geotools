@@ -87,6 +87,7 @@ public class SchemaHandler extends XSIElementHandler {
     private Map<Object, String> prefixCache; // keys can be both strings and URIs
 
     /** @see java.lang.Object#hashCode() */
+    @Override
     @SuppressWarnings("PMD.OverrideBothEqualsAndHashcode")
     public int hashCode() {
         return LOCALNAME.hashCode()
@@ -123,6 +124,7 @@ public class SchemaHandler extends XSIElementHandler {
      * @see org.geotools.xml.XSIElementHandler#startElement(java.lang.String, java.lang.String,
      *     org.xml.sax.Attributes)
      */
+    @Override
     public void startElement(String namespaceURI1, String localName, Attributes atts)
             throws SAXException {
         // targetNamespace
@@ -146,7 +148,7 @@ public class SchemaHandler extends XSIElementHandler {
                 String uriT = (String) i.next();
 
                 if (targetNamespace1.equals(uriT)) {
-                    prefix = (String) prefixCache.get(uriT);
+                    prefix = prefixCache.get(uriT);
                     i = null;
                 }
             }
@@ -206,6 +208,7 @@ public class SchemaHandler extends XSIElementHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getHandler(java.lang.String, java.lang.String) */
+    @Override
     public XSIElementHandler getHandler(String namespaceURI1, String localName) {
         // check that we are working with a known namespace
         if (SchemaHandler.namespaceURI.equalsIgnoreCase(namespaceURI1)) {
@@ -327,6 +330,7 @@ public class SchemaHandler extends XSIElementHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getLocalName() */
+    @Override
     public String getLocalName() {
         return LOCALNAME;
     }
@@ -361,7 +365,6 @@ public class SchemaHandler extends XSIElementHandler {
                         "compressing include " + (inc != null ? inc.getSchemaLocation() : null));
 
                 if (inc != null && inc.getSchemaLocation() != null) {
-                    Schema cs;
                     URI incURI = null;
                     if (thisURI == null) {
                         try {
@@ -372,7 +375,8 @@ public class SchemaHandler extends XSIElementHandler {
                     } else {
                         incURI = thisURI.normalize().resolve(inc.getSchemaLocation());
                     }
-                    cs = SchemaFactory.getInstance(targetNamespace, incURI, logger.getLevel());
+                    Schema cs =
+                            SchemaFactory.getInstance(targetNamespace, incURI, logger.getLevel());
 
                     if (uri != null) {
                         uri = incURI.resolve(uri);
@@ -448,7 +452,7 @@ public class SchemaHandler extends XSIElementHandler {
             @SuppressWarnings("unchecked")
             TreeSet<Object> tmp = new TreeSet<>(SchemaComparator.getInstance());
             tmp.addAll(imports);
-            schema1.imports = (Schema[]) tmp.toArray(new Schema[tmp.size()]);
+            schema1.imports = tmp.toArray(new Schema[tmp.size()]);
         }
 
         // these need to be retyped
@@ -470,7 +474,7 @@ public class SchemaHandler extends XSIElementHandler {
             @SuppressWarnings("unchecked")
             TreeSet<Object> tmp = new TreeSet<>(SchemaComparator.getInstance());
             tmp.addAll(simpleTypes);
-            schema1.simpleTypes = (SimpleType[]) tmp.toArray(new SimpleType[tmp.size()]);
+            schema1.simpleTypes = tmp.toArray(new SimpleType[tmp.size()]);
         }
 
         if (attributeGroups != null) {
@@ -490,8 +494,7 @@ public class SchemaHandler extends XSIElementHandler {
             @SuppressWarnings("unchecked")
             TreeSet<Object> tmp = new TreeSet<>(SchemaComparator.getInstance());
             tmp.addAll(attributeGroups);
-            schema1.attributeGroups =
-                    (AttributeGroup[]) tmp.toArray(new AttributeGroup[tmp.size()]);
+            schema1.attributeGroups = tmp.toArray(new AttributeGroup[tmp.size()]);
         }
 
         if (attributes != null) {
@@ -511,7 +514,7 @@ public class SchemaHandler extends XSIElementHandler {
             @SuppressWarnings("unchecked")
             TreeSet<Object> tmp = new TreeSet<>(SchemaComparator.getInstance());
             tmp.addAll(attributes);
-            schema1.attributes = (Attribute[]) tmp.toArray(new Attribute[tmp.size()]);
+            schema1.attributes = tmp.toArray(new Attribute[tmp.size()]);
         }
 
         if (complexTypes != null) {
@@ -531,7 +534,7 @@ public class SchemaHandler extends XSIElementHandler {
             @SuppressWarnings("unchecked")
             TreeSet<Object> tmp = new TreeSet<>(SchemaComparator.getInstance());
             tmp.addAll(complexTypes);
-            schema1.complexTypes = (ComplexType[]) tmp.toArray(new ComplexType[tmp.size()]);
+            schema1.complexTypes = tmp.toArray(new ComplexType[tmp.size()]);
         }
 
         if (elements != null) {
@@ -551,7 +554,7 @@ public class SchemaHandler extends XSIElementHandler {
             @SuppressWarnings("unchecked")
             TreeSet<Object> tmp = new TreeSet<>(SchemaComparator.getInstance());
             tmp.addAll(elements);
-            schema1.elements = (Element[]) tmp.toArray(new Element[tmp.size()]);
+            schema1.elements = tmp.toArray(new Element[tmp.size()]);
         }
 
         if (groups != null) {
@@ -571,7 +574,7 @@ public class SchemaHandler extends XSIElementHandler {
             @SuppressWarnings("unchecked")
             TreeSet<Object> tmp = new TreeSet<>(SchemaComparator.getInstance());
             tmp.addAll(groups);
-            schema1.groups = (Group[]) tmp.toArray(new Group[tmp.size()]);
+            schema1.groups = tmp.toArray(new Group[tmp.size()]);
         }
 
         attributeGroups =
@@ -645,7 +648,7 @@ public class SchemaHandler extends XSIElementHandler {
                     Schema s = (Schema) it.next();
                     String ns = s.getTargetNamespace().toString();
 
-                    String prefixLookup = prefixCache != null ? (String) prefixCache.get(ns) : null;
+                    String prefixLookup = prefixCache != null ? prefixCache.get(ns) : null;
                     if (prefix1 == null || prefixLookup == null || prefix1.equals(prefixLookup)) {
                         SimpleType st = lookUpSimpleType(localName, s, new TreeSet<>());
                         if (st != null) {
@@ -750,7 +753,7 @@ public class SchemaHandler extends XSIElementHandler {
                 while (it.hasNext()) {
                     Schema s = (Schema) it.next();
                     String ns = s.getTargetNamespace().toString();
-                    String prefixLookup = prefixCache != null ? (String) prefixCache.get(ns) : null;
+                    String prefixLookup = prefixCache != null ? prefixCache.get(ns) : null;
                     if (prefix1 == null || prefixLookup == null || prefix1.equals(prefixLookup)) {
                         ComplexType ct = lookUpComplexType(localName, s, new TreeSet<>());
                         if (ct != null) {
@@ -852,7 +855,7 @@ public class SchemaHandler extends XSIElementHandler {
                 while (it.hasNext()) {
                     Schema s = (Schema) it.next();
                     String ns = s.getTargetNamespace().toString();
-                    String prefixLookup = prefixCache != null ? (String) prefixCache.get(ns) : null;
+                    String prefixLookup = prefixCache != null ? prefixCache.get(ns) : null;
                     if (prefix1 == null || prefixLookup == null || prefix1.equals(prefixLookup)) {
                         Element ct = lookupElement(localName, s, new TreeSet<>());
                         if (ct != null) {
@@ -866,7 +869,7 @@ public class SchemaHandler extends XSIElementHandler {
                 while (it.hasNext()) {
                     Schema s = (Schema) it.next();
                     String ns = s.getTargetNamespace().toString();
-                    String prefixLookup = prefixCache != null ? (String) prefixCache.get(ns) : null;
+                    String prefixLookup = prefixCache != null ? prefixCache.get(ns) : null;
                     if (prefix1 == null || prefixLookup == null || prefix1.equals(prefixLookup)) {
                         Element ct = lookupElement(localName, s, new TreeSet<>());
                         if (ct != null) {
@@ -961,7 +964,7 @@ public class SchemaHandler extends XSIElementHandler {
                 while (it.hasNext()) {
                     Schema s = (Schema) it.next();
                     String ns = s.getTargetNamespace().toString();
-                    String prefixLookup = prefixCache != null ? (String) prefixCache.get(ns) : null;
+                    String prefixLookup = prefixCache != null ? prefixCache.get(ns) : null;
                     if (prefix1 == null || prefixLookup == null || prefix1.equals(prefixLookup)) {
                         Group ct = lookUpGroup(localName, s, new TreeSet<>());
                         if (ct != null) {
@@ -1059,7 +1062,7 @@ public class SchemaHandler extends XSIElementHandler {
                 while (it.hasNext()) {
                     Schema s = (Schema) it.next();
                     String ns = s.getTargetNamespace().toString();
-                    String prefixLookup = prefixCache != null ? (String) prefixCache.get(ns) : null;
+                    String prefixLookup = prefixCache != null ? prefixCache.get(ns) : null;
                     if (prefix1 == null || prefixLookup == null || prefix1.equals(prefixLookup)) {
                         AttributeGroup ct = lookUpAttributeGroup(localName, s, new TreeSet<>());
                         if (ct != null) {
@@ -1159,7 +1162,7 @@ public class SchemaHandler extends XSIElementHandler {
                 while (it.hasNext()) {
                     Schema s = (Schema) it.next();
                     String ns = s.getTargetNamespace().toString();
-                    String prefixLookup = prefixCache != null ? (String) prefixCache.get(ns) : null;
+                    String prefixLookup = prefixCache != null ? prefixCache.get(ns) : null;
                     if (prefix1 == null || prefixLookup == null || prefix1.equals(prefixLookup)) {
                         Attribute ct = lookUpAttribute(localName, s, new TreeSet<>());
                         if (ct != null) {
@@ -1208,16 +1211,15 @@ public class SchemaHandler extends XSIElementHandler {
      * helper method that merges the provided Schema into this Schema
      */
     private void addSchema(Schema s) {
-        Object[] objs = null;
 
-        objs = s.getAttributes();
+        Object[] objs = s.getAttributes();
 
         if (objs != null) {
             if ((attributes == null) && (objs.length > 0)) {
                 attributes = new LinkedList<>();
             }
 
-            for (int i = 0; i < objs.length; i++) attributes.add(objs[i]);
+            for (Object obj : objs) attributes.add(obj);
         }
 
         objs = s.getAttributeGroups();
@@ -1227,7 +1229,7 @@ public class SchemaHandler extends XSIElementHandler {
                 attributeGroups = new LinkedList<>();
             }
 
-            for (int i = 0; i < objs.length; i++) attributeGroups.add(objs[i]);
+            for (Object obj : objs) attributeGroups.add(obj);
         }
 
         objs = s.getComplexTypes();
@@ -1237,7 +1239,7 @@ public class SchemaHandler extends XSIElementHandler {
                 complexTypes = new LinkedList<>();
             }
 
-            for (int i = 0; i < objs.length; i++) complexTypes.add(objs[i]);
+            for (Object obj : objs) complexTypes.add(obj);
         }
 
         objs = s.getElements();
@@ -1247,7 +1249,7 @@ public class SchemaHandler extends XSIElementHandler {
                 elements = new LinkedList<>();
             }
 
-            for (int i = 0; i < objs.length; i++) elements.add(objs[i]);
+            for (Object obj : objs) elements.add(obj);
         }
 
         objs = s.getGroups();
@@ -1257,7 +1259,7 @@ public class SchemaHandler extends XSIElementHandler {
                 groups = new LinkedList<>();
             }
 
-            for (int i = 0; i < objs.length; i++) groups.add(objs[i]);
+            for (Object obj : objs) groups.add(obj);
         }
 
         objs = s.getImports();
@@ -1267,7 +1269,7 @@ public class SchemaHandler extends XSIElementHandler {
                 imports = new LinkedList<>();
             }
 
-            for (int i = 0; i < objs.length; i++) imports.add(objs[i]);
+            for (Object obj : objs) imports.add(obj);
         }
 
         objs = s.getSimpleTypes();
@@ -1277,7 +1279,7 @@ public class SchemaHandler extends XSIElementHandler {
                 simpleTypes = new LinkedList<>();
             }
 
-            for (int i = 0; i < objs.length; i++) simpleTypes.add(objs[i]);
+            for (Object obj : objs) simpleTypes.add(obj);
         }
 
         URI tempuri = s.getURI();
@@ -1297,11 +1299,13 @@ public class SchemaHandler extends XSIElementHandler {
     }
 
     /** @see org.geotools.xml.XSIElementHandler#getHandlerType() */
+    @Override
     public int getHandlerType() {
         return DEFAULT;
     }
 
     /** @see org.geotools.xml.XSIElementHandler#endElement(java.lang.String, java.lang.String) */
+    @Override
     public void endElement(String namespaceURI1, String localName) {
         // do nothing
     }
@@ -1332,81 +1336,97 @@ public class SchemaHandler extends XSIElementHandler {
         String prefix;
 
         /** @see org.geotools.xml.xsi.Schema#isAttributeFormDefault() */
+        @Override
         public boolean isAttributeFormDefault() {
             return attributeFormDefault;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getAttributeGroups() */
+        @Override
         public AttributeGroup[] getAttributeGroups() {
             return attributeGroups;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getAttributeDescriptors() */
+        @Override
         public Attribute[] getAttributes() {
             return attributes;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getBlockDefault() */
+        @Override
         public int getBlockDefault() {
             return blockDefault;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getComplexTypes() */
+        @Override
         public ComplexType[] getComplexTypes() {
             return complexTypes;
         }
 
         /** @see org.geotools.xml.xsi.Schema#isElementFormDefault() */
+        @Override
         public boolean isElementFormDefault() {
             return elementFormDefault;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getElements() */
+        @Override
         public Element[] getElements() {
             return elements;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getFinalDefault() */
+        @Override
         public int getFinalDefault() {
             return finalDefault;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getId() */
+        @Override
         public String getId() {
             return id;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getImports() */
+        @Override
         public Schema[] getImports() {
             return imports;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getSimpleTypes() */
+        @Override
         public SimpleType[] getSimpleTypes() {
             return simpleTypes;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getTargetNamespace() */
+        @Override
         public URI getTargetNamespace() {
             return targetNamespace;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getURI() */
+        @Override
         public URI getURI() {
             return uri;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getVersion() */
+        @Override
         public String getVersion() {
             return version;
         }
 
         /** @see org.geotools.xml.xsi.Schema#getGroups() */
+        @Override
         public Group[] getGroups() {
             return groups;
         }
 
         /** @see org.geotools.xml.xsi.Schema#includesURI(java.net.URI) */
+        @Override
         public boolean includesURI(URI uri1) {
             if (this.uri == null) {
                 return false;
@@ -1415,11 +1435,13 @@ public class SchemaHandler extends XSIElementHandler {
         }
 
         /** @see org.geotools.xml.schema.Schema#getPrefix() */
+        @Override
         public String getPrefix() {
             return prefix;
         }
 
         /** Returns the implementation hints. The default implementation returns en empty map. */
+        @Override
         public Map<java.awt.RenderingHints.Key, ?> getImplementationHints() {
             return Collections.emptyMap();
         }
@@ -1445,6 +1467,7 @@ public class SchemaHandler extends XSIElementHandler {
         /* (non-Javadoc)
          * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
          */
+        @Override
         public int compare(Object arg0, Object arg1) {
             // attribute
             if (arg0 instanceof Attribute && arg1 instanceof Attribute)
@@ -1594,8 +1617,7 @@ public class SchemaHandler extends XSIElementHandler {
             if (arg0 == null) return 1;
             if (arg1 == null) return -1;
 
-            int i = 0;
-            i = arg0.getGrouping() - arg1.getGrouping();
+            int i = arg0.getGrouping() - arg1.getGrouping();
             if (i != 0) return i;
 
             i = arg0.getMaxOccurs() - arg1.getMaxOccurs();
@@ -1730,8 +1752,7 @@ public class SchemaHandler extends XSIElementHandler {
             if (arg0 == null) return 1;
             if (arg1 == null) return -1;
 
-            int i = 0;
-            i = arg0.getFacetType() - arg1.getFacetType();
+            int i = arg0.getFacetType() - arg1.getFacetType();
             if (i != 0) return i;
 
             i =

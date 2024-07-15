@@ -25,6 +25,19 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.media.jai.Interpolation;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.metadata.Identifier;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
@@ -34,26 +47,12 @@ import org.geotools.coverage.grid.io.OverviewPolicy;
 import org.geotools.coverage.grid.io.footprint.FootprintBehavior;
 import org.geotools.coverage.grid.io.imageio.ReadType;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.gce.imagemosaic.SpatialRequestHelper.CoverageProperties;
-import org.geotools.geometry.Envelope2D;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.metadata.Identifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A class to handle coverage requests to a reader for a single 2D layer..
@@ -61,7 +60,6 @@ import org.opengis.referencing.operation.TransformException;
  * @author Daniele Romagnoli, GeoSolutions
  * @author Simone Giannecchini, GeoSolutions
  */
-@SuppressWarnings("rawtypes")
 public class RasterLayerRequest {
     /** Logger. */
     private static final Logger LOGGER =
@@ -102,7 +100,7 @@ public class RasterLayerRequest {
     RasterManager rasterManager;
 
     private Color inputTransparentColor =
-            AbstractGridFormat.INPUT_TRANSPARENT_COLOR.getDefaultValue();;
+            AbstractGridFormat.INPUT_TRANSPARENT_COLOR.getDefaultValue();
 
     private boolean blend = ImageMosaicFormat.FADING.getDefaultValue();
 
@@ -110,7 +108,7 @@ public class RasterLayerRequest {
     private MergeBehavior mergeBehavior = MergeBehavior.getDefault();
 
     private Color outputTransparentColor =
-            ImageMosaicFormat.OUTPUT_TRANSPARENT_COLOR.getDefaultValue();;
+            ImageMosaicFormat.OUTPUT_TRANSPARENT_COLOR.getDefaultValue();
 
     /**
      * Max number of tiles that this plugin will load.
@@ -165,7 +163,7 @@ public class RasterLayerRequest {
 
     private GeneralParameterValue[] params;
 
-    private Envelope2D requestedBounds;
+    private ReferencedEnvelope requestedBounds;
 
     private GridGeometry2D requestedGridGeometry;
 
@@ -189,7 +187,7 @@ public class RasterLayerRequest {
         return filter;
     }
 
-    public Envelope2D getRequestedBounds() {
+    public ReferencedEnvelope getRequestedBounds() {
         return requestedBounds;
     }
 
@@ -313,9 +311,8 @@ public class RasterLayerRequest {
             }
             // Enable alternative CRS Output support only when the requested CRS doesn't match
             // the coverage's one. In that case, proceed with the standard approach
-            if (rasterManager.hasAlternativeCRS(requestedEpsgCode)
-                    && !CRS.equalsIgnoreMetadata(
-                            requestedCRS, spatialRequestHelper.getReferenceCRS(false))) {
+            if (!CRS.equalsIgnoreMetadata(requestedCRS, spatialRequestHelper.getReferenceCRS(false))
+                    && rasterManager.hasAlternativeCRS(requestedEpsgCode)) {
                 // Initialize the alternativeCRS Output Coverage properties
                 spatialRequestHelper.setSupportingAlternativeCRSOutput(true);
                 CoverageProperties alternativeProperties = new CoverageProperties();
@@ -377,7 +374,7 @@ public class RasterLayerRequest {
             // ... load only the default geometry if possible
             final GeometryDescriptor gd = granules.getSchema().getGeometryDescriptor();
             if (gd != null) {
-                query.setPropertyNames(new String[] {gd.getLocalName()});
+                query.setPropertyNames(gd.getLocalName());
             }
             SimpleFeatureCollection features = granules.getGranules(query);
             ReferencedEnvelope envelope = DataUtilities.bounds(features);
@@ -852,7 +849,7 @@ public class RasterLayerRequest {
             final Object value = param.getValue();
             if (value == null) return;
             final List<?> dates = (List<?>) value;
-            if (dates == null || dates.size() <= 0) {
+            if (dates == null || dates.isEmpty()) {
                 return;
             }
 
@@ -931,7 +928,7 @@ public class RasterLayerRequest {
         if (name.equals(ImageMosaicFormat.MASKING_BUFFER_PIXELS.getName())) {
             final Object value = param.getValue();
             if (value == null) return;
-            maskingBufferPixels = (double) param.doubleValue();
+            maskingBufferPixels = param.doubleValue();
             return;
         }
 

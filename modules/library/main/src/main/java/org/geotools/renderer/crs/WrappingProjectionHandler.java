@@ -22,6 +22,13 @@ import java.util.Map;
 import javax.measure.Unit;
 import javax.measure.UnitConverter;
 import javax.measure.quantity.Length;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.DerivedCRS;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Envelope;
@@ -30,13 +37,6 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.DerivedCRS;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 import si.uom.SI;
 
 /**
@@ -48,6 +48,15 @@ import si.uom.SI;
 public class WrappingProjectionHandler extends ProjectionHandler {
 
     private static final Object LARGE_EARTH_OBJECT = new Object();
+
+    /** The user data key to indicate that the geometry was pre-flipped */
+    protected static final String PREFLIPPED_OBJECT = "PRE-FLIPPED";
+
+    /**
+     * The tolerance to consider a geometry without touching both datelines. Derived using trial and
+     * error. Any smaller and Antarctica-like polygons are incorrectly tagged.
+     */
+    public static final double DATELINE_PROXIMITY_TOLERANCE = 1.99572;
 
     private int maxWraps;
 
@@ -106,11 +115,16 @@ public class WrappingProjectionHandler extends ProjectionHandler {
             return null;
         }
         // if the object was already a large one, clone it and set the user data to indicate it was
+        // if it was preflipped, clone it and set the user data to indicate it was
         // hopefully it will happen for few objects
         final double width = getWidth(geometry.getEnvelopeInternal(), sourceCRS);
         if (width > sourceHalfCircle) {
             Geometry copy = geometry.copy();
-            copy.setUserData(LARGE_EARTH_OBJECT);
+            if (preflipped(width)) {
+                copy.setUserData(PREFLIPPED_OBJECT);
+            } else {
+                copy.setUserData(LARGE_EARTH_OBJECT);
+            }
             return copy;
         }
 
@@ -149,11 +163,18 @@ public class WrappingProjectionHandler extends ProjectionHandler {
                 && ((geometry.getUserData() == LARGE_EARTH_OBJECT && width < targetHalfCircle)
                         || (geometry.getUserData() != LARGE_EARTH_OBJECT
                                 && width > targetHalfCircle
-                                && width < targetHalfCircle * 2))) {
+                                && width < targetHalfCircle * 2)
+                        || (geometry.getUserData() != null
+                                && geometry.getUserData().equals(PREFLIPPED_OBJECT)))) {
             final Geometry wrapped = geometry.copy();
             wrapped.apply(
                     new WrappingCoordinateFilter(
-                            targetHalfCircle, targetHalfCircle * 2, mt, northEast));
+                            targetHalfCircle,
+                            targetHalfCircle * 2,
+                            mt,
+                            northEast,
+                            geometry.getUserData() != null
+                                    && geometry.getUserData().equals(PREFLIPPED_OBJECT)));
             wrapped.geometryChanged();
             geometry = wrapped;
             env = geometry.getEnvelopeInternal();
@@ -238,6 +259,26 @@ public class WrappingProjectionHandler extends ProjectionHandler {
             return geometry.getFactory()
                     .createGeometryCollection(geoms.toArray(new Geometry[geoms.size()]));
         }
+    }
+
+    /**
+     * In some cases the geometry is preflipped due to coordinate order and proximity to the
+     * dateline
+     *
+     * <p>An example is this line: LINESTRING (179.94028987 52.14290407, -179.9428079 52.40938205)
+     *
+     * @param width width of geometry to check for preflip condition
+     * @return is preflipped
+     */
+    private boolean preflipped(double width) {
+        // only applies to geographic coordinates
+        if (!(sourceCRS instanceof GeographicCRS)) {
+            return false;
+        }
+        // preflipped width will be very close to twice the source half circle
+        // but only applies if it doesn't touch both datelines
+        return width > sourceHalfCircle * DATELINE_PROXIMITY_TOLERANCE
+                && width < sourceHalfCircle * 2;
     }
 
     /**

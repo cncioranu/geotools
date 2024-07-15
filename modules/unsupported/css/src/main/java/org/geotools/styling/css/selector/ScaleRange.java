@@ -36,7 +36,7 @@ public class ScaleRange extends Selector {
             }
         }
 
-        return new ScaleRange((Range<Double>) range);
+        return new ScaleRange(range);
     }
 
     public Range<Double> range;
@@ -79,6 +79,7 @@ public class ScaleRange extends Selector {
         return "ScaleRange " + range;
     }
 
+    @Override
     public Object accept(SelectorVisitor visitor) {
         return visitor.visit(this);
     }

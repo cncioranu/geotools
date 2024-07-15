@@ -16,6 +16,7 @@
  */
 package org.geotools.data.wfs.internal.parsers;
 
+import static org.geotools.data.wfs.WFSTestData.ARCGIS_CURVE;
 import static org.geotools.data.wfs.WFSTestData.CUBEWERX_GOVUNITCE;
 import static org.geotools.data.wfs.WFSTestData.CUBEWERX_ROADSEG;
 import static org.geotools.data.wfs.WFSTestData.GEOS_ARCHSITES_11;
@@ -25,16 +26,31 @@ import static org.geotools.data.wfs.WFSTestData.GEOS_STATES_10;
 import static org.geotools.data.wfs.WFSTestData.GEOS_STATES_11;
 import static org.geotools.data.wfs.WFSTestData.GEOS_TASMANIA_CITIES_11;
 import static org.geotools.data.wfs.WFSTestData.IONIC_STATISTICAL_UNIT;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import javax.xml.namespace.QName;
+import javax.xml.stream.XMLStreamException;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.GeometryAttribute;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.wfs.WFSDataStoreFactory;
 import org.geotools.data.wfs.WFSTestData;
@@ -43,21 +59,14 @@ import org.geotools.referencing.CRS;
 import org.geotools.wfs.v1_1.WFSConfiguration;
 import org.geotools.xsd.Configuration;
 import org.geotools.xsd.XSD;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.GeometryAttribute;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * This abstract class comprises a sort of compliance tests for {@link GetParser<SimpleFeature>}
@@ -75,11 +84,24 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  * @see XmlSimpleFeatureParserTest
  * @see StreamingParserFeatureReaderTest
  */
-@SuppressWarnings("nls")
 public abstract class AbstractGetFeatureParserTest {
 
     private boolean supportsCount = true;
     private static final GeometryFactory GF = new GeometryFactory();
+
+    private static Locale defaultLocale;
+
+    @BeforeClass
+    public static void setupLocale() {
+        // XXE message might be localized otherwise
+        defaultLocale = Locale.getDefault();
+        Locale.setDefault(Locale.ENGLISH);
+    }
+
+    @AfterClass
+    public static void resetLocale() {
+        Locale.setDefault(defaultLocale);
+    }
 
     protected void setSupportsCount(boolean supportsCount) {
         this.supportsCount = supportsCount;
@@ -116,6 +138,7 @@ public abstract class AbstractGetFeatureParserTest {
             this.expectedGeometries = expectedGeometries;
         }
 
+        @Override
         public void visit(final Feature feature) {
             assertNotNull(feature);
             assertNotNull(feature.getIdentifier().getID());
@@ -125,7 +148,6 @@ public abstract class AbstractGetFeatureParserTest {
                 assertNotNull(name + " property was not parsed", property);
                 assertNotNull("got null value for property " + name, property.getValue());
                 if (descriptor instanceof GeometryDescriptor) {
-                    GeometryDescriptor gd = (GeometryDescriptor) descriptor;
                     Geometry geometry = (Geometry) property.getValue();
                     assertNotNull(geometry);
                     if (expectedGeometries != null && featureCount < expectedGeometries.size()) {
@@ -289,8 +311,8 @@ public abstract class AbstractGetFeatureParserTest {
         final URL data = GEOS_ARCHSITES_11.DATA;
 
         final String[] properties = {"cat", "str1", "the_geom"};
-        final SimpleFeatureType featureType;
-        featureType = getTypeView(featureName, schemaLocation, GEOS_ARCHSITES_11.CRS, properties);
+        final SimpleFeatureType featureType =
+                getTypeView(featureName, schemaLocation, GEOS_ARCHSITES_11.CRS, properties);
 
         final FeatureAssertor assertor = new FeatureAssertor(featureType);
         List<Geometry> geometries = new ArrayList<>();
@@ -320,8 +342,8 @@ public abstract class AbstractGetFeatureParserTest {
         final URL data = GEOS_ARCHSITES_11.DATA;
 
         final String[] properties = {"cat", "str1", "the_geom"};
-        final SimpleFeatureType featureType;
-        featureType = getTypeView(featureName, schemaLocation, GEOS_ARCHSITES_11.CRS, properties);
+        final SimpleFeatureType featureType =
+                getTypeView(featureName, schemaLocation, GEOS_ARCHSITES_11.CRS, properties);
 
         final FeatureAssertor assertor = new FeatureAssertor(featureType);
         List<Geometry> geometries = new ArrayList<>();
@@ -343,6 +365,30 @@ public abstract class AbstractGetFeatureParserTest {
         testParseGetFeatures(featureName, featureType, parser, assertor, expectedCount);
     }
 
+    @Test
+    public void testParseGeoServer_ArchSites_XXE() throws Exception {
+        final QName featureName = GEOS_ARCHSITES_11.TYPENAME;
+        final URL schemaLocation = GEOS_ARCHSITES_11.SCHEMA;
+        final URL data =
+                WFSTestData.url("GeoServer_2.0/1.1.0_XXE_GetFeature/GetFeature_archsites.xml");
+
+        final String[] properties = {"cat", "str1", "the_geom"};
+        final SimpleFeatureType featureType =
+                getTypeView(featureName, schemaLocation, GEOS_ARCHSITES_11.CRS, properties);
+
+        GetParser<SimpleFeature> parser =
+                getParser(featureName, schemaLocation, featureType, data, null);
+        try {
+            IOException exception = assertThrows(IOException.class, () -> parser.parse());
+            assertThat(exception.getCause(), instanceOf(XMLStreamException.class));
+            assertThat(
+                    exception.getCause().getMessage(),
+                    containsString("The entity \"xxe\" was referenced, but not declared"));
+        } finally {
+            parser.close();
+        }
+    }
+
     /**
      * Verifies correctness on parsing a normal geoserver WFS 1.1.0 GetFeature response for the
      * usual topp:states feature type (multipolygon).
@@ -358,8 +404,8 @@ public abstract class AbstractGetFeatureParserTest {
         final String[] properties = {
             "the_geom", "STATE_NAME", "STATE_FIPS", "SUB_REGION", "SAMP_POP"
         };
-        final SimpleFeatureType featureType;
-        featureType = getTypeView(featureName, schemaLocation, GEOS_STATES_11.CRS, properties);
+        final SimpleFeatureType featureType =
+                getTypeView(featureName, schemaLocation, GEOS_STATES_11.CRS, properties);
 
         final FeatureVisitor assertor =
                 new FeatureAssertor(featureType) {
@@ -415,8 +461,8 @@ public abstract class AbstractGetFeatureParserTest {
         final String[] properties = {
             "the_geom", "STATE_NAME", "STATE_FIPS", "SUB_REGION", "SAMP_POP"
         };
-        final SimpleFeatureType featureType;
-        featureType = getTypeView(featureName, schemaLocation, GEOS_STATES_11.CRS, properties);
+        final SimpleFeatureType featureType =
+                getTypeView(featureName, schemaLocation, GEOS_STATES_11.CRS, properties);
 
         final FeatureVisitor assertor =
                 new FeatureAssertor(featureType) {
@@ -471,8 +517,8 @@ public abstract class AbstractGetFeatureParserTest {
         final URL schemaLocation = GEOS_ROADS_11.SCHEMA;
 
         final String[] properties = {"the_geom", "label"};
-        final SimpleFeatureType featureType;
-        featureType = getTypeView(featureName, schemaLocation, GEOS_ROADS_11.CRS, properties);
+        final SimpleFeatureType featureType =
+                getTypeView(featureName, schemaLocation, GEOS_ROADS_11.CRS, properties);
 
         final FeatureVisitor assertor = new FeatureAssertor(featureType);
 
@@ -494,8 +540,8 @@ public abstract class AbstractGetFeatureParserTest {
         final URL schemaLocation = GEOS_ROADS_10.SCHEMA;
 
         final String[] properties = {"the_geom", "label"};
-        final SimpleFeatureType featureType;
-        featureType = getTypeView(featureName, schemaLocation, GEOS_ROADS_10.CRS, properties);
+        final SimpleFeatureType featureType =
+                getTypeView(featureName, schemaLocation, GEOS_ROADS_10.CRS, properties);
 
         final FeatureVisitor assertor = new FeatureAssertor(featureType);
 
@@ -515,8 +561,7 @@ public abstract class AbstractGetFeatureParserTest {
         final URL schemaLocation = GEOS_TASMANIA_CITIES_11.SCHEMA;
 
         final String[] properties = {"the_geom", "CNTRY_NAME", "POP_CLASS"};
-        final SimpleFeatureType featureType;
-        featureType =
+        final SimpleFeatureType featureType =
                 getTypeView(featureName, schemaLocation, GEOS_TASMANIA_CITIES_11.CRS, properties);
 
         final FeatureVisitor assertor = new FeatureAssertor(featureType);
@@ -745,5 +790,23 @@ public abstract class AbstractGetFeatureParserTest {
 
         FeatureVisitor assertor = new FeatureAssertor(featureType);
         testParseGetFeatures(featureName, featureType, parser, assertor, 3);
+    }
+
+    @Test
+    public void testParseArcGIS_GML3_1_MultiCurve() throws Exception {
+        final QName featureName = ARCGIS_CURVE.TYPENAME;
+        final int expectedCount = 2;
+        final URL schemaLocation = ARCGIS_CURVE.SCHEMA;
+
+        final String[] properties = {"Shape", "OBJECTID", "Shape_Length"};
+        final SimpleFeatureType featureType =
+                getTypeView(featureName, schemaLocation, ARCGIS_CURVE.CRS, properties);
+
+        final FeatureVisitor assertor = new FeatureAssertor(featureType);
+
+        GetParser<SimpleFeature> parser =
+                getParser(featureName, schemaLocation, featureType, ARCGIS_CURVE.DATA, null);
+
+        testParseGetFeatures(featureName, featureType, parser, assertor, expectedCount);
     }
 }

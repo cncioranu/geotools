@@ -16,23 +16,28 @@
  */
 package org.geotools.mbstyle;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.xml.transform.TransformerException;
 import org.apache.commons.io.IOUtils;
+import org.geotools.api.style.NamedLayer;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.StyledLayer;
+import org.geotools.api.style.StyledLayerDescriptor;
+import org.geotools.api.style.UserLayer;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.renderer.GTRenderer;
 import org.geotools.renderer.RenderListener;
 import org.geotools.renderer.lite.RendererBaseTest;
-import org.geotools.styling.NamedLayer;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyledLayer;
-import org.geotools.styling.StyledLayerDescriptor;
-import org.geotools.styling.UserLayer;
+import org.geotools.util.logging.Logging;
 import org.geotools.xml.styling.SLDTransformer;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -41,19 +46,21 @@ import org.json.simple.parser.ParseException;
 public class MapboxTestUtils {
 
     static JSONParser jsonParser = new JSONParser();
-
+    static final Logger LOGGER = Logging.getLogger(MapboxTestUtils.class);
     /** Reader for a test Mapbox Style file (json). */
     public static Reader readerTestStyle(String filename) throws IOException, ParseException {
-        InputStream is = MapboxTestUtils.class.getResourceAsStream(filename);
-        String fileContents = IOUtils.toString(is, "utf-8");
-        return new StringReader(fileContents);
+        try (InputStream is = MapboxTestUtils.class.getResourceAsStream(filename)) {
+            String fileContents = IOUtils.toString(is, UTF_8);
+            return new StringReader(fileContents);
+        }
     }
 
     /** Read a test Mapbox Style file (json) and parse it into a {@link JSONObject}. */
     public static JSONObject parseTestStyle(String filename) throws IOException, ParseException {
-        InputStream is = MapboxTestUtils.class.getResourceAsStream(filename);
-        String fileContents = IOUtils.toString(is, "utf-8");
-        return (JSONObject) jsonParser.parse(fileContents);
+        try (InputStream is = MapboxTestUtils.class.getResourceAsStream(filename)) {
+            String fileContents = IOUtils.toString(is, UTF_8);
+            return (JSONObject) jsonParser.parse(fileContents);
+        }
     }
 
     public static BufferedImage showRender(
@@ -133,7 +140,7 @@ public class MapboxTestUtils {
         try {
             transformer.transform(sld, out);
         } catch (TransformerException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.WARNING, "", e);
         }
     }
 }

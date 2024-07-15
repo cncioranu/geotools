@@ -43,9 +43,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.cs.CoordinateSystemAxis;
 import org.junit.Test;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.cs.CoordinateSystemAxis;
 
 /**
  * Tests the {@link DefaultCoordinateSystemAxis} class.
@@ -130,25 +130,24 @@ public final class DefaultCoordinateSystemAxisTest {
     /** Makes sure that the compass directions in {@link AxisDirection} are okay. */
     @Test
     public void testCompass() {
-        final AxisDirection[] compass =
-                new AxisDirection[] {
-                    AxisDirection.NORTH,
-                    AxisDirection.NORTH_NORTH_EAST,
-                    AxisDirection.NORTH_EAST,
-                    AxisDirection.EAST_NORTH_EAST,
-                    AxisDirection.EAST,
-                    AxisDirection.EAST_SOUTH_EAST,
-                    AxisDirection.SOUTH_EAST,
-                    AxisDirection.SOUTH_SOUTH_EAST,
-                    AxisDirection.SOUTH,
-                    AxisDirection.SOUTH_SOUTH_WEST,
-                    AxisDirection.SOUTH_WEST,
-                    AxisDirection.WEST_SOUTH_WEST,
-                    AxisDirection.WEST,
-                    AxisDirection.WEST_NORTH_WEST,
-                    AxisDirection.NORTH_WEST,
-                    AxisDirection.NORTH_NORTH_WEST
-                };
+        final AxisDirection[] compass = {
+            AxisDirection.NORTH,
+            AxisDirection.NORTH_NORTH_EAST,
+            AxisDirection.NORTH_EAST,
+            AxisDirection.EAST_NORTH_EAST,
+            AxisDirection.EAST,
+            AxisDirection.EAST_SOUTH_EAST,
+            AxisDirection.SOUTH_EAST,
+            AxisDirection.SOUTH_SOUTH_EAST,
+            AxisDirection.SOUTH,
+            AxisDirection.SOUTH_SOUTH_WEST,
+            AxisDirection.SOUTH_WEST,
+            AxisDirection.WEST_SOUTH_WEST,
+            AxisDirection.WEST,
+            AxisDirection.WEST_NORTH_WEST,
+            AxisDirection.NORTH_WEST,
+            AxisDirection.NORTH_NORTH_WEST
+        };
         assertEquals(compass.length, COMPASS_DIRECTION_COUNT);
         final int base = AxisDirection.NORTH.ordinal();
         final int h = compass.length / 2;

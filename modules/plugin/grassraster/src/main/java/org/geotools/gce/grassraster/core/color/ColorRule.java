@@ -96,7 +96,7 @@ public class ColorRule {
                 (byte) ((int) (rmul * range) + (int) catColor[0]),
                 (byte) ((int) (gmul * range) + (int) catColor[1]),
                 (byte) ((int) (bmul * range) + (int) catColor[2]),
-                (byte) catColor[3]
+                catColor[3]
             };
         }
 
@@ -105,7 +105,7 @@ public class ColorRule {
             (byte) ((int) (rmul * diff) + (int) catColor[0]),
             (byte) ((int) (gmul * diff) + (int) catColor[1]),
             (byte) ((int) (bmul * diff) + (int) catColor[2]),
-            (byte) catColor[3]
+            catColor[3]
         };
     }
 
@@ -120,6 +120,7 @@ public class ColorRule {
     }
 
     /** */
+    @Override
     public String toString() {
         if (range == 0)
             return String.valueOf(low)

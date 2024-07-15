@@ -39,21 +39,21 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.ReferenceIdentifier;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class TPKReader extends AbstractGridCoverage2DReader {
 
@@ -103,7 +103,7 @@ public class TPKReader extends AbstractGridCoverage2DReader {
         } catch (Exception e) {
             bounds = null;
         }
-        originalEnvelope = new GeneralEnvelope(bounds == null ? WORLD_ENVELOPE : bounds);
+        originalEnvelope = new GeneralBounds(bounds == null ? WORLD_ENVELOPE : bounds);
 
         imageFormat = file.getImageFormat();
 
@@ -145,8 +145,8 @@ public class TPKReader extends AbstractGridCoverage2DReader {
         Rectangle dim = null;
 
         if (parameters != null) {
-            for (int i = 0; i < parameters.length; i++) {
-                final ParameterValue param = (ParameterValue) parameters[i];
+            for (GeneralParameterValue parameter : parameters) {
+                final ParameterValue param = (ParameterValue) parameter;
                 final ReferenceIdentifier name = param.getDescriptor().getName();
                 if (name.equals(AbstractGridFormat.READ_GRIDGEOMETRY2D.getName())) {
                     final GridGeometry2D gg = (GridGeometry2D) param.getValue();
@@ -169,7 +169,6 @@ public class TPKReader extends AbstractGridCoverage2DReader {
         }
 
         long zoomLevel = 0;
-        long leftTile, topTile, rightTile, bottomTile;
 
         if (requestedEnvelope != null && dim != null) {
             // find the closest zoom based on horizontal resolution
@@ -201,42 +200,24 @@ public class TPKReader extends AbstractGridCoverage2DReader {
         double offsetX = WORLD_ENVELOPE.getMinimum(0);
         double offsetY = WORLD_ENVELOPE.getMinimum(1);
 
-        leftTile = file.getMinColumn(zoomLevel);
-        rightTile = file.getMaxColumn(zoomLevel);
-        bottomTile = file.getMinRow(zoomLevel);
-        topTile = file.getMaxRow(zoomLevel);
+        long leftTile = file.getMinColumn(zoomLevel);
+        long rightTile = file.getMaxColumn(zoomLevel);
+        long bottomTile = file.getMinRow(zoomLevel);
+        long topTile = file.getMaxRow(zoomLevel);
 
         if (requestedEnvelope != null) { // crop tiles to requested envelope
-            leftTile =
-                    Math.max(
-                            leftTile,
-                            Math.round(
-                                    Math.floor(
-                                            (requestedEnvelope.getMinimum(0) - offsetX) / resX)));
-            bottomTile =
-                    Math.max(
-                            bottomTile,
-                            Math.round(
-                                    Math.floor(
-                                            (requestedEnvelope.getMinimum(1) - offsetY) / resY)));
+            leftTile = boundMax(leftTile, (requestedEnvelope.getMinimum(0) - offsetX) / resX);
+            bottomTile = boundMax(bottomTile, (requestedEnvelope.getMinimum(1) - offsetY) / resY);
             rightTile =
-                    Math.max(
+                    boundMinMax(
                             leftTile,
-                            Math.min(
-                                    rightTile,
-                                    Math.round(
-                                            Math.floor(
-                                                    (requestedEnvelope.getMaximum(0) - offsetX)
-                                                            / resX))));
+                            rightTile,
+                            (requestedEnvelope.getMaximum(0) - offsetX) / resX);
             topTile =
-                    Math.max(
+                    boundMinMax(
                             bottomTile,
-                            Math.min(
-                                    topTile,
-                                    Math.round(
-                                            Math.floor(
-                                                    (requestedEnvelope.getMaximum(1) - offsetY)
-                                                            / resY))));
+                            topTile,
+                            (requestedEnvelope.getMaximum(1) - offsetY) / resY);
         }
 
         int width = (int) (rightTile - leftTile + 1) * DEFAULT_TILE_SIZE;
@@ -289,6 +270,14 @@ public class TPKReader extends AbstractGridCoverage2DReader {
         LOGGER.fine(msg);
 
         return coverageFactory.create("unnamed", image, resultEnvelope);
+    }
+
+    private long boundMinMax(long max, long min, double value) {
+        return Math.max(max, Math.min(min, Math.round(Math.floor(value))));
+    }
+
+    private long boundMax(long bound, double value) {
+        return Math.max(bound, Math.round(Math.floor(value)));
     }
 
     public enum ImageFormats {
@@ -357,6 +346,7 @@ public class TPKReader extends AbstractGridCoverage2DReader {
         }
     }
 
+    @SuppressWarnings("PMD.ReplaceHashtableWithMap")
     protected BufferedImage getStartImage(BufferedImage copyFrom, int width, int height) {
         Hashtable<String, Object> properties = null;
 

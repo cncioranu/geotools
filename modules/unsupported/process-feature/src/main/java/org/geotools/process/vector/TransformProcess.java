@@ -21,6 +21,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.GeometryType;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.collection.DecoratingSimpleFeatureCollection;
@@ -33,14 +41,6 @@ import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.GeometryType;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Used to transform a feature collection as defined using a series of expressions.
@@ -101,10 +101,9 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  * @author Jody Garnett (LISAsoft)
  */
 @DescribeProcess(
-    title = "Transform",
-    description =
-            "Computes a new feature collection from the input one by renaming, deleting, and computing new attributes.  Attribute values are specified as ECQL expressions in the form name=expression."
-)
+        title = "Transform",
+        description =
+                "Computes a new feature collection from the input one by renaming, deleting, and computing new attributes.  Attribute values are specified as ECQL expressions in the form name=expression.")
 public class TransformProcess implements VectorProcess {
     /**
      * Definition of an attribute used during transform
@@ -130,10 +129,9 @@ public class TransformProcess implements VectorProcess {
             @DescribeParameter(name = "features", description = "Input feature collection")
                     SimpleFeatureCollection features,
             @DescribeParameter(
-                        name = "transform",
-                        description =
-                                "The transform specification, as a list of specifiers of the form name=expression, delimited by newlines or semicolons."
-                    )
+                            name = "transform",
+                            description =
+                                    "The transform specification, as a list of specifiers of the form name=expression, delimited by newlines or semicolons.")
                     String transform)
             throws ProcessException {
         if (transform == null) {
@@ -148,9 +146,8 @@ public class TransformProcess implements VectorProcess {
             @DescribeParameter(name = "features", description = "Input feature collection")
                     SimpleFeatureCollection features,
             @DescribeParameter(
-                        name = "transform",
-                        description = "List of Definitions for the output feature attributes"
-                    )
+                            name = "transform",
+                            description = "List of Definitions for the output feature attributes")
                     List<Definition> transform)
             throws ProcessException {
         if (transform == null) {
@@ -220,9 +217,8 @@ public class TransformProcess implements VectorProcess {
      */
     private static String[] splitDefinitions(String defList) {
         // clean up cross platform differences of linefeed
-        String defListLF = defList.replaceAll("\r", "\n").replaceAll("[\n\r][\n\r]", "\n");
         // convert explicit delimiter to linefeed
-        defListLF = defList.replaceAll(";", "\n");
+        String defListLF = defList.replaceAll(";", "\n");
 
         // split on linefeed
         return defListLF.split("\n");
@@ -232,13 +228,10 @@ public class TransformProcess implements VectorProcess {
             SimpleFeatureCollection delegate, List<Definition> definitionList) {
 
         SimpleFeature sample = null;
-        SimpleFeatureIterator iterator = delegate.features();
-        try {
+        try (SimpleFeatureIterator iterator = delegate.features()) {
             if (iterator.hasNext()) {
                 sample = iterator.next();
             }
-        } finally {
-            iterator.close(); // good bye
         }
 
         SimpleFeatureTypeBuilder build = new SimpleFeatureTypeBuilder();
@@ -341,14 +334,17 @@ public class TransformProcess implements VectorProcess {
             fb = new SimpleFeatureBuilder(schema);
         }
 
+        @Override
         public void close() {
             delegate.close();
         }
 
+        @Override
         public boolean hasNext() {
             return delegate.hasNext();
         }
 
+        @Override
         public SimpleFeature next() throws NoSuchElementException {
             SimpleFeature feature = delegate.next();
 

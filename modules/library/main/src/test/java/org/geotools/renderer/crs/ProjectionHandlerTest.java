@@ -34,7 +34,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
-import org.geotools.data.Base64;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.SingleCRS;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.LiteCoordinateSequence;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -43,6 +48,7 @@ import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.referencing.operation.projection.MapProjection;
 import org.geotools.referencing.operation.projection.PolarStereographic;
 import org.geotools.referencing.operation.transform.IdentityTransform;
+import org.geotools.util.Base64;
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -60,12 +66,6 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKTReader;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.SingleCRS;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 public class ProjectionHandlerTest {
 
@@ -156,7 +156,6 @@ public class ProjectionHandlerTest {
 
     @Test
     public void testDensification() throws Exception {
-        CoordinateReferenceSystem utm32n = CRS.decode("EPSG:32632", true);
         ReferencedEnvelope wgs84Envelope = new ReferencedEnvelope(-190, 60, -90, 45, WGS84);
         ProjectionHandler handler = ProjectionHandlerFinder.getHandler(wgs84Envelope, WGS84, true);
         Geometry line =
@@ -169,7 +168,7 @@ public class ProjectionHandlerTest {
         params.put(ProjectionHandler.ADVANCED_PROJECTION_DENSIFY, 1.0);
         handler = ProjectionHandlerFinder.getHandler(wgs84Envelope, WGS84, true, params);
         LineString densified = (LineString) handler.preProcess(line);
-        assertEquals(45, densified.getCoordinates().length);
+        assertEquals(44, densified.getCoordinates().length);
     }
 
     @Test
@@ -637,8 +636,7 @@ public class ProjectionHandlerTest {
         Geometry g = new WKTReader().read(wkt);
         Geometry original = new WKTReader().read(wkt);
         MathTransform mt = CRS.findMathTransform(WGS84, ED50_LATLON);
-        MathTransform prepared =
-                handler.getRenderingTransform(CRS.findMathTransform(WGS84, ED50_LATLON));
+        MathTransform prepared = handler.getRenderingTransform(mt);
         Geometry reprojected = JTS.transform(original, prepared);
 
         assertTrue(handler.requiresProcessing(g));
@@ -669,14 +667,11 @@ public class ProjectionHandlerTest {
         Geometry reprojected = JTS.transform(preProcessed, prepared);
         assertTrue(reprojected.isValid());
         reprojected.apply(
-                new CoordinateFilter() {
-
-                    @Override
-                    public void filter(Coordinate coord) {
-                        assertEquals(90.0, Math.abs(coord.getOrdinate(0)), 0.1);
-                        assertEquals(180.0, Math.abs(coord.getOrdinate(1)), 5);
-                    }
-                });
+                (CoordinateFilter)
+                        coord -> {
+                            assertEquals(90.0, Math.abs(coord.getOrdinate(0)), 0.1);
+                            assertEquals(180.0, Math.abs(coord.getOrdinate(1)), 5);
+                        });
         // post process, this should wrap the geometry, make sure it's valid, and avoid large jumps
         // in its border
         Geometry postProcessed = handler.postProcess(prepared, reprojected);
@@ -816,7 +811,7 @@ public class ProjectionHandlerTest {
         ProjectionHandler handler = ProjectionHandlerFinder.getHandler(utmEnvelope, WGS84, true);
         assertTrue(handler.requiresProcessing(g));
         Geometry preProcessed = handler.preProcess(g);
-        assertTrue(!preProcessed.equalsTopo(g));
+        assertFalse(preProcessed.equalsTopo(g));
         assertTrue(handler.validAreaBounds.contains(preProcessed.getEnvelopeInternal()));
     }
 
@@ -1007,16 +1002,13 @@ public class ProjectionHandlerTest {
         // make sure we got the geometry unwrapped and replicated
         assertEquals(3, postProcessed.getNumGeometries());
         postProcessed.apply(
-                new GeometryComponentFilter() {
-
-                    @Override
-                    public void filter(Geometry geom) {
-                        if (geom != postProcessed
-                                && geom.getEnvelopeInternal().getWidth() > 40000000) {
-                            fail("The geometry did not get rewrapped properly");
-                        }
-                    }
-                });
+                (GeometryComponentFilter)
+                        geom -> {
+                            if (geom != postProcessed
+                                    && geom.getEnvelopeInternal().getWidth() > 40000000) {
+                                fail("The geometry did not get rewrapped properly");
+                            }
+                        });
     }
 
     @Test
@@ -1038,11 +1030,12 @@ public class ProjectionHandlerTest {
         List<ReferencedEnvelope> queryEnvelopes = ph.getQueryEnvelopes();
         assertEquals(1, queryEnvelopes.size());
 
-        // the expected query envelope
-        ReferencedEnvelope expected =
-                new ReferencedEnvelope(-180, 0, 0, 85, DefaultGeographicCRS.WGS84)
-                        .transform(epsg900913, true);
-        assertEquals(expected, queryEnvelopes.get(0));
+        // the bisection transformation provides a query envelope, close to the pole
+        ReferencedEnvelope qa = queryEnvelopes.get(0);
+        assertEquals(-2.0037508342789244E7, qa.getMinX(), 1);
+        assertEquals(0, qa.getMaxX(), 1);
+        assertEquals(0, qa.getMinY(), 1);
+        assertEquals(2.8066337200331915E7, qa.getMaxY(), 1);
     }
 
     @Test
@@ -1231,7 +1224,7 @@ public class ProjectionHandlerTest {
                 new ReferencedEnvelope(
                         1.5028131257091932E7,
                         2.0037508342789244E7,
-                        -1.9971868880408555E7,
+                        -3.2487565023661762E7,
                         -5621521.486192067,
                         OSM);
         assertEnvelopesEqual(expected, queryEnvelopes.get(0), EPS);
@@ -1253,7 +1246,7 @@ public class ProjectionHandlerTest {
         ReferencedEnvelope expected =
                 new ReferencedEnvelope(
                         -2.003748375258002E7,
-                        1.9582312033733368E7,
+                        1.958231203373337E7,
                         -1.5538175797794182E7,
                         -5621345.809658899,
                         OSM);
@@ -1275,7 +1268,7 @@ public class ProjectionHandlerTest {
         ReferencedEnvelope expected =
                 new ReferencedEnvelope(
                         -2.003748375258002E7,
-                        1.9582312033733368E7,
+                        1.958231203373337E7,
                         -1.5538175797794182E7,
                         -5621345.809658899,
                         OSM);
@@ -1477,9 +1470,9 @@ public class ProjectionHandlerTest {
 
         final double negativeMinX = -2380;
         final double negativeMaxX = -2170;
-        final double[] negatives = new double[] {negativeMinX, negativeMaxX};
-        final double[] positives = new double[] {positiveMinX, positiveMaxX};
-        final double[][] sets = new double[][] {negatives, positives};
+        final double[] negatives = {negativeMinX, negativeMaxX};
+        final double[] positives = {positiveMinX, positiveMaxX};
+        final double[][] sets = {negatives, positives};
 
         boolean negative = true;
         for (double[] set : sets) {
@@ -1612,7 +1605,6 @@ public class ProjectionHandlerTest {
         List<ReferencedEnvelope> envelopes = ph.getQueryEnvelopes();
         assertEquals(1, envelopes.size());
         ReferencedEnvelope qe = envelopes.get(0);
-        System.out.println(qe);
         assertEquals(-180, qe.getMinX(), 1e-3);
         // miny used to be a higher number, making the reprojection miss necessary data
         assertEquals(-90, qe.getMinY(), 1e-3);

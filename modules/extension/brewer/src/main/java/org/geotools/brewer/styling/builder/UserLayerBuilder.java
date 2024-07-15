@@ -18,11 +18,11 @@ package org.geotools.brewer.styling.builder;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.geotools.data.DataStore;
-import org.geotools.styling.FeatureTypeConstraint;
-import org.geotools.styling.Style;
-import org.geotools.styling.UserLayer;
-import org.opengis.feature.simple.SimpleFeatureType;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.style.FeatureTypeConstraint;
+import org.geotools.api.style.Style;
+import org.geotools.api.style.UserLayer;
 
 public class UserLayerBuilder extends AbstractSLDBuilder<UserLayer> {
 
@@ -73,6 +73,7 @@ public class UserLayerBuilder extends AbstractSLDBuilder<UserLayer> {
     }
 
     /** Reset stroke to default values. */
+    @Override
     public UserLayerBuilder reset() {
         unset = false;
         inlineFeatureDataStore = null;
@@ -84,12 +85,13 @@ public class UserLayerBuilder extends AbstractSLDBuilder<UserLayer> {
     }
 
     /** Reset builder to provided original stroke. */
+    @Override
     public UserLayerBuilder reset(UserLayer other) {
         if (other == null) {
             return unset();
         }
 
-        inlineFeatureDataStore = other.getInlineFeatureDatastore();
+        inlineFeatureDataStore = (DataStore) other.getInlineFeatureDatastore();
         inlineFeatureType = other.getInlineFeatureType();
         remoteOWS.reset(other.getRemoteOWS());
         featureTypeConstraint.clear();
@@ -110,6 +112,7 @@ public class UserLayerBuilder extends AbstractSLDBuilder<UserLayer> {
         return (UserLayerBuilder) super.unset();
     }
 
+    @Override
     public UserLayer build() {
         if (unset) {
             return null;
@@ -118,7 +121,7 @@ public class UserLayerBuilder extends AbstractSLDBuilder<UserLayer> {
         layer.setRemoteOWS(remoteOWS.build());
         layer.setInlineFeatureDatastore(inlineFeatureDataStore);
         layer.setInlineFeatureType(inlineFeatureType);
-        if (featureTypeConstraint.size() > 0) {
+        if (!featureTypeConstraint.isEmpty()) {
             FeatureTypeConstraint[] constraints =
                     new FeatureTypeConstraint[featureTypeConstraint.size()];
             for (int i = 0; i < constraints.length; i++) {

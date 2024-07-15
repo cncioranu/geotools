@@ -27,23 +27,22 @@ import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import javax.swing.Icon;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.api.style.Graphic;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.Symbolizer;
 import org.geotools.geometry.jts.GeometryBuilder;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.LiteShape;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.renderer.VendorOptionParser;
-import org.geotools.styling.Graphic;
-import org.geotools.styling.Mark;
-import org.geotools.styling.Symbolizer;
 import org.locationtech.jts.algorithm.MinimumDiameter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.quadtree.Quadtree;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Helper class that helps building (and caching) a texture fill built off a random symbol
@@ -352,8 +351,8 @@ class RandomFillBuilder {
                 Geometry cbTransformed = JTS.transform(conflictBounds, tx2d);
                 transformedConflictBounds.add(cbTransformed);
                 List results = qt.query(cbTransformed.getEnvelopeInternal());
-                for (Iterator it = results.iterator(); it.hasNext(); ) {
-                    Geometry candidate = (Geometry) it.next();
+                for (Object result : results) {
+                    Geometry candidate = (Geometry) result;
                     if (candidate.intersects(cbTransformed)) {
                         // location conflict
                         conflict = true;

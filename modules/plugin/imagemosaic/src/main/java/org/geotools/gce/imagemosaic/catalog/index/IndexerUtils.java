@@ -23,7 +23,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.bind.JAXBException;
 import org.geotools.coverage.util.CoverageUtilities;
+import org.geotools.gce.imagemosaic.SourceSPIProviderFactory;
 import org.geotools.gce.imagemosaic.Utils;
+import org.geotools.gce.imagemosaic.catalog.CogConfiguration;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Collectors;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Collectors.Collector;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Coverages;
@@ -122,7 +124,7 @@ public class IndexerUtils {
                 }
 
                 // property names
-                final String propertyNames[] = pcDef.substring(roundLPos + 1, roundRPos).split(",");
+                final String[] propertyNames = pcDef.substring(roundLPos + 1, roundRPos).split(",");
                 Collector collector = Utils.OBJECT_FACTORY.createIndexerCollectorsCollector();
                 collector.setSpi(spi);
 
@@ -173,7 +175,7 @@ public class IndexerUtils {
      */
     public static void setAttributes(DomainType domain, String values) {
         if (values.contains(";")) {
-            String properties[] = values.split(";");
+            String[] properties = values.split(";");
             for (String prop : properties) {
                 addAttribute(domain, prop);
             }
@@ -226,6 +228,18 @@ public class IndexerUtils {
             return Boolean.parseBoolean(value);
         }
         return false;
+    }
+
+    /**
+     * Return the parameter value (as an integer) of the specified parameter name from the provider
+     * indexer, or null, if the parameter was not found
+     */
+    public static Integer getParameterAsInteger(String parameterName, Indexer indexer) {
+        String value = getParameter(parameterName, indexer);
+        if (value != null) {
+            return Integer.parseInt(value);
+        }
+        return null;
     }
 
     /**
@@ -391,29 +405,8 @@ public class IndexerUtils {
                                             }
                                         }
                                     } else {
-                                        StringBuilder additionalDomainAttributes =
-                                                new StringBuilder();
-                                        for (DomainType domain : domainList) {
-                                            DomainType currentDomain =
-                                                    getDomain(domain, refDomains);
-                                            String domName = currentDomain.getName();
-                                            if (!domName.equalsIgnoreCase(Utils.TIME_DOMAIN)
-                                                    && !domName.equalsIgnoreCase(
-                                                            Utils.ELEVATION_DOMAIN)) {
-                                                additionalDomainAttributes.append(
-                                                        getAttributesAsString(currentDomain, true));
-                                                additionalDomainAttributes.append(",");
-                                            }
-                                        }
-                                        String attribs = additionalDomainAttributes.toString();
-                                        if (attribs != null && attribs.length() > 0) {
-                                            // remove the last ","
-                                            attribs = attribs.substring(0, attribs.length() - 1);
-                                        }
-                                        if (attribs.length() > 0) {
-                                            return attribs;
-                                        }
-                                        return null;
+                                        return getAdditionalDomainAttributes(
+                                                refDomains, domainList);
                                     }
                                 }
                             }
@@ -421,6 +414,29 @@ public class IndexerUtils {
                     }
                 }
             }
+        }
+        return null;
+    }
+
+    private static String getAdditionalDomainAttributes(
+            DomainsType refDomains, List<DomainType> domainList) {
+        StringBuilder additionalDomainAttributes = new StringBuilder();
+        for (DomainType domain : domainList) {
+            DomainType currentDomain = getDomain(domain, refDomains);
+            String domName = currentDomain.getName();
+            if (!domName.equalsIgnoreCase(Utils.TIME_DOMAIN)
+                    && !domName.equalsIgnoreCase(Utils.ELEVATION_DOMAIN)) {
+                additionalDomainAttributes.append(getAttributesAsString(currentDomain, true));
+                additionalDomainAttributes.append(",");
+            }
+        }
+        String attribs = additionalDomainAttributes.toString();
+        if (attribs != null && attribs.length() > 0) {
+            // remove the last ","
+            attribs = attribs.substring(0, attribs.length() - 1);
+        }
+        if (attribs.length() > 0) {
+            return attribs;
         }
         return null;
     }
@@ -483,6 +499,8 @@ public class IndexerUtils {
                 parameterList,
                 Utils.Prop.RECURSIVE,
                 Boolean.toString(Utils.DEFAULT_RECURSION_BEHAVIOR));
+        setParam(
+                parameterList, Utils.Prop.COLLECT_RAT, Boolean.toString(Utils.DEFAULT_COLLECT_RAT));
         setParam(parameterList, Utils.Prop.INDEX_NAME, Utils.DEFAULT_INDEX_NAME);
 
         return defaultIndexer;
@@ -563,16 +581,10 @@ public class IndexerUtils {
             coverage.setName(props.getProperty(Utils.Prop.TYPENAME));
         }
 
-        // absolute
-        if (props.containsKey(Utils.Prop.ABSOLUTE_PATH))
-            setParam(parameters, props, Utils.Prop.ABSOLUTE_PATH);
-
-        if (props.containsKey(Utils.Prop.PATH_TYPE))
-            setParam(parameters, props, Utils.Prop.PATH_TYPE);
-
-        // recursive
-        if (props.containsKey(Utils.Prop.RECURSIVE))
-            setParam(parameters, props, Utils.Prop.RECURSIVE);
+        addProperty(Utils.Prop.ABSOLUTE_PATH, props, parameters);
+        addProperty(Utils.Prop.PATH_TYPE, props, parameters);
+        addProperty(Utils.Prop.RECURSIVE, props, parameters);
+        addProperty(Utils.Prop.COLLECT_RAT, props, parameters);
 
         // isCog
         if (props.containsKey(Utils.Prop.COG)) {
@@ -582,33 +594,15 @@ public class IndexerUtils {
             } else {
                 setParam(parameters, Utils.Prop.COG_RANGE_READER, Utils.DEFAULT_RANGE_READER);
             }
-            if (props.containsKey(Utils.Prop.COG_USE_CACHE)) {
-                setParam(parameters, props, Utils.Prop.COG_USE_CACHE);
-            }
-            if (props.containsKey(Utils.Prop.COG_PASSWORD)) {
-                setParam(parameters, props, Utils.Prop.COG_PASSWORD);
-            }
-            if (props.containsKey(Utils.Prop.COG_USER)) {
-                setParam(parameters, props, Utils.Prop.COG_USER);
-            }
+            addProperty(Utils.Prop.COG_USE_CACHE, props, parameters);
+            addProperty(Utils.Prop.COG_PASSWORD, props, parameters);
+            addProperty(Utils.Prop.COG_USER, props, parameters);
         }
 
-        // wildcard
-        if (props.containsKey(Utils.Prop.WILDCARD))
-            setParam(parameters, props, Utils.Prop.WILDCARD);
-
-        // granule acceptors string
-        if (props.containsKey(Utils.Prop.GRANULE_ACCEPTORS)) {
-            setParam(parameters, props, Utils.Prop.GRANULE_ACCEPTORS);
-        }
-
-        if (props.containsKey(Utils.Prop.GEOMETRY_HANDLER)) {
-            setParam(parameters, props, Utils.Prop.GEOMETRY_HANDLER);
-        }
-
-        if (props.containsKey(Utils.Prop.COVERAGE_NAME_COLLECTOR_SPI)) {
-            IndexerUtils.setParam(parameters, props, Utils.Prop.COVERAGE_NAME_COLLECTOR_SPI);
-        }
+        addProperty(Utils.Prop.WILDCARD, props, parameters);
+        addProperty(Utils.Prop.GRANULE_ACCEPTORS, props, parameters);
+        addProperty(Utils.Prop.GEOMETRY_HANDLER, props, parameters);
+        addProperty(Utils.Prop.COVERAGE_NAME_COLLECTOR_SPI, props, parameters);
 
         // schema
         if (props.containsKey(Utils.Prop.SCHEMA)) {
@@ -628,6 +622,14 @@ public class IndexerUtils {
         addDomain(props, coverage, Utils.Prop.RESOLUTION_X_ATTRIBUTE, Utils.RESOLUTION_X_DOMAIN);
         addDomain(props, coverage, Utils.Prop.RESOLUTION_Y_ATTRIBUTE, Utils.RESOLUTION_Y_DOMAIN);
 
+        addProperty(Utils.Prop.TIME_ATTRIBUTE, props, parameters);
+        addProperty(Utils.Prop.ELEVATION_ATTRIBUTE, props, parameters);
+        addProperty(Utils.Prop.CRS_ATTRIBUTE, props, parameters);
+        addProperty(Utils.Prop.RESOLUTION_ATTRIBUTE, props, parameters);
+        addProperty(Utils.Prop.RESOLUTION_X_ATTRIBUTE, props, parameters);
+        addProperty(Utils.Prop.RESOLUTION_Y_ATTRIBUTE, props, parameters);
+        addProperty(Utils.Prop.PROPERTY_SELECTION, props, parameters);
+
         // Additional domain attr
         if (props.containsKey(Utils.Prop.ADDITIONAL_DOMAIN_ATTRIBUTES)) {
             DomainsType domains = coverage.getDomains();
@@ -640,65 +642,50 @@ public class IndexerUtils {
             parseAdditionalDomains(attributes, domainList);
         }
 
-        // imposed BBOX
-        if (props.containsKey(Utils.Prop.ENVELOPE2D))
-            setParam(parameters, props, Utils.Prop.ENVELOPE2D);
-
-        // imposed Pyramid Layout
-        if (props.containsKey(Utils.Prop.RESOLUTION_LEVELS))
-            setParam(parameters, props, Utils.Prop.RESOLUTION_LEVELS);
+        addProperty(Utils.Prop.ENVELOPE2D, props, parameters);
+        addProperty(Utils.Prop.RESOLUTION_LEVELS, props, parameters);
 
         // collectors
         if (props.containsKey(Utils.Prop.PROPERTY_COLLECTORS)) {
             setPropertyCollectors(indexer, props.getProperty(Utils.Prop.PROPERTY_COLLECTORS));
         }
 
-        if (props.containsKey(Utils.Prop.CACHING)) setParam(parameters, props, Utils.Prop.CACHING);
-
-        if (props.containsKey(Utils.Prop.ROOT_MOSAIC_DIR)) {
-            // Overriding root mosaic directory
-            setParam(parameters, props, Utils.Prop.ROOT_MOSAIC_DIR);
-        }
-
-        if (props.containsKey(Utils.Prop.INDEXING_DIRECTORIES)) {
-            setParam(parameters, props, Utils.Prop.INDEXING_DIRECTORIES);
-        }
-        if (props.containsKey(Utils.Prop.AUXILIARY_FILE)) {
-            setParam(parameters, props, Utils.Prop.AUXILIARY_FILE);
-        }
-        if (props.containsKey(Utils.Prop.AUXILIARY_DATASTORE_FILE)) {
-            setParam(parameters, props, Utils.Prop.AUXILIARY_DATASTORE_FILE);
-        }
-        if (props.containsKey(Utils.Prop.CAN_BE_EMPTY)) {
-            setParam(parameters, props, Utils.Prop.CAN_BE_EMPTY);
-        }
-        if (props.containsKey(Utils.Prop.WRAP_STORE)) {
-            setParam(parameters, props, Utils.Prop.WRAP_STORE);
-        }
-        if (props.containsKey(Utils.Prop.USE_EXISTING_SCHEMA)) {
-            setParam(parameters, props, Utils.Prop.USE_EXISTING_SCHEMA);
-        }
-        if (props.containsKey(Utils.Prop.CHECK_AUXILIARY_METADATA)) {
-            setParam(parameters, props, Utils.Prop.CHECK_AUXILIARY_METADATA);
-        }
-
-        if (props.containsKey(Utils.Prop.GRANULE_COLLECTOR_FACTORY)) {
-            setParam(parameters, props, Utils.Prop.GRANULE_COLLECTOR_FACTORY);
-        }
-
-        if (props.containsKey(Utils.Prop.HETEROGENEOUS_CRS)) {
-            setParam(parameters, props, Utils.Prop.HETEROGENEOUS_CRS);
-        }
-
-        if (props.containsKey(Utils.Prop.MOSAIC_CRS)) {
-            setParam(parameters, props, Utils.Prop.MOSAIC_CRS);
-        }
-
-        if (props.containsKey(Utils.Prop.NO_DATA)) {
-            setParam(parameters, props, Utils.Prop.NO_DATA);
-        }
+        addProperty(Utils.Prop.CACHING, props, parameters);
+        addProperty(Utils.Prop.ROOT_MOSAIC_DIR, props, parameters);
+        addProperty(Utils.Prop.INDEXING_DIRECTORIES, props, parameters);
+        addProperty(Utils.Prop.AUXILIARY_FILE, props, parameters);
+        addProperty(Utils.Prop.AUXILIARY_DATASTORE_FILE, props, parameters);
+        addProperty(Utils.Prop.CAN_BE_EMPTY, props, parameters);
+        addProperty(Utils.Prop.WRAP_STORE, props, parameters);
+        addProperty(Utils.Prop.USE_EXISTING_SCHEMA, props, parameters);
+        addProperty(Utils.Prop.CHECK_AUXILIARY_METADATA, props, parameters);
+        addProperty(Utils.Prop.GRANULE_COLLECTOR_FACTORY, props, parameters);
+        addProperty(Utils.Prop.HETEROGENEOUS_CRS, props, parameters);
+        addProperty(Utils.Prop.CRS_ATTRIBUTE, props, parameters);
+        addProperty(Utils.Prop.MOSAIC_CRS, props, parameters);
+        addProperty(Utils.Prop.NO_DATA, props, parameters);
+        addProperty(Utils.Prop.SKIP_EXTERNAL_OVERVIEWS, props, parameters);
+        addProperty(Utils.Prop.LOCATION_ATTRIBUTE, props, parameters);
+        addProperty(Utils.Prop.MAX_INIT_TILES, props, parameters);
+        addProperty(Utils.Prop.QUERY_CACHE_MAX_AGE, props, parameters);
+        addProperty(Utils.Prop.QUERY_CACHE_MAX_FEATURES, props, parameters);
 
         return indexer;
+    }
+
+    private static void addProperty(
+            String propertyName, Properties props, List<Parameter> parameters) {
+        if (props.containsKey(propertyName)) {
+            setParam(parameters, props, propertyName);
+        }
+    }
+
+    public static SourceSPIProviderFactory getSourceSPIProviderFactory(Indexer indexer) {
+        boolean cog = getParameterAsBoolean(Utils.Prop.COG, indexer);
+        if (cog) {
+            return new CogConfiguration(indexer);
+        }
+        return null;
     }
 
     private static void addDomain(

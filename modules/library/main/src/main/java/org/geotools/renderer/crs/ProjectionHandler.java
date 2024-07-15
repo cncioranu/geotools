@@ -25,6 +25,13 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.geotools.api.metadata.extent.GeographicBoundingBox;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.crs.SingleCRS;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
@@ -46,13 +53,6 @@ import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.precision.EnhancedPrecisionOp;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
-import org.opengis.metadata.extent.GeographicBoundingBox;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.crs.SingleCRS;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A class that can perform transformations on geometries to handle the singularity of the rendering
@@ -122,12 +122,6 @@ public class ProjectionHandler {
                         : null;
         this.validArea = null;
         this.validaAreaTester = null;
-        // query across dateline only in case of reprojection, Oracle won't use the spatial index
-        // with two or-ed bboxes and fixing the issue at the store level requires more
-        // time/resources than we presently have
-        this.queryAcrossDateline =
-                !CRS.equalsIgnoreMetadata(
-                        sourceCRS, renderingEnvelope.getCoordinateReferenceSystem());
         checkReprojection();
     }
 
@@ -143,7 +137,25 @@ public class ProjectionHandler {
             Geometry validArea,
             ReferencedEnvelope renderingEnvelope)
             throws FactoryException {
-        if (validArea.isRectangle()) {
+        this(sourceCRS, validArea, renderingEnvelope, false);
+    }
+
+    /**
+     * Initializes a projection handler
+     *
+     * @param sourceCRS The source CRS
+     * @param validArea The valid area (used to cut geometries that go beyond it)
+     * @param renderingEnvelope The target rendering area and target CRS
+     * @param keepGeometry Can be used to force the valid area to be treated as a polygon, even when
+     *     it's a rectangle
+     */
+    public ProjectionHandler(
+            CoordinateReferenceSystem sourceCRS,
+            Geometry validArea,
+            ReferencedEnvelope renderingEnvelope,
+            boolean keepGeometry)
+            throws FactoryException {
+        if (validArea.isRectangle() && !keepGeometry) {
             this.renderingEnvelope = renderingEnvelope;
             this.sourceCRS = sourceCRS;
             this.targetCRS = renderingEnvelope.getCoordinateReferenceSystem();
@@ -188,6 +200,12 @@ public class ProjectionHandler {
                     e);
             noReprojection = false;
         }
+        // query across dateline only in case of reprojection, Oracle won't use the spatial index
+        // with two or-ed bboxes and fixing the issue at the store level requires more
+        // time/resources than we presently have
+        this.queryAcrossDateline =
+                !CRS.equalsIgnoreMetadata(
+                        sourceCRS, renderingEnvelope.getCoordinateReferenceSystem());
     }
 
     /** Returns the current rendering envelope */
@@ -628,16 +646,15 @@ public class ProjectionHandler {
      */
     public Geometry preProcess(Geometry geometry) throws TransformException, FactoryException {
         // if there is no valid area, no cutting is required either
-        if (validAreaBounds == null) return densify(geometry);
+        if (validAreaBounds == null && validArea == null) return densify(geometry, true);
 
         // if not reprojection is going on, we don't need to cut
         if (noReprojection) {
-            return densify(geometry);
+            return densify(geometry, false);
         }
 
         Geometry mask;
-        // fast path for the rectangular case, more complex one for the
-        // non rectangular one
+        // fast path for the rectangular case, more complex one for the non-rectangular one
         ReferencedEnvelope ge = new ReferencedEnvelope(geometry.getEnvelopeInternal(), geometryCRS);
         ReferencedEnvelope geWGS84 = ge.transform(WGS84, true);
         // if the size of the envelope is less than 1 meter (1e-6 in degrees) expand it a bit
@@ -648,7 +665,7 @@ public class ProjectionHandler {
             // if the geometry is within the valid area for this projection
             // just skip expensive cutting
             if (validAreaBounds.contains((Envelope) geWGS84)) {
-                return densify(geometry);
+                return densify(geometry, true);
             }
 
             // we need to cut, first thing, we intersect the geometry envelope
@@ -667,7 +684,7 @@ public class ProjectionHandler {
                     ReferencedEnvelope translated = new ReferencedEnvelope(validAreaBounds);
                     translated.translate(-360, 0);
                     if (translated.contains((Envelope) geWGS84)) {
-                        return densify(geometry);
+                        return densify(geometry, false);
                     }
                     envIntWgs84 = translated.intersection(geWGS84);
                 } else if (validAreaBounds.contains(
@@ -675,7 +692,7 @@ public class ProjectionHandler {
                     ReferencedEnvelope translated = new ReferencedEnvelope(validAreaBounds);
                     translated.translate(360, 0);
                     if (translated.contains((Envelope) geWGS84)) {
-                        return densify(geometry);
+                        return densify(geometry, false);
                     }
                     envIntWgs84 = translated.intersection(geWGS84);
                 }
@@ -690,7 +707,7 @@ public class ProjectionHandler {
             // if the geometry is within the valid area for this projection
             // just skip expensive cutting
             if (validaAreaTester.contains(JTS.toGeometry(geWGS84))) {
-                return densify(geometry);
+                return densify(geometry, false);
             }
 
             // we need to cut, first thing, we intersect the geometry envelope
@@ -714,7 +731,7 @@ public class ProjectionHandler {
             mask = JTS.transform(maskWgs84, CRS.findMathTransform(WGS84, geometryCRS));
         }
 
-        return densify(intersect(geometry, mask, geometryCRS));
+        return densify(intersect(geometry, mask, geometryCRS), false);
     }
 
     /**
@@ -722,10 +739,15 @@ public class ProjectionHandler {
      *
      * <p>It returns the original geometry if densification is not enabled.
      */
-    protected Geometry densify(Geometry geometry) {
+    protected Geometry densify(Geometry geometry, boolean validate) {
         if (geometry != null && densify > 0.0) {
             try {
-                geometry = Densifier.densify(geometry, densify);
+                // disable validation, it runs an expensive buffer operation that
+                // can bring the VM to an OOM when run on large geometries.
+                Densifier densifier = new Densifier(geometry);
+                densifier.setDistanceTolerance(densify);
+                densifier.setValidate(validate);
+                return densifier.getResultGeometry();
             } catch (Throwable t) {
                 LOGGER.warning("Cannot densify geometry");
             }
@@ -762,7 +784,7 @@ public class ProjectionHandler {
                     }
                 }
 
-                if (elements.size() == 0) {
+                if (elements.isEmpty()) {
                     return null;
                 }
 
@@ -783,8 +805,12 @@ public class ProjectionHandler {
         }
         Geometry result = null;
         try {
-            result = geometry.intersection(mask);
+            result = intersection(geometry, mask);
         } catch (Exception e1) {
+            // JTS versions lower than 1.18.0 included a call to buffer(0) in the reduce call.
+            // We add it here to ensure that inputs are suitably clean.
+            geometry = geometry.buffer(0);
+
             // try a precision reduction approach, starting from mm and scaling up to km
             double precision;
             if (CRS.getProjectedCRS(geometryCRS) != null) {
@@ -805,7 +831,7 @@ public class ProjectionHandler {
                                         + "validity mask, trying a precision reduction approach with a precision of "
                                         + precision);
                     }
-                    result = reduced.intersection(mask);
+                    result = intersection(reduced, mask);
                     break;
                 } catch (Exception e3) {
                     precision *= 10;
@@ -822,16 +848,6 @@ public class ProjectionHandler {
             }
         }
 
-        // workaround for a JTS bug, sometimes it returns empty results
-        // even if the two geometries are indeed intersecting
-        if (result.isEmpty() && geometry.intersects(mask)) {
-            try {
-                result = EnhancedPrecisionOp.intersection(geometry, mask);
-            } catch (Exception e2) {
-                result = geometry;
-            }
-        }
-
         // clean up lower dimensional elements
         GeometryDimensionCollector collector =
                 new GeometryDimensionCollector(geometry.getDimension());
@@ -844,6 +860,22 @@ public class ProjectionHandler {
         } else {
             return result;
         }
+    }
+
+    private Geometry intersection(Geometry geometry, Geometry mask) {
+        Geometry result = geometry.intersection(mask);
+
+        // workaround for a JTS bug, sometimes it returns empty results
+        // even if the two geometries are indeed intersecting
+        if (result.isEmpty() && geometry.intersects(mask)) {
+            try {
+                result = EnhancedPrecisionOp.intersection(geometry, mask);
+            } catch (Exception e2) {
+                result = geometry;
+            }
+        }
+
+        return result;
     }
 
     /** Can modify/wrap the transform to handle specific projection issues */
@@ -927,12 +959,22 @@ public class ProjectionHandler {
         return validAreaBounds;
     }
 
+    /**
+     * Returns the valid area as a JTS geometry, if it's a complex area (otherwise use {@link
+     * #getValidAreaBounds()})
+     *
+     * @return
+     */
+    public Geometry getValidArea() {
+        return validArea;
+    }
+
     protected void setCentralMeridian(double centralMeridian) {
         // compute the earth half circle in target CRS coordinates
         try {
             CoordinateReferenceSystem targetCRS = renderingEnvelope.getCoordinateReferenceSystem();
             MathTransform mt = CRS.findMathTransform(WGS84, targetCRS, true);
-            double[] src = new double[] {centralMeridian, 0, 180 + centralMeridian, 0};
+            double[] src = {centralMeridian, 0, 180 + centralMeridian, 0};
             double[] dst = new double[4];
             mt.transform(src, 0, dst, 0, 2);
 
@@ -957,11 +999,12 @@ public class ProjectionHandler {
     protected void computeDatelineX() {
         // compute the x of the dateline in the rendering CRS
         try {
-            double[] ordinates = new double[] {180, -80, 180, 80};
+            double[] ordinates = {180, -80, 180, 80};
             MathTransform mt =
                     CRS.findMathTransform(
                             DefaultGeographicCRS.WGS84,
-                            renderingEnvelope.getCoordinateReferenceSystem());
+                            renderingEnvelope.getCoordinateReferenceSystem(),
+                            true);
             mt.transform(ordinates, 0, ordinates, 0, 2);
             datelineX = ordinates[0];
         } catch (Exception e) {

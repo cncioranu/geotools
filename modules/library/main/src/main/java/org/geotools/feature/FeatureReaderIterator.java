@@ -21,9 +21,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import org.geotools.data.FeatureReader;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.FeatureType;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.FeatureType;
 
 /**
  * An iterator that wraps around a FeatureReader.
@@ -47,6 +47,7 @@ public class FeatureReaderIterator<F extends Feature> implements Iterator<F>, Cl
         this.reader = reader;
     }
 
+    @Override
     public boolean hasNext() {
         try {
             if (reader == null) return false;
@@ -64,6 +65,7 @@ public class FeatureReaderIterator<F extends Feature> implements Iterator<F>, Cl
         }
     }
 
+    @Override
     public F next() {
         if (reader == null) {
             throw new NoSuchElementException("Iterator has been closed");
@@ -76,7 +78,7 @@ public class FeatureReaderIterator<F extends Feature> implements Iterator<F>, Cl
                     new NoSuchElementException("Could not obtain the next feature:" + io);
             problem.initCause(io);
             throw problem;
-        } catch (org.opengis.feature.IllegalAttributeException create) {
+        } catch (org.geotools.api.feature.IllegalAttributeException create) {
             close();
             NoSuchElementException problem =
                     new NoSuchElementException("Could not create the next feature:" + create);
@@ -86,11 +88,13 @@ public class FeatureReaderIterator<F extends Feature> implements Iterator<F>, Cl
     }
 
     /** If this is a problem, a different iterator can be made based on FeatureWriter */
+    @Override
     public void remove() {
         throw new UnsupportedOperationException("Modification of contents is not supported");
     }
 
     /** Close the reader please. */
+    @Override
     public void close() {
         if (reader != null) {
             try {

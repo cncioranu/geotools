@@ -16,9 +16,9 @@
  */
 package org.geotools.filter.v1_0.capabilities;
 
+import org.geotools.api.filter.FilterFactory;
 import org.geotools.filter.FilterFactoryImpl;
 import org.geotools.xsd.Configuration;
-import org.opengis.filter.FilterFactory;
 import org.picocontainer.MutablePicoContainer;
 
 /**
@@ -41,6 +41,7 @@ public class OGCConfiguration extends Configuration {
      *
      * @generated
      */
+    @Override
     protected final void registerBindings(MutablePicoContainer container) {
         // Types
         container.registerComponentImplementation(
@@ -80,6 +81,7 @@ public class OGCConfiguration extends Configuration {
         // container.registerComponentImplementation(OGC._Within,_WithinBinding.class);
     }
 
+    @Override
     protected void configureContext(MutablePicoContainer container) {
         super.configureContext(container);
 

@@ -18,11 +18,14 @@ package org.geotools.data;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.DelegatingFeatureReader;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.filter.Filter;
 import org.geotools.filter.visitor.BindingFilterVisitor;
-import org.opengis.feature.Feature;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.filter.Filter;
 
 /**
  * Basic support for a FeatureReader<SimpleFeatureType, SimpleFeature> that does filtering. I think
@@ -62,10 +65,12 @@ public class FilteringFeatureReader<T extends FeatureType, F extends Feature>
     }
 
     /** @return THe delegate reader. */
+    @Override
     public FeatureReader<T, F> getDelegate() {
         return featureReader;
     }
 
+    @Override
     public F next() throws IOException, IllegalAttributeException, NoSuchElementException {
         F f = null;
 
@@ -80,10 +85,12 @@ public class FilteringFeatureReader<T extends FeatureType, F extends Feature>
         }
     }
 
+    @Override
     public void close() throws IOException {
         featureReader.close();
     }
 
+    @Override
     public T getFeatureType() {
         return featureReader.getFeatureType();
     }
@@ -102,6 +109,7 @@ public class FilteringFeatureReader<T extends FeatureType, F extends Feature>
      * @throws IOException If the reader we are filtering encounters a problem
      * @throws DataSourceException See IOException
      */
+    @Override
     public boolean hasNext() throws IOException {
         if (next != null) {
             return true;

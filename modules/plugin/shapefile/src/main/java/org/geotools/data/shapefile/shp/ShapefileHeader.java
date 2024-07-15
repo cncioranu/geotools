@@ -97,7 +97,7 @@ public class ShapefileHeader {
         // skip remaining unused bytes
         file.order(ByteOrder.BIG_ENDIAN); // well they may not be unused
         // forever...
-        ((Buffer) file).position(((Buffer) file).position() + 32);
+        ((Buffer) file).position(file.position() + 32);
     }
 
     public void write(
@@ -166,6 +166,7 @@ public class ShapefileHeader {
         return maxY;
     }
 
+    @Override
     public String toString() {
         String res =
                 new String(

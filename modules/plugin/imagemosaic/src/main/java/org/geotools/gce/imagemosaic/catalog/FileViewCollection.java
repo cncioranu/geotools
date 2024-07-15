@@ -24,9 +24,15 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.geotools.api.data.FileGroupProvider;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.coverage.grid.io.GranuleSource;
-import org.geotools.data.FileGroupProvider;
-import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.factory.CommonFactoryFinder;
@@ -39,16 +45,10 @@ import org.geotools.gce.imagemosaic.PathType;
 import org.geotools.gce.imagemosaic.RasterManager;
 import org.geotools.gce.imagemosaic.SupportFilesCollector;
 import org.geotools.util.URLs;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
 
 class FileViewCollection extends DecoratingSimpleFeatureCollection {
 
-    static final FilterFactory2 FF = CommonFactoryFinder.getFilterFactory2();
+    static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
     public static final String IMAGEINDEX = "imageindex";
 
     private final PathType pathType;
@@ -68,9 +68,7 @@ class FileViewCollection extends DecoratingSimpleFeatureCollection {
         SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
         tb.init(delegate.getSchema());
         tb.remove(locationAttribute);
-        if (delegate.getSchema()
-                .getAttributeDescriptors()
-                .stream()
+        if (delegate.getSchema().getAttributeDescriptors().stream()
                 .anyMatch(d -> IMAGEINDEX.equals(d.getLocalName()))) {
             // used by multidim files, in output we return info only about first slice
             tb.remove(IMAGEINDEX);
@@ -91,8 +89,7 @@ class FileViewCollection extends DecoratingSimpleFeatureCollection {
         String locationAttribute = manager.getLocationAttribute();
         sorts.add(FF.sort(locationAttribute, SortOrder.ASCENDING));
         // sort on anything else
-        manager.getDimensionDescriptors()
-                .stream()
+        manager.getDimensionDescriptors().stream()
                 .map(dd -> FF.sort(dd.getStartAttribute(), SortOrder.ASCENDING))
                 .forEach(sorts::add);
 
@@ -139,8 +136,7 @@ class FileViewCollection extends DecoratingSimpleFeatureCollection {
         String location = (String) feature.getAttribute(locationAttribute);
         URL path = pathType.resolvePath(parentLocation, location);
 
-        schema.getAttributeDescriptors()
-                .stream()
+        schema.getAttributeDescriptors().stream()
                 .filter(d -> !location.equals(d.getLocalName()))
                 .forEach(
                         d ->

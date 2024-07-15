@@ -29,6 +29,31 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.PropertyDescriptor;
+import org.geotools.api.feature.type.PropertyType;
+import org.geotools.api.filter.BinaryComparisonOperator;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsGreaterThanOrEqualTo;
+import org.geotools.api.filter.PropertyIsLessThan;
+import org.geotools.api.filter.PropertyIsLessThanOrEqualTo;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
@@ -36,35 +61,11 @@ import org.geotools.feature.simple.SimpleFeatureTypeImpl;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.filter.LengthFunction;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.referencing.CRS;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.FactoryRegistryException;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
-import org.opengis.feature.type.PropertyType;
-import org.opengis.filter.BinaryComparisonOperator;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
-import org.opengis.filter.PropertyIsLessThanOrEqualTo;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Utility methods for working against the FeatureType interface.
@@ -333,6 +334,25 @@ public class FeatureTypes {
     public static SimpleFeatureType transform(
             SimpleFeatureType schema, CoordinateReferenceSystem crs, boolean forceOnlyMissing)
             throws SchemaException {
+        return transform(schema, crs, forceOnlyMissing, false);
+    }
+
+    /**
+     * Forces the specified CRS on geometry attributes (all or some, depends on the parameters).
+     *
+     * @param schema the original schema
+     * @param crs the forced crs
+     * @param forceOnlyMissing if true, will force the specified crs only on the attributes that do
+     *     miss one
+     * @param onlyIfCompatible if true, will force the specified crs only if the original CRS is
+     *     compatible with it. This property is ignored if forceOnlyMissing is true.
+     */
+    public static SimpleFeatureType transform(
+            SimpleFeatureType schema,
+            CoordinateReferenceSystem crs,
+            boolean forceOnlyMissing,
+            boolean onlyIfCompatible)
+            throws SchemaException {
         SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
         tb.setName(schema.getTypeName());
         tb.setNamespaceURI(schema.getName().getNamespaceURI());
@@ -344,7 +364,12 @@ public class FeatureTypes {
                 GeometryDescriptor geometryType = (GeometryDescriptor) attributeType;
 
                 tb.descriptor(geometryType);
-                if (!forceOnlyMissing || geometryType.getCoordinateReferenceSystem() == null) {
+
+                if (forceOnlyMissing
+                        ? geometryType.getCoordinateReferenceSystem() == null
+                        : !onlyIfCompatible
+                                || CRS.isCompatible(
+                                        geometryType.getCoordinateReferenceSystem(), crs, false)) {
                     tb.crs(crs);
                 }
 
@@ -383,6 +408,27 @@ public class FeatureTypes {
         feature.setAttribute(geomType.getLocalName(), geom);
 
         return feature;
+    }
+
+    /**
+     * Tells if there is any work to be done for reprojection, i.e. if there are any CRS that differ
+     * but are compatible.
+     *
+     * @param schema the schema to be reprojected
+     * @param crs the crs to reproject to
+     * @return answer as boolean
+     */
+    public static boolean shouldReproject(SimpleFeatureType schema, CoordinateReferenceSystem crs) {
+        for (int i = 0; i < schema.getDescriptors().size(); i++) {
+            if (schema.getDescriptor(i) instanceof GeometryDescriptor) {
+                GeometryDescriptor descr = (GeometryDescriptor) schema.getDescriptor(i);
+                if (!CRS.equalsIgnoreMetadata(crs, descr.getCoordinateReferenceSystem())
+                        && CRS.isCompatible(descr.getCoordinateReferenceSystem(), crs, false)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -441,8 +487,8 @@ public class FeatureTypes {
         if (defaultGeometry != null) {
             // make sure that the default geometry was one of the types specified
             boolean add = true;
-            for (int i = 0; i < types.length; i++) {
-                if (types[i] == defaultGeometry) {
+            for (AttributeDescriptor type : types) {
+                if (type == defaultGeometry) {
                     add = false;
                     break;
                 }
@@ -462,7 +508,7 @@ public class FeatureTypes {
             // use the default super type
             tb.setSuperType(ABSTRACT_FEATURE_TYPE);
         }
-        return (SimpleFeatureType) tb.buildFeatureType();
+        return tb.buildFeatureType();
     }
 
     /**
@@ -688,18 +734,18 @@ public class FeatureTypes {
     }
 
     public static boolean equals(
-            AttributeDescriptor attributesA[], AttributeDescriptor attributesB[]) {
+            AttributeDescriptor[] attributesA, AttributeDescriptor[] attributesB) {
         return equals(attributesA, attributesB, false);
     }
 
     public static boolean equalsExact(
-            AttributeDescriptor attributesA[], AttributeDescriptor attributesB[]) {
+            AttributeDescriptor[] attributesA, AttributeDescriptor[] attributesB) {
         return equals(attributesA, attributesB, true);
     }
 
     static boolean equals(
-            AttributeDescriptor attributesA[],
-            AttributeDescriptor attributesB[],
+            AttributeDescriptor[] attributesA,
+            AttributeDescriptor[] attributesB,
             boolean compareUserMaps) {
         if (attributesA.length != attributesB.length) return false;
 
@@ -756,10 +802,6 @@ public class FeatureTypes {
 
         // null == null handled above
         if (a == null || b == null) return false;
-
-        if (a != null && a.size() == 0 && b == null) return true;
-
-        if (b != null && b.size() == 0 && a == null) return true;
 
         return a.equals(b);
     }

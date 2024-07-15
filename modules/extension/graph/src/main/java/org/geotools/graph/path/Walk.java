@@ -45,6 +45,7 @@ public class Walk extends ArrayList<Node> implements NodeSequence {
     /**
      * A valid walk is one in which each pair of adjacent nodes in the sequence share an edge. Note,
      */
+    @Override
     public boolean isValid() {
         // if edges were calculated successfly it is a valid walk
         return (getEdges() != null);
@@ -71,21 +72,25 @@ public class Walk extends ArrayList<Node> implements NodeSequence {
      *
      * @param node Node to add to the walk.
      */
+    @Override
     public boolean add(Node node) {
         m_edges = null;
         return (super.add(node));
     }
 
+    @Override
     public void add(int index, Node element) {
         super.add(index, element);
         m_edges = null;
     }
 
+    @Override
     public boolean addAll(Collection<? extends Node> c) {
         m_edges = null;
         return (super.addAll(c));
     }
 
+    @Override
     public boolean addAll(int index, Collection<? extends Node> c) {
         m_edges = null;
         return (super.addAll(index, c));
@@ -127,8 +132,7 @@ public class Walk extends ArrayList<Node> implements NodeSequence {
     }
 
     public void addEdges(Collection<Edge> edges) {
-        for (Iterator<Edge> itr = edges.iterator(); itr.hasNext(); ) {
-            Edge e = itr.next();
+        for (Edge e : edges) {
             addEdge(e);
         }
     }
@@ -144,16 +148,19 @@ public class Walk extends ArrayList<Node> implements NodeSequence {
         m_edges = null;
     }
 
+    @Override
     public Node remove(int index) {
         m_edges = null;
         return (super.remove(index));
     }
 
+    @Override
     public boolean remove(Object o) {
         m_edges = null;
         return (super.remove(o));
     }
 
+    @Override
     public boolean removeAll(Collection c) {
         m_edges = null;
         return (super.removeAll(c));
@@ -171,13 +178,15 @@ public class Walk extends ArrayList<Node> implements NodeSequence {
     }
 
     /** @see NodeSequence#getFirst() */
+    @Override
     public Node getFirst() {
-        return ((Node) get(0));
+        return get(0);
     }
 
     /** @see NodeSequence#getLast() */
+    @Override
     public Node getLast() {
-        return ((Node) get(size() - 1));
+        return get(size() - 1);
     }
 
     /**
@@ -191,8 +200,8 @@ public class Walk extends ArrayList<Node> implements NodeSequence {
         List<Edge> edges = new ArrayList<>();
 
         for (int i = 1; i < size(); i++) {
-            Node prev = (Node) get(i - 1);
-            Node curr = (Node) get(i);
+            Node prev = get(i - 1);
+            Node curr = get(i);
 
             Edge e = curr.getEdge(prev);
 
@@ -230,14 +239,17 @@ public class Walk extends ArrayList<Node> implements NodeSequence {
         return (new Iterator<Node>() {
             int m_index = size() - 1;
 
+            @Override
             public void remove() {
                 throw new UnsupportedOperationException("Path iterator does not support remove()");
             }
 
+            @Override
             public boolean hasNext() {
                 return (m_index > -1);
             }
 
+            @Override
             public Node next() {
                 return (get(m_index--));
             }
@@ -248,6 +260,7 @@ public class Walk extends ArrayList<Node> implements NodeSequence {
         return (new Path(this));
     }
 
+    @Override
     public boolean equals(Object other) {
         if (other instanceof Walk) return (equals((Walk) other));
         return (false);
@@ -270,6 +283,7 @@ public class Walk extends ArrayList<Node> implements NodeSequence {
         return (false);
     }
 
+    @Override
     public int hashCode() {
         int hash = 7;
         hash = 31 * hash + getFirst().hashCode();

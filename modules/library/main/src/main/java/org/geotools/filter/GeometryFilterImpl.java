@@ -21,19 +21,19 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Beyond;
+import org.geotools.api.filter.spatial.BinarySpatialOperator;
+import org.geotools.api.filter.spatial.Contains;
+import org.geotools.api.filter.spatial.Crosses;
+import org.geotools.api.filter.spatial.Disjoint;
+import org.geotools.api.filter.spatial.Equals;
+import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.api.filter.spatial.Overlaps;
+import org.geotools.api.filter.spatial.Touches;
+import org.geotools.api.filter.spatial.Within;
 import org.geotools.util.Converters;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Beyond;
-import org.opengis.filter.spatial.BinarySpatialOperator;
-import org.opengis.filter.spatial.Contains;
-import org.opengis.filter.spatial.Crosses;
-import org.opengis.filter.spatial.Disjoint;
-import org.opengis.filter.spatial.Equals;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.filter.spatial.Overlaps;
-import org.opengis.filter.spatial.Touches;
-import org.opengis.filter.spatial.Within;
 
 /**
  * Implements a geometry filter.
@@ -71,20 +71,20 @@ public abstract class GeometryFilterImpl extends BinaryComparisonAbstract
     }
 
     protected GeometryFilterImpl(
-            org.opengis.filter.expression.Expression e1,
-            org.opengis.filter.expression.Expression e2,
+            org.geotools.api.filter.expression.Expression e1,
+            org.geotools.api.filter.expression.Expression e2,
             MatchAction matchAction) {
         super(e1, e2);
         this.matchAction = matchAction;
     }
 
-    protected GeometryFilterImpl(org.opengis.filter.FilterFactory factory) {
+    protected GeometryFilterImpl(org.geotools.api.filter.FilterFactory factory) {
         this(MatchAction.ANY);
     }
 
     protected GeometryFilterImpl(
-            org.opengis.filter.expression.Expression e1,
-            org.opengis.filter.expression.Expression e2) {
+            org.geotools.api.filter.expression.Expression e1,
+            org.geotools.api.filter.expression.Expression e2) {
         this(e1, e2, MatchAction.ANY);
     }
 
@@ -93,7 +93,7 @@ public abstract class GeometryFilterImpl extends BinaryComparisonAbstract
      * geometry or a list of geometries.
      */
     protected static Object getGeometries(
-            org.opengis.filter.expression.Expression expr, Object feature) {
+            org.geotools.api.filter.expression.Expression expr, Object feature) {
 
         Object o = expr.evaluate(feature);
 
@@ -102,12 +102,12 @@ public abstract class GeometryFilterImpl extends BinaryComparisonAbstract
             @SuppressWarnings("unchecked")
             Collection<Object> cast = (Collection<Object>) o;
             for (Object item : cast) {
-                Geometry geometry = (Geometry) Converters.convert(item, Geometry.class);
+                Geometry geometry = Converters.convert(item, Geometry.class);
                 if (geometry != null) {
                     list.add(geometry);
                 }
             }
-            return list.size() > 0 ? list : null;
+            return list.isEmpty() ? null : list;
         }
 
         return Converters.convert(o, Geometry.class);
@@ -118,6 +118,7 @@ public abstract class GeometryFilterImpl extends BinaryComparisonAbstract
      *
      * @return String representation of this geometry filter.
      */
+    @Override
     public String toString() {
         String operator = null;
 
@@ -144,8 +145,8 @@ public abstract class GeometryFilterImpl extends BinaryComparisonAbstract
             operator = " bbox ";
         }
 
-        org.opengis.filter.expression.Expression leftGeometry = getExpression1();
-        org.opengis.filter.expression.Expression rightGeometry = getExpression2();
+        org.geotools.api.filter.expression.Expression leftGeometry = getExpression1();
+        org.geotools.api.filter.expression.Expression rightGeometry = getExpression2();
 
         if ((expression1 == null) && (rightGeometry == null)) {
             return "[ " + "null" + operator + "null" + " ]";
@@ -166,6 +167,7 @@ public abstract class GeometryFilterImpl extends BinaryComparisonAbstract
      * @param obj - the object to compare this GeometryFilter against.
      * @return true if specified object is equal to this filter; else false
      */
+    @Override
     public boolean equals(Object obj) {
         if (this.getClass().isInstance(obj)) {
             GeometryFilterImpl geomFilter = (GeometryFilterImpl) obj;
@@ -181,9 +183,10 @@ public abstract class GeometryFilterImpl extends BinaryComparisonAbstract
      *
      * @return a hash code value for this geometry filter.
      */
+    @Override
     public int hashCode() {
-        org.opengis.filter.expression.Expression leftGeometry = getExpression1();
-        org.opengis.filter.expression.Expression rightGeometry = getExpression2();
+        org.geotools.api.filter.expression.Expression leftGeometry = getExpression1();
+        org.geotools.api.filter.expression.Expression rightGeometry = getExpression2();
 
         int result = 17;
         result = (37 * result) + getClass().hashCode();
@@ -193,10 +196,12 @@ public abstract class GeometryFilterImpl extends BinaryComparisonAbstract
         return result;
     }
 
+    @Override
     public MatchAction getMatchAction() {
         return matchAction;
     }
 
+    @Override
     public final boolean evaluate(Object feature) {
 
         Object object1 = getGeometries(getExpression1(), feature);

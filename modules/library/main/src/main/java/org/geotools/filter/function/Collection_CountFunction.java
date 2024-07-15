@@ -23,13 +23,13 @@ import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.visitor.CalcResult;
 import org.geotools.feature.visitor.CountVisitor;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
 
 /**
  * Calculates the count value of an attribute for a given SimpleFeatureCollection and Expression.
@@ -70,6 +70,7 @@ public class Collection_CountFunction extends FunctionExpressionImpl {
         return countVisitor.getResult();
     }
 
+    @Override
     public Object evaluate(Object feature) {
         if (feature == null) {
             return Integer.valueOf(0); // no features were visited in the making of this answer
@@ -84,9 +85,7 @@ public class Collection_CountFunction extends FunctionExpressionImpl {
                     if (result != null) {
                         count = result.getValue();
                     }
-                } catch (IllegalFilterException e) {
-                    LOGGER.log(Level.FINER, e.getLocalizedMessage(), e);
-                } catch (IOException e) {
+                } catch (IllegalFilterException | IOException e) {
                     LOGGER.log(Level.FINER, e.getLocalizedMessage(), e);
                 }
             }

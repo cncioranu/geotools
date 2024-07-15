@@ -21,11 +21,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.coverage.grid.Format;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.geometry.MismatchedDimensionException;
 import org.geotools.coverageio.gdal.BaseGDALGridFormat;
-import org.geotools.data.DataSourceException;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.Format;
-import org.opengis.geometry.MismatchedDimensionException;
 
 /**
  * An implementation of {@link Format} for the IDRIS (RST) format.
@@ -51,6 +51,7 @@ public final class IDRISIFormat extends BaseGDALGridFormat implements Format {
     }
 
     /** Sets the metadata information. */
+    @Override
     protected void setInfo() {
         final HashMap<String, String> info = new HashMap<>();
         info.put("name", "RST");
@@ -68,14 +69,11 @@ public final class IDRISIFormat extends BaseGDALGridFormat implements Format {
     }
 
     /** @see org.geotools.data.coverage.grid.AbstractGridFormat#getReader(Object, Hints) */
+    @Override
     public IDRISIReader getReader(Object source, Hints hints) {
         try {
             return new IDRISIReader(source, hints);
-        } catch (MismatchedDimensionException e) {
-            final RuntimeException re = new RuntimeException();
-            re.initCause(e);
-            throw re;
-        } catch (DataSourceException e) {
+        } catch (MismatchedDimensionException | DataSourceException e) {
             final RuntimeException re = new RuntimeException();
             re.initCause(e);
             throw re;

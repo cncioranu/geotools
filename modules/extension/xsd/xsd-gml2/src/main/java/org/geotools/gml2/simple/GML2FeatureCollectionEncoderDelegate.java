@@ -21,6 +21,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.xsd.XSDElementDeclaration;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.gml2.GML;
 import org.geotools.gml2.GMLConfiguration;
@@ -37,8 +39,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.helpers.AttributesImpl;
 
 /**
@@ -116,6 +116,7 @@ public class GML2FeatureCollectionEncoderDelegate extends FeatureCollectionEncod
             return config;
         }
 
+        @Override
         public List getFeatureProperties(
                 SimpleFeature f, XSDElementDeclaration element, Encoder e) {
             return GML2EncodingUtils.AbstractFeatureType_getProperties(
@@ -126,26 +127,33 @@ public class GML2FeatureCollectionEncoderDelegate extends FeatureCollectionEncod
                     e.getConfiguration());
         }
 
+        @Override
         public EnvelopeEncoder createEnvelopeEncoder(Encoder e) {
             return new EnvelopeEncoder(e, gmlPrefix);
         }
 
+        @Override
         public void initFidAttribute(AttributesImpl atts) {
             atts.addAttribute(null, "fid", "fid", null, "");
         }
 
+        @Override
         public void startFeatures(GMLWriter handler) {}
 
+        @Override
         public void startFeature(GMLWriter handler) throws Exception {
             handler.startElement(FEATURE_MEMBER, null);
         }
 
+        @Override
         public void endFeature(GMLWriter handler) throws Exception {
             handler.endElement(FEATURE_MEMBER);
         }
 
+        @Override
         public void endFeatures(GMLWriter handler) {}
 
+        @Override
         public void setSrsNameAttribute(AttributesImpl atts, CoordinateReferenceSystem crs) {
             atts.addAttribute(null, "srsName", "srsName", null, GML2EncodingUtils.toURI(crs, true));
         }

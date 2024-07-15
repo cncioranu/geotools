@@ -16,10 +16,10 @@
  */
 package org.geotools.gml3;
 
-import java.util.HashMap;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import java.util.Map;
-import org.custommonkey.xmlunit.SimpleNamespaceContext;
-import org.custommonkey.xmlunit.XMLUnit;
 import org.geotools.xsd.Configuration;
 import org.geotools.xsd.test.XMLTestSupport;
 import org.w3c.dom.Document;
@@ -72,24 +72,20 @@ import org.w3c.dom.NodeList;
 public abstract class GML3TestSupport extends XMLTestSupport {
 
     @Override
-    protected void setUp() throws Exception {
-        super.setUp();
-
-        Map<String, String> namespaces = new HashMap<>();
-        namespaces.put("xs", "http://www.w3.org/2001/XMLSchema");
-        namespaces.put("xsd", "http://www.w3.org/2001/XMLSchema");
-        namespaces.put("gml", "http://www.opengis.net/gml");
-        namespaces.put("xlink", "http://www.w3.org/1999/xlink");
-        namespaces.put("xsi", "http://www.w3.org/2001/XMLSchema-instance");
-        XMLUnit.setXpathNamespaceContext(new SimpleNamespaceContext(namespaces));
-
-        registerNamespaceMapping("gml", "http://www.opengis.net/gml");
+    protected Map<String, String> getNamespaces() {
+        return namespaces(
+                Namespace("xs", "http://www.w3.org/2001/XMLSchema"),
+                Namespace("xsd", "http://www.w3.org/2001/XMLSchema"),
+                Namespace("gml", "http://www.opengis.net/gml"),
+                Namespace("xlink", "http://www.w3.org/1999/xlink"),
+                Namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance"));
     }
 
     /*
      * binds to the GMLConfiguration in the current package
      * i.e. this is a GML3 specific binding configuration.
      */
+    @Override
     protected Configuration createConfiguration() {
         return new GMLConfiguration(enableExtendedArcSurfaceSupport());
     }

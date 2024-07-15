@@ -24,6 +24,9 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.PreparedFilterToSQL;
@@ -33,9 +36,6 @@ import org.geotools.util.factory.Hints.Key;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class DB2SQLDialectPrepared extends PreparedStatementSQLDialect {
 
@@ -219,10 +219,12 @@ public class DB2SQLDialectPrepared extends PreparedStatementSQLDialect {
         DB2Util.prepareGeometryValue(gClass, srid, binding, sql);
     }
 
+    @Override
     public boolean isLimitOffsetSupported() {
         return delegate.isLimitOffsetSupported();
     }
 
+    @Override
     public void applyLimitOffset(StringBuffer sql, int limit, int offset) {
         delegate.applyLimitOffset(sql, limit, offset);
     }
@@ -257,6 +259,7 @@ public class DB2SQLDialectPrepared extends PreparedStatementSQLDialect {
         delegate.setFunctionEncodingEnabled(functionEncodingEnabled);
     }
 
+    @Override
     public List<ReferencedEnvelope> getOptimizedBounds(
             String schema, SimpleFeatureType featureType, Connection cx)
             throws SQLException, IOException {
@@ -274,5 +277,10 @@ public class DB2SQLDialectPrepared extends PreparedStatementSQLDialect {
     @Override
     protected boolean supportsSchemaForIndex() {
         return delegate.supportsSchemaForIndex();
+    }
+
+    @Override
+    public boolean canGroupOnGeometry() {
+        return delegate.canGroupOnGeometry();
     }
 }

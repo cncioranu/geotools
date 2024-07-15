@@ -21,21 +21,29 @@ import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
+import java.text.MessageFormat;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.measure.Unit;
 import javax.measure.quantity.Length;
 import javax.swing.Icon;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.crs.EngineeringCRS;
+import org.geotools.api.referencing.crs.GeographicCRS;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.data.crs.ForceCoordinateSystemFeatureResults;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.FeatureCollection;
-import org.geotools.geometry.Envelope2D;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.GeodeticCalculator;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -59,14 +67,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.crs.EngineeringCRS;
-import org.opengis.referencing.crs.GeographicCRS;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.TransformException;
 import si.uom.SI;
 
 /**
@@ -127,22 +127,19 @@ public final class RendererUtilities {
         // Convert the JTS envelope and get the transform
         //
         // //
-        final Envelope2D genvelope = new Envelope2D(mapExtent);
+        final Bounds genvelope = new GeneralBounds(mapExtent);
 
         // //
         //
         // Get the transform
         //
         // //
-        final GridToEnvelopeMapper m = (GridToEnvelopeMapper) gridToEnvelopeMappers.get();
+        final GridToEnvelopeMapper m = gridToEnvelopeMappers.get();
         try {
             m.setGridRange(new GridEnvelope2D(paintArea));
             m.setEnvelope(genvelope);
             return m.createAffineTransform().createInverse();
-        } catch (MismatchedDimensionException e) {
-            LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
-            return null;
-        } catch (NoninvertibleTransformException e) {
+        } catch (MismatchedDimensionException | NoninvertibleTransformException e) {
             LOGGER.log(Level.WARNING, e.getLocalizedMessage(), e);
             return null;
         }
@@ -210,7 +207,7 @@ public final class RendererUtilities {
         final CoordinateReferenceSystem crs2d = CRS.getHorizontalCRS(crs);
         if (crs2d == null)
             throw new UnsupportedOperationException(
-                    Errors.format(ErrorKeys.CANT_REDUCE_TO_TWO_DIMENSIONS_$1, crs));
+                    MessageFormat.format(ErrorKeys.CANT_REDUCE_TO_TWO_DIMENSIONS_$1, crs));
 
         Envelope env = createMapEnvelope(paintArea, worldToScreen);
         return new ReferencedEnvelope(env, crs2d);
@@ -319,7 +316,7 @@ public final class RendererUtilities {
      * hints contains a DPI then that DPI is used otherwise 90 is used (the OGS default).
      */
     public static double calculateScale(
-            ReferencedEnvelope envelope, int imageWidth, int imageHeight, Map hints)
+            ReferencedEnvelope envelope, int imageWidth, int imageHeight, Map<?, ?> hints)
             throws TransformException, FactoryException {
 
         if (hints != null && hints.containsKey("declaredScaleDenominator")) {
@@ -389,10 +386,9 @@ public final class RendererUtilities {
             final CoordinateReferenceSystem tempCRS =
                     CRS.getHorizontalCRS(envelope.getCoordinateReferenceSystem());
             if (tempCRS == null) {
+                final Object arg0 = envelope.getCoordinateReferenceSystem();
                 throw new TransformException(
-                        Errors.format(
-                                ErrorKeys.CANT_REDUCE_TO_TWO_DIMENSIONS_$1,
-                                envelope.getCoordinateReferenceSystem()));
+                        MessageFormat.format(ErrorKeys.CANT_REDUCE_TO_TWO_DIMENSIONS_$1, arg0));
             }
             ReferencedEnvelope envelopeWGS84 = envelope.transform(DefaultGeographicCRS.WGS84, true);
             diagonalGroundDistance = geodeticDiagonalDistance(envelopeWGS84);
@@ -554,19 +550,20 @@ public final class RendererUtilities {
         final CoordinateReferenceSystem crs2D = CRS.getHorizontalCRS(destinationCrs);
         if (crs2D == null)
             throw new TransformException(
-                    Errors.format(ErrorKeys.CANT_REDUCE_TO_TWO_DIMENSIONS_$1, destinationCrs));
+                    MessageFormat.format(
+                            ErrorKeys.CANT_REDUCE_TO_TWO_DIMENSIONS_$1, destinationCrs));
         final boolean lonFirst =
                 crs2D.getCoordinateSystem()
                         .getAxis(0)
                         .getDirection()
                         .absolute()
                         .equals(AxisDirection.EAST);
-        final GeneralEnvelope newEnvelope =
+        final GeneralBounds newEnvelope =
                 lonFirst
-                        ? new GeneralEnvelope(
+                        ? new GeneralBounds(
                                 new double[] {mapExtent.getMinX(), mapExtent.getMinY()},
                                 new double[] {mapExtent.getMaxX(), mapExtent.getMaxY()})
-                        : new GeneralEnvelope(
+                        : new GeneralBounds(
                                 new double[] {mapExtent.getMinY(), mapExtent.getMinX()},
                                 new double[] {mapExtent.getMaxY(), mapExtent.getMaxX()});
         newEnvelope.setCoordinateReferenceSystem(destinationCrs);
@@ -577,7 +574,7 @@ public final class RendererUtilities {
         // is a hashtable lookup. The benefit is reusing the last
         // transform (instead of creating a new one) if the grid
         // and envelope are the same one than during last invocation.
-        final GridToEnvelopeMapper m = (GridToEnvelopeMapper) gridToEnvelopeMappers.get();
+        final GridToEnvelopeMapper m = gridToEnvelopeMappers.get();
         m.setGridRange(new GridEnvelope2D(paintArea));
         m.setEnvelope(newEnvelope);
         return (AffineTransform) (m.createTransform().inverse());

@@ -20,9 +20,9 @@ import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Paint;
-import org.geotools.styling.Fill;
-import org.geotools.styling.PolygonSymbolizer;
-import org.opengis.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.style.Fill;
+import org.geotools.api.style.PolygonSymbolizer;
 
 /**
  * A dynamic polygon style, that will compute its parameters each time they are requested instead of
@@ -41,6 +41,7 @@ public class DynamicPolygonStyle2D extends org.geotools.renderer.style.PolygonSt
     }
 
     /** Computes and returns the fill based on the feature and the symbolizer */
+    @Override
     public java.awt.Paint getFill() {
         Fill fill = ps.getFill();
 
@@ -48,10 +49,10 @@ public class DynamicPolygonStyle2D extends org.geotools.renderer.style.PolygonSt
             return null;
         }
 
-        Paint fillPaint = (Color) fill.getColor().evaluate(feature, Color.class);
+        Paint fillPaint = fill.getColor().evaluate(feature, Color.class);
 
         // if a graphic fill is to be used, prepare the paint accordingly....
-        org.geotools.styling.Graphic gr = fill.getGraphicFill();
+        org.geotools.api.style.Graphic gr = fill.getGraphicFill();
 
         if (gr != null) {
             SLDStyleFactory fac = new SLDStyleFactory();
@@ -62,6 +63,7 @@ public class DynamicPolygonStyle2D extends org.geotools.renderer.style.PolygonSt
     }
 
     /** Computes and returns the fill composite based on the feature and the symbolizer */
+    @Override
     public Composite getFillComposite() {
         Fill fill = ps.getFill();
 
@@ -70,7 +72,7 @@ public class DynamicPolygonStyle2D extends org.geotools.renderer.style.PolygonSt
         }
 
         // get the opacity and prepare the composite
-        float opacity = ((Float) fill.getOpacity().evaluate(feature, Float.class)).floatValue();
+        float opacity = fill.getOpacity().evaluate(feature, Float.class).floatValue();
 
         if (opacity == 1) {
             return null;

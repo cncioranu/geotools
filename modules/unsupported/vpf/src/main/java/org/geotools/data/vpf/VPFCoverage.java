@@ -24,14 +24,14 @@ import static org.geotools.data.vpf.ifc.VPFCoverageIfc.FIELD_LEVEL;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Vector;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.vpf.file.VPFFile;
 import org.geotools.data.vpf.file.VPFFileFactory;
 import org.geotools.data.vpf.ifc.VPFCoverageIfc;
 import org.geotools.feature.SchemaException;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * A VPF coverage. This class constructs and contains both feature classes and feature types.
@@ -44,10 +44,10 @@ public class VPFCoverage {
     private final String description;
 
     /** List of feature classes part of this coverage */
-    private final List<VPFFeatureClass> featureClasses = new Vector<>();
+    private final List<VPFFeatureClass> featureClasses = new ArrayList<>();
 
     /** List of feature types part of this coverage */
-    private final List<VPFFeatureType> featureTypes = new Vector<>(25);
+    private final List<VPFFeatureType> featureTypes = new ArrayList<>(25);
 
     /** The owning library */
     private final VPFLibrary library;
@@ -160,7 +160,7 @@ public class VPFCoverage {
             // If there is no char.vdt,
             // we can assume there is only one feature type
             // and only one feature class
-            VPFFeatureClass coverageClass = (VPFFeatureClass) featureClasses.get(0);
+            VPFFeatureClass coverageClass = featureClasses.get(0);
             VPFFeatureType featureType = new VPFFeatureType(coverageClass);
             featureTypes.add(featureType);
         }
@@ -173,9 +173,8 @@ public class VPFCoverage {
      * @throws IOException on any IO problems, particularly not being able to find the char.vdt file
      */
     private VPFFile getCharVDT() throws IOException {
-        VPFFile charvdtInputStream = null;
         String charvdtFileName = pathName + File.separator + CHARACTER_VALUE_DESCRIPTION_TABLE;
-        charvdtInputStream = VPFFileFactory.getInstance().getFile(charvdtFileName);
+        VPFFile charvdtInputStream = VPFFileFactory.getInstance().getFile(charvdtFileName);
 
         return charvdtInputStream;
     }
@@ -238,6 +237,7 @@ public class VPFCoverage {
      *  (non-Javadoc)
      * @see java.lang.Object#toString()
      */
+    @Override
     public String toString() {
         return "VPF Coverage "
                 + getName()

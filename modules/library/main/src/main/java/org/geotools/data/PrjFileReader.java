@@ -26,11 +26,12 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.StandardCharsets;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.util.NIOUtilities;
 import org.geotools.util.factory.Hints;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * @author Simone Giannecchini
@@ -72,7 +73,7 @@ public class PrjFileReader implements Closeable {
     public PrjFileReader(ReadableByteChannel channel, final Hints hints)
             throws IOException, FactoryException {
         try {
-            Charset chars = Charset.forName("ISO-8859-1");
+            Charset chars = StandardCharsets.ISO_8859_1;
             decoder = chars.newDecoder();
             this.channel = channel;
 
@@ -138,7 +139,7 @@ public class PrjFileReader implements Closeable {
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
         charBuffer = CharBuffer.allocate(8 * 1024);
-        Charset chars = Charset.forName("ISO-8859-1");
+        Charset chars = StandardCharsets.ISO_8859_1;
         decoder = chars.newDecoder();
     }
 
@@ -146,6 +147,7 @@ public class PrjFileReader implements Closeable {
      * The reader will close itself right after reading the CRS from the prj file, so no actual need
      * to call it explicitly anymore.
      */
+    @Override
     public void close() throws IOException {
         if (buffer != null) {
             NIOUtilities.clean(buffer); // will close if a MappedByteBuffer

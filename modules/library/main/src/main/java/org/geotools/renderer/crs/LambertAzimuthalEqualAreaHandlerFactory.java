@@ -16,14 +16,14 @@
  */
 package org.geotools.renderer.crs;
 
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.referencing.operation.projection.LambertAzimuthalEqualArea;
 import org.geotools.referencing.operation.projection.MapProjection;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Returns a {@link ProjectionHandler} for the {@link LambertAzimuthalEqualArea} projection that
@@ -34,6 +34,7 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  */
 public class LambertAzimuthalEqualAreaHandlerFactory implements ProjectionHandlerFactory {
 
+    @Override
     public ProjectionHandler getHandler(
             ReferencedEnvelope renderingEnvelope,
             CoordinateReferenceSystem sourceCrs,

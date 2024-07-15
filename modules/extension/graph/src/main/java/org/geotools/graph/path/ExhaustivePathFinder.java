@@ -47,11 +47,9 @@ public class ExhaustivePathFinder {
     public Path getPath(Node from, Node to) {
         final Node dst = to;
         GraphVisitor visitor =
-                new GraphVisitor() {
-                    public int visit(Graphable component) {
-                        if (component.equals(dst)) return (END_PATH_AND_STOP);
-                        return (CONTINUE_PATH);
-                    }
+                component -> {
+                    if (component.equals(dst)) return (END_PATH_AND_STOP);
+                    return (CONTINUE_PATH);
                 };
         List paths = getPaths(from, visitor);
         if (paths.isEmpty()) return (null);
@@ -61,11 +59,9 @@ public class ExhaustivePathFinder {
     public List getPaths(Node from, Node to) {
         final Node dst = to;
         GraphVisitor visitor =
-                new GraphVisitor() {
-                    public int visit(Graphable component) {
-                        if (component.equals(dst)) return (END_PATH_AND_CONTINUE);
-                        return (CONTINUE_PATH);
-                    }
+                component -> {
+                    if (component.equals(dst)) return (END_PATH_AND_CONTINUE);
+                    return (CONTINUE_PATH);
                 };
         return (getPaths(from, visitor));
     }
@@ -84,7 +80,7 @@ public class ExhaustivePathFinder {
         O:
         while (!stack.isEmpty() && (iterations++ < m_maxitr)) {
             // peek the stack
-            Node top = (Node) stack.peek();
+            Node top = stack.peek();
 
             switch (visitor.visit(top)) {
                 case END_PATH_AND_CONTINUE:

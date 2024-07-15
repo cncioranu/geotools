@@ -18,6 +18,8 @@ package org.geotools.gml3.bindings;
 
 import java.util.List;
 import javax.xml.namespace.QName;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.LiteCoordinateSequence;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope3D;
@@ -31,8 +33,6 @@ import org.geotools.xsd.Node;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -91,6 +91,7 @@ public class EnvelopeTypeBinding extends AbstractComplexBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return GML.EnvelopeType;
     }
@@ -102,6 +103,7 @@ public class EnvelopeTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Class getType() {
         return Envelope.class;
     }
@@ -113,12 +115,13 @@ public class EnvelopeTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         CoordinateReferenceSystem crs = GML3ParsingUtils.crs(node);
 
         if (node.getChild("lowerCorner") != null) {
-            DirectPosition l = (DirectPosition) node.getChildValue("lowerCorner");
-            DirectPosition u = (DirectPosition) node.getChildValue("upperCorner");
+            Position l = (Position) node.getChildValue("lowerCorner");
+            Position u = (Position) node.getChildValue("upperCorner");
 
             if (l.getDimension() > 2) {
                 return new ReferencedEnvelope3D(
@@ -147,10 +150,10 @@ public class EnvelopeTypeBinding extends AbstractComplexBinding {
             }
         }
 
-        if (node.hasChild(DirectPosition.class)) {
-            List dp = node.getChildValues(DirectPosition.class);
-            DirectPosition dp1 = (DirectPosition) dp.get(0);
-            DirectPosition dp2 = (DirectPosition) dp.get(1);
+        if (node.hasChild(Position.class)) {
+            List dp = node.getChildValues(Position.class);
+            Position dp1 = (Position) dp.get(0);
+            Position dp2 = (Position) dp.get(1);
 
             if (dp1.getDimension() > 2) {
                 return new ReferencedEnvelope3D(
@@ -172,8 +175,7 @@ public class EnvelopeTypeBinding extends AbstractComplexBinding {
         }
 
         if (node.hasChild(CoordinateSequence.class)) {
-            CoordinateSequence seq =
-                    (CoordinateSequence) node.getChildValue(CoordinateSequence.class);
+            CoordinateSequence seq = node.getChildValue(CoordinateSequence.class);
 
             if (seq.getDimension() > 2) {
                 return new ReferencedEnvelope3D(
@@ -193,6 +195,7 @@ public class EnvelopeTypeBinding extends AbstractComplexBinding {
         return null;
     }
 
+    @Override
     public Element encode(Object object, Document document, Element value) throws Exception {
         Envelope envelope = (Envelope) object;
 
@@ -205,6 +208,7 @@ public class EnvelopeTypeBinding extends AbstractComplexBinding {
         return null;
     }
 
+    @Override
     public Object getProperty(Object object, QName name) {
         Envelope envelope = (Envelope) object;
 

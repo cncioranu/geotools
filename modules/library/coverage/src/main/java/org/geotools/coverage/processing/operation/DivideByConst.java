@@ -24,13 +24,13 @@ import java.awt.image.RenderedImage;
 import java.util.Map;
 import javax.media.jai.ParameterBlockJAI;
 import javax.media.jai.operator.DivideByConstDescriptor;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.processing.OperationJAI;
 import org.geotools.util.NumberRange;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.InternationalString;
 
 // Geotools dependencies
 
@@ -88,11 +88,13 @@ public class DivideByConst extends OperationJAI {
         super(DIVIDE_BY_CONST, getOperationDescriptor(JAIExt.getOperationName(DIVIDE_BY_CONST)));
     }
 
+    @Override
     public String getName() {
         return DIVIDE_BY_CONST;
     }
 
     /** Returns the expected range of values for the resulting image. */
+    @Override
     protected NumberRange<? extends Number> deriveRange(
             final NumberRange<? extends Number>[] ranges, final Parameters parameters) {
         final double[] constants = (double[]) parameters.parameters.getObjectParameter("constants");
@@ -106,6 +108,7 @@ public class DivideByConst extends OperationJAI {
         return super.deriveRange(ranges, parameters);
     }
 
+    @Override
     protected void handleJAIEXTParams(
             ParameterBlockJAI parameters, ParameterValueGroup parameters2) {
         GridCoverage2D source = (GridCoverage2D) parameters2.parameter("source0").getValue();
@@ -115,6 +118,7 @@ public class DivideByConst extends OperationJAI {
         handleROINoDataInternal(parameters, source, OPERATION_CONST, 2, 3);
     }
 
+    @Override
     protected Map<String, ?> getProperties(
             RenderedImage data,
             CoordinateReferenceSystem crs,

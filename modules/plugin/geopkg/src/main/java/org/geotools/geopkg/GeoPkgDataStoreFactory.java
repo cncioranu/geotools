@@ -22,7 +22,7 @@ import java.util.Collections;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.Parameter;
 import org.geotools.geopkg.geom.GeoPkgGeomWriter;
 import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCDataStoreFactory;
@@ -60,6 +60,9 @@ public class GeoPkgDataStoreFactory extends JDBCDataStoreFactory {
 
     public static final Param READ_ONLY = new Param("read_only", Boolean.class, "Read only", false);
 
+    public static final Param CONTENTS_ONLY =
+            new Param("contents_only", Boolean.class, "Contents only", false, Boolean.TRUE);
+
     /** Maximum mapped memory, defaults to null */
     public static final Param MEMORY_MAP_SIZE =
             new Param(
@@ -73,6 +76,8 @@ public class GeoPkgDataStoreFactory extends JDBCDataStoreFactory {
     File baseDirectory = null;
 
     GeoPkgGeomWriter.Configuration writerConfig;
+
+    private static int sqlLiteConnectTimeout = 60000;
 
     public GeoPkgDataStoreFactory() {
         this.writerConfig = new GeoPkgGeomWriter.Configuration();
@@ -104,6 +109,20 @@ public class GeoPkgDataStoreFactory extends JDBCDataStoreFactory {
     @Override
     protected String getDriverClassName() {
         return "org.sqlite.JDBC";
+    }
+
+    @Override
+    protected SQLDialect createSQLDialect(JDBCDataStore dataStore, Map<String, ?> params) {
+        try {
+            Boolean contentsOnly = (Boolean) CONTENTS_ONLY.lookUp(params);
+            GeoPkgDialect dialect = (GeoPkgDialect) createSQLDialect(dataStore);
+            if (contentsOnly != null) {
+                dialect.setContentsOnly(contentsOnly);
+            }
+            return dialect;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -206,11 +225,12 @@ public class GeoPkgDataStoreFactory extends JDBCDataStoreFactory {
             config.setPragma(SQLiteConfig.Pragma.SYNCHRONOUS, "OFF");
             config.setReadOnly(true);
         }
-        Object map = (Integer) MEMORY_MAP_SIZE.lookUp(params);
+        Object map = MEMORY_MAP_SIZE.lookUp(params);
         if (map instanceof Integer && ((Integer) map) >= 0) {
             int memoryMB = (Integer) map;
             config.setPragma(SQLiteConfig.Pragma.MMAP_SIZE, String.valueOf(memoryMB * 1024 * 1024));
         }
+        config.setBusyTimeout(sqlLiteConnectTimeout);
         return config;
     }
 
@@ -228,5 +248,14 @@ public class GeoPkgDataStoreFactory extends JDBCDataStoreFactory {
             throws IOException {
         dataStore.setDatabaseSchema(null);
         return dataStore;
+    }
+
+    /**
+     * Sets the timeout for SQLite connections in miliseconds (for testing). Default is 60 seconds.
+     *
+     * @param sqlLiteConnectTimeout timeout in miliseconds
+     */
+    public static void setSqlLiteConnectTimeout(int sqlLiteConnectTimeout) {
+        GeoPkgDataStoreFactory.sqlLiteConnectTimeout = sqlLiteConnectTimeout;
     }
 }

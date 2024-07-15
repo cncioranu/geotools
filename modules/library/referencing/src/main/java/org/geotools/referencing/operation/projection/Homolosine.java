@@ -23,13 +23,13 @@ package org.geotools.referencing.operation.projection;
 import static java.lang.Math.toRadians;
 
 import java.awt.geom.Point2D;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Homolosine projection
@@ -86,6 +86,7 @@ public class Homolosine extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -143,6 +144,7 @@ public class Homolosine extends MapProjection {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double lam, double phi, Point2D ptDst)
             throws ProjectionException {
 
@@ -150,10 +152,7 @@ public class Homolosine extends MapProjection {
         double[] central_merids;
         double offset = computeOffset();
         int i = 0;
-        double central_merid = 0;
-        double lam_shift = 0;
         Point2D p;
-        Point2D shift;
 
         lam = wrapLongitude(lam);
         phi = wrapLatitude(phi);
@@ -170,8 +169,8 @@ public class Homolosine extends MapProjection {
         if (lam >= interruptions[interruptions.length - 1]) i = interruptions.length - 1;
         else while (lam >= interruptions[i]) i++;
 
-        central_merid = central_merids[i - 1];
-        lam_shift = lam - central_merid;
+        double central_merid = central_merids[i - 1];
+        double lam_shift = lam - central_merid;
 
         if (phi > LAT_THRESH || phi < -LAT_THRESH) { // Mollweide
             p = moll.transformNormalized(lam_shift, phi, ptDst);
@@ -180,7 +179,7 @@ public class Homolosine extends MapProjection {
             p = new Point2D.Double(lam_shift * Math.cos(phi), phi);
         }
 
-        shift = sinu.transformNormalized(central_merid, 0., null);
+        Point2D shift = sinu.transformNormalized(central_merid, 0., null);
         p.setLocation(p.getX() + shift.getX(), p.getY());
 
         if (ptDst != null) {
@@ -195,6 +194,7 @@ public class Homolosine extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, final Point2D ptDst)
             throws ProjectionException {
 
@@ -202,9 +202,7 @@ public class Homolosine extends MapProjection {
         double[] central_merids;
         double offset = computeOffset();
         int i = 0;
-        double central_merid = 0;
         Point2D p;
-        Point2D shift;
         double thresh_map = LAT_THRESH; // spherical model
 
         if (y >= 0) {
@@ -224,8 +222,8 @@ public class Homolosine extends MapProjection {
         else if (x < interruptions[0]) i = 1;
         else while (x >= interruptions[i]) i++;
 
-        central_merid = central_merids[i - 1];
-        shift = sinu.transformNormalized(central_merid, 0, null);
+        double central_merid = central_merids[i - 1];
+        Point2D shift = sinu.transformNormalized(central_merid, 0, null);
 
         if (y > thresh_map || y < -thresh_map) { // Mollweide
             p = moll.inverseTransformNormalized(x - shift.getX(), y + offset, ptDst);
@@ -287,6 +285,7 @@ public class Homolosine extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             return new Homolosine(PARAMETERS, parameters);

@@ -21,11 +21,11 @@ import java.awt.color.ColorSpace;
 import java.awt.image.ColorModel;
 import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Map;
 import org.geotools.image.util.ColorUtilities;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.WeakValueHashMap;
 
 /**
@@ -100,7 +100,7 @@ final class ColorModelFactory {
         this.type = type;
         if (visibleBand < 0 || visibleBand >= numBands) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.BAD_BAND_NUMBER_$1, visibleBand));
+                    MessageFormat.format(ErrorKeys.BAD_BAND_NUMBER_$1, visibleBand));
         }
     }
 
@@ -178,8 +178,7 @@ final class ColorModelFactory {
          * Interpolates the colors in the color palette. Colors that do not fall
          * in the range of a category will be set to a transparent color.
          */
-        for (int i = 0; i < categoryCount; i++) {
-            final Category category = categories[i];
+        for (final Category category : categories) {
             ColorUtilities.expand(
                     category.getColors(),
                     ARGB,
@@ -194,8 +193,8 @@ final class ColorModelFactory {
     public int hashCode() {
         final int categoryCount = categories.length;
         int code = 962745549 + ((numBands * 37 + visibleBand) * 37 + type) * 37 + categoryCount;
-        for (int i = 0; i < categoryCount; i++) {
-            code += categories[i].hashCode();
+        for (Category category : categories) {
+            code += category.hashCode();
             // Better be independant of categories order.
         }
         return code;

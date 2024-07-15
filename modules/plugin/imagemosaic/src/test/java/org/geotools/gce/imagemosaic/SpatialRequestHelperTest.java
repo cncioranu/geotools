@@ -18,10 +18,14 @@ package org.geotools.gce.imagemosaic;
 
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.gce.imagemosaic.SpatialRequestHelper.CoverageProperties;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -29,10 +33,6 @@ import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform2D;
 
 /** @author Simone Giannecchini, GeoSolutions */
 public class SpatialRequestHelperTest extends Assert {
@@ -84,12 +84,12 @@ public class SpatialRequestHelperTest extends Assert {
         // computed raster area
         Rectangle computedRasterArea = spatialRequestHelper.getComputedRasterArea();
         assertFalse(computedRasterArea.isEmpty());
-        assertTrue(computedRasterArea.equals(coverageProperties.rasterArea));
+        assertEquals(computedRasterArea, coverageProperties.rasterArea);
 
         // computed bbox
         BoundingBox computedBBox = spatialRequestHelper.getComputedBBox();
         assertFalse(computedBBox.isEmpty());
-        assertTrue(computedBBox.equals(sourceBBox));
+        assertEquals(computedBBox, sourceBBox);
 
         // transform
         AffineTransform computedG2W = spatialRequestHelper.getComputedGridToWorld();
@@ -111,11 +111,10 @@ public class SpatialRequestHelperTest extends Assert {
                 new GridToEnvelopeMapper(
                         new GridEnvelope2D(coverageProperties.rasterArea), sourceBBox);
         gridToEnvelopeMapper.setPixelAnchor(PixelInCell.CELL_CORNER);
-        double[] expectedResolution =
-                new double[] {
-                    XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
-                    XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
-                };
+        double[] expectedResolution = {
+            XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
+            XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
+        };
         assertNotNull(computedResolution);
         assertEquals(expectedResolution[0], computedResolution[0], 1E-6);
         assertEquals(expectedResolution[1], computedResolution[1], 1E-6);
@@ -175,7 +174,7 @@ public class SpatialRequestHelperTest extends Assert {
         ReferencedEnvelope requestedBBox = new ReferencedEnvelope(0, 180, 0, 90, sourceCRS);
         GridEnvelope2D requestedRasterArea = new GridEnvelope2D(0, 0, 250, 250);
         spatialRequestHelper.setRequestedGridGeometry(
-                new GridGeometry2D(requestedRasterArea, new GeneralEnvelope(requestedBBox)));
+                new GridGeometry2D(requestedRasterArea, new GeneralBounds(requestedBBox)));
 
         ///// TEST
         spatialRequestHelper.compute();
@@ -185,12 +184,12 @@ public class SpatialRequestHelperTest extends Assert {
         // computed raster area is equal to requested raster area
         Rectangle computedRasterArea = spatialRequestHelper.getComputedRasterArea();
         assertFalse(computedRasterArea.isEmpty());
-        assertTrue(computedRasterArea.equals(requestedRasterArea));
+        assertEquals(computedRasterArea, requestedRasterArea);
 
         // computed bbox is equal to requestede bbox
         BoundingBox computedBBox = spatialRequestHelper.getComputedBBox();
         assertFalse(computedBBox.isEmpty());
-        assertTrue(computedBBox.equals(requestedBBox));
+        assertEquals(computedBBox, requestedBBox);
 
         // transform
         AffineTransform computedG2W = spatialRequestHelper.getComputedGridToWorld();
@@ -213,11 +212,10 @@ public class SpatialRequestHelperTest extends Assert {
         GridToEnvelopeMapper gridToEnvelopeMapper =
                 new GridToEnvelopeMapper(new GridEnvelope2D(requestedRasterArea), requestedBBox);
         gridToEnvelopeMapper.setPixelAnchor(PixelInCell.CELL_CORNER);
-        double[] expectedResolution =
-                new double[] {
-                    XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
-                    XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
-                };
+        double[] expectedResolution = {
+            XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
+            XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
+        };
         assertNotNull(computedResolution);
         assertEquals(expectedResolution[0], computedResolution[0], 1E-6);
         assertEquals(expectedResolution[1], computedResolution[1], 1E-6);
@@ -266,7 +264,7 @@ public class SpatialRequestHelperTest extends Assert {
         ReferencedEnvelope requestedBBox = new ReferencedEnvelope(0, 180, 0, 90, sourceCRS);
         GridEnvelope2D requestedRasterArea = new GridEnvelope2D(0, 0, 250, 250);
         spatialRequestHelper.setRequestedGridGeometry(
-                new GridGeometry2D(requestedRasterArea, new GeneralEnvelope(requestedBBox)));
+                new GridGeometry2D(requestedRasterArea, new GeneralBounds(requestedBBox)));
 
         ///// TEST
         spatialRequestHelper.compute();
@@ -278,7 +276,7 @@ public class SpatialRequestHelperTest extends Assert {
         assertFalse(computedBBox.isEmpty());
         ReferencedEnvelope finalReferencedEnvelope =
                 new ReferencedEnvelope(0, 100, 0, 90, sourceCRS);
-        assertTrue(computedBBox.equals(finalReferencedEnvelope));
+        assertEquals(computedBBox, finalReferencedEnvelope);
 
         // computed raster area is equal to requested raster area
         Rectangle computedRasterArea = spatialRequestHelper.getComputedRasterArea();
@@ -297,11 +295,10 @@ public class SpatialRequestHelperTest extends Assert {
         AffineTransform computedG2W = spatialRequestHelper.getComputedGridToWorld();
         assertNotNull(computedG2W);
         double[] computedResolution = spatialRequestHelper.getComputedResolution();
-        double[] expectedResolution =
-                new double[] {
-                    XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
-                    XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
-                };
+        double[] expectedResolution = {
+            XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
+            XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
+        };
         assertNotNull(computedResolution);
         assertEquals(expectedResolution[0], computedResolution[0], 1E-6);
         assertEquals(expectedResolution[1], computedResolution[1], 1E-6);
@@ -350,7 +347,7 @@ public class SpatialRequestHelperTest extends Assert {
         spatialRequestHelper.setRequestedGridGeometry(
                 new GridGeometry2D(
                         new GridEnvelope2D(0, 0, 256, 256),
-                        new GeneralEnvelope(
+                        new GeneralBounds(
                                 new ReferencedEnvelope(
                                         -1.9868610903408341,
                                         -1.1430930819885086,
@@ -415,7 +412,7 @@ public class SpatialRequestHelperTest extends Assert {
         spatialRequestHelper.setAccurateResolution(false);
         GridEnvelope2D requestedRasterArea = new GridEnvelope2D(0, 0, 256, 256);
         CoordinateReferenceSystem requestCRS = CRS.decode("EPSG:3857");
-        GeneralEnvelope requestedBBox = CRS.transform(sourceBBox, requestCRS);
+        GeneralBounds requestedBBox = CRS.transform(sourceBBox, requestCRS);
         spatialRequestHelper.setRequestedGridGeometry(
                 new GridGeometry2D(requestedRasterArea, requestedBBox));
 
@@ -427,7 +424,7 @@ public class SpatialRequestHelperTest extends Assert {
         // computed raster area
         Rectangle computedRasterArea = spatialRequestHelper.getComputedRasterArea();
         assertFalse(computedRasterArea.isEmpty());
-        assertTrue(computedRasterArea.equals(requestedRasterArea));
+        assertEquals(computedRasterArea, requestedRasterArea);
 
         // computed bbox is equal to the requested one
         BoundingBox computedBBox = spatialRequestHelper.getComputedBBox();
@@ -435,7 +432,7 @@ public class SpatialRequestHelperTest extends Assert {
         // the source bbox and the computed one are the same
         // there might be minor differences due to multiple back and forth roundings, but we need
         // to make sure they are negligible
-        assertTrue(new GeneralEnvelope(computedBBox).equals(sourceBBox, 1E-4, true));
+        assertTrue(new GeneralBounds(computedBBox).equals(sourceBBox, 1E-4, true));
 
         // transform
         AffineTransform computedG2W = spatialRequestHelper.getComputedGridToWorld();
@@ -456,11 +453,10 @@ public class SpatialRequestHelperTest extends Assert {
         GridToEnvelopeMapper gridToEnvelopeMapper =
                 new GridToEnvelopeMapper(new GridEnvelope2D(requestedRasterArea), sourceBBox);
         gridToEnvelopeMapper.setPixelAnchor(PixelInCell.CELL_CORNER);
-        double[] expectedResolution =
-                new double[] {
-                    XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
-                    XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
-                };
+        double[] expectedResolution = {
+            XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
+            XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
+        };
         assertNotNull(computedResolution);
         assertEquals(expectedResolution[0], computedResolution[0], 1E-6);
         assertEquals(expectedResolution[1], computedResolution[1], 1E-6);
@@ -509,7 +505,7 @@ public class SpatialRequestHelperTest extends Assert {
         GridEnvelope2D requestedRasterArea = new GridEnvelope2D(0, 0, 256, 256);
         CoordinateReferenceSystem requestCRS = CRS.decode("EPSG:3857");
         ReferencedEnvelope requestedBBox_ = new ReferencedEnvelope(0, 180, 0, 70, sourceCRS);
-        GeneralEnvelope requestedBBox = CRS.transform(requestedBBox_, requestCRS);
+        GeneralBounds requestedBBox = CRS.transform(requestedBBox_, requestCRS);
         spatialRequestHelper.setRequestedGridGeometry(
                 new GridGeometry2D(requestedRasterArea, requestedBBox));
 
@@ -521,7 +517,7 @@ public class SpatialRequestHelperTest extends Assert {
         // computed raster area is equal to requested raster area
         Rectangle computedRasterArea = spatialRequestHelper.getComputedRasterArea();
         assertFalse(computedRasterArea.isEmpty());
-        assertTrue(computedRasterArea.equals(requestedRasterArea));
+        assertEquals(computedRasterArea, requestedRasterArea);
 
         // computed bbox is equal to requestede bbox
         BoundingBox computedBBox = spatialRequestHelper.getComputedBBox();
@@ -529,7 +525,7 @@ public class SpatialRequestHelperTest extends Assert {
         // the source bbox and the computed one are the same
         // there might be minor differences due to multiple back and forth roundings, but we need
         // to make sure they are negligible
-        assertTrue(new GeneralEnvelope(computedBBox).equals(requestedBBox_, 1E-4, true));
+        assertTrue(new GeneralBounds(computedBBox).equals(requestedBBox_, 1E-4, true));
 
         // transform
         AffineTransform computedG2W = spatialRequestHelper.getComputedGridToWorld();
@@ -555,11 +551,10 @@ public class SpatialRequestHelperTest extends Assert {
         GridToEnvelopeMapper gridToEnvelopeMapper =
                 new GridToEnvelopeMapper(new GridEnvelope2D(requestedRasterArea), requestedBBox_);
         gridToEnvelopeMapper.setPixelAnchor(PixelInCell.CELL_CORNER);
-        double[] expectedResolution =
-                new double[] {
-                    XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
-                    XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
-                };
+        double[] expectedResolution = {
+            XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
+            XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
+        };
         assertNotNull(computedResolution);
         assertEquals(expectedResolution[0], computedResolution[0], 1E-6);
         assertEquals(expectedResolution[1], computedResolution[1], 1E-6);
@@ -619,7 +614,7 @@ public class SpatialRequestHelperTest extends Assert {
         GridEnvelope2D requestedRasterArea = new GridEnvelope2D(0, 0, 256, 256);
         CoordinateReferenceSystem requestCRS = CRS.decode("EPSG:3857");
         ReferencedEnvelope requestedBBox_ = new ReferencedEnvelope(0, 180, 0, 70, sourceCRS);
-        GeneralEnvelope requestedBBox = CRS.transform(requestedBBox_, requestCRS);
+        GeneralBounds requestedBBox = CRS.transform(requestedBBox_, requestCRS);
         spatialRequestHelper.setRequestedGridGeometry(
                 new GridGeometry2D(requestedRasterArea, requestedBBox));
 
@@ -636,7 +631,7 @@ public class SpatialRequestHelperTest extends Assert {
         // the source bbox and the computed one are the same
         // there might be minor differences due to multiple back and forth roundings, but we need
         // to make sure they are negligible
-        assertTrue(new GeneralEnvelope(computedBBox).equals(finalReferencedEnvelope, 1E-4, true));
+        assertTrue(new GeneralBounds(computedBBox).equals(finalReferencedEnvelope, 1E-4, true));
 
         // computed raster area is equal to requested raster area
         Rectangle computedRasterArea = spatialRequestHelper.getComputedRasterArea();
@@ -658,11 +653,10 @@ public class SpatialRequestHelperTest extends Assert {
                 new GridToEnvelopeMapper(
                         new GridEnvelope2D(computedRasterArea), finalReferencedEnvelope);
         gridToEnvelopeMapper.setPixelAnchor(PixelInCell.CELL_CORNER);
-        double[] expectedResolution =
-                new double[] {
-                    XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
-                    XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
-                };
+        double[] expectedResolution = {
+            XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
+            XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
+        };
         assertNotNull(computedResolution);
         assertEquals(expectedResolution[0], computedResolution[0], 1E-6);
         assertEquals(expectedResolution[1], computedResolution[1], 1E-6);
@@ -709,7 +703,7 @@ public class SpatialRequestHelperTest extends Assert {
         spatialRequestHelper.setAccurateResolution(false);
         GridEnvelope2D requestedRasterArea = new GridEnvelope2D(0, 0, 256, 256);
         spatialRequestHelper.setRequestedGridGeometry(
-                new GridGeometry2D(requestedRasterArea, new GeneralEnvelope(sourceBBox)));
+                new GridGeometry2D(requestedRasterArea, new GeneralBounds(sourceBBox)));
 
         ///// TEST
         spatialRequestHelper.compute();
@@ -719,12 +713,12 @@ public class SpatialRequestHelperTest extends Assert {
         // computed raster area
         Rectangle computedRasterArea = spatialRequestHelper.getComputedRasterArea();
         assertFalse(computedRasterArea.isEmpty());
-        assertTrue(computedRasterArea.equals(requestedRasterArea));
+        assertEquals(computedRasterArea, requestedRasterArea);
 
         // computed bbox
         BoundingBox computedBBox = spatialRequestHelper.getComputedBBox();
         assertFalse(computedBBox.isEmpty());
-        assertTrue(computedBBox.equals(sourceBBox));
+        assertEquals(computedBBox, sourceBBox);
 
         // transform
         AffineTransform computedG2W = spatialRequestHelper.getComputedGridToWorld();
@@ -745,11 +739,10 @@ public class SpatialRequestHelperTest extends Assert {
         GridToEnvelopeMapper gridToEnvelopeMapper =
                 new GridToEnvelopeMapper(new GridEnvelope2D(requestedRasterArea), sourceBBox);
         gridToEnvelopeMapper.setPixelAnchor(PixelInCell.CELL_CORNER);
-        double[] expectedResolution =
-                new double[] {
-                    XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
-                    XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
-                };
+        double[] expectedResolution = {
+            XAffineTransform.getScaleX0(gridToEnvelopeMapper.createAffineTransform()),
+            XAffineTransform.getScaleY0(gridToEnvelopeMapper.createAffineTransform())
+        };
         assertNotNull(computedResolution);
         assertEquals(expectedResolution[0], computedResolution[0], 1E-6);
         assertEquals(expectedResolution[1], computedResolution[1], 1E-6);

@@ -5,13 +5,14 @@ With a library as old as GeoTools you will occasionally run into a project from 
 needs to be upgraded. This page collects the upgrade notes for each release change; highlighting any
 fundamental changes with code examples showing how to upgrade your code.
 
-But first to upgrade - change your dependency geotools.version to |release| (or an appropriate stable version):
+The first step to upgrade: change the ``geotools.version`` of your dependencies in your ``pom.xml`` to |release| (or an appropriate stable version):
 
-.. code-block:: xml
+.. use a parsed-literal here instead of a code-block because substitution of the RELEASE token does not work in a code-block
+.. parsed-literal::
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <geotools.version>|release|</geotools.version>
+        <geotools.version>\ |release|\ </geotools.version>
     </properties>
     ....
     <dependencies>
@@ -28,8 +29,428 @@ But first to upgrade - change your dependency geotools.version to |release| (or 
         ....
     </dependencies>
 
+.. _update32:
+
+GeoTools 32.x
+-------------
+
+JDBC: Method signature change in PreparedStatementSQLDialect
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Custom implementations of ``org.geotools.jdbc.PreparedStatementSQLDialect`` must be adjusted. 
+With `GEOT-7571 <https://osgeo-org.atlassian.net/browse/GEOT-7571>`_ ``setValue(Object, Class<?>, PreparedStatement, int, Connection)`` 
+was refactored to receive an additional argument.
+The new signature is ``setValue(Object, Class<?>, AttributeDescriptor, PreparedStatement, int, Connection)``. The AttributeDescriptor passed
+corresponds to the feature's attribute and maybe be null in cases where no attribute is directly available.
+
+From now on, the sqlType for a specific feature attribute is taken into consideration for ``INSERT`` and ``UPDATE`` operations, rather than solely the attribute's class. 
+The type is now determined by the new method ``org.geotools.jdbc.JDBCDataStore.getMapping(Class<?>, AttributeDescriptor): Integer``.
+
+
+NetCDF Version upgrade to 5.5.3
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+GeoTools 32.0 upgraded underlying Unidata NetCDF libraries from 4.6.15 to 5.5.3 which includes internal GRIB mapping table 
+updates and GRIB parameters interpretation updates. The upgrade impacted the way the GRIB parameters are being retrieved as
+well the way the temporal information is being extracted from the underlying data which may affect the construction of the
+names and the reported temporal ranges as well, resulting in some breakage with the upgrade.
+
+Refer to `GEOT-7547 <https://osgeo-org.atlassian.net/browse/GEOT-7547>`_ for relevant details on what has been broken.
+
+If a GRIB dataset stopped working:
+
+#. Remove any auxiliary/cache file associated with the underlying GRIB file (assuming the file is named gribfile.grib2):
+
+   * gribfile.ncx3
+   * gribfile.ncx4
+   * gribfile.gbx9
+   * .gribfile_hash folder (if not previously deleted) located beside the original file.
+
+   * The screenshot below, represents an actual example of a tpcprblty.2019100912.incremental.grib2 file with related auxiliary/cache files
+
+    .. figure:: /images/grib_auxiliary_files.png
+
+Additional steps needed in case of ImageMosaic of GRIBs
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+#. Remove any automatically created ImageMosaic configuration file within the ImageMosaic root folder. Assuming the underlying ImageMosaic was named mosaicM, containing coverages related to VariableA, VariableB, VariableC, …:
+
+   * VariableA.properties, VariableB.properties, VariableC.properties, …
+   * VariableAsample_image.dat, VariableBsample_image.dat, VariableCsample_image.dat, …
+   * mosaicM.xml
+
+#. If using a datastore.properties connecting to an actual DB, cleanup the tables from the DB
+
+   * Assuming that all the grib files belonging to the same ImageMosaic are affected by the same issue, you can delete the related tables and allow the imageMosaic reconfiguration to recreate them.
+   * Based on the above example, the naming convention is that granules for VariableA are stored on table named VariableA and so on.
+
+#. Recreate the indexer.xml and _auxiliary.xml file as reported in the `NetCDF documentation <https://docs.geoserver.org/main/en/user/extensions/netcdf/netcdf.html#setting-up-a-basic-mosaic>`__ . (At the end, GRIB file are served through the NetCDF libraries)
+
+.. _update31:
+
+GeoTools 31.x
+-------------
+
+DataStore Optimization uses Actual Query
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The actual query can now be passed to the method to determine whether the DataStore implementation can optimize for specific queries.
+
+For example, ``canLimit()`` changes to ``canLimit(query)`` so the actual query can be evaluated and used to determine the response of true or false.  Previously, ``canLimit()`` had to respond in a generic way, without the benefit of the query.  The old methods have been deprecated.
+
+This allows some simple queries to be optimized when possible without also having to optimize for more complex queries (which might not be possible for the particular DataStore.)
+
+For more details on whether a method can be optimized in this way, please refer to the `API docs <https://docs.geotools.org/latest/javadocs/org/geotools/data/store/ContentFeatureSource.html>`_ and the `tutorial <https://docs.geotools.org/latest/userguide/tutorial/datastore/optimisation.html>`_.
+
+
+.. _update30:
+
+GeoTools 30.x
+-------------
+
+This update contains a major breaking change to the GeoTools library refactoring to remove the ``org.opengis`` pacakage.
+
+The ``gt-opengis`` module has been renamed, change your dependency to:
+
+.. code-block:: xml
+
+   <dependency>
+       <groupId>org.geotools</groupId>
+       <artifactId>gt-api</artifactId>
+       <version>${geotools.version}</version>
+   </dependency>
+
+Unfortunately we could not maintain a deprecation cycle for this change and have provided an update script to assist.
+
+Remove OpenGIS and Cleanup GeoTools API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The package ``org.opengis`` has changed ``org.geotools.api``.
+
+To aid in this transition an `Apache Ant <https://ant.apache.org>`__ script is provided:
+
+1. Download Ant script :download:`remove-opengis.xml <files/remove-opengis.xml>` included with this documentation.
+
+2. The default ``update`` target will update your Java code and ``META-INF/services``:
+
+   Use the absolute path for project.dir:
+
+   .. code-block:: bash
+    
+      ant -f remove-opengis.xml -Dproject.dir=(absolute path to your project directory)
+
+   Or copy :file:`remove-opengis.xml` file into  your project directory and run:
+
+   .. code-block:: bash
+
+      ant -f remove-opengis.xml
+
+3. We have done our best to with this update script but it is not perfect - known issues:
+
+   * Double check use of geometry Position and temporal Position which have the same classname in different packages
+   * Clean up unused or duplicate imports
+   * You may need to re-run code formatters
+
+Data API
+^^^^^^^^
+
+The main data access interfaces have been moved from ``org.geotools.data`` to ``org.geotools.api.data``.
+This includes, ``DataStore``, ``FeatureSource``, ``FeatureIterator``, and many others.
+
+As part of the move, the datastore registration files found in ``META-INF/services`` need to be moved as well, 
+in particular:
+
+
+.. code-block:: 
+
+   org.geotools.data.DataAccessFactory
+   org.geotools.data.DataStoreFactorySpi
+   org.geotools.data.FileDataStoreFactorySpi
+
+should now be named:
+
+.. code-block:: 
+
+   org.geotools.api.data.DataAccessFactory
+   org.geotools.api.data.DataStoreFactorySpi
+   org.geotools.api.data.FileDataStoreFactorySpi
+
+The upgrade script should take care of this change.
+
+
+ISO Geometry
+^^^^^^^^^^^^
+
+The **org.opengis.geometry** interfaces (for ``Point``, ``Curve`` and ``Surface`` and supporting classes) were no longer in use.
+
+The direct use of **JTS Topology Suite** ``Geometry`` is now used throughout the library. Previously Object was used
+requiring a cast to Geometry.
+
+.. code-block:: java
+
+   // cast to Geometry no longer needed
+   Geometry geometry = feature.getDefaultGeometry();
+
+
+DirectPosition and GeneralEnvelope cleanup
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The **org.opengis.geometry** and **org.opengis.geometry.coordinates** interfaces for positions, envelopes and bounding
+boxes have been revised as part of their refactor to **org.geotools.api**.
+
+===============================================  ===============================================================
+GeoAPI Preflight / OpenGIS                       GeoTools 30.x API
+===============================================  ===============================================================
+org.opengis.geometry.BoundingBox                 org.geotools.api.geometry.BoundingBox
+org.opengis.geometry.BoundingBox3D               org.geotools.api.geometry.BoundingBox3D
+org.opengis.geometry.DirectPosition              org.geotools.api.geometry.Position
+org.opengis.geometry.Envelope                    org.geotools.api.geometry.Bounds
+org.opengis.geometry.coordinates.PointArray      java.util.List<Position>
+org.opengis.geometry.coordinates.Position        org.geotools.api.geometry.Position
+===============================================  ===============================================================
+
+===============================================  ===============================================================
+GeoTools 29.x Implementation                     GeoTools 30.x Implementation
+===============================================  ===============================================================
+org.geotools.geometry.AbstractDirectPosition     org.geotools.api.geometry.AbstractPosition
+org.geotools.geometry.AbstractEnvelope           org.geotools.api.geometry.AbstractBounds
+org.geotools.geometry.DirectPosition1D           org.geotools.api.geometry.Position1D
+org.geotools.geometry.DirectPosition2D           org.geotools.api.geometry.Position2D
+org.geotools.geometry.DirectPosition3D           org.geotools.api.geometry.Position3D
+org.geotools.geometry.Envelope2D                 org.geotools.geometry.jts.ReferencedEnvelope
+org.geotools.geometry.GeneralDirectPosition      org.geotools.api.geometry.GeneralPosition
+org.geotools.geometry.GeneralEnvelope            org.geotools.api.geometry.GeneralBounds
+===============================================  ===============================================================
+
+For the most part these changes are method compatible, attempting common replacements:
+
+* Replace ``ReferencedEnvelope.create(Envelope,CoordinateReferenceSystem)`` with ``ReferencedEnvelope.envelope(Envelope,CoordinateReferenceSystem)``
+
+* Replace constructor ``Envelope2D(crs,x,y,width,height)`` with ``ReferencedEnvelope.rect(x,y,width,height,crs)``
+
+* Replace ``Envelope2D.equals(Envelope2D)`` with ``ReferencedEnvelope.boundsEquals2D(Bounds,double)``
+
+* Replace ``Envelope`` field access ``x``,``y``,``width``,``height`` with appropriate methods (example ``ReferencedEnvelope.getMinX()``)
+
+.. _update29:
+
+GeoTools 29.x
+-------------
+
+Java 11 as the minimum version
+------------------------------
+
+GeoTools 29.x requires Java 11 as the minimum version. If you are still using Java 8, you will have
+to remain on GeoTools 28.x or ealier.
+
+Deprecated functions removed
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In gt-wfs-ng we've removed:
+``org.geotools.data.wfs.WFSFeatureReader.WFSFeatureReader(GetParser<SimpleFeature>)``
+
+.. _update27:
+
+GeoTools 27.x
+-------------
+
+Log4JLoggingFactory migrated to Reload4J
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We have changed to testing ``Log4JLoggingFactory`` against `reload4j project <https://reload4j.qos.ch/>`__.
+
+The Log4J 1.2 API has been `retired from Apache <https://logging.apache.org/log4j/1.2/>`__, and the API is now maintained by the Reload4J project:
+
+.. code-block:: xml
+
+   <dependency>
+     <groupId>ch.qos.reload4j</groupId>
+     <artifactId>reload4j</artifactId>
+     <version>1.2.19</version>
+   </dependency>
+
+We encourage applications to use Reload4J, or migrated to a supported logging library.
+
+Logging and GeoTools.init()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Previously ``GeoTools.init()`` would prefer which prefer ``CommonsLoggerFactory`` if the commons-logging API was available on the CLASSPATH.
+
+The ``GeoTools.init()`` changed to determine appropriate logger using the following precedence:
+
+* ``org.geotools.util.logging.LogbackLoggerFactory`` - SLF4J API
+* ``org.geotools.util.logging.Log4j2LoggerFactory`` - Log4J 2 API
+* ``org.geotools.util.logging.Log4j1LoggerFactory`` - Log4J 1.2 API (maintained by Reload4J project)
+* ``org.geotools.util.logging.CommonsLoggerFactory`` - Apache's Common Logging framework (JCL API)
+* No factory selected, makes direct use of Java Util Logging API (configured with )
+
+The method confirms the required API is available on the CLASSPATH before selecting a ``LoggerFactory``. If the required API is not-available the next ``LoggerFactory`` is tried.
+
+To use ``GeoTools.init()``:
+
+.. code-block:: java
+   
+   package net.fun.example;
+   
+   import java.util.logging.Logger;
+   
+   import org.geotools.util.factory.GeoTools;
+   import org.geotools.util.logging.Logging;
+   
+   class Example {
+      
+      public static void main(String args[]){
+         GeoTools.init();
+         Logger LOGGER = Logging.getLogger("org.geotools.tutorial");
+         LOGGER.fine("Application started - first post!")
+      }
+   }
+
+In a production environment several logging libraries from different components may be available. To select a specific LoggingFactory use ``GeoTools.setLoggingFactory(LoggingFactory)``:
+
+.. code-block:: java
+   
+   package net.fun.example;
+   
+   import java.util.logging.Logger;
+   
+   import org.geotools.util.factory.GeoTools;
+   import org.geotools.util.logging.Logging;
+   
+   class Example {
+      
+      public static Logger LOG = defaultLogger();
+      
+       public static void main(String args[]){
+            LOGGER.fine("Application started - first post!")
+       }
+      
+      private static final Logger defaultLogger(){
+         GeoTools.setLoggerFactory(Log4JLoggerFactory.getInstance());
+         return Logging.getLogger(Example.class);
+      }
+   }
+
+For more information see :doc:`/library/metadata/logging/factory`.
+
+.. _update26:
+
+GeoTools 26.x
+-------------
+
+Shapefile
+^^^^^^^^^
+
+``ShapefileDataStore`` will autodetect DBF charset from CPG sidecar file, the feature now enabled by default. When this feature is enabled, the following rules apply:
+
+* if no explicit charset parameter passed to ``ShapefileDataStoreFactory``, it will instruct created ``ShapefileDataStore``
+  to try and figure out DBF file charset from CPG file. In this case, CPG files must contain correct charset name, otherwise, 
+  these files should be removed, or updated properly. 
+* if the store fails to read CPG, it uses the default charset specified by ``ShapefileDataStoreFactory.DBFCHARSET`` constant, 
+  which is usual behavior.
+
+In case of trouble there is an ability to bring old behavior back by setting ``org.geotools.shapefile.enableCPG`` system property
+to "false". This turns autodetection off. The name of the property stored in ``ShapefileDataStoreFactory.ENABLE_CPG_SWITCH`` constant.
+
+Unit of Measurement Formatting
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As more third-party libraries adopt the Java module system, stricter rules regarding access to
+non-public parts of other modules apply.
+
+One such case was the way GeoTools' unit formatters were previously initialized, which caused
+GeoTools to fail immediately when run from the module path.
+
+Fixing this required changes to multiple classes:
+
+* ``GeoToolsUnitFormat`` which was previously used to access innards of a third-party library and
+  provide access to GeoTools-specific unit formatting instance has been split up and moved:
+  * Building and initializing individual unit formatting instances can now be done using the
+  ``org.geotools.measure.BaseUnitFormatter`` constructor (instead of extending
+  ``org.geotools.util.GeoToolsUnitFormat`` and its inner class ``BaseGT2Format``).
+  * The GeoTools-specific formatting instance can now be accessed with
+  ``org.geotools.measure.UnitFormat.getInstance()`` (instead of
+  ``org.geotools.util.GeoToolsUnitFormat.getInstance()``).
+* ``org.geotools.referencing.wkt.DefaultUnitParser`` has been moved and renamed to
+  ``org.geotools.measure.WktUnitFormat``.
+
+Improvements to Regex Parsing in `IsLike` and similar filters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Processing of regular expressions in the ``IsLike`` & ``StrMatches`` functions, and in the ``isPropertyLike`` 
+filter to make use of the faster and more robust `Google regular expression's library 
+<https://github.com/google/re2j>`_. As part of this work we have improved the handling of some "permissible" 
+but inadvisable patterns, such as those with multi character escapes or wild cards. If you had patterns that 
+relied on long escape or wild card patterns you may now get an ``IllegalArgumentException`` for a pattern that 
+happened to work in the past.
+
+.. _update25:
+
 GeoTools 25.x
 -------------
+
+GeoTools
+^^^^^^^^
+
+In GeoTools 25.7 ``GeoTools.getInitialContext().look(name)`` and related methods have been deprecated, with ``GeoTools.jndiLookup(name)``. We have also taken an opportunity to remove ``GeoTools.fixName( context, name )`` 
+
+The use of ``GeoTools.jndiLookup(name)`` is subject to validation with the default ``GeoTools.DEFAULT_JNDI_VALIDATOR`` validator used limit name lookup.
+
+BEFORE
+
+.. code-block:: java
+
+   context = GeoTools.getInitialContext();
+   String fixedName = GeoTools.fixName( context, name );
+   return (DataSource) context.lookup(fixedName);
+
+AFTER
+
+.. code-block:: java
+
+   return (DataSource) GeoTools.jndiLookup(name);
+
+
+More variable arguments support in core classes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Several code classes have been switched to use ``varargs`` instead of explicit arrays. 
+While the old clients are compatible with these changes, there's now an opportunity
+to simplify code.
+
+BEFORE
+
+.. code-block:: java
+
+   // style creation
+   FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(new Rule[] {rule});
+   // query handling
+   Query q = new Query(tname("ft1"));
+   q.setSortBy(new SortBy[] {new SortByImpl("prop", ASCENDING)});
+   q.setPropertyNames(new String[] {"geom"});
+   // feature building
+   SimpleFeatureBuilder fb = new SimpleFeatureBuilder(targetType);
+   SimpleFeature = fb.buildFeature("f1", new Object[] {null, 1}));
+   // test collection creation
+   SimpleFeatureCollection collection = DataUtilities.collection(new SimpleFeature[] {feature1, feature2});
+
+
+AFTER
+
+.. code-block:: java
+
+   // style creation
+   FeatureTypeStyle fts = styleFactory.createFeatureTypeStyle(rule);
+   // query handling
+   Query q = new Query(tname("ft1"));
+   q.setSortBy(new SortByImpl("prop", ASCENDING));
+   q.setPropertyNames("geom");
+   // feature building
+   SimpleFeatureBuilder fb = new SimpleFeatureBuilder(targetType);
+   SimpleFeature = fb.buildFeature("f1", null, 1));
+   // test collection creation
+   SimpleFeatureCollection collection = DataUtilities.collection(feature1, feature2);
+
+DataStore creation parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The DataAccess and DataStore creation parameters have been switched from ``Map<String, Serializable>``
 to ``Map<String, ?>``, to match actual usage (some stores require non serializable parameters).
@@ -40,6 +461,156 @@ For those feeding ``Properties`` object to ``DataAccess.getDataStore()`` a new u
 ``DataUtilities.toConnectionParameters`` has been made available, which converts a ``Properties``
 to a ``Map<String, ?>``.
 
+.. code-block:: java
+
+   Map<String,?> connectionParameters = DataUtilities.toConnectionParameters(properties);
+   DataStore dataStore = DataStoreFinder.getDataStore(connectionParameters);
+
+HTTPClient moved to its own module
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A new module ``gt-http`` has been established for the HTTPClient API.
+
+The original interfaces ``HTTPClient`` and ``HTTPResponse`` and their implementations:
+(``SimpleHttpClient``, ``DelegateHTTPClient``, ``LoggingHTTPClient`` and DelegateHTTPResponse) have moved from 
+``org.geotools.data.ows`` to the ``org.geotools.http`` package.
+
+
+Placeholders for the previous implementations remain in place, with a deprecation reminding you to switch to
+the new import as out outlined in the table below.
+
+===============================================  =========================  ===============================================================
+Deprecated class                                 Module                       Replacement (other module)
+===============================================  =========================  ===============================================================
+org.geotools.data.ows.AbstractHttpClient         gt-main                     org.geotools.http.AbstractHttpClient
+org.geotools.data.ows.MockHttpClient             gt-main                     org.geotools.http.MockHttpClient
+org.geotools.data.ows.MockHttpResponse           gt-main                     org.geotools.http.MockHttpResponse
+org.geotools.data.ows.DelegateHTTPClient         gt-main                     org.geotools.http.DelegateHTTPClient
+org.geotools.data.ows.DelegateHTTPResponse       gt-main                     org.geotools.http.DelegateHTTPResponse
+org.geotools.data.ows.HTTPClient                 gt-main                     org.geotools.http.HTTPClient
+org.geotools.data.ows.HTTPResponse               gt-main                     org.geotools.http.HTTPResponse
+org.geotools.data.ows.LoggingHTTPClient          gt-main                     org.geotools.http.LoggingHTTPClient
+org.geotools.data.ows.SimpleHttpClient           gt-main                     org.geotools.http.SimpleHttpClient
+org.geotools.ows.wms.MultithreadedHttpClient     gt-wms                      org.geotools.http.MultithreadedHttpClient (gt-http-commons)
+org.geotools.ows.MockHttpClient                  gt-wms                      org.geotools.http.MockHttpClient
+org.geotools.ows.MockHttpResponse                gt-wms                      org.geotools.http.MockHttpResponse
+org.geotools.ows.wmts.MockHttpClient             gt-wmts                     org.geotools.http.AbstractHttpClient
+org.geotools.data.mongodb.MockHTTPClient         gt-mongodb                  org.geotools.http.MockHttpClient
+org.geotools.data.mongodb.MockHttpResponse       gt-mongodb                  org.geotools.http.MockHttpResponse
+org.geotools.ows.wfs.MultithreadedHttpClient     gt-wfs-ng                   org.geotools.http.MultithreadedHttpClient (gt-http-commons)
+org.geotools.ows.wfs.AbstractTestHTTPClient      gt-wfs-ng                   org.geotools.http.AbstractHttpClient
+org.geotools.data.Base64                         gt-main                     org.geotools.util.Base64 (gt-metadata)
+===============================================  =========================  ===============================================================
+
+This will result in a compile error in cases where GeoTools returns `org.geotools.http.HTTPClient`.
+
+BEFORE (compile error):
+
+.. code-block:: java
+   
+   import org.geotools.ows.HTTPClient;
+   
+   WebMapServer wms = new WebMapServer("http://atlas.gc.ca/cgi-bin/atlaswms_en?VERSION=1.1.1&Request=GetCapabilities&Service=WMS");
+   HTTPClient client = wms.getHTTPClient();
+
+AFTER change imports (recommended):
+
+.. code-block:: java
+
+   import org.geotools.http.HTTPClient;
+   
+   WebMapServer wms = new WebMapServer("http://atlas.gc.ca/cgi-bin/atlaswms_en?VERSION=1.1.1&Request=GetCapabilities&Service=WMS");
+   HTTPClient client = (HTTPClient) wms.getHTTPClient();
+
+ALTERNATIVE add cast (continue to use deprecated api):
+
+.. code-block:: java
+
+   import org.geotools.data.ows.HTTPClient;
+   
+   WebMapServer wms = new WebMapServer("http://atlas.gc.ca/cgi-bin/atlaswms_en?VERSION=1.1.1&Request=GetCapabilities&Service=WMS");
+   HTTPClient client = (HTTPClient) wms.getHTTPClient();
+
+
+HTTPClientFinder
+^^^^^^^^^^^^^^^^^
+
+To allow the library to be configured with different ``HTTPClient`` implementations ``HTTPClientFinder`` is recommend:
+
+BEFORE:
+
+.. code-block:: java
+   
+   import org.geotools.data.ows.HTTPClient;
+   import org.geotools.data.ows.HTTPResponse;
+   import org.geotools.ows.SimpleHttpClient;
+   
+   
+   HTTPClient http = new SimpleHttpClient();
+   HTTPResponse response = http.get();   
+
+AFTER:
+
+.. code-block:: xml
+
+   <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-http</artifactId>
+      <version>${gt.version}</version>
+   </dependency>
+
+.. code-block:: java
+
+   import org.geotools.http.HTTPClient;
+   import org.geotools.http.HTTPResponse;
+   import org.geotools.http.HTTPClientFinder;
+      
+   HTTPClient http = HTTPClientFinder.createClient();
+   HTTPResponse response = http.get();
+   
+In addition a new plugin ``gt-http-commons`` has been added for MultithreadedHttpClient.
+
+.. code-block:: xml
+
+     <dependency>
+        <groupId>org.geotools</groupId>
+        <artifactId>gt-http-commons</artifactId>
+        <version>${gt.version}</version>
+     </dependency>
+
+.. code-block:: java
+
+   import org.geotools.http.HTTPClient;
+   import org.geotools.http.HTTPResponse;
+   import org.geotools.http.HTTPClientFinder;
+   import org.geotools.http.commons.MultihreadedHttpClient;
+      
+   Hints hints = new Hints(Hints.HTTP_CLIENT, MultihreadedHttpClient.class);
+   HTTPClient http = HTTPClientFinder.createClient(hints);
+   HTTPResponse response = http.get();
+
+WMTS - WebMapTileServer initialisation
+--------------------------------------
+
+We have introduced a new contructor for the WebMapTileServer.
+The reason is that any HTTP headers must be specified prior to initialisation.
+
+This might introduce a problem where a constuctor taking three arguments are used.
+
+See list of available constructors:
+
+.. code-block:: java
+
+  public WebMapTileServer(URL serverURL, HTTPClient httpClient)
+  public WebMapTileServer(URL serverURL, HTTPClient httpClient, Map<String, String> headers) // <- NEW CONSTRUCTOR
+  public WebMapTileServer(URL serverURL, HTTPClient httpClient, WMTSCapabilities capabilities)
+  public WebMapTileServer(URL serverURL, HTTPClient httpClient, WMTSCapabilities capabilities, Map<String, Object> hints)
+
+For the same reason we will not allow changes to the headers after initialisation,
+and have deprecated ``public Map<String, String> getHeaders()``.
+
+.. _update24:
+
 GeoTools 24.x
 -------------
 
@@ -48,6 +619,8 @@ The Oracle extension was upgraded to use the current JDBC driver release. If you
 ``DbaseFileHeader.readHeader(ReadableByteChannel, Charset)`` method was removed. Instead ``DbaseFileHeader`` constructor must be used to pass a charset and ``DbaseFileHeader.readHeader(ReadableByteChannel)`` to read the header.
 
 The Units library (JSR 385) was updated to Units 2.0. This is mostly a change from package ``tec.uom.se.*`` to ``tech.units.indriya.*``. If you make any use of the Units library in your own code you will need to update the imports. There are also changes to the arithmetic operations' names. See this `blog post <https://schneide.blog/tag/unit-api-2-0/>`_ for more details.
+
+.. _update22:
 
 GeoTools 22.x
 -------------
@@ -147,6 +720,8 @@ AFTER :file:`pom.xml`:
      <snapshots><enabled>true</enabled></snapshots>
      <releases><enabled>false</enabled></releases>
    </repository>
+
+.. _update21:
 
 GeoTools 21.x
 -------------
@@ -273,6 +848,8 @@ AFTER :file:`pom.xml`:
        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
        <geotools.version>21.5</geotools.version>
    </properties>
+
+.. _update20:
 
 GeoTools 20.x
 -------------
@@ -441,6 +1018,8 @@ You will find it no longer compiles. It should be converted to use the ``Quantit
     System.out.println(dist.to(MetricPrefix.KILO(SI.METRE)).getValue() + " Km");
     System.out.println(dist.to(USCustomary.MILE) + " miles");
 
+.. _update19:
+
 GeoTools 19.x
 -------------
 
@@ -449,6 +1028,8 @@ GeoTools is built and tested with Java 8 at this time, to use this library in a 
     --add-modules=java.xml.bind --add-modules=java.activation -XX:+IgnoreUnrecognizedVMOptions
 
 These settings turn on several JRE modules that have been disabled by default in Java 9 onward.
+
+.. _update15:
 
 GeoTools 15.x
 -------------
@@ -468,6 +1049,8 @@ GeoTools 15.x requires Java 8::
             </plugin>
         </plugins>
     </build>
+
+.. _update14:
 
 GeoTools 14.x
 -------------
@@ -512,6 +1095,8 @@ AFTER::
 
 ``ShapefileDataStore`` representing shapefiles without any data, now return empty bounds on ``getBounds()`` instead of the bounds inside the shapefile header (mostly [0:0,0:0]). So ``bounds.isEmpty()`` and ``bounds.isNull()`` will return true for empty shapefiles.
 
+.. _update13:
+
 GeoTools 13.0
 -------------
 As of GeoTools 13.0, the ``CoverageViewType`` classes have been removed. The ``AbstractDataStore`` class is also now deprecated. Extensive work has been done to bring in ``ContentDataStore`` as its replacement.
@@ -527,22 +1112,28 @@ Many readers and iterators are now ``Closable`` for use with try-with-resource s
        }
    }
 
+.. _update12:
+
 GeoTools 12.0
 -------------
 GeoTools now requires `Java 7 <http://docs.geotools.org/latest/userguide/build/install/jdk.html>`_ and this is the first release tested with OpenJDK! Please ensure you are using JDK 1.7 or newer for GeoTools 12. Both Oracle Java 7 and OpenJDK 7 are supported, tested, release targets.
 
 Filter interfaces have been simplified. The GeoTools interfaces have been deprecated since GeoTools 2.3, and finally they have been removed. All filter interfaces now use the GeoAPI Filter.
 
+.. _update11:
+
 GeoTools 11.0
 -------------
 Only new features were added in GeoTools 11.0.
+
+.. _update10:
 
 GeoTools 10.0
 -------------
 
 .. sidebar:: Wiki
 
-   * `GeoTools 10.0 <https://github.com/geotools/geotools/wiki/10.x>`_
+   * :wiki:`10.x`
 
    For background details on any API changes review the change proposals above.
 
@@ -557,12 +1148,14 @@ AFTER::
  
   GridCoverage2DReader reader = format.getReader(source);
 
+.. _update9:
+
 GeoTools 9.0
 ------------
 
 .. sidebar:: Wiki
 
-   * `GeoTools 9.0 <https://github.com/geotools/geotools/wiki/9.x>`_
+   * :wiki:`9.x`
 
    For background details on any API changes review the change proposals above.
 
@@ -734,12 +1327,15 @@ JAVA7 using try-with-resource syntax for ``Iterator`` that implements ``Closeabl
     }
     
 
+.. _update8:
+
+
 GeoTools 8.0
 ------------
 
 .. sidebar:: Wiki
 
-   * `GeoTools 8.0 <https://github.com/geotools/geotools/wiki/8.x>`_
+   * :wiki:`8.x`
 
    You are encouraged to review the change proposals for GeoTools 8.0 for background information
    on the following changes.
@@ -779,7 +1375,7 @@ The filter system was upgrade to match Filter 2.0 resulting in a few additions. 
 effects people writing their own functions (as now we need to know about parameter types).
 
 FeatureId
-''''''''''
+'''''''''
 
 * BEFORE::
 
@@ -794,7 +1390,7 @@ FeatureId
 
 * AFTER
 
-  .. literalinclude:: /../src/main/java/org/geotools/opengis/FilterExamples.java
+  .. literalinclude:: /../src/main/java/org/geotools/api/FilterExamples.java
      :language: java
      :start-after: // id start
      :end-before: // id end
@@ -874,12 +1470,14 @@ AFTER::
       NumberRange<Double> after1 = new NumberRange( Double.class, 0.0, 5.0 );
       NumberRange<Double> after2 = NumberRage.create( 0.0, 5.0 );
 
+.. _update7:
+
 GeoTools 2.7
 ------------
 
 .. sidebar:: Wiki
 
-   * `GeoTools 2.7.0 <https://github.com/geotools/geotools/wiki/2.7.x>`_
+   * :wiki:`2.7.x`
 
    You are encouraged to review the change proposals for GeoTools 2.7.0 for background information
    on the following changes.
@@ -1072,12 +1670,15 @@ Old Method                          New Method
 ``getLength(dimension, unit)``      ``double getSpan(dimension, unit)``
 =================================== ===================================================
 
+.. _update6:
+
+
 GeoTools 2.6
 ------------
 
 .. sidebar:: Wiki
 
-   * `GeoTools 2.6.0 <https://github.com/geotools/geotools/wiki/2.6.x>`_
+   * :wiki:`2.6.x`
 
    You are encouraged to review the change proposals for GeoTools 2.6.0 for background information
    on the following changes.
@@ -1104,9 +1705,9 @@ This is shown in the code example below with the ``maxx`` variable.
 
 As far as switching over to the new classes, the equivalence are as follows:
 
-1. Replace ``GridRange2D`` with ``GridEnvelope2D``
+1. Replace ``GridRange2D`` with ``GridGeneralBounds``
 
-   Notice that now ``GridEnvelope2D`` is a Java2D ``Rectangle`` and that it is also mutable!
+   Notice that now ``GridGeneralBounds`` is a Java2D ``Rectangle`` and that it is also mutable!
 2. Replace ``GeneralGridRange`` with ``GeneralGridEnvelope``
 
 There are a few more caveats, which we are showing here below.
@@ -1142,9 +1743,9 @@ BEFORE:
         final int w = originalGridRange.getSpan(0);
         final int maxx = originalGridRange.getHigh(0)+1;
 
-        import org.geotools.coverage.grid.GridEnvelope2D;
+        import org.geotools.coverage.grid.GridGeneralBounds;
         final Rectangle actualDim = new Rectangle(0, 0, hrWidth, hrHeight);
-        final GridEnvelope2D originalGridRange2D = new GridEnvelope2D(actualDim);
+        final GridGeneralBounds originalGridRange2D = new GridGeneralBounds(actualDim);
         final int w = originalGridRange2D.getSpan(0);
         final int maxx = originalGridRange2D.getHigh(0)+1;
         final Rectangle rect = (Rectangle)originalGridRange2D.clone();
@@ -1288,12 +1889,15 @@ Removed deprecated constructors from ``DefaultParameterDescriptor`` and ``Parame
     DefaultParameterDescriptor.create(...)
     Parameter.create(...)
 
+.. _update5:
+
+
 GeoTools 2.5
 ------------
 
 .. sidebar:: Wiki
 
-   * `GeoTools 2.5.0 <https://github.com/geotools/geotools/wiki/2.5.x>`_
+   * :wiki:`2.5.x`
 
    You are encouraged to review the change proposals for GeoTools 2.5.0 for background information
    on the following changes.
@@ -1611,12 +2215,14 @@ DataAccess and DataStore
     }
     //No DataAccess.getFeatureReader/Writer
 
+.. _update4:
+
 GeoTools 2.4
 ------------
 
 .. sidebar:: Wiki
 
-   * `GeoTools 2.4.0 <https://github.com/geotools/geotools/wiki/2.4.x>`_
+   * :wiki:`2.4.x`
 
    You are encouraged to review the change proposals for GeoTools 2.4.0 for background information
    on the following changes.
@@ -2130,19 +2736,6 @@ Renamed ``spatialschema`` to ``geometry``.
     import org.opengis.geometry.complex;
     import org.opengis.geometry.coordinate;
     import org.opengis.geometry.primitive;
-
-Repackage ArcSDE
-^^^^^^^^^^^^^^^^
-
-Repackage ArcSDE datastore.
-
-* BEFORE::
-
-    import org.geotools.data.arcsde.ArcSDEDataStoreFactory;
-
-* AFTER::
-
-    import org.geotools.arcsde.ArcSDEDataStoreFactory;
 
 World Image
 ^^^^^^^^^^^

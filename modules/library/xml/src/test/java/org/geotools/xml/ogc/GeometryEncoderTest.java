@@ -24,12 +24,14 @@ import java.util.HashMap;
 import java.util.logging.Level;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
-import junit.framework.TestCase;
 import org.geotools.TestData;
 import org.geotools.xml.PrintHandler;
 import org.geotools.xml.XSISAXHandler;
 import org.geotools.xml.schema.Element;
 import org.geotools.xml.schema.Schema;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LinearRing;
@@ -38,12 +40,12 @@ import org.locationtech.jts.geom.Polygon;
 import org.xml.sax.Attributes;
 
 /** @author Jesse */
-public class GeometryEncoderTest extends TestCase {
+public class GeometryEncoderTest {
 
-    protected void setUp() throws Exception {
-        super.setUp();
-    }
+    @Before
+    public void setUp() throws Exception {}
 
+    @Test
     public void testEncodeChoiceGeometryType() throws Exception {
         File f = TestData.copy(this, "xml/feature-type-choice.xsd");
         URI u = f.toURI();
@@ -77,44 +79,56 @@ public class GeometryEncoderTest extends TestCase {
         PrintHandler output =
                 new PrintHandler() {
 
+                    @Override
                     public void characters(char[] arg0, int arg1, int arg2) throws IOException {
                         writer.write(arg0, arg1, arg2);
                     }
 
+                    @Override
                     public void characters(String s) throws IOException {
                         writer.write(s);
                     }
 
+                    @Override
                     public void element(URI namespaceURI, String localName, Attributes attributes)
                             throws IOException {}
 
+                    @Override
                     public void endDocument() throws IOException {}
 
+                    @Override
                     public void endElement(URI namespaceURI, String localName) throws IOException {
                         writer.write("</" + localName + ">");
                     }
 
+                    @Override
                     public Element findElement(Object value) {
                         return null;
                     }
 
+                    @Override
                     public Element findElement(String name) {
                         return null;
                     }
 
+                    @Override
                     public Schema getDocumentSchema() {
                         return null;
                     }
 
+                    @Override
                     public Object getHint(Object key) {
                         return null;
                     }
 
+                    @Override
                     public void ignorableWhitespace(char[] arg0, int arg1, int arg2)
                             throws IOException {}
 
+                    @Override
                     public void startDocument() throws IOException {}
 
+                    @Override
                     public void startElement(
                             URI namespaceURI, String localName, Attributes attributes)
                             throws IOException {
@@ -134,6 +148,6 @@ public class GeometryEncoderTest extends TestCase {
         geomElement.getType().encode(geomElement, geom, output, new HashMap<>());
         String expected =
                 "<GEOM><MultiPolygon srsName=EPSG:4326><polygonMember><Polygon srsName=EPSG:4326><outerBoundaryIs><LinearRing><coordinates decimal=. cs=, ts= >0.0,0.0 10.0,0.0 0.0,10.0 0.0,0.0</coordinates></LinearRing></outerBoundaryIs></Polygon></polygonMember></MultiPolygon></GEOM>";
-        assertEquals(expected, writer.toString());
+        Assert.assertEquals(expected, writer.toString());
     }
 }

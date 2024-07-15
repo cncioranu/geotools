@@ -19,9 +19,9 @@ package org.geotools.mbstyle.function;
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
 import java.awt.Color;
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
 
 /** Generate a rgb color from integer values between 0-255. */
 public class ToRgb extends FunctionExpressionImpl {
@@ -38,6 +38,7 @@ public class ToRgb extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         Integer arg0;
         Integer arg1;

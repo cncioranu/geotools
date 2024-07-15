@@ -21,10 +21,13 @@ import it.geosolutions.imageio.stream.input.FileImageInputStreamExtImpl;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Iterator;
+import org.geotools.api.parameter.GeneralParameterValue;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchAuthorityCodeException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
@@ -34,15 +37,10 @@ import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.coverage.grid.io.OverviewPolicy;
 import org.geotools.coverageio.gdal.BaseGDALGridFormat;
 import org.geotools.coverageio.gdal.GDALTestCase;
-import org.geotools.data.ServiceInfo;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.test.TestData;
 import org.junit.Assert;
-import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 
 /**
  * @author Daniele Romagnoli, GeoSolutions
@@ -71,10 +69,8 @@ public final class MrSIDTest extends GDALTestCase {
 
     /** Test for reading a grid coverage from a MrSID source */
     @org.junit.Test
+    @SuppressWarnings("PMD.SimplifiableTestAssertion") // envelope test with tolerance
     public void test() throws Exception {
-        if (!testingEnabled()) {
-            return;
-        }
         // read in the grid coverage
         if (fileName.equalsIgnoreCase("")) {
             LOGGER.info(
@@ -89,10 +85,7 @@ public final class MrSIDTest extends GDALTestCase {
         File file = null;
         try {
             file = TestData.file(this, fileName);
-        } catch (FileNotFoundException fnfe) {
-            LOGGER.warning("test-data not found: " + fileName + "\nTests are skipped");
-            return;
-        } catch (IOException ioe) {
+        } catch (IOException fnfe) {
             LOGGER.warning("test-data not found: " + fileName + "\nTests are skipped");
             return;
         }
@@ -105,7 +98,7 @@ public final class MrSIDTest extends GDALTestCase {
         // read once
         //
         // /////////////////////////////////////////////////////////////////////
-        GridCoverage2D gc = (GridCoverage2D) reader.read(null);
+        GridCoverage2D gc = reader.read(null);
         forceDataLoading(gc);
 
         // /////////////////////////////////////////////////////////////////////
@@ -116,9 +109,9 @@ public final class MrSIDTest extends GDALTestCase {
         final int originalW = gc.getRenderedImage().getWidth();
         final int originalH = gc.getRenderedImage().getHeight();
         final Rectangle range = ((GridEnvelope2D) reader.getOriginalGridRange());
-        final GeneralEnvelope originalEnvelope = reader.getOriginalEnvelope();
-        final GeneralEnvelope reducedEnvelope =
-                new GeneralEnvelope(
+        final GeneralBounds originalEnvelope = reader.getOriginalEnvelope();
+        final GeneralBounds reducedEnvelope =
+                new GeneralBounds(
                         new double[] {
                             originalEnvelope.getLowerCorner().getOrdinate(0),
                             originalEnvelope.getLowerCorner().getOrdinate(1)
@@ -130,8 +123,7 @@ public final class MrSIDTest extends GDALTestCase {
         reducedEnvelope.setCoordinateReferenceSystem(reader.getCoordinateReferenceSystem());
 
         final ParameterValue gg =
-                (ParameterValue)
-                        ((AbstractGridFormat) reader.getFormat()).READ_GRIDGEOMETRY2D.createValue();
+                ((AbstractGridFormat) reader.getFormat()).READ_GRIDGEOMETRY2D.createValue();
         gg.setValue(
                 new GridGeometry2D(
                         new GridEnvelope2D(
@@ -141,16 +133,14 @@ public final class MrSIDTest extends GDALTestCase {
                                         (int) (range.width / 2.0),
                                         (int) (range.height / 2.0))),
                         reducedEnvelope));
-        gc = (GridCoverage2D) reader.read(new GeneralParameterValue[] {gg});
+        gc = reader.read(new GeneralParameterValue[] {gg});
         Assert.assertNotNull(gc);
         // NOTE: in some cases might be too restrictive
         Assert.assertTrue(
                 reducedEnvelope.equals(
                         gc.getEnvelope(),
                         XAffineTransform.getScale(
-                                        ((AffineTransform)
-                                                ((GridGeometry2D) gc.getGridGeometry())
-                                                        .getGridToCRS2D()))
+                                        ((AffineTransform) gc.getGridGeometry().getGridToCRS2D()))
                                 / 2,
                         true));
         // this should be fine since we give 1 pixel tolerance
@@ -166,8 +156,7 @@ public final class MrSIDTest extends GDALTestCase {
         //
         // /////////////////////////////////////////////////////////////////////
         final ParameterValue policy =
-                (ParameterValue)
-                        ((AbstractGridFormat) reader.getFormat()).OVERVIEW_POLICY.createValue();
+                ((AbstractGridFormat) reader.getFormat()).OVERVIEW_POLICY.createValue();
         policy.setValue(OverviewPolicy.IGNORE);
 
         // //
@@ -176,8 +165,7 @@ public final class MrSIDTest extends GDALTestCase {
         //
         // //
         final ParameterValue tilesize =
-                (ParameterValue)
-                        ((BaseGDALGridFormat) reader.getFormat()).SUGGESTED_TILE_SIZE.createValue();
+                ((BaseGDALGridFormat) reader.getFormat()).SUGGESTED_TILE_SIZE.createValue();
         tilesize.setValue("512,512");
 
         // //
@@ -186,13 +174,10 @@ public final class MrSIDTest extends GDALTestCase {
         //
         // //
         final ParameterValue useJaiRead =
-                (ParameterValue)
-                        ((BaseGDALGridFormat) reader.getFormat()).USE_JAI_IMAGEREAD.createValue();
+                ((BaseGDALGridFormat) reader.getFormat()).USE_JAI_IMAGEREAD.createValue();
         useJaiRead.setValue(true);
 
-        gc =
-                (GridCoverage2D)
-                        reader.read(new GeneralParameterValue[] {gg, policy, tilesize, useJaiRead});
+        gc = reader.read(new GeneralParameterValue[] {gg, policy, tilesize, useJaiRead});
 
         Assert.assertNotNull(gc);
         // NOTE: in some cases might be too restrictive
@@ -200,9 +185,7 @@ public final class MrSIDTest extends GDALTestCase {
                 reducedEnvelope.equals(
                         gc.getEnvelope(),
                         XAffineTransform.getScale(
-                                        ((AffineTransform)
-                                                ((GridGeometry2D) gc.getGridGeometry())
-                                                        .getGridToCRS2D()))
+                                        ((AffineTransform) gc.getGridGeometry().getGridToCRS2D()))
                                 / 2,
                         true));
         // this should be fine since we give 1 pixel tolerance
@@ -221,9 +204,6 @@ public final class MrSIDTest extends GDALTestCase {
     /** Test class methods */
     @org.junit.Test
     public void test2() throws Exception {
-        if (!testingEnabled()) {
-            return;
-        }
         // read in the grid coverage
         if (fileName.equalsIgnoreCase("")) {
             LOGGER.info(
@@ -238,7 +218,7 @@ public final class MrSIDTest extends GDALTestCase {
         final File file = TestData.file(this, fileName);
 
         final MrSIDFormatFactory factory = new MrSIDFormatFactory();
-        final BaseGDALGridFormat format = (BaseGDALGridFormat) factory.createFormat();
+        final BaseGDALGridFormat format = factory.createFormat();
 
         Assert.assertTrue(format.accepts(file));
         MrSIDReader reader = (MrSIDReader) format.getReader(file);
@@ -246,7 +226,6 @@ public final class MrSIDTest extends GDALTestCase {
         final int numImages = reader.getGridCoverageCount();
         Assert.assertEquals(1, numImages);
 
-        final ServiceInfo serviceInfo = reader.getInfo();
         reader.getInfo("coverage");
         reader.dispose();
 
@@ -272,6 +251,7 @@ public final class MrSIDTest extends GDALTestCase {
         reader.getInfo();
         reader.dispose();
 
+        @SuppressWarnings("PMD.CloseResource") // closed with the reader
         FileImageInputStreamExtImpl fiis = new FileImageInputStreamExtImpl(file);
         reader = new MrSIDReader(fiis);
         reader.dispose();
@@ -279,9 +259,6 @@ public final class MrSIDTest extends GDALTestCase {
 
     @org.junit.Test
     public void testIsAvailable() throws NoSuchAuthorityCodeException, FactoryException {
-        if (!testingEnabled()) {
-            return;
-        }
         GridFormatFinder.scanForPlugins();
 
         Iterator list = GridFormatFinder.getAvailableFormats().iterator();

@@ -86,6 +86,7 @@ public class MultiLevelROIGeometryOverviews implements MultiLevelROI {
         this.hints = hints;
     }
 
+    @Override
     public ROIGeometry getTransformedROI(
             AffineTransform at,
             int imageIndex,
@@ -100,9 +101,8 @@ public class MultiLevelROIGeometryOverviews implements MultiLevelROI {
         }
         ROIGeometry roiGeometry = roiCache.get(at);
         if (roiGeometry == null) {
-            Geometry rescaled;
             boolean useOverviews = imageIndex != 0 && numOverviews > 0;
-            rescaled =
+            Geometry rescaled =
                     (useOverviews
                             ? multilevelFootprints.get(imageIndex - 1).copy()
                             : originalFootprint.copy());
@@ -158,10 +158,12 @@ public class MultiLevelROIGeometryOverviews implements MultiLevelROI {
         return roiGeometry;
     }
 
+    @Override
     public boolean isEmpty() {
         return empty;
     }
 
+    @Override
     public Geometry getFootprint() {
         return originalFootprint;
     }
@@ -206,7 +208,7 @@ public class MultiLevelROIGeometryOverviews implements MultiLevelROI {
             if (roi instanceof ROIGeometry) {
                 return ((ROIGeometry) roi).getAsGeometry();
             } else if (roi instanceof ROIShape) {
-                final Shape shape = ((ROIShape) roi).getAsShape();
+                final Shape shape = roi.getAsShape();
                 final Geometry geom = ShapeReader.read(shape, 0, new GeometryFactory());
                 geom.apply(Y_INVERSION);
                 return geom;

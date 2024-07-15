@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.xml.XMLConstants;
@@ -40,7 +39,21 @@ import org.eclipse.xsd.XSDModelGroup;
 import org.eclipse.xsd.XSDParticle;
 import org.eclipse.xsd.XSDTypeDefinition;
 import org.eclipse.xsd.util.XSDConstants;
+import org.geotools.api.feature.ComplexAttribute;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.GeometryAttribute;
+import org.geotools.api.feature.Property;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.ComplexType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.feature.NameImpl;
+import org.geotools.geometry.jts.JTS;
 import org.geotools.gml2.GMLConfiguration;
 import org.geotools.util.logging.Logging;
 import org.geotools.xlink.XLINK;
@@ -57,19 +70,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Feature;
-import org.opengis.feature.GeometryAttribute;
-import org.opengis.feature.Property;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.ComplexType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.w3c.dom.Document;
 import org.xml.sax.Attributes;
 
@@ -209,15 +209,9 @@ public class GMLEncodingUtils {
                 // get the value
                 Object attributeValue = ((SimpleFeature) feature).getAttribute(attribute.getName());
                 if (attributeValue != null && attributeValue instanceof Geometry) {
-                    Object obj = ((Geometry) attributeValue).getUserData();
-                    Map<Object, Object> userData = new HashMap<>();
-                    if (obj != null && obj instanceof Map) {
-                        userData.putAll((Map) obj);
-                    }
-                    userData.put(
-                            CoordinateReferenceSystem.class,
+                    JTS.setCRS(
+                            ((Geometry) attributeValue),
                             featureType.getCoordinateReferenceSystem());
-                    ((Geometry) attributeValue).setUserData(userData);
                 }
                 properties.add(new Object[] {particle, attributeValue});
             } else {
@@ -230,35 +224,14 @@ public class GMLEncodingUtils {
                 }
                 Collection<Property> featureProperties = feature.getProperties(propertyName);
                 // if no feature properties are found for this element check substitution groups
-                if (featureProperties.size() == 0) {
+                if (featureProperties.isEmpty()) {
                     if (unsubstPropertyNames == null) {
                         // lazy initialisation of a set of all property names that
                         // will be obtained without considering substitution groups
                         unsubstPropertyNames =
                                 (Set<Name>)
-                                        particles
-                                                .stream()
-                                                .map(
-                                                        new Function() {
-
-                                                            @Override
-                                                            public Object apply(Object particle) {
-                                                                XSDElementDeclaration attr =
-                                                                        (XSDElementDeclaration)
-                                                                                ((XSDParticle)
-                                                                                                particle)
-                                                                                        .getContent();
-                                                                if (attr
-                                                                        .isElementDeclarationReference()) {
-                                                                    attr =
-                                                                            attr
-                                                                                    .getResolvedElementDeclaration();
-                                                                }
-                                                                return new NameImpl(
-                                                                        attr.getTargetNamespace(),
-                                                                        attr.getName());
-                                                            }
-                                                        })
+                                        particles.stream()
+                                                .map(GMLEncodingUtils::resolvedName)
                                                 .collect(Collectors.toSet());
                     }
                     for (XSDElementDeclaration xsdElementDeclaration :
@@ -269,7 +242,7 @@ public class GMLEncodingUtils {
                                         xsdElementDeclaration.getName());
                         if (!unsubstPropertyNames.contains(substPropertyName)) {
                             featureProperties = feature.getProperties(substPropertyName);
-                            if (featureProperties.size() > 0) {
+                            if (!featureProperties.isEmpty()) {
                                 // the particle is used outside this class, replace
                                 // the particle with the correct substituted element
                                 particle =
@@ -317,6 +290,14 @@ public class GMLEncodingUtils {
         return properties;
     }
 
+    private static Object resolvedName(Object p) {
+        XSDElementDeclaration attr = (XSDElementDeclaration) ((XSDParticle) p).getContent();
+        if (attr.isElementDeclarationReference()) {
+            attr = attr.getResolvedElementDeclaration();
+        }
+        return new NameImpl(attr.getTargetNamespace(), attr.getName());
+    }
+
     public XSDTypeDefinition createXmlTypeFromFeatureType(
             SimpleFeatureType featureType, SchemaIndex schemaIndex, Set<String> toFilter) {
         XSDFactory f = XSDFactory.eINSTANCE;
@@ -337,8 +318,8 @@ public class GMLEncodingUtils {
         group.setCompositor(XSDCompositor.SEQUENCE_LITERAL);
 
         List attributes = featureType.getAttributeDescriptors();
-        for (int i = 0; i < attributes.size(); i++) {
-            AttributeDescriptor attribute = (AttributeDescriptor) attributes.get(i);
+        for (Object o : attributes) {
+            AttributeDescriptor attribute = (AttributeDescriptor) o;
 
             if (toFilter.contains(attribute.getLocalName())) {
                 continue;
@@ -548,7 +529,7 @@ public class GMLEncodingUtils {
             // check for case of multi geometry, if it has > 0 goemetries
             // we consider this to be not empty
             if (geometry instanceof GeometryCollection) {
-                if (((GeometryCollection) geometry).getNumGeometries() != 0) {
+                if (geometry.getNumGeometries() != 0) {
                     return false;
                 }
             }
@@ -623,7 +604,6 @@ public class GMLEncodingUtils {
         setMetadata(g, "gml:description", description);
     }
 
-    @SuppressWarnings("rawtypes")
     String getMetadata(Geometry g, String metadata) {
         if (g.getUserData() instanceof Map) {
             Map userData = (Map) g.getUserData();
@@ -632,7 +612,7 @@ public class GMLEncodingUtils {
         return null;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void setMetadata(Geometry g, String metadata, String value) {
         if (g.getUserData() == null) {
             g.setUserData(new HashMap());
@@ -674,6 +654,6 @@ public class GMLEncodingUtils {
             }
         }
 
-        return (SimpleFeature[]) features.toArray(new SimpleFeature[features.size()]);
+        return features.toArray(new SimpleFeature[features.size()]);
     }
 }

@@ -29,11 +29,10 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.StringTokenizer;
-import java.util.Vector;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import javax.imageio.ImageIO;
@@ -42,6 +41,9 @@ import javax.imageio.stream.ImageInputStream;
 import javax.media.jai.ComponentSampleModelJAI;
 import javax.media.jai.RasterFactory;
 import javax.media.jai.iterator.RectIter;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.util.ProgressListener;
 import org.geotools.gce.grassraster.DummyProgressListener;
 import org.geotools.gce.grassraster.GrassBinaryImageReader;
 import org.geotools.gce.grassraster.JGrassConstants;
@@ -54,9 +56,6 @@ import org.geotools.gce.grassraster.core.color.JlsTokenizer;
 import org.geotools.gce.grassraster.metadata.GrassBinaryImageMetadata;
 import org.geotools.referencing.CRS;
 import org.geotools.util.SimpleInternationalString;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.util.ProgressListener;
 
 /**
  * Grass binary data input/ouput handler.
@@ -87,7 +86,7 @@ public class GrassBinaryRasterReadHandler implements Closeable {
     private JGrassMapEnvironment readerGrassEnv = null;
 
     /** the vector representing the reclass table. */
-    private Vector<Object> reclassTable = null;
+    private List<Object> reclassTable = null;
 
     /** the region of the native grass raster. */
     private JGrassRegion nativeRasterRegion = null;
@@ -381,19 +380,18 @@ public class GrassBinaryRasterReadHandler implements Closeable {
      *
      * <p><b>INFO:</b> this is a reader method.
      */
-    @SuppressWarnings({"nls", "PMD.CloseResource"})
+    @SuppressWarnings("PMD.CloseResource")
     public void parseHeaderAndAccessoryFiles() throws IOException {
         try {
             LinkedHashMap<String, String> readerFileHeaderMap = new LinkedHashMap<>();
             /* Read contents of 'cellhd/name' file from the current mapset */
             String line;
-            BufferedReader cellhead;
             String reclassedFile = null;
             String reclassedMapset = null;
 
             reclassTable = null;
             File cellhd = readerGrassEnv.getCELLHD();
-            cellhead = new BufferedReader(new FileReader(cellhd));
+            BufferedReader cellhead = new BufferedReader(new FileReader(cellhd));
             cellhead.mark(128);
             /*
              * Read first line to determine if file is a reclasses file. If it
@@ -420,7 +418,7 @@ public class GrassBinaryRasterReadHandler implements Closeable {
                     }
                 }
                 /* Instantiate the reclass table */
-                reclassTable = new Vector<>();
+                reclassTable = new ArrayList<>();
                 /* The next line holds the start value for categories */
                 if ((line = cellhead.readLine()) == null) {
                     throw new IOException(
@@ -430,15 +428,15 @@ public class GrassBinaryRasterReadHandler implements Closeable {
                     int reclassFirstCategory = Integer.parseInt(line.trim().substring(1));
                     /* Pad reclass table until the first reclass category */
                     for (int i = 0; i < reclassFirstCategory; i++) {
-                        reclassTable.addElement("");
+                        reclassTable.add("");
                     }
                 } else {
                     /* Add an empty element for the 0th category */
-                    reclassTable.addElement("");
+                    reclassTable.add("");
                 }
                 /* Now read the reclass table */
                 while ((line = cellhead.readLine()) != null) {
-                    reclassTable.addElement(Integer.valueOf(line));
+                    reclassTable.add(Integer.valueOf(line));
                 }
                 // set new reclass environment and check for new reclass header
                 readerGrassEnv.setReclassed(reclassedMapset, reclassedFile);
@@ -471,10 +469,8 @@ public class GrassBinaryRasterReadHandler implements Closeable {
                     // n-s resol: 0:00:00.055381
                     String key = lineSplit[0].trim();
 
-                    double value = 0.0;
-
                     String degrees = lineSplit[1];
-                    value = Double.parseDouble(degrees);
+                    double value = Double.parseDouble(degrees);
 
                     String minutes = lineSplit[2];
                     if (minutes.lastIndexOf('N') != -1
@@ -541,7 +537,7 @@ public class GrassBinaryRasterReadHandler implements Closeable {
             }
 
             if (!readerFileHeaderMap.get("format").equals("")) {
-                readerMapType = Integer.valueOf(readerFileHeaderMap.get("format")).intValue();
+                readerMapType = Integer.parseInt(readerFileHeaderMap.get("format"));
                 if (readerMapType > -1) {
                     readerMapType++;
                     /*
@@ -774,7 +770,7 @@ public class GrassBinaryRasterReadHandler implements Closeable {
                     } else {
                         /* If map is a reclass then get the reclassed value */
                         if (reclassTable != null) {
-                            cell = ((Integer) reclassTable.elementAt(cell)).intValue();
+                            cell = ((Integer) reclassTable.get(cell)).intValue();
                         }
                         rowBuffer.putInt(cell);
                     }
@@ -782,14 +778,14 @@ public class GrassBinaryRasterReadHandler implements Closeable {
                     /* Floating point map with float values. */
                     float cell = rowCache.getFloat();
                     if (reclassTable != null) {
-                        cell = ((Integer) reclassTable.elementAt((int) cell)).floatValue();
+                        cell = ((Integer) reclassTable.get((int) cell)).floatValue();
                     }
                     rowBuffer.putFloat(cell);
                 } else if (readerMapType == -2) {
                     /* Floating point map with double values. */
                     double cell = rowCache.getDouble();
                     if (reclassTable != null) {
-                        cell = ((Integer) reclassTable.elementAt((int) cell)).doubleValue();
+                        cell = ((Integer) reclassTable.get((int) cell)).doubleValue();
                     }
                     rowBuffer.putDouble(cell);
                 }
@@ -1141,8 +1137,7 @@ public class GrassBinaryRasterReadHandler implements Closeable {
          * File is a standard file where the categories values are stored in
          * the cats directory.
          */
-        BufferedReader rdr = new BufferedReader(new FileReader(readerGrassEnv.getCATS()));
-        try {
+        try (BufferedReader rdr = new BufferedReader(new FileReader(readerGrassEnv.getCATS()))) {
 
             /* Instantiate attribute table */
             AttributeTable attTable = new AttributeTable();
@@ -1171,20 +1166,18 @@ public class GrassBinaryRasterReadHandler implements Closeable {
             }
 
             List<String> attrs = new ArrayList<>();
-            Enumeration<CellAttribute> categories = attTable.getCategories();
-            while (categories.hasMoreElements()) {
-                AttributeTable.CellAttribute object = categories.nextElement();
+            Iterator<CellAttribute> categories = attTable.getCategories();
+            while (categories.hasNext()) {
+                AttributeTable.CellAttribute object = categories.next();
                 attrs.add(object.toString());
             }
 
             return attrs;
-
-        } finally {
-            rdr.close();
         }
     }
 
     /** closes the I/O streams. */
+    @Override
     public void close() throws IOException {
         if (imageIS != null) {
             imageIS.close();
@@ -1259,8 +1252,7 @@ public class GrassBinaryRasterReadHandler implements Closeable {
     public CoordinateReferenceSystem getCrs() throws IOException {
         String locationPath = readerGrassEnv.getLOCATION().getAbsolutePath();
         CoordinateReferenceSystem readCrs = null;
-        String projWtkFilePath;
-        projWtkFilePath =
+        String projWtkFilePath =
                 locationPath
                         + File.separator
                         + JGrassConstants.PERMANENT_MAPSET
@@ -1269,15 +1261,12 @@ public class GrassBinaryRasterReadHandler implements Closeable {
         File projWtkFile = new File(projWtkFilePath);
         if (projWtkFile.exists()) {
 
-            BufferedReader crsReader = new BufferedReader(new FileReader(projWtkFile));
             StringBuffer wtkString = new StringBuffer();
-            try {
+            try (BufferedReader crsReader = new BufferedReader(new FileReader(projWtkFile))) {
                 String line = null;
                 while ((line = crsReader.readLine()) != null) {
                     wtkString.append(line.trim());
                 }
-            } finally {
-                crsReader.close();
             }
             try {
                 readCrs = CRS.parseWKT(wtkString.toString());

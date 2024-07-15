@@ -25,8 +25,10 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.style.Style;
 import org.geotools.data.property.PropertyDataStore;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.test.ImageAssert;
@@ -36,14 +38,12 @@ import org.geotools.map.MapViewport;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.renderer.RenderListener;
-import org.geotools.styling.Style;
 import org.geotools.test.TestData;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeature;
 
 @Ignore
 public class LineTest {
@@ -239,26 +239,25 @@ public class LineTest {
                         RendererBaseTest.loadStyle(this, "linePerpendicularOffsetSmall.sld"));
 
         final AtomicInteger errors = new AtomicInteger(0);
-        BufferedImage image =
-                RendererBaseTest.showRender(
-                        "Perpendicular offset",
-                        renderer,
-                        TIME,
-                        new ReferencedEnvelope[] {
-                            new ReferencedEnvelope(1, 4, 1, 4, DefaultGeographicCRS.WGS84)
-                        },
-                        new RenderListener() {
+        RendererBaseTest.showRender(
+                "Perpendicular offset",
+                renderer,
+                TIME,
+                new ReferencedEnvelope[] {
+                    new ReferencedEnvelope(1, 4, 1, 4, DefaultGeographicCRS.WGS84)
+                },
+                new RenderListener() {
 
-                            @Override
-                            public void featureRenderer(SimpleFeature feature) {
-                                // nothing to do
-                            }
+                    @Override
+                    public void featureRenderer(SimpleFeature feature) {
+                        // nothing to do
+                    }
 
-                            @Override
-                            public void errorOccurred(Exception e) {
-                                errors.incrementAndGet();
-                            }
-                        });
+                    @Override
+                    public void errorOccurred(Exception e) {
+                        errors.incrementAndGet();
+                    }
+                });
         assertEquals(0, errors.get());
     }
 }

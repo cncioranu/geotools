@@ -19,9 +19,11 @@ package org.geotools.data.vpf.readers;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Vector;
+import org.geotools.api.feature.IllegalAttributeException;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.vpf.VPFFeatureClass;
 import org.geotools.data.vpf.VPFFeatureType;
 import org.geotools.data.vpf.VPFLibrary;
@@ -35,8 +37,6 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.IllegalAttributeException;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * Creates Geometries for area objects
@@ -49,6 +49,7 @@ public class AreaGeometryFactory extends VPFGeometryFactory implements FileConst
     /* (non-Javadoc)
      * @see com.ionicsoft.wfs.jdbc.geojdbc.module.vpf.VPFGeometryFactory#createGeometry(java.lang.String, int, int)
      */
+    @Override
     public synchronized void createGeometry(VPFFeatureType featureType, SimpleFeature values)
             throws SQLException, IOException, IllegalAttributeException {
 
@@ -60,6 +61,7 @@ public class AreaGeometryFactory extends VPFGeometryFactory implements FileConst
     /* (non-Javadoc)
      * @see com.ionicsoft.wfs.jdbc.geojdbc.module.vpf.VPFGeometryFactory#buildGeometry(java.lang.String, int, int)
      */
+    @Override
     public synchronized Geometry buildGeometry(VPFFeatureClass featureClass, SimpleFeature values)
             throws SQLException, IOException, IllegalAttributeException {
 
@@ -71,7 +73,7 @@ public class AreaGeometryFactory extends VPFGeometryFactory implements FileConst
         Polygon result = null;
         GeometryFactory geometryFactory = new GeometryFactory();
         LinearRing outerRing = null;
-        List<LinearRing> innerRings = new Vector<>();
+        List<LinearRing> innerRings = new ArrayList<>();
 
         // Get face information
         // TODO: turn these column names into constants
@@ -87,7 +89,7 @@ public class AreaGeometryFactory extends VPFGeometryFactory implements FileConst
                     Short.valueOf(Short.parseShort(values.getAttribute("tile_id").toString()));
 
             VPFLibrary vpf = featureClass.getCoverage().getLibrary();
-            String tileName = (String) vpf.getTileMap().get(tileId);
+            String tileName = vpf.getTileMap().get(tileId);
 
             if (tileName != null) {
 
@@ -179,16 +181,8 @@ public class AreaGeometryFactory extends VPFGeometryFactory implements FileConst
                             // at the left and right edges to see which has a start node
                             // that's the same as this edge's end node.  Hopefully someone
                             // smarter can come up with a better solution.
-                            int leftEdgeStartNode =
-                                    ((Integer)
-                                                    edgeFile.getRowFromId("id", leftEdge)
-                                                            .getAttribute("start_node"))
-                                            .intValue();
-                            int rightEdgeStartNode =
-                                    ((Integer)
-                                                    edgeFile.getRowFromId("id", rightEdge)
-                                                            .getAttribute("start_node"))
-                                            .intValue();
+                            int leftEdgeStartNode = getNode(edgeFile, leftEdge, "start_node");
+                            int rightEdgeStartNode = getNode(edgeFile, rightEdge, "start_node");
 
                             if (leftEdgeStartNode == endNode) {
                                 isLeft = true;
@@ -268,12 +262,10 @@ public class AreaGeometryFactory extends VPFGeometryFactory implements FileConst
                 Coordinate[] coordinateArray = new Coordinate[coordinates.size()];
 
                 for (int cnx = 0; cnx < coordinates.size(); cnx++) {
-                    coordinateArray[cnx] = (Coordinate) coordinates.get(cnx);
+                    coordinateArray[cnx] = coordinates.get(cnx);
                 }
 
-                LinearRing ring = null;
-
-                ring = geometryFactory.createLinearRing(coordinateArray);
+                LinearRing ring = geometryFactory.createLinearRing(coordinateArray);
 
                 if (outerRing == null) {
                     outerRing = ring;
@@ -297,12 +289,16 @@ public class AreaGeometryFactory extends VPFGeometryFactory implements FileConst
             LinearRing[] ringArray = new LinearRing[innerRings.size()];
 
             for (int cnx = 0; cnx < innerRings.size(); cnx++) {
-                ringArray[cnx] = (LinearRing) innerRings.get(cnx);
+                ringArray[cnx] = innerRings.get(cnx);
             }
 
             result = geometryFactory.createPolygon(outerRing, ringArray);
         }
 
         return result;
+    }
+
+    private int getNode(VPFFile edgeFile, int id, String node) {
+        return ((Integer) edgeFile.getRowFromId("id", id).getAttribute(node)).intValue();
     }
 }

@@ -18,16 +18,15 @@
 package org.geotools.filter.function;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 /**
  * Test the Recode function against the Symbology Encoding 1.1 specs.
@@ -54,7 +53,7 @@ public class RecodeFunctionTest extends SEFunctionTestBase {
         Function fn = finder.findFunction("recode", parameters, fallback);
         Object result = fn.evaluate(feature(ints[0]));
 
-        assertFalse("Could not locate 'recode' function", result.equals(fallback.getValue()));
+        assertNotEquals("Could not locate 'recode' function", result, fallback.getValue());
     }
 
     @Test

@@ -21,6 +21,7 @@ package org.geotools.data.shapefile.dbf;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -54,7 +55,7 @@ import org.geotools.util.NIOUtilities;
  *
  * @author Ian Schneider
  */
-public class DbaseFileWriter {
+public class DbaseFileWriter implements Closeable {
     private DbaseFileHeader header;
     private DbaseFileWriter.FieldFormatter formatter;
     WritableByteChannel channel;
@@ -286,6 +287,7 @@ public class DbaseFileWriter {
      *
      * @throws IOException If errors occur.
      */
+    @Override
     public void close() throws IOException {
         // IANS - GEOT 193, bogus 0x00 written. According to dbf spec, optional
         // eof 0x1a marker is, well, optional. Since the original code wrote a
@@ -343,42 +345,34 @@ public class DbaseFileWriter {
         }
 
         public String getFieldString(int size, String s) {
-            try {
+            // international characters must be accounted for so size != length.
+            if (s == null) {
                 buffer.replace(0, size, emptyString);
                 buffer.setLength(size);
-                // international characters must be accounted for so size != length.
-                int maxSize = size;
-                if (s != null) {
-                    buffer.replace(0, size, s);
-                    int currentBytes =
-                            s.substring(0, Math.min(size, s.length()))
-                                    .getBytes(charset.name())
-                                    .length;
-                    if (currentBytes > size) {
-                        char[] c = new char[1];
-                        for (int index = size - 1; currentBytes > size; index--) {
-                            c[0] = buffer.charAt(index);
-                            String string = new String(c);
-                            buffer.deleteCharAt(index);
-                            currentBytes -= string.getBytes().length;
-                            maxSize--;
-                        }
-                    } else {
-                        if (s.length() < size) {
-                            maxSize = size - (currentBytes - s.length());
-                            for (int i = s.length(); i < size; i++) {
-                                buffer.append(' ');
-                            }
-                        }
-                    }
+            } else {
+                buffer.setLength(0);
+
+                // every character is at least one byte. So we start by only adding at most size
+                // characters to the buffer. This is so we don't have too many excess characters
+                // to remove later.
+                int maxChars = Math.min(size, s.length());
+                buffer.insert(0, s, 0, maxChars);
+
+                // we remove characters from the buffer until it contains at most size bytes.
+                while (size < buffer.toString().getBytes(charset).length) {
+                    int index = buffer.length() - 1;
+                    buffer.deleteCharAt(index);
                 }
 
-                buffer.setLength(maxSize);
-
-                return buffer.toString();
-            } catch (UnsupportedEncodingException e) {
-                throw new RuntimeException("This error should never occurr", e);
+                // Now we ensure that the buffer is padded with spaces if it is smaller than size.
+                // This could be because the input string isn't as big as size, or that it contains
+                // multi-byte characters that have been removed.
+                while (size > buffer.toString().getBytes(charset).length) {
+                    buffer.append(' ');
+                }
             }
+
+            return buffer.toString();
         }
 
         public String getFieldString(Date d) {

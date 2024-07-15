@@ -20,10 +20,10 @@ import java.awt.RenderingHints;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -32,16 +32,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.naming.Name;
 import javax.sql.DataSource;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
-import org.opengis.util.InternationalString;
 import org.xml.sax.EntityResolver;
 
 /**
  * A set of hints providing control on factories to be used. Those hints are typically used by
- * renderers or {@linkplain org.opengis.coverage.processing.GridCoverageProcessor grid coverage
+ * renderers or {@linkplain org.geotools.api.coverage.processing.GridCoverageProcessor grid coverage
  * processors} for example. They provides a way to control low-level details. Example:
  *
  * <p>
@@ -84,86 +83,89 @@ public class Hints extends RenderingHints {
     ////////////////////////////////////////////////////////////////////////
 
     /**
-     * The {@link org.opengis.referencing.crs.CRSAuthorityFactory} instance to use.
+     * The {@link org.geotools.api.referencing.crs.CRSAuthorityFactory} instance to use.
      *
      * @see org.geotools.referencing.FactoryFinder#getCRSAuthorityFactory
      */
     public static final ClassKey CRS_AUTHORITY_FACTORY =
-            new ClassKey("org.opengis.referencing.crs.CRSAuthorityFactory");
+            new ClassKey("org.geotools.api.referencing.crs.CRSAuthorityFactory");
 
     /**
-     * The {@link org.opengis.referencing.cs.CSAuthorityFactory} instance to use.
+     * The {@link org.geotools.api.referencing.cs.CSAuthorityFactory} instance to use.
      *
      * @see org.geotools.referencing.FactoryFinder#getCSAuthorityFactory
      */
     public static final ClassKey CS_AUTHORITY_FACTORY =
-            new ClassKey("org.opengis.referencing.cs.CSAuthorityFactory");
+            new ClassKey("org.geotools.api.referencing.cs.CSAuthorityFactory");
 
     /**
-     * The {@link org.opengis.referencing.datum.DatumAuthorityFactory} instance to use.
+     * The {@link org.geotools.api.referencing.datum.DatumAuthorityFactory} instance to use.
      *
      * @see org.geotools.referencing.FactoryFinder#getDatumAuthorityFactory
      */
     public static final ClassKey DATUM_AUTHORITY_FACTORY =
-            new ClassKey("org.opengis.referencing.datum.DatumAuthorityFactory");
+            new ClassKey("org.geotools.api.referencing.datum.DatumAuthorityFactory");
 
     /**
-     * The {@link org.opengis.referencing.crs.CRSFactory} instance to use.
+     * The {@link org.geotools.api.referencing.crs.CRSFactory} instance to use.
      *
      * @see org.geotools.referencing.FactoryFinder#getCRSFactory
      */
     public static final ClassKey CRS_FACTORY =
-            new ClassKey("org.opengis.referencing.crs.CRSFactory");
+            new ClassKey("org.geotools.api.referencing.crs.CRSFactory");
 
     /**
-     * The {@link org.opengis.referencing.cs.CSFactory} instance to use.
+     * The {@link org.geotools.api.referencing.cs.CSFactory} instance to use.
      *
      * @see org.geotools.referencing.FactoryFinder#getCSFactory
      */
-    public static final ClassKey CS_FACTORY = new ClassKey("org.opengis.referencing.cs.CSFactory");
+    public static final ClassKey CS_FACTORY =
+            new ClassKey("org.geotools.api.referencing.cs.CSFactory");
 
     /**
-     * The {@link org.opengis.referencing.datum.DatumFactory} instance to use.
+     * The {@link org.geotools.api.referencing.datum.DatumFactory} instance to use.
      *
      * @see org.geotools.referencing.FactoryFinder#getDatumFactory
      */
     public static final ClassKey DATUM_FACTORY =
-            new ClassKey("org.opengis.referencing.datum.DatumFactory");
+            new ClassKey("org.geotools.api.referencing.datum.DatumFactory");
 
     /**
-     * The {@link org.opengis.referencing.operation.CoordinateOperationFactory} instance to use.
+     * The {@link org.geotools.api.referencing.operation.CoordinateOperationFactory} instance to
+     * use.
      *
      * @see org.geotools.referencing.FactoryFinder#getCoordinateOperationFactory
      */
     public static final ClassKey COORDINATE_OPERATION_FACTORY =
-            new ClassKey("org.opengis.referencing.operation.CoordinateOperationFactory");
+            new ClassKey("org.geotools.api.referencing.operation.CoordinateOperationFactory");
 
     /**
-     * The {@link org.opengis.referencing.operation.CoordinateOperationAuthorityFactory} instance to
-     * use.
+     * The {@link org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory}
+     * instance to use.
      *
      * @see org.geotools.referencing.FactoryFinder#getCoordinateOperationAuthorityFactory
      */
     public static final ClassKey COORDINATE_OPERATION_AUTHORITY_FACTORY =
-            new ClassKey("org.opengis.referencing.operation.CoordinateOperationAuthorityFactory");
+            new ClassKey(
+                    "org.geotools.api.referencing.operation.CoordinateOperationAuthorityFactory");
 
     /**
-     * The {@link org.opengis.referencing.operation.MathTransformFactory} instance to use.
+     * The {@link org.geotools.api.referencing.operation.MathTransformFactory} instance to use.
      *
      * @see org.geotools.referencing.FactoryFinder#getMathTransformFactory
      */
     public static final ClassKey MATH_TRANSFORM_FACTORY =
-            new ClassKey("org.opengis.referencing.operation.MathTransformFactory");
+            new ClassKey("org.geotools.api.referencing.operation.MathTransformFactory");
 
     /**
-     * The default {@link org.opengis.referencing.crs.CoordinateReferenceSystem} to use. This is
-     * used by some factories capable to provide a default CRS when no one were explicitly specified
-     * by the user.
+     * The default {@link org.geotools.api.referencing.crs.CoordinateReferenceSystem} to use. This
+     * is used by some factories capable to provide a default CRS when no one were explicitly
+     * specified by the user.
      *
      * @since 2.2
      */
     public static final Key DEFAULT_COORDINATE_REFERENCE_SYSTEM =
-            new Key("org.opengis.referencing.crs.CoordinateReferenceSystem");
+            new Key("org.geotools.api.referencing.crs.CoordinateReferenceSystem");
 
     /**
      * Used to direct WKT CRS Authority to a directory containing extra definitions. The value
@@ -217,10 +219,10 @@ public class Hints extends RenderingHints {
 
     /**
      * The preferred datum shift method to use for {@linkplain
-     * org.opengis.referencing.operation.CoordinateOperation coordinate operations}. Valid values
-     * are {@code "Molodenski"}, {@code "Abridged_Molodenski"} or {@code "Geocentric"}. Other values
-     * may be supplied if a {@linkplain org.opengis.referencing.operation.MathTransform math
-     * transform} exists for that name, but this is not guaranteed to work.
+     * org.geotools.api.referencing.operation.CoordinateOperation coordinate operations}. Valid
+     * values are {@code "Molodenski"}, {@code "Abridged_Molodenski"} or {@code "Geocentric"}. Other
+     * values may be supplied if a {@linkplain org.geotools.api.referencing.operation.MathTransform
+     * math transform} exists for that name, but this is not guaranteed to work.
      *
      * @see org.geotools.referencing.FactoryFinder#getCoordinateOperationFactory
      */
@@ -228,7 +230,7 @@ public class Hints extends RenderingHints {
             new OptionKey("Molodenski", "Abridged_Molodenski", "Geocentric", "*");
 
     /**
-     * Tells if {@linkplain org.opengis.referencing.operation.CoordinateOperation coordinate
+     * Tells if {@linkplain org.geotools.api.referencing.operation.CoordinateOperation coordinate
      * operations} should be allowed even when a datum shift is required while no method is found
      * applicable. It may be for example that no {@linkplain
      * org.geotools.referencing.datum.BursaWolfParameters Bursa Wolf parameters} were found for a
@@ -236,7 +238,7 @@ public class Hints extends RenderingHints {
      * org.geotools.referencing.operation.DefaultCoordinateOperationFactory coordinate operation
      * factory} throws an exception if such a case occurs. If this hint is set to {@code TRUE}, then
      * the user is strongly encouraged to check the {@linkplain
-     * org.opengis.referencing.operation.CoordinateOperation#getPositionalAccuracy positional
+     * org.geotools.api.referencing.operation.CoordinateOperation#getPositionalAccuracy positional
      * accuracy} for every transformation created. If the set of positional accuracy contains {@link
      * org.geotools.metadata.iso.quality.PositionalAccuracyImpl#DATUM_SHIFT_OMITTED
      * DATUM_SHIFT_OMITTED}, this means that an "ellipsoid shift" were applied without real datum
@@ -248,14 +250,14 @@ public class Hints extends RenderingHints {
     public static final Key LENIENT_DATUM_SHIFT = new Key(Boolean.class);
 
     /**
-     * Tells if the {@linkplain org.opengis.referencing.cs.CoordinateSystem coordinate systems}
-     * created by an {@linkplain org.opengis.referencing.cs.CSAuthorityFactory authority factory}
-     * should be forced to (<var>longitude</var>,<var>latitude</var>) axis order. This hint is
-     * especially useful for creating {@linkplan
-     * org.opengis.referencing.crs.CoordinateReferenceSystem coordinate reference system} objects
-     * from <A HREF="http://www.epsg.org">EPSG</A> codes. Most {@linkplan
-     * org.opengis.referencing.crs.GeographicCRS geographic CRS} defined in the EPSG database use
-     * (<var>latitude</var>,<var>longitude</var>) axis order. Unfortunatly, many data sources
+     * Tells if the {@linkplain org.geotools.api.referencing.cs.CoordinateSystem coordinate systems}
+     * created by an {@linkplain org.geotools.api.referencing.cs.CSAuthorityFactory authority
+     * factory} should be forced to (<var>longitude</var>,<var>latitude</var>) axis order. This hint
+     * is especially useful for creating {@linkplan
+     * org.geotools.api.referencing.crs.CoordinateReferenceSystem coordinate reference system}
+     * objects from <A HREF="http://www.epsg.org">EPSG</A> codes. Most {@linkplan
+     * org.geotools.api.referencing.crs.GeographicCRS geographic CRS} defined in the EPSG database
+     * use (<var>latitude</var>,<var>longitude</var>) axis order. Unfortunatly, many data sources
      * available in the world uses the opposite axis order and still claim to use a CRS described by
      * an EPSG code. This hint allows to handle such data.
      *
@@ -295,6 +297,9 @@ public class Hints extends RenderingHints {
      */
     public static final Key FORCE_LONGITUDE_FIRST_AXIS_ORDER = new Key(Boolean.class);
 
+    /** Forces encoding all CRS with the srs style */
+    public static final Key FORCE_SRS_STYLE = new Key(Boolean.class);
+
     /**
      * Applies the {@link #FORCE_LONGITUDE_FIRST_AXIS_ORDER} hint to some factories that usually
      * ignore it. The <cite>axis order</cite> issue is of concern mostly to the {@code "EPSG"} name
@@ -324,15 +329,15 @@ public class Hints extends RenderingHints {
     public static final Key FORCE_AXIS_ORDER_HONORING = new Key(String.class);
 
     /**
-     * Tells if the {@linkplain org.opengis.referencing.cs.CoordinateSystem coordinate systems}
-     * created by an {@linkplain org.opengis.referencing.cs.CSAuthorityFactory authority factory}
-     * should be forced to standard {@linkplain
-     * org.opengis.referencing.cs.CoordinateSystemAxis#getDirection axis directions}. If {@code
-     * true}, then {@linkplain org.opengis.referencing.cs.AxisDirection#SOUTH South} axis directions
-     * are forced to {@linkplain org.opengis.referencing.cs.AxisDirection#NORTH North}, {@linkplain
-     * org.opengis.referencing.cs.AxisDirection#WEST West} axis directions are forced to {@linkplain
-     * org.opengis.referencing.cs.AxisDirection#EAST East}, <cite>etc.</cite> If {@code false}, then
-     * the axis directions are left unchanged.
+     * Tells if the {@linkplain org.geotools.api.referencing.cs.CoordinateSystem coordinate systems}
+     * created by an {@linkplain org.geotools.api.referencing.cs.CSAuthorityFactory authority
+     * factory} should be forced to standard {@linkplain
+     * org.geotools.api.referencing.cs.CoordinateSystemAxis#getDirection axis directions}. If {@code
+     * true}, then {@linkplain org.geotools.api.referencing.cs.AxisDirection#SOUTH South} axis
+     * directions are forced to {@linkplain org.geotools.api.referencing.cs.AxisDirection#NORTH
+     * North}, {@linkplain org.geotools.api.referencing.cs.AxisDirection#WEST West} axis directions
+     * are forced to {@linkplain org.geotools.api.referencing.cs.AxisDirection#EAST East},
+     * <cite>etc.</cite> If {@code false}, then the axis directions are left unchanged.
      *
      * <p>This hint shall be passed to the <code>
      * {@linkplain org.geotools.referencing.FactoryFinder#getCRSAuthorityFactory
@@ -347,12 +352,12 @@ public class Hints extends RenderingHints {
     public static final Key FORCE_STANDARD_AXIS_DIRECTIONS = new Key(Boolean.class);
 
     /**
-     * Tells if the {@linkplain org.opengis.referencing.cs.CoordinateSystem coordinate systems}
-     * created by an {@linkplain org.opengis.referencing.cs.CSAuthorityFactory authority factory}
-     * should be forced to standard {@linkplain
-     * org.opengis.referencing.cs.CoordinateSystemAxis#getUnit axis units}. If {@code true}, then
-     * all angular units are forced to degrees and linear units to meters. If {@code false}, then
-     * the axis units are left unchanged.
+     * Tells if the {@linkplain org.geotools.api.referencing.cs.CoordinateSystem coordinate systems}
+     * created by an {@linkplain org.geotools.api.referencing.cs.CSAuthorityFactory authority
+     * factory} should be forced to standard {@linkplain
+     * org.geotools.api.referencing.cs.CoordinateSystemAxis#getUnit axis units}. If {@code true},
+     * then all angular units are forced to degrees and linear units to meters. If {@code false},
+     * then the axis units are left unchanged.
      *
      * <p>This hint shall be passed to the <code>
      * {@linkplain org.geotools.referencing.FactoryFinder#getCRSAuthorityFactory
@@ -368,8 +373,8 @@ public class Hints extends RenderingHints {
 
     /**
      * Version number of the requested service. This hint is used for example in order to get a
-     * {@linkplain org.opengis.referencing.crs.CRSAuthorityFactory CRS authority factory} backed by
-     * a particular version of EPSG database. The value should be an instance of {@link
+     * {@linkplain org.geotools.api.referencing.crs.CRSAuthorityFactory CRS authority factory}
+     * backed by a particular version of EPSG database. The value should be an instance of {@link
      * org.geotools.util.Version}.
      *
      * @since 2.4
@@ -434,37 +439,14 @@ public class Hints extends RenderingHints {
     ////////////////////////////////////////////////////////////////////////
 
     /**
-     * The {@link org.opengis.referencing.crs.CoordinateReferenceSystem} to use in ISO geometry
+     * The {@link org.geotools.api.referencing.crs.CoordinateReferenceSystem} to use in ISO geometry
      * factories.
      *
      * @see #JTS_SRID
      * @since 2.5
      */
-    public static final Key CRS = new Key("org.opengis.referencing.crs.CoordinateReferenceSystem");
-
-    /**
-     * The {@link org.opengis.geometry.Precision} to use in ISO geometry factories.
-     *
-     * @see #JTS_PRECISION_MODEL
-     * @since 2.5
-     */
-    public static final Key PRECISION = new Key("org.opengis.geometry.Precision");
-
-    /**
-     * The {@link org.opengis.geometry.PositionFactory} instance to use.
-     *
-     * @since 2.5
-     */
-    public static final Key POSITION_FACTORY = new Key("org.opengis.geometry.PositionFactory");
-
-    /**
-     * The {@link org.opengis.geometry.coordinate.GeometryFactory} instance to use.
-     *
-     * @see #JTS_GEOMETRY_FACTORY
-     * @since 2.5
-     */
-    public static final Key GEOMETRY_FACTORY =
-            new Key("org.opengis.geometry.coordinate.GeometryFactory");
+    public static final Key CRS =
+            new Key("org.geotools.api.referencing.crs.CoordinateReferenceSystem");
 
     /**
      * The default linearization tolerance for curved geometries
@@ -475,28 +457,12 @@ public class Hints extends RenderingHints {
     public static final Key LINEARIZATION_TOLERANCE = new Key(Double.class);
 
     /**
-     * The {@link org.opengis.geometry.complex.ComplexFactory} instance to use.
-     *
-     * @since 2.5
-     */
-    public static final Key COMPLEX_FACTORY =
-            new Key("org.opengis.geometry.complex.ComplexFactory");
-
-    /**
-     * The {@link org.opengis.geometry.aggregate.AggregateFactory} instance to use.
-     *
-     * @since 2.5
-     */
-    public static final Key AGGREGATE_FACTORY =
-            new Key("org.opengis.geometry.aggregate.AggregateFactory");
-
-    /**
-     * The {@link org.opengis.geometry.primitive.PrimitiveFactory} instance to use.
+     * The {@link org.geotools.api.geometry.primitive.PrimitiveFactory} instance to use.
      *
      * @since 2.5
      */
     public static final Key PRIMITIVE_FACTORY =
-            new Key("org.opengis.geometry.primitive.PrimitiveFactory");
+            new Key("org.geotools.api.geometry.primitive.PrimitiveFactory");
 
     /**
      * If {@code true}, geometry will be validated on creation. A value of {@code false} may speedup
@@ -553,21 +519,22 @@ public class Hints extends RenderingHints {
     ////////////////////////////////////////////////////////////////////////
 
     /**
-     * The {@link org.opengis.feature.FeatureFactory} instance to use.
+     * The {@link org.geotools.api.feature.FeatureFactory} instance to use.
      *
      * @see CommonFactoryFinder.getFeatureFactory()
      * @since 2.5
      */
-    public static ClassKey FEATURE_FACTORY = new ClassKey("org.opengis.feature.FeatureFactory");
+    public static ClassKey FEATURE_FACTORY =
+            new ClassKey("org.geotools.api.feature.FeatureFactory");
 
     /**
-     * The {@link org.opengis.feature.type.FeatureTypeFactory} instance to use.
+     * The {@link org.geotools.api.feature.type.FeatureTypeFactory} instance to use.
      *
      * @see CommonFactoryFinder.getFeatureTypeFactory()
      * @since 2.4
      */
     public static ClassKey FEATURE_TYPE_FACTORY =
-            new ClassKey("org.opengis.feature.type.FeatureTypeFactory");
+            new ClassKey("org.geotools.api.feature.type.FeatureTypeFactory");
 
     /**
      * The {@link org.geotools.feature.FeatureCollections} instance to use.
@@ -638,19 +605,18 @@ public class Hints extends RenderingHints {
     public static final Key COORDINATE_DIMENSION = new Key(Integer.class);
 
     /**
-     * The {@link org.geotools.styling.StyleFactory} instance to use.
+     * The {@link org.geotools.api.style.StyleFactory} instance to use.
      *
-     * @see CommonFactoryFinder#getStyleFactory
      * @since 2.4
      */
-    public static final ClassKey STYLE_FACTORY = new ClassKey("org.geotools.styling.StyleFactory");
+    public static final ClassKey STYLE_FACTORY =
+            new ClassKey("org.geotools.api.style.StyleFactory");
 
     /**
      * The color definition to use when converting from String to Color. "CSS" corresponds to the
      * CSS Color Module 4 name set ( <a
      * href="https://www.w3.org/TR/css-color-4/#named-colors">https://www.w3.org/TR/css-color-4/#named-colors</a>)
      *
-     * @see CommonFactoryFinder#getStyleFactory
      * @since 17
      */
     public static final OptionKey COLOR_DEFINITION = new OptionKey("CSS");
@@ -658,19 +624,18 @@ public class Hints extends RenderingHints {
     /**
      * The {@link org.geotools.feature.AttributeTypeFactory} instance to use.
      *
-     * @see CommonFactoryFinder#getAttributeTypeFactory
      * @since 2.4
      */
     public static final ClassKey ATTRIBUTE_TYPE_FACTORY =
             new ClassKey("org.geotools.feature.AttributeTypeFactory");
 
     /**
-     * The {@link org.opengis.filter.FilterFactory} instance to use.
+     * The {@link org.geotools.api.filter.FilterFactory} instance to use.
      *
-     * @see CommonFactoryFinder#getFilterFactory
      * @since 2.4
      */
-    public static final ClassKey FILTER_FACTORY = new ClassKey("org.opengis.filter.FilterFactory");
+    public static final ClassKey FILTER_FACTORY =
+            new ClassKey("org.geotools.api.filter.FilterFactory");
 
     /**
      * Provides the parameter values to a JDBC parametrized SQL view. The value of the hint must be
@@ -711,9 +676,9 @@ public class Hints extends RenderingHints {
     public static final Key MOSAIC_LOCATION_ATTRIBUTE = new Key(String.class);
 
     /**
-     * Tells to the {@link org.opengis.coverage.grid.GridCoverageReader} instances to read the image
-     * using the JAI ImageRead operation (leveraging on Deferred Execution Model, Tile Caching,...)
-     * or the direct {@code ImageReader}'s read methods.
+     * Tells to the {@link org.geotools.api.coverage.grid.GridCoverageReader} instances to read the
+     * image using the JAI ImageRead operation (leveraging on Deferred Execution Model, Tile
+     * Caching,...) or the direct {@code ImageReader}'s read methods.
      *
      * @since 2.4
      */
@@ -754,9 +719,9 @@ public class Hints extends RenderingHints {
     /** The {@link javax.media.jai.JAI} instance to use. */
     public static final Key JAI_INSTANCE = new Key("javax.media.jai.JAI");
 
-    /** The {@link org.opengis.coverage.SampleDimensionType} to use. */
+    /** The {@link org.geotools.api.coverage.SampleDimensionType} to use. */
     public static final Key SAMPLE_DIMENSION_TYPE =
-            new Key("org.opengis.coverage.SampleDimensionType");
+            new Key("org.geotools.api.coverage.SampleDimensionType");
 
     /**
      * The GridCoverageFactory to be used.
@@ -775,7 +740,12 @@ public class Hints extends RenderingHints {
             new ClassKey("java.util.concurrent.ExecutorService");
 
     /**
-     * Resample tolerance (defaults to 0.333)
+     * Default resample tolerance value, if not specified via the {@link #RESAMPLE_TOLERANCE} hint
+     */
+    public static double DEFAULT_RESAMPLE_TOLERANCE = 0.333;
+
+    /**
+     * Resample tolerance (defaults to {@link #DEFAULT_RESAMPLE_TOLERANCE})
      *
      * <p>To set on the command line:
      *
@@ -796,7 +766,7 @@ public class Hints extends RenderingHints {
      *
      * @since 18
      */
-    public static final ClassKey REPOSITORY = new ClassKey("org.geotools.data.Repository");
+    public static final ClassKey REPOSITORY = new ClassKey("org.geotools.api.data.Repository");
 
     /**
      * Granule removachoosing policy. The value must be one of {link
@@ -806,6 +776,13 @@ public class Hints extends RenderingHints {
      */
     public static final Key GRANULE_REMOVAL_POLICY =
             new Key("org.geotools.coverage.grid.io.GranuleRemovalPolicy");
+
+    /**
+     * Indicates whether to skip external overview files when loading a Coverage (on by default in
+     * most raster readers). The lookup can be costly if the files are on a remote server or network
+     * disk.
+     */
+    public static final Key SKIP_EXTERNAL_OVERVIEWS = new Hints.Key(Boolean.class);
 
     ////////////////////////////////////////////////////////////////////////
     ////////                                                        ////////
@@ -840,7 +817,7 @@ public class Hints extends RenderingHints {
      * <p>This maps directly to a {@code xlinkPropertyName} in a WFS query.
      */
     public static final Hints.Key ASSOCIATION_PROPERTY =
-            new Key("org.opengis.filter.expression.PropertyName");
+            new Key("org.geotools.api.filter.expression.PropertyName");
 
     ////////////////////////////////////////////////////////////////////////
     ////////                                                        ////////
@@ -871,16 +848,16 @@ public class Hints extends RenderingHints {
 
     /**
      * The recommended maximum number of referencing objects to hold in a {@linkplain
-     * org.opengis.referencing.AuthorityFactory authority factory}.
+     * org.geotools.api.referencing.AuthorityFactory authority factory}.
      *
      * @since 2.5
      */
     public static final IntegerKey CACHE_LIMIT = new IntegerKey(50);
 
     /**
-     * The maximum number of active {@linkplain org.opengis.referencing.AuthorityFactory authority
-     * factories}. The default is the {@linkplain Runtime#availableProcessors number of available
-     * processors} plus one.
+     * The maximum number of active {@linkplain org.geotools.api.referencing.AuthorityFactory
+     * authority factories}. The default is the {@linkplain Runtime#availableProcessors number of
+     * available processors} plus one.
      *
      * <p>This hint is treated as an absolute <strong>limit</strong> for {@link
      * org.geotools.referencing.factory.AbstractAuthorityMediator} instances such as {@link
@@ -993,6 +970,16 @@ public class Hints extends RenderingHints {
     /** A flag to enabled/disable EWKT geometry encoding in ECQL */
     public static final Key ENCODE_EWKT = new Key(Boolean.class);
 
+    /** Which Http client factory should be used */
+    public static final ClassKey HTTP_CLIENT_FACTORY =
+            new ClassKey("org.geotools.http.HTTPClientFactory");
+
+    /** Which Http client should be created. */
+    public static final ClassKey HTTP_CLIENT = new ClassKey("org.geotools.http.HTTPClient");
+
+    /** Should we log each http request FALSE/TRUE/charset */
+    public static final Key HTTP_LOGGING = new Key(String.class);
+
     /**
      * Controls date time formatting output for GML 2.
      *
@@ -1074,10 +1061,10 @@ public class Hints extends RenderingHints {
      * @param pairs An array of Key/Value pairs.
      * @throws IllegalArgumentException if a value is illegal.
      */
-    private void fromPairs(final Object[] pairs) throws IllegalArgumentException {
+    private void fromPairs(final Object... pairs) throws IllegalArgumentException {
         if ((pairs.length & 1) != 0) {
             throw new IllegalArgumentException(
-                    Errors.format(ErrorKeys.ODD_ARRAY_LENGTH_$1, pairs.length));
+                    MessageFormat.format(ErrorKeys.ODD_ARRAY_LENGTH_$1, pairs.length));
         }
         for (int i = 0; i < pairs.length; i += 2) {
             super.put(pairs[i], pairs[i + 1]);
@@ -1126,8 +1113,7 @@ public class Hints extends RenderingHints {
          */
         @SuppressWarnings("unchecked")
         Map<RenderingHints.Key, Object> filtered = (Map<RenderingHints.Key, Object>) hints;
-        for (final Iterator<?> it = hints.keySet().iterator(); it.hasNext(); ) {
-            final Object key = it.next();
+        for (final Object key : hints.keySet()) {
             if (!(key instanceof RenderingHints.Key)) {
                 if (filtered == hints) {
                     // Copies the map only if needed.
@@ -1238,10 +1224,8 @@ public class Hints extends RenderingHints {
      * @since 2.4
      */
     public static Object getSystemDefault(final RenderingHints.Key key) {
-        final boolean changed;
-        final Object value;
-        changed = ensureSystemDefaultLoaded();
-        value = GLOBAL.get(key);
+        final boolean changed = ensureSystemDefaultLoaded();
+        final Object value = GLOBAL.get(key);
         if (changed) {
             GeoTools.fireConfigurationChanged();
         }
@@ -1262,10 +1246,8 @@ public class Hints extends RenderingHints {
      * @since 2.4
      */
     public static Object putSystemDefault(final RenderingHints.Key key, final Object value) {
-        final boolean changed;
-        final Object old;
-        changed = ensureSystemDefaultLoaded();
-        old = GLOBAL.put(key, value);
+        final boolean changed = ensureSystemDefaultLoaded();
+        final Object old = GLOBAL.put(key, value);
         if (changed || !Utilities.equals(value, old)) {
             GeoTools.fireConfigurationChanged();
         }
@@ -1282,10 +1264,8 @@ public class Hints extends RenderingHints {
      * @since 2.4
      */
     public static Object removeSystemDefault(final RenderingHints.Key key) {
-        final boolean changed;
-        final Object old;
-        changed = ensureSystemDefaultLoaded();
-        old = GLOBAL.remove(key);
+        final boolean changed = ensureSystemDefaultLoaded();
+        final Object old = GLOBAL.remove(key);
         if (changed || old != null) {
             GeoTools.fireConfigurationChanged();
         }
@@ -1305,10 +1285,9 @@ public class Hints extends RenderingHints {
         final StringBuilder buffer = new StringBuilder("Hints:"); // TODO: localize
         buffer.append(lineSeparator).append(AbstractFactory.toString(this));
         Map<?, ?> extra = null;
-        final boolean changed;
-        changed = ensureSystemDefaultLoaded();
+        final boolean changed = ensureSystemDefaultLoaded();
         if (!GLOBAL.isEmpty()) {
-            extra = new HashMap<Object, Object>(GLOBAL);
+            extra = new HashMap<>(GLOBAL);
         }
         if (changed) {
             GeoTools.fireConfigurationChanged();
@@ -1343,12 +1322,9 @@ public class Hints extends RenderingHints {
                         try {
                             type = Class.forName("javax.media.jai.JAI");
                             break;
-                        } catch (ClassNotFoundException e) {
+                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
                             continue;
-                        } catch (NoClassDefFoundError e) {
-                            // May occurs because of indirect JAI dependencies.
-                            continue;
-                        }
+                        } // May occurs because of indirect JAI dependencies.
                     }
                 default:
                     {
@@ -1368,8 +1344,7 @@ public class Hints extends RenderingHints {
      */
     private static String nameOf(final Class<?> type, final RenderingHints.Key key) {
         final Field[] fields = type.getFields();
-        for (int i = 0; i < fields.length; i++) {
-            final Field f = fields[i];
+        for (final Field f : fields) {
             if (Modifier.isStatic(f.getModifiers())) {
                 final Object v;
                 try {
@@ -1472,6 +1447,7 @@ public class Hints extends RenderingHints {
          * @see Hints.IntegerKey#isCompatibleValue
          * @see Hints.OptionKey#isCompatibleValue
          */
+        @Override
         public boolean isCompatibleValue(final Object value) {
             return getValueClass().isInstance(value);
         }
@@ -1555,8 +1531,8 @@ public class Hints extends RenderingHints {
              */
             if (value instanceof Class<?>[]) {
                 final Class<?>[] types = (Class<?>[]) value;
-                for (int i = 0; i < types.length; i++) {
-                    if (!isCompatibleValue(types[i])) {
+                for (Class<?> type : types) {
+                    if (!isCompatibleValue(type)) {
                         return false;
                     }
                 }

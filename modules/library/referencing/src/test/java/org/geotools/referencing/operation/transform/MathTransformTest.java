@@ -19,6 +19,7 @@ package org.geotools.referencing.operation.transform;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -26,8 +27,18 @@ import static org.junit.Assert.fail;
 import java.awt.geom.AffineTransform;
 import java.util.Arrays;
 import java.util.Random;
-import org.geotools.geometry.DirectPosition1D;
-import org.geotools.geometry.GeneralDirectPosition;
+import org.geotools.api.geometry.Position;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform1D;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.Matrix;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.geometry.GeneralPosition;
+import org.geotools.geometry.Position1D;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.WKT;
@@ -39,16 +50,6 @@ import org.geotools.referencing.operation.matrix.MatrixFactory;
 import org.geotools.referencing.operation.matrix.XMatrix;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.geometry.DirectPosition;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform1D;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.Matrix;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Tests various classes of {@link MathTransform}, including {@link ConcatenatedTransform}.
@@ -75,7 +76,7 @@ public final class MathTransformTest {
         factory = new DefaultMathTransformFactory();
     }
 
-    /** Tests a transformation on a {@link DirectPosition} object. */
+    /** Tests a transformation on a {@link Position} object. */
     @Test
     public void testDirectPositionTransform() throws FactoryException, TransformException {
         CoordinateReferenceSystem crs =
@@ -84,7 +85,7 @@ public final class MathTransformTest {
                 ReferencingFactoryFinder.getCoordinateOperationFactory(null)
                         .createOperation(DefaultGeographicCRS.WGS84, crs)
                         .getMathTransform();
-        DirectPosition position = new GeneralDirectPosition(-123, 55);
+        Position position = new GeneralPosition(-123, 55);
         position = t.transform(position, position);
         position = t.inverse().transform(position, position);
         assertEquals(-123, position.getOrdinate(0), 1E-6);
@@ -121,19 +122,18 @@ public final class MathTransformTest {
                         1394.4593259871676);
         MathTransform mt = factory.createAffineTransform(new GeneralMatrix(at));
 
-        final double[] points =
-                new double[] {
-                    -129.992589135802,
-                    55.9226692948365,
-                    -129.987254340541,
-                    55.9249676996729,
-                    -129.982715772093,
-                    55.9308988434656,
-                    -129.989772198265,
-                    55.9289277997662,
-                    -129.992589135802,
-                    55.9226692948365
-                };
+        final double[] points = {
+            -129.992589135802,
+            55.9226692948365,
+            -129.987254340541,
+            55.9249676996729,
+            -129.982715772093,
+            55.9308988434656,
+            -129.989772198265,
+            55.9289277997662,
+            -129.992589135802,
+            55.9226692948365
+        };
         final double[] transformedPoints = new double[points.length];
         mt.transform(points, 0, transformedPoints, 0, points.length / 2);
         at.transform(points, 0, points, 0, points.length / 2);
@@ -173,7 +173,7 @@ public final class MathTransformTest {
                 assertTrue(sub.isAffine());
                 assertEquals(sub, new GeneralMatrix(((LinearTransform) transform).getMatrix()));
                 assertInterfaced(transform);
-                assertTrue(i == transform.getSourceDimensions());
+                assertEquals(i, transform.getSourceDimensions());
             }
             /*
              * Check transformations and the inverse transformations.
@@ -304,7 +304,7 @@ public final class MathTransformTest {
             ctr.transform(sourcePt, 0, targetPt, 0, numPts);
             for (int i = random.nextInt(2) + 1; --i >= 0; ) {
                 final MathTransform1D step = getRandomTransform1D();
-                ctr = (MathTransform1D) factory.createConcatenatedTransform(ctr, step);
+                ctr = factory.createConcatenatedTransform(ctr, step);
                 step.transform(targetPt, 0, targetPt, 0, numPts);
             }
             ctr.transform(sourcePt, 0, compare, 0, numPts);
@@ -398,8 +398,8 @@ public final class MathTransformTest {
         /*
          * Initialisation...
          */
-        final GeneralDirectPosition[] sources = new GeneralDirectPosition[transforms.length];
-        final GeneralDirectPosition[] targets = new GeneralDirectPosition[transforms.length];
+        final GeneralPosition[] sources = new GeneralPosition[transforms.length];
+        final GeneralPosition[] targets = new GeneralPosition[transforms.length];
         int maxDimSource = 0;
         int maxDimTarget = 0;
         for (int i = 0; i < transforms.length; i++) {
@@ -407,8 +407,8 @@ public final class MathTransformTest {
             final int dimTarget = transforms[i].getTargetDimensions();
             if (dimSource > maxDimSource) maxDimSource = dimSource;
             if (dimTarget > maxDimTarget) maxDimTarget = dimTarget;
-            sources[i] = new GeneralDirectPosition(dimSource);
-            targets[i] = new GeneralDirectPosition(dimTarget);
+            sources[i] = new GeneralPosition(dimSource);
+            targets[i] = new GeneralPosition(dimTarget);
         }
         /*
          * Test with an arbitrary number of randoms points.
@@ -416,8 +416,7 @@ public final class MathTransformTest {
         for (int pass = 0; pass < 200; pass++) {
             for (int j = 0; j < maxDimSource; j++) {
                 final double ord = 100 * random.nextDouble();
-                for (int i = 0; i < sources.length; i++) {
-                    final GeneralDirectPosition source = sources[i];
+                for (final GeneralPosition source : sources) {
                     if (j < source.ordinates.length) {
                         source.ordinates[j] = ord;
                     }
@@ -436,13 +435,13 @@ public final class MathTransformTest {
                 buffer.setLength(lengthJ);
                 buffer.append(j).append("] with [");
                 final int lengthI = buffer.length();
-                final GeneralDirectPosition targetJ = targets[j];
+                final GeneralPosition targetJ = targets[j];
                 for (int i = j + 1; i < targets.length; i++) {
                     buffer.setLength(lengthI);
                     buffer.append(i).append(']');
                     final String label = buffer.toString();
-                    final GeneralDirectPosition targetI = targets[i];
-                    assertTrue(targetJ.ordinates != targetI.ordinates);
+                    final GeneralPosition targetI = targets[i];
+                    assertNotSame(targetJ.ordinates, targetI.ordinates);
                     for (int k = Math.min(targetJ.ordinates.length, targetI.ordinates.length);
                             --k >= 0; ) {
                         assertEquals(label, targetJ.ordinates[k], targetI.ordinates[k], 1E-6);
@@ -472,7 +471,7 @@ public final class MathTransformTest {
         final MathTransform1D direct =
                 (MathTransform1D) factory.createParameterizedTransform(parameters);
         final MathTransform1D inverse = direct.inverse();
-        final DirectPosition1D point = new DirectPosition1D();
+        final Position1D point = new Position1D();
         for (int i = 0; i < expected.length; i++) {
             final double x = input[i];
             final double y = direct.transform(x);
@@ -526,8 +525,8 @@ public final class MathTransformTest {
         if (transform.getTargetDimensions() != dim) {
             dim = 0;
         }
-        assertTrue("MathTransform1D", (dim == 1) == (transform instanceof MathTransform1D));
-        assertTrue("MathTransform2D", (dim == 2) == (transform instanceof MathTransform2D));
+        assertEquals("MathTransform1D", (dim == 1), (transform instanceof MathTransform1D));
+        assertEquals("MathTransform2D", (dim == 2), (transform instanceof MathTransform2D));
     }
 
     /**
@@ -590,7 +589,6 @@ public final class MathTransformTest {
                         + " AXIS[\"Ellipsoidal height\", UP], "
                         + " AUTHORITY[\"EPSG\",\"4939\"]]";
         CoordinateReferenceSystem gda94 = CRS.parseWKT(wkt);
-        CoordinateReferenceSystem world = DefaultGeographicCRS.WGS84;
 
         MathTransform toWgs84_3d = CRS.findMathTransform(gda94, DefaultGeographicCRS.WGS84_3D);
         MathTransform toWgs84_2d =

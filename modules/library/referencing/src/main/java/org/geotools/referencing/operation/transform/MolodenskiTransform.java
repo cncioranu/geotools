@@ -26,10 +26,20 @@ import static java.lang.Math.toDegrees;
 import static java.lang.Math.toRadians;
 
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Objects;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.Transformation;
+import org.geotools.api.util.GenericName;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
@@ -39,15 +49,6 @@ import org.geotools.parameter.Parameter;
 import org.geotools.parameter.ParameterGroup;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.operation.MathTransformProvider;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.Transformation;
-import org.opengis.util.GenericName;
 import si.uom.SI;
 
 /**
@@ -208,11 +209,13 @@ public class MolodenskiTransform extends AbstractMathTransform implements Serial
     }
 
     /** Gets the dimension of input points. */
+    @Override
     public int getSourceDimensions() {
         return source3D ? 3 : 2;
     }
 
     /** Gets the dimension of output points. */
+    @Override
     public final int getTargetDimensions() {
         return target3D ? 3 : 2;
     }
@@ -234,6 +237,7 @@ public class MolodenskiTransform extends AbstractMathTransform implements Serial
      *     destination array.
      * @param numPts the number of point objects to be transformed.
      */
+    @Override
     public void transform(double[] srcPts, int srcOff, double[] dstPts, int dstOff, int numPts) {
         transform(null, srcPts, srcOff, null, dstPts, dstOff, numPts);
         /*
@@ -463,55 +467,52 @@ public class MolodenskiTransform extends AbstractMathTransform implements Serial
         return inverse;
     }
 
-    /** Returns a hash value for this transform. */
     @Override
-    public final int hashCode() {
-        final long code =
-                Double.doubleToLongBits(dx)
-                        + 37
-                                * (Double.doubleToLongBits(dy)
-                                        + 37
-                                                * (Double.doubleToLongBits(dz)
-                                                        + 37
-                                                                * (Double.doubleToLongBits(a)
-                                                                        + 37
-                                                                                * (Double
-                                                                                                .doubleToLongBits(
-                                                                                                        b)
-                                                                                        + 37
-                                                                                                * (Double
-                                                                                                                .doubleToLongBits(
-                                                                                                                        da)
-                                                                                                        + 37
-                                                                                                                * (Double
-                                                                                                                        .doubleToLongBits(
-                                                                                                                                db)))))));
-        int c = (int) code ^ (int) (code >>> 32) ^ (int) serialVersionUID;
-        if (abridged) c = ~c;
-        return c;
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+        MolodenskiTransform that = (MolodenskiTransform) o;
+        return abridged == that.abridged
+                && source3D == that.source3D
+                && target3D == that.target3D
+                && Double.compare(that.dx, dx) == 0
+                && Double.compare(that.dy, dy) == 0
+                && Double.compare(that.dz, dz) == 0
+                && Double.compare(that.a, a) == 0
+                && Double.compare(that.b, b) == 0
+                && Double.compare(that.da, da) == 0
+                && Double.compare(that.db, db) == 0
+                && Double.compare(that.df, df) == 0
+                && Double.compare(that.b_a, b_a) == 0
+                && Double.compare(that.a_b, a_b) == 0
+                && Double.compare(that.daa, daa) == 0
+                && Double.compare(that.da_a, da_a) == 0
+                && Double.compare(that.e2, e2) == 0
+                && Double.compare(that.adf, adf) == 0;
     }
 
-    /** Compares the specified object with this math transform for equality. */
     @Override
-    public final boolean equals(final Object object) {
-        if (object == this) {
-            // Slight optimization
-            return true;
-        }
-        if (super.equals(object)) {
-            final MolodenskiTransform that = (MolodenskiTransform) object;
-            return this.abridged == that.abridged
-                    && this.source3D == that.source3D
-                    && this.target3D == that.target3D
-                    && Double.doubleToLongBits(this.dx) == Double.doubleToLongBits(that.dx)
-                    && Double.doubleToLongBits(this.dy) == Double.doubleToLongBits(that.dy)
-                    && Double.doubleToLongBits(this.dz) == Double.doubleToLongBits(that.dz)
-                    && Double.doubleToLongBits(this.a) == Double.doubleToLongBits(that.a)
-                    && Double.doubleToLongBits(this.b) == Double.doubleToLongBits(that.b)
-                    && Double.doubleToLongBits(this.da) == Double.doubleToLongBits(that.da)
-                    && Double.doubleToLongBits(this.db) == Double.doubleToLongBits(that.db);
-        }
-        return false;
+    public int hashCode() {
+        return Objects.hash(
+                super.hashCode(),
+                abridged,
+                source3D,
+                target3D,
+                dx,
+                dy,
+                dz,
+                a,
+                b,
+                da,
+                db,
+                df,
+                b_a,
+                a_b,
+                daa,
+                da_a,
+                e2,
+                adf);
     }
 
     /**
@@ -737,6 +738,7 @@ public class MolodenskiTransform extends AbstractMathTransform implements Serial
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup values)
                 throws ParameterNotFoundException {
             final boolean hasHeight;
@@ -759,7 +761,7 @@ public class MolodenskiTransform extends AbstractMathTransform implements Serial
                 default:
                     {
                         throw new IllegalArgumentException(
-                                Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "dim", dim));
+                                MessageFormat.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "dim", dim));
                     }
             }
             final double a = doubleValue(SRC_SEMI_MAJOR, values);

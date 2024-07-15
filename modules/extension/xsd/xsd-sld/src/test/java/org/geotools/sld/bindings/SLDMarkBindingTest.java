@@ -16,25 +16,31 @@
  */
 package org.geotools.sld.bindings;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import java.awt.Color;
 import java.net.MalformedURLException;
 import java.net.URL;
+import org.geotools.api.style.Mark;
+import org.geotools.api.style.ResourceLocator;
+import org.geotools.api.style.StyleFactory;
 import org.geotools.filter.Filters;
 import org.geotools.sld.SLDConfiguration;
-import org.geotools.styling.Mark;
-import org.geotools.styling.ResourceLocator;
-import org.geotools.styling.StyleFactory;
 import org.geotools.styling.StyleFactoryImpl;
 import org.geotools.xsd.Configuration;
+import org.junit.Test;
 import org.picocontainer.MutablePicoContainer;
 import org.w3c.dom.Element;
 
 public class SLDMarkBindingTest extends SLDTestSupport {
 
+    @Test
     public void testType() throws Exception {
         assertEquals(Mark.class, new SLDMarkBinding(null, null, null).getType());
     }
 
+    @Test
     public void testWithoutStroke() throws Exception {
         SLDMockData.mark(document, document);
 
@@ -53,6 +59,7 @@ public class SLDMarkBindingTest extends SLDTestSupport {
         assertEquals(Filters.asString(mark.getWellKnownName()), "wellKnownName");
     }
 
+    @Test
     public void testResourceLocator() throws Exception {
         Element mark1 = SLDMockData.element(SLD.MARK, document, document);
         SLDMockData.fill(document, mark1);
@@ -74,8 +81,10 @@ public class SLDMarkBindingTest extends SLDTestSupport {
         assertEquals("file://test/foo.svg", Filters.asString(mark.getWellKnownName()));
     }
 
+    @Override
     protected Configuration createConfiguration() {
         return new SLDConfiguration() {
+            @Override
             protected void configureContext(MutablePicoContainer container) {
                 container.registerComponentImplementation(
                         StyleFactory.class, StyleFactoryImpl.class);

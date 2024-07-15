@@ -16,6 +16,7 @@
  */
 package org.geotools.data.complex;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -26,17 +27,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.geotools.data.DataAccess;
+import org.geotools.api.data.DataAccess;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
 import org.geotools.data.complex.feature.type.Types;
 import org.geotools.data.util.FeatureStreams;
 import org.geotools.test.AppSchemaTestSupport;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.feature.Feature;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.Name;
 
 /**
  * FeatureTypeMapping Indexed use case instancing tests
@@ -46,7 +47,6 @@ import org.opengis.feature.type.Name;
 public class FeatureTypeMappingIndexTest extends AppSchemaTestSupport {
 
     private static final String schemaBase = "/test-data/index/";
-    private static final String NSURI = "http://www.stations.org/1.0";
     static final Name mappedTypeName = Types.typeName(null, "stationsIndexed");
 
     private AppSchemaDataAccessFactory factory;
@@ -97,8 +97,8 @@ public class FeatureTypeMappingIndexTest extends AppSchemaTestSupport {
     public void testSourcesFeatures() throws Exception {
         try (Stream<Feature> fstream = FeatureStreams.toFeatureStream(mappedSource.getFeatures())) {
             List<Feature> flist = fstream.collect(Collectors.toList());
-            assertTrue(flist.size() == 11);
-            assertTrue(flist.get(2).getIdentifier().getID().equals("st.3"));
+            assertEquals(11, flist.size());
+            assertEquals("st.3", flist.get(2).getIdentifier().getID());
         }
     }
 }

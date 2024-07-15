@@ -22,15 +22,15 @@ import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.PropertyName;
 
 /** A new function to check if a property exists. */
 public class PropertyExistsFunction extends FunctionExpressionImpl {
@@ -47,7 +47,7 @@ public class PropertyExistsFunction extends FunctionExpressionImpl {
     }
 
     private String getPropertyName() {
-        Expression expr = (Expression) getParameters().get(0);
+        Expression expr = getParameters().get(0);
 
         return getPropertyName(expr);
     }
@@ -83,6 +83,7 @@ public class PropertyExistsFunction extends FunctionExpressionImpl {
      *     names as the property name passed as this function argument, following the standard Java
      *     Beans naming conventions for getters. {@link Boolean#FALSE} otherwise.
      */
+    @Override
     public Object evaluate(Object bean) {
         if (bean instanceof SimpleFeature) {
             return evaluate((SimpleFeature) bean);

@@ -20,18 +20,18 @@ import static org.junit.Assert.assertEquals;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Add;
+import org.geotools.api.filter.expression.Divide;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Multiply;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.expression.Subtract;
 import org.geotools.data.DataUtilities;
 import org.geotools.factory.CommonFactoryFinder;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Add;
-import org.opengis.filter.expression.Divide;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Multiply;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Subtract;
 
 public class ExpressionTypeVisitorTest {
 
@@ -56,15 +56,22 @@ public class ExpressionTypeVisitorTest {
         assertEquals(Short.class, add.accept(visitor, null));
         Multiply mul = ff.multiply(ff.property("l"), ff.property("s"));
         assertEquals(Long.class, mul.accept(visitor, null));
-        Divide div = ff.divide(ff.literal(new BigInteger("10")), ff.property("s"));
+        Divide div = ff.divide(ff.literal(BigInteger.valueOf(10)), ff.property("s"));
         assertEquals(BigInteger.class, div.accept(visitor, null));
-        Subtract sub = ff.subtract(ff.literal(new BigInteger("10")), ff.property("d"));
+        Subtract sub = ff.subtract(ff.literal(BigInteger.valueOf(10)), ff.property("d"));
         assertEquals(BigDecimal.class, sub.accept(visitor, null));
     }
 
     @Test
     public void testFunction() {
         Function func = ff.function(("abs"), ff.literal(10));
+        assertEquals(Integer.class, func.accept(visitor, null));
+    }
+
+    @Test
+    public void testIfThenElse() { // special case within function
+        Function func =
+                ff.function(("if_then_else"), ff.literal(true), ff.literal(10), ff.literal(20));
         assertEquals(Integer.class, func.accept(visitor, null));
     }
 

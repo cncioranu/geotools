@@ -23,22 +23,23 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Serializable;
 import java.text.FieldPosition;
+import java.text.MessageFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.Locale;
 import org.ejml.UtilEjml;
 import org.ejml.data.DMatrixRMaj;
 import org.ejml.dense.row.CommonOps_DDRM;
+import org.geotools.api.geometry.Bounds;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.referencing.cs.AxisDirection;
+import org.geotools.api.referencing.operation.Matrix;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.ContentFormatException;
 import org.geotools.util.LineFormat;
+import org.geotools.util.SuppressFBWarnings;
 import org.geotools.util.Utilities;
 import org.geotools.util.XArray;
-import org.opengis.geometry.Envelope;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.referencing.cs.AxisDirection;
-import org.opengis.referencing.operation.Matrix;
 
 /**
  * A two dimensional array of numbers. Row and column numbering begins with zero.
@@ -110,7 +111,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
     public GeneralMatrix(final int numRow, final int numCol, final Matrix matrix) {
         mat = new DMatrixRMaj(numRow, numCol);
         if (matrix.getNumRow() != numRow || matrix.getNumCol() != numCol) {
-            throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_MATRIX_SIZE));
+            throw new IllegalArgumentException(ErrorKeys.ILLEGAL_MATRIX_SIZE);
         }
         for (int j = 0; j < numRow; j++) {
             for (int i = 0; i < numCol; i++) {
@@ -132,7 +133,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
         final int numCol = getNumCol();
         for (int j = 0; j < numRow; j++) {
             if (matrix[j].length != numCol) {
-                throw new IllegalArgumentException(Errors.format(ErrorKeys.MATRIX_NOT_REGULAR));
+                throw new IllegalArgumentException(ErrorKeys.MATRIX_NOT_REGULAR);
             }
             for (int i = 0; i < numCol; i++) {
                 mat.set(j, i, matrix[j][i]);
@@ -212,7 +213,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
      * @param srcRegion The source region.
      * @param dstRegion The destination region.
      */
-    public GeneralMatrix(final Envelope srcRegion, final Envelope dstRegion) {
+    public GeneralMatrix(final Bounds srcRegion, final Bounds dstRegion) {
         mat = new DMatrixRMaj(dstRegion.getDimension() + 1, srcRegion.getDimension() + 1);
 
         // Next lines should be first if only Sun could fix RFE #4093999 (sigh...)
@@ -274,9 +275,9 @@ public class GeneralMatrix implements XMatrix, Serializable {
      *     srcAxis}, or if some colinear axis were found.
      */
     public GeneralMatrix(
-            final Envelope srcRegion,
+            final Bounds srcRegion,
             final AxisDirection[] srcAxis,
-            final Envelope dstRegion,
+            final Bounds dstRegion,
             final AxisDirection[] dstAxis) {
         this(srcRegion, srcAxis, dstRegion, dstAxis, true);
     }
@@ -288,9 +289,9 @@ public class GeneralMatrix implements XMatrix, Serializable {
      *     If {@code false}, then source and destination regions will be ignored and may be null.
      */
     private GeneralMatrix(
-            final Envelope srcRegion,
+            final Bounds srcRegion,
             final AxisDirection[] srcAxis,
-            final Envelope dstRegion,
+            final Bounds dstRegion,
             final AxisDirection[] dstAxis,
             final boolean validRegions) {
         this(dstAxis.length + 1, srcAxis.length + 1);
@@ -316,7 +317,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
                     if (hasFound) {
                         // TODO: Use the localized version of 'getName' in GeoAPI 2.1
                         throw new IllegalArgumentException(
-                                Errors.format(
+                                MessageFormat.format(
                                         ErrorKeys.COLINEAR_AXIS_$2, srcAxe.name(), dstAxe.name()));
                     }
                     hasFound = true;
@@ -343,7 +344,8 @@ public class GeneralMatrix implements XMatrix, Serializable {
             if (!hasFound) {
                 // TODO: Use the localized version of 'getName' in GeoAPI 2.1
                 throw new IllegalArgumentException(
-                        Errors.format(ErrorKeys.NO_SOURCE_AXIS_$1, dstAxis[dstIndex].name()));
+                        MessageFormat.format(
+                                ErrorKeys.NO_SOURCE_AXIS_$1, dstAxis[dstIndex].name()));
             }
         }
         setElement(dstAxis.length, srcAxis.length, 1);
@@ -380,12 +382,12 @@ public class GeneralMatrix implements XMatrix, Serializable {
      * @throws MismatchedDimensionException if the envelope doesn't have the expected dimension.
      */
     private static void ensureDimensionMatch(
-            final String name, final Envelope envelope, final int dimension)
+            final String name, final Bounds envelope, final int dimension)
             throws MismatchedDimensionException {
         final int dim = envelope.getDimension();
         if (dimension != dim) {
             throw new MismatchedDimensionException(
-                    Errors.format(ErrorKeys.MISMATCHED_DIMENSION_$3, name, dim, dimension));
+                    MessageFormat.format(ErrorKeys.MISMATCHED_DIMENSION_$3, name, dim, dimension));
         }
     }
 
@@ -432,6 +434,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final boolean isAffine() {
         int dimension = getNumRow();
         if (dimension != getNumCol()) {
@@ -530,6 +533,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
         return mat.get(row, column);
     }
 
+    @Override
     public void setColumn(int column, double... values) {
         if (values.length != mat.getNumCols()) {
             throw new IllegalArgumentException(
@@ -547,6 +551,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
         }
     }
 
+    @Override
     public void setRow(int row, double... values) {
         if (values.length != mat.getNumCols()) {
             throw new IllegalArgumentException(
@@ -584,6 +589,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
     }
 
     /** Returns {@code true} if this matrix is an identity matrix. */
+    @Override
     public final boolean isIdentity() {
         final int numRow = getNumRow();
         final int numCol = getNumCol();
@@ -607,6 +613,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
      *
      * @since 2.3.1
      */
+    @Override
     public final boolean isIdentity(double tolerance) {
         return isIdentity(this, tolerance);
     }
@@ -635,6 +642,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final void multiply(final Matrix matrix) {
         mul(matrix);
     }
@@ -664,6 +672,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
         return equals(other, 0);
     }
 
+    @Override
     public boolean equals(final Matrix matrix, final double tolerance) {
         return epsilonEquals(this, matrix, tolerance);
     }
@@ -706,7 +715,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
         int check;
         if ((check = getNumRow()) != 3 || (check = getNumCol()) != 3) {
             throw new IllegalStateException(
-                    Errors.format(ErrorKeys.NOT_TWO_DIMENSIONAL_$1, check - 1));
+                    MessageFormat.format(ErrorKeys.NOT_TWO_DIMENSIONAL_$1, check - 1));
         }
         if (isAffine()) {
             return new AffineTransform(
@@ -717,7 +726,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
                     getElement(0, 2),
                     getElement(1, 2));
         }
-        throw new IllegalStateException(Errors.format(ErrorKeys.NOT_AN_AFFINE_TRANSFORM));
+        throw new IllegalStateException(ErrorKeys.NOT_AN_AFFINE_TRANSFORM);
     }
 
     /**
@@ -729,11 +738,8 @@ public class GeneralMatrix implements XMatrix, Serializable {
      * @since 2.2
      */
     public static GeneralMatrix load(final File file) throws IOException {
-        final BufferedReader in = new BufferedReader(new FileReader(file));
-        try {
+        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
             return load(in, Locale.US);
-        } finally {
-            in.close();
         }
     }
 
@@ -824,13 +830,8 @@ public class GeneralMatrix implements XMatrix, Serializable {
     // Method Compatibility
     /** Returns a clone of this matrix. */
     @Override
+    @SuppressFBWarnings("CN_IDIOM_NO_SUPER_CALL")
     public GeneralMatrix clone() {
-        try {
-            super.clone();
-        } catch (CloneNotSupportedException e) {
-            // should not happen
-            throw new RuntimeException(e);
-        }
         return new GeneralMatrix(this);
     }
 
@@ -850,6 +851,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
     }
 
     /** Extract col to provided array. */
+    @Override
     public void getColumn(int col, double[] array) {
         for (int j = 0; j < array.length; j++) {
             array[j] = mat.get(j, col);
@@ -869,6 +871,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
     }
 
     /** Extract row to provided array */
+    @Override
     public void getRow(int row, double[] array) {
         for (int i = 0; i < array.length; i++) {
             array[i] = mat.get(row, i);
@@ -876,6 +879,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
     }
 
     /** In-place multiply with provided matrix. */
+    @Override
     public final void mul(Matrix matrix) {
         DMatrixRMaj b = internal(matrix);
         DMatrixRMaj ret = new DMatrixRMaj(mat.numRows, b.numCols);
@@ -884,6 +888,7 @@ public class GeneralMatrix implements XMatrix, Serializable {
     }
 
     /** In-place update from matrix1 * matrix2. */
+    @Override
     public void mul(Matrix matrix1, Matrix matrix2) {
         DMatrixRMaj a = internal(matrix1);
         DMatrixRMaj b = internal(matrix2);
@@ -907,10 +912,12 @@ public class GeneralMatrix implements XMatrix, Serializable {
         CommonOps_DDRM.subtract(scalar, a, mat);
     }
 
+    @Override
     public void sub(Matrix matrix) {
         CommonOps_DDRM.subtract(mat, internal(matrix), mat);
     }
 
+    @Override
     public void sub(Matrix matrix1, Matrix matrix2) {
         DMatrixRMaj a = internal(matrix1);
         DMatrixRMaj b = internal(matrix2);

@@ -19,28 +19,27 @@ package org.geotools.data.store;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureWriter;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureLocking;
+import org.geotools.api.data.SimpleFeatureStore;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.identity.FeatureId;
 import org.geotools.data.FilteringFeatureWriter;
 import org.geotools.data.InProcessLockingManager;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureLocking;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.NameImpl;
 import org.geotools.filter.identity.FeatureIdImpl;
 import org.geotools.util.factory.Hints;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.identity.FeatureId;
 
 /**
  * Abstract implementation of FeatureStore.
@@ -145,7 +144,7 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
                 // Simple simple writer with no events or locking
                 writer = getWriterInternal(query, flags);
                 // filtering may not be needed
-                if (!canFilter()) {
+                if (!canFilter(query)) {
                     if (query.getFilter() != null && query.getFilter() != Filter.INCLUDE) {
                         writer = new FilteringFeatureWriter(writer, query.getFilter());
                     }
@@ -166,7 +165,7 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
                 writer = new EventContentFeatureWriter(this, writer);
             }
             // filtering
-            if (!canFilter()) {
+            if (!canFilter(query)) {
                 if (query.getFilter() != null && query.getFilter() != Filter.INCLUDE) {
                     writer = new FilteringFeatureWriter(writer, query.getFilter());
                 }
@@ -201,10 +200,10 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
      *
      * <ul>
      *   <li>{@link #canReproject()}
-     *   <li>{@link #canFilter()}
+     *   <li>{@link #canFilter(Query)}
      *   <li>{@link #canEvent()}
-     *   <li>{@link #canLimit()}
-     *   <li>{@link #canSort()}
+     *   <li>{@link #canLimit(Query)}
+     *   <li>{@link #canSort(Query)}
      *   <li>{@link #canLock()}
      * </ul>
      *
@@ -226,37 +225,31 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
         // gather up id's
         List<FeatureId> ids = new ArrayList<>(collection.size());
 
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer = getWriterAppend();
-        try {
-            for (Iterator f = collection.iterator(); f.hasNext(); ) {
-                FeatureId id = addFeature((SimpleFeature) f.next(), writer);
+        try (FeatureWriter<SimpleFeatureType, SimpleFeature> writer = getWriterAppend()) {
+            for (Object o : collection) {
+                FeatureId id = addFeature((SimpleFeature) o, writer);
                 ids.add(id);
             }
-        } finally {
-            writer.close();
         }
 
         return ids;
     }
 
     /** Adds a collection of features to the store. */
+    @Override
     public List<FeatureId> addFeatures(
             FeatureCollection<SimpleFeatureType, SimpleFeature> featureCollection)
             throws IOException {
         // gather up id's
         List<FeatureId> ids = new ArrayList<>();
 
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer = getWriterAppend();
-        FeatureIterator<SimpleFeature> f = featureCollection.features();
-        try {
+        try (FeatureWriter<SimpleFeatureType, SimpleFeature> writer = getWriterAppend();
+                FeatureIterator<SimpleFeature> f = featureCollection.features()) {
             while (f.hasNext()) {
                 SimpleFeature feature = f.next();
                 FeatureId id = addFeature(feature, writer);
                 ids.add(id);
             }
-        } finally {
-            writer.close();
-            f.close();
         }
         return ids;
     }
@@ -316,15 +309,15 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
      * #removeFeatures(Filter)}), and then obtaining an appending feature writer and writing all
      * features from <tt>reader</tt> to it.
      */
+    @Override
     public final void setFeatures(FeatureReader<SimpleFeatureType, SimpleFeature> reader)
             throws IOException {
         // remove features
         removeFeatures(Filter.INCLUDE);
 
         // grab a feature writer for insert
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
-                getWriter(Filter.INCLUDE, WRITER_ADD);
-        try {
+        try (FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                getWriter(Filter.INCLUDE, WRITER_ADD)) {
             while (reader.hasNext()) {
                 SimpleFeature feature = reader.next();
 
@@ -341,14 +334,12 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
                 // perform the write
                 writer.write();
             }
-        } finally {
-            writer.close();
         }
     }
 
     public void modifyFeatures(AttributeDescriptor[] type, Object[] value, Filter filter)
             throws IOException {
-        Name attributeNames[] = new Name[type.length];
+        Name[] attributeNames = new Name[type.length];
         for (int i = 0; i < type.length; i++) {
             attributeNames[i] = type[i].getName();
         }
@@ -364,6 +355,7 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
      * <p>The <tt>filter</tt> must not be <code>null</code>, in this case this method will throw an
      * {@link IllegalArgumentException}.
      */
+    @Override
     public void modifyFeatures(Name[] type, Object[] value, Filter filter) throws IOException {
         if (filter == null) {
             String msg = "Must specify a filter, must not be null.";
@@ -372,8 +364,8 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
         filter = resolvePropertyNames(filter);
 
         // grab a feature writer
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer = getWriter(filter, WRITER_UPDATE);
-        try {
+        try (FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                getWriter(filter, WRITER_UPDATE)) {
             while (writer.hasNext()) {
                 SimpleFeature toWrite = writer.next();
 
@@ -383,12 +375,10 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
 
                 writer.write();
             }
-
-        } finally {
-            writer.close();
         }
     }
 
+    @Override
     public final void modifyFeatures(String name, Object attributeValue, Filter filter)
             throws IOException {
         modifyFeatures(
@@ -401,9 +391,10 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
                 filter);
     }
 
+    @Override
     public final void modifyFeatures(String[] names, Object[] values, Filter filter)
             throws IOException {
-        Name attributeNames[] = new Name[names.length];
+        Name[] attributeNames = new Name[names.length];
         for (int i = 0; i < names.length; i++) {
             attributeNames[i] = new NameImpl(names[i]);
         }
@@ -418,6 +409,7 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
     }
 
     /** Calls through to {@link #modifyFeatures(Name[], Object[], Filter)}. */
+    @Override
     public final void modifyFeatures(Name name, Object value, Filter filter) throws IOException {
 
         modifyFeatures(new Name[] {name}, new Object[] {value}, filter);
@@ -432,6 +424,7 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
      * <p>The <tt>filter</tt> must not be <code>null</code>, in this case this method will throw an
      * {@link IllegalArgumentException}.
      */
+    @Override
     public void removeFeatures(Filter filter) throws IOException {
         if (filter == null) {
             String msg = "Must specify a filter, must not be null.";
@@ -440,16 +433,13 @@ public abstract class ContentFeatureStore extends ContentFeatureSource
         filter = resolvePropertyNames(filter);
 
         // grab a feature writer
-        FeatureWriter<SimpleFeatureType, SimpleFeature> writer = getWriter(filter, WRITER_UPDATE);
-        try {
+        try (FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                getWriter(filter, WRITER_UPDATE)) {
             // remove everything
             while (writer.hasNext()) {
                 writer.next();
                 writer.remove();
             }
-
-        } finally {
-            writer.close();
         }
     }
 }

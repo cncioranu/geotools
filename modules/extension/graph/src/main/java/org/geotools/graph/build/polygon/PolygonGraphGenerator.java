@@ -16,7 +16,6 @@
  */
 package org.geotools.graph.build.polygon;
 
-import java.util.Iterator;
 import java.util.List;
 import org.geotools.graph.build.GraphBuilder;
 import org.geotools.graph.build.GraphGenerator;
@@ -91,6 +90,7 @@ public class PolygonGraphGenerator implements GraphGenerator {
         index = new Quadtree();
     }
 
+    @Override
     public Graphable add(Object obj) {
         Node node = (Node) get(obj);
         if (node == null) {
@@ -107,11 +107,13 @@ public class PolygonGraphGenerator implements GraphGenerator {
         return node;
     }
 
+    @Override
     public Graphable get(Object obj) {
         Polygon polygon = (Polygon) obj;
         return find(polygon);
     }
 
+    @Override
     public Graphable remove(Object obj) {
         Node node = (Node) get(obj);
         if (node != null) {
@@ -124,22 +126,25 @@ public class PolygonGraphGenerator implements GraphGenerator {
         return node;
     }
 
+    @Override
     public void setGraphBuilder(GraphBuilder builder) {
         this.builder = builder;
     }
 
+    @Override
     public GraphBuilder getGraphBuilder() {
         return builder;
     }
 
+    @Override
     public Graph getGraph() {
         return builder.getGraph();
     }
 
     protected Node find(Polygon polygon) {
         List close = index.query(polygon.getEnvelopeInternal());
-        for (Iterator itr = close.iterator(); itr.hasNext(); ) {
-            Node node = (Node) itr.next();
+        for (Object o : close) {
+            Node node = (Node) o;
             Polygon p = (Polygon) node.getObject();
 
             if (rel.equal(polygon, p)) {
@@ -154,8 +159,8 @@ public class PolygonGraphGenerator implements GraphGenerator {
         Polygon polygon = (Polygon) node.getObject();
         List close = index.query(polygon.getEnvelopeInternal());
 
-        for (Iterator itr = close.iterator(); itr.hasNext(); ) {
-            Node n = (Node) itr.next();
+        for (Object o : close) {
+            Node n = (Node) o;
             Polygon p = (Polygon) n.getObject();
 
             if (!rel.equal(polygon, p) && rel.related(polygon, p)) {

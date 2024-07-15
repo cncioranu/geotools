@@ -19,6 +19,7 @@
  */
 package org.geotools.referencing.operation;
 
+import java.text.MessageFormat;
 import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,8 +29,21 @@ import java.util.TreeSet;
 import java.util.function.Predicate;
 import javax.measure.Unit;
 import javax.measure.quantity.Length;
+import org.geotools.api.metadata.citation.Citation;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.NoSuchIdentifierException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.cs.CoordinateSystem;
+import org.geotools.api.referencing.datum.Ellipsoid;
+import org.geotools.api.referencing.operation.Conversion;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.MathTransformFactory;
+import org.geotools.api.referencing.operation.Matrix;
+import org.geotools.api.referencing.operation.Operation;
+import org.geotools.api.referencing.operation.OperationMethod;
+import org.geotools.api.referencing.operation.Projection;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.parameter.ParameterWriter;
 import org.geotools.parameter.Parameters;
@@ -48,20 +62,6 @@ import org.geotools.util.CanonicalSet;
 import org.geotools.util.LazySet;
 import org.geotools.util.factory.FactoryRegistry;
 import org.geotools.util.factory.Hints;
-import org.opengis.metadata.citation.Citation;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchIdentifierException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.CoordinateSystem;
-import org.opengis.referencing.datum.Ellipsoid;
-import org.opengis.referencing.operation.Conversion;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.MathTransformFactory;
-import org.opengis.referencing.operation.Matrix;
-import org.opengis.referencing.operation.Operation;
-import org.opengis.referencing.operation.OperationMethod;
-import org.opengis.referencing.operation.Projection;
 
 /**
  * Low level factory for creating {@linkplain MathTransform math transforms}. Many high level GIS
@@ -129,7 +129,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
 
     /** Constructs a default {@link MathTransform math transform} factory. */
     public DefaultMathTransformFactory() {
-        this(new Class<?>[] {MathTransformProvider.class});
+        this(MathTransformProvider.class);
     }
 
     /**
@@ -139,7 +139,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @param categories The providers categories, as implementations of {@link
      *     MathTransformProvider}.
      */
-    private DefaultMathTransformFactory(final Class<?>[] categories) {
+    private DefaultMathTransformFactory(final Class<?>... categories) {
         registry = new FactoryRegistry(Arrays.asList(categories));
         pool = CanonicalSet.newInstance(MathTransform.class);
     }
@@ -168,6 +168,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @see #getDefaultParameters
      * @see #createParameterizedTransform
      */
+    @Override
     public Set<OperationMethod> getAvailableMethods(final Class<? extends Operation> type) {
         return new LazySet<>(
                 registry.getFactories(
@@ -193,8 +194,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
         @Override
         public boolean test(MathTransformProvider element) {
             if (element instanceof MathTransformProvider) {
-                final Class<? extends Operation> t =
-                        ((MathTransformProvider) element).getOperationType();
+                final Class<? extends Operation> t = element.getOperationType();
                 if (t != null && !type.isAssignableFrom(t)) {
                     return false;
                 }
@@ -211,6 +211,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @see #createParameterizedTransform
      * @since 2.5
      */
+    @Override
     public OperationMethod getLastMethodUsed() {
         return lastMethod.get();
     }
@@ -218,7 +219,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
     /**
      * Returns the operation method for the specified name.
      *
-     * @param name The case insensitive {@linkplain org.opengis.metadata.Identifier#getCode
+     * @param name The case insensitive {@linkplain org.geotools.api.metadata.Identifier#getCode
      *     identifier code} of the operation method to search for (e.g. {@code
      *     "Transverse_Mercator"}).
      * @return The operation method.
@@ -236,7 +237,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * getProvider("Transverse_Mercator").getParameters()</code>), or any of the alias in a given
      * locale.
      *
-     * @param method The case insensitive {@linkplain org.opengis.metadata.Identifier#getCode
+     * @param method The case insensitive {@linkplain org.geotools.api.metadata.Identifier#getCode
      *     identifier code} of the operation method to search for (e.g. {@code
      *     "Transverse_Mercator"}).
      * @return The math transform provider.
@@ -263,7 +264,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
                         .orElseThrow(
                                 () ->
                                         new NoSuchIdentifierException(
-                                                Errors.format(
+                                                MessageFormat.format(
                                                         ErrorKeys
                                                                 .NO_TRANSFORM_FOR_CLASSIFICATION_$1,
                                                         method),
@@ -291,6 +292,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @see #createParameterizedTransform
      * @see org.geotools.referencing.operation.transform.AbstractMathTransform#getParameterValues
      */
+    @Override
     public ParameterValueGroup getDefaultParameters(final String method)
             throws NoSuchIdentifierException {
         return getProvider(method).getParameters().createValue();
@@ -313,6 +315,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @throws FactoryException if the object creation failed. This exception is thrown if some
      *     required parameter has not been supplied, or has illegal value.
      */
+    @Override
     public MathTransform createBaseToDerived(
             final CoordinateReferenceSystem baseCRS,
             final ParameterValueGroup parameters,
@@ -407,8 +410,8 @@ public class DefaultMathTransformFactory extends ReferencingFactory
 
     /**
      * Creates a transform from a group of parameters. The method name is inferred from the
-     * {@linkplain org.opengis.parameter.ParameterDescriptorGroup#getName parameter group name}.
-     * Example:
+     * {@linkplain org.geotools.api.parameter.ParameterDescriptorGroup#getName parameter group
+     * name}. Example:
      *
      * <blockquote>
      *
@@ -430,6 +433,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @see #getAvailableMethods
      * @see #getLastUsedMethod
      */
+    @Override
     public MathTransform createParameterizedTransform(ParameterValueGroup parameters)
             throws NoSuchIdentifierException, FactoryException {
         MathTransform transform;
@@ -474,6 +478,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @return The affine transform.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public MathTransform createAffineTransform(final Matrix matrix) throws FactoryException {
         lastMethod.remove(); // To be strict, we should set ProjectiveTransform.Provider
         return pool.unique(ProjectiveTransform.create(matrix));
@@ -492,6 +497,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @return The concatenated transform.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public MathTransform createConcatenatedTransform(
             final MathTransform transform1, final MathTransform transform2)
             throws FactoryException {
@@ -525,6 +531,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      *
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public MathTransform createPassThroughTransform(
             final int firstAffectedOrdinate,
             final MathTransform subTransform,
@@ -549,6 +556,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @param xml Math transform encoded in XML format.
      * @throws FactoryException if the object creation failed.
      */
+    @Override
     public MathTransform createFromXML(String xml) throws FactoryException {
         throw new FactoryException("Not yet implemented.");
     }
@@ -563,6 +571,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      * @throws FactoryException if the Well-Known Text can't be parsed, or if the math transform
      *     creation failed from some other reason.
      */
+    @Override
     public synchronized MathTransform createFromWKT(final String text) throws FactoryException {
         // Note: while this factory is thread safe, the WKT parser is not.
         //       Since we share a single instance of this parser, we must
@@ -642,7 +651,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
      *
      * @param args Command line arguments.
      */
-    public static void main(String[] args) {
+    public static void main(String... args) {
         /*
          * Parse the command-line arguments and print the summary.
          */
@@ -671,7 +680,7 @@ public class DefaultMathTransformFactory extends ReferencingFactory
                 if (args.length == 0) {
                     methods = Collections.emptySet();
                 } else {
-                    methods = Collections.singleton((OperationMethod) factory.getProvider(args[0]));
+                    methods = Collections.singleton(factory.getProvider(args[0]));
                 }
             }
             /*

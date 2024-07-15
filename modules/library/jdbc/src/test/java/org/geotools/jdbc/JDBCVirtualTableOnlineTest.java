@@ -1,5 +1,11 @@
 package org.geotools.jdbc;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -7,27 +13,27 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.FeatureStore;
-import org.geotools.data.Join;
-import org.geotools.data.Query;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.FeatureStore;
+import org.geotools.api.data.Join;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.GeometryDescriptor;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.sort.SortOrder;
 import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
+import org.junit.Test;
 import org.locationtech.jts.geom.LineString;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.Id;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.filter.sort.SortOrder;
 
 public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
     protected String dbSchemaName = null;
@@ -116,6 +122,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         dataStore.createVirtualTable(vt);
     }
 
+    @Test
     public void testGuessGeometry() throws Exception {
         SimpleFeatureType type = dataStore.getSchema("riverFull");
         assertNotNull(type);
@@ -126,6 +133,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         assertNotNull(type.getGeometryDescriptor());
     }
 
+    @Test
     public void testRiverReducedSchema() throws Exception {
         SimpleFeatureType type = dataStore.getSchema("riverReduced");
         assertNotNull(type);
@@ -133,6 +141,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         checkRiverReduced(type);
     }
 
+    @Test
     public void testRiverReducedCommentSchema() throws Exception {
         SimpleFeatureType type = dataStore.getSchema("riverReducedComment");
         assertNotNull(type);
@@ -158,6 +167,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         assertEquals(2, type.getGeometryDescriptor().getUserData().get(Hints.COORDINATE_DIMENSION));
     }
 
+    @Test
     public void testListAll() throws Exception {
         SimpleFeatureSource fsView = dataStore.getFeatureSource("riverReduced");
         assertFalse(fsView instanceof FeatureStore);
@@ -173,6 +183,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testBounds() throws Exception {
         FeatureSource fsView = dataStore.getFeatureSource("riverReduced");
         ReferencedEnvelope env = fsView.getBounds();
@@ -183,6 +194,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         assertNotNull(env);
     }
 
+    @Test
     public void testInvalidQuery() throws Exception {
         String sql = dataStore.getVirtualTables().get("riverReduced").getSql();
 
@@ -196,6 +208,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testGetFeatureId() throws Exception {
         SimpleFeatureSource fsView = dataStore.getFeatureSource("riverReducedPk");
         assertFalse(fsView instanceof FeatureStore);
@@ -210,6 +223,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testGetFeatureById() throws Exception {
         FeatureSource fsView = dataStore.getFeatureSource("riverReducedPk");
         assertFalse(fsView instanceof FeatureStore);
@@ -228,6 +242,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         assertEquals(1, fsView.getCount(new Query(null, filter)));
     }
 
+    @Test
     public void testWhereParam() throws Exception {
         FeatureSource fsView = dataStore.getFeatureSource("riverParam");
 
@@ -247,6 +262,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         assertEquals(1, fsView.getCount(q));
     }
 
+    @Test
     public void testMulParamValid() throws Exception {
         FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
         FeatureSource fsView = dataStore.getFeatureSource("riverParam");
@@ -255,7 +271,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         Query q = new Query(Query.ALL);
         q.setHints(
                 new Hints(Hints.VIRTUAL_TABLE_PARAMETERS, Collections.singletonMap("mul", "10")));
-        q.setSortBy(new SortBy[] {ff.sort(aname("mulflow"), SortOrder.ASCENDING)});
+        q.setSortBy(ff.sort(aname("mulflow"), SortOrder.ASCENDING));
         try (FeatureIterator fi = fsView.getFeatures(q).features()) {
             assertTrue(fi.hasNext());
             SimpleFeature f = (SimpleFeature) fi.next();
@@ -266,6 +282,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testMulParamInvalid() throws Exception {
         FeatureSource fsView = dataStore.getFeatureSource("riverParam");
 
@@ -281,6 +298,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testInvalidView() throws Exception {
         StringBuffer sb = new StringBuffer();
         sb.append("select ");
@@ -318,7 +336,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         Logger logger = Logging.getLogger(JDBCVirtualTableOnlineTest.class);
         Level oldLevel = logger.getLevel();
 
-        logger.setLevel(java.util.logging.Level.SEVERE);
+        logger.setLevel(Level.SEVERE);
         logger.addHandler(handler);
         dataStore.createVirtualTable(vt);
         ContentFeatureSource fs = dataStore.getFeatureSource("invalid_attribute");
@@ -352,6 +370,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         }
     }
 
+    @Test
     public void testJoinViews() throws Exception {
         Query joinQuery = new Query("riverFull");
         FilterFactory ff = dataStore.getFilterFactory();
@@ -376,6 +395,7 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         assertEquals(expectedCount, count);
     }
 
+    @Test
     public void testJoinViewsWithPlaceHolder() {
         Query joinQuery = new Query("riverFullPlaceHolder");
         FilterFactory ff = dataStore.getFilterFactory();
@@ -402,11 +422,12 @@ public abstract class JDBCVirtualTableOnlineTest extends JDBCTestSupport {
         fail("count query should have fail with an exception");
     }
 
+    @Test
     public void testPaginationWithPlaceHolder() throws Exception {
         Query query = new Query("riverFullPlaceHolder");
         query.setStartIndex(1);
         query.setMaxFeatures(2);
         int count = dataStore.getFeatureSource("riverFullPlaceHolder").getCount(query);
-        assertTrue(count == 1);
+        assertEquals(1, count);
     }
 }

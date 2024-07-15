@@ -29,17 +29,42 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.xml.namespace.QName;
+import org.geotools.api.data.DataAccess;
+import org.geotools.api.data.DataAccessFinder;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.FeatureTypeFactory;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.And;
+import org.geotools.api.filter.BinaryLogicOperator;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.MultiValuedFilter.MatchAction;
+import org.geotools.api.filter.Or;
+import org.geotools.api.filter.PropertyIsBetween;
+import org.geotools.api.filter.PropertyIsEqualTo;
+import org.geotools.api.filter.PropertyIsGreaterThan;
+import org.geotools.api.filter.PropertyIsLike;
+import org.geotools.api.filter.PropertyIsNull;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
+import org.geotools.api.filter.expression.Multiply;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.identity.FeatureId;
+import org.geotools.api.filter.spatial.BBOX;
+import org.geotools.api.filter.spatial.Intersects;
 import org.geotools.appschema.filter.FilterFactoryImplNamespaceAware;
-import org.geotools.data.DataAccess;
-import org.geotools.data.DataAccessFinder;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureSource;
 import org.geotools.data.complex.AppSchemaDataAccess;
 import org.geotools.data.complex.AttributeMapping;
 import org.geotools.data.complex.FeatureTypeMapping;
@@ -68,32 +93,6 @@ import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
-import org.opengis.feature.Feature;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.FeatureTypeFactory;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.And;
-import org.opengis.filter.BinaryLogicOperator;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.Id;
-import org.opengis.filter.MultiValuedFilter.MatchAction;
-import org.opengis.filter.Or;
-import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsGreaterThan;
-import org.opengis.filter.PropertyIsLike;
-import org.opengis.filter.PropertyIsNull;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
-import org.opengis.filter.expression.Multiply;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.identity.FeatureId;
-import org.opengis.filter.spatial.BBOX;
-import org.opengis.filter.spatial.Intersects;
 import org.xml.sax.helpers.NamespaceSupport;
 
 /**
@@ -103,7 +102,7 @@ import org.xml.sax.helpers.NamespaceSupport;
  */
 public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
 
-    private static FilterFactory2 ff = (FilterFactory2) CommonFactoryFinder.getFilterFactory(null);
+    private static FilterFactory ff = (FilterFactory) CommonFactoryFinder.getFilterFactory(null);
 
     private UnmappingFilterVisitor visitor;
 
@@ -191,6 +190,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
      * a compare equals filter over the station_no attribute of wq_ir_results simple type.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testUnrollFidMappedToAttribute() throws Exception {
         String fid = "station_no.1";
         Id fidFilter = ff.id(Collections.singleton(ff.featureId(fid)));
@@ -199,15 +199,15 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         assertNotNull(unrolled);
 
         FeatureCollection results = mapping.getSource().getFeatures(unrolled);
-        assertEquals(1, getCount(results));
+        assertEquals(1, DataUtilities.count(results));
 
-        FeatureIterator features = results.features();
-        Feature unmappedFeature = features.next();
-        features.close();
+        try (FeatureIterator features = results.features()) {
+            Feature unmappedFeature = features.next();
 
-        assertNotNull(unmappedFeature);
-        Object object = unmappedFeature.getProperty("station_no").getValue();
-        assertEquals(fid, object);
+            assertNotNull(unmappedFeature);
+            Object object = unmappedFeature.getProperty("station_no").getValue();
+            assertEquals(fid, object);
+        }
     }
 
     /**
@@ -231,31 +231,16 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
             assertTrue(f instanceof IsEqualsToImpl);
         }
 
-        FeatureCollection results = mapping.getSource().getFeatures(unrolled);
-        assertEquals(1, getCount(results));
+        FeatureCollection<?, ?> results = mapping.getSource().getFeatures(unrolled);
+        assertEquals(1, DataUtilities.count(results));
 
-        FeatureIterator features = results.features();
-        Feature unmappedFeature = features.next();
+        try (FeatureIterator features = results.features()) {
+            Feature unmappedFeature = features.next();
 
-        features.close();
-
-        assertNotNull(unmappedFeature);
-        Object object = unmappedFeature.getProperty("station_no").getValue();
-        assertEquals(fid1, object);
-    }
-
-    private int getCount(FeatureCollection<?, ?> features) {
-        FeatureIterator<?> iterator = features.features();
-        int count = 0;
-        try {
-            while (iterator.hasNext()) {
-                iterator.next();
-                count++;
-            }
-        } finally {
-            iterator.close();
+            assertNotNull(unmappedFeature);
+            Object object = unmappedFeature.getProperty("station_no").getValue();
+            assertEquals(fid1, object);
         }
-        return count;
     }
 
     /**
@@ -277,7 +262,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
     public void testUnrollGetidToGetid() throws Exception {
         checkUnrollIdExpression(
                 CommonFactoryFinder.getFilterFactory(null)
-                        .function("getID", new org.opengis.filter.expression.Expression[0]));
+                        .function("getID", new org.geotools.api.filter.expression.Expression[0]));
     }
 
     /** Implementation for tests of fid -> fid unmapping. */
@@ -285,13 +270,12 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         AttributeMapping featureMapping = null;
         Name featurePath = mapping.getTargetFeature().getName();
         QName featureName = Types.toQName(featurePath);
-        for (Iterator it = mapping.getAttributeMappings().iterator(); it.hasNext(); ) {
-            AttributeMapping attMapping = (AttributeMapping) it.next();
+        for (AttributeMapping attMapping : mapping.getAttributeMappings()) {
             StepList targetXPath = attMapping.getTargetXPath();
             if (targetXPath.size() > 1) {
                 continue;
             }
-            Step step = (Step) targetXPath.get(0);
+            Step step = targetXPath.get(0);
             if (featureName.equals(step.getName())) {
                 featureMapping = attMapping;
                 break;
@@ -310,7 +294,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
 
         FeatureCollection<? extends FeatureType, ? extends Feature> results =
                 mapping.getSource().getFeatures(unrolled);
-        assertEquals(1, getCount(results));
+        assertEquals(1, DataUtilities.count(results));
 
         Feature unmappedFeature = DataUtilities.first(results);
 
@@ -352,7 +336,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         Function fe = (Function) unmappedExpr;
         assertEquals("buffer", fe.getName());
 
-        Expression arg0 = (Expression) fe.getParameters().get(0);
+        Expression arg0 = fe.getParameters().get(0);
         assertTrue(arg0 instanceof PropertyName);
         assertEquals("location", ((PropertyName) arg0).getPropertyName());
     }
@@ -375,7 +359,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         namespaces.declarePrefix("xmml", XMMLNS);
         namespaces.declarePrefix("xlink", XLINK.NAMESPACE);
 
-        FilterFactory2 ff = new FilterFactoryImplNamespaceAware(namespaces);
+        FilterFactory ff = new FilterFactoryImplNamespaceAware(namespaces);
         String xpathExpression = "sa:shape/geo:LineByVector/geo:origin/@xlink:href";
         PropertyName propNameExpression = ff.property(xpathExpression);
 
@@ -407,7 +391,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         namespaces.declarePrefix("xlink", XLINK.NAMESPACE);
 
         visitor = new UnmappingFilterVisitor(mapping);
-        FilterFactory2 ff = new FilterFactoryImplNamespaceAware(namespaces);
+        FilterFactory ff = new FilterFactoryImplNamespaceAware(namespaces);
 
         {
             String xpathExpression = "@gml:id";
@@ -418,19 +402,18 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
             assertNotNull(unrolled);
             assertEquals(1, unrolled.size());
             assertTrue(unrolled.get(0) instanceof Expression);
-            assertEquals(((Expression) unrolled.get(0)).toString(), "strConcat([bh.], [BGS_ID])");
+            assertEquals(unrolled.get(0).toString(), "strConcat([bh.], [BGS_ID])");
         }
 
         {
             String xpathExpression = "/@gml:id";
             Expression propNameExpression = ff.property(xpathExpression);
 
-            @SuppressWarnings("unchecked")
             List unrolled = (List) propNameExpression.accept(visitor, null);
             assertNotNull(unrolled);
             assertEquals(1, unrolled.size());
             assertTrue(unrolled.get(0) instanceof Expression);
-            assertEquals(((Expression) unrolled.get(0)).toString(), "strConcat([bh.], [BGS_ID])");
+            assertEquals(unrolled.get(0).toString(), "strConcat([bh.], [BGS_ID])");
         }
 
         {
@@ -442,7 +425,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
             assertNotNull(unrolled);
             assertEquals(1, unrolled.size());
             assertTrue(unrolled.get(0) instanceof Expression);
-            assertEquals(((Expression) unrolled.get(0)).toString(), "strConcat([bh.], [BGS_ID])");
+            assertEquals(unrolled.get(0).toString(), "strConcat([bh.], [BGS_ID])");
         }
     }
 
@@ -456,7 +439,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
                         MatchAction.ALL);
 
         PropertyIsBetween unrolled = (PropertyIsBetween) bf.accept(visitor, null);
-        assertEquals(MatchAction.ALL, ((PropertyIsBetween) unrolled).getMatchAction());
+        assertEquals(MatchAction.ALL, unrolled.getMatchAction());
         Expression att = unrolled.getExpression();
         assertTrue(att instanceof PropertyName);
         String propertyName = ((PropertyName) att).getPropertyName();
@@ -520,7 +503,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         namespaces.declarePrefix("gml", GML.NAMESPACE);
         namespaces.declarePrefix("xmml", XMMLNS);
 
-        FilterFactory2 ff = new FilterFactoryImplNamespaceAware(namespaces);
+        FilterFactory ff = new FilterFactoryImplNamespaceAware(namespaces);
         PropertyIsEqualTo complexFilter =
                 ff.equals(ff.property("gml:name"), ff.literal("SWADLINCOTE"));
 
@@ -530,7 +513,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         assertNotNull(unrolled);
         assertNotSame(complexFilter, unrolled);
 
-        assertTrue(unrolled.getClass().getName(), unrolled instanceof org.opengis.filter.Or);
+        assertTrue(unrolled.getClass().getName(), unrolled instanceof org.geotools.api.filter.Or);
 
         Or oredFilter = (Or) unrolled;
         List children = oredFilter.getChildren();
@@ -577,7 +560,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         And sourceAnd = (And) unrolled;
         assertEquals(2, sourceAnd.getChildren().size());
 
-        Filter sourceEquals = (Filter) sourceAnd.getChildren().get(0);
+        Filter sourceEquals = sourceAnd.getChildren().get(0);
         assertTrue(sourceEquals instanceof PropertyIsEqualTo);
 
         Expression left = ((PropertyIsEqualTo) sourceEquals).getExpression1();
@@ -588,7 +571,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         assertEquals("results_value", ((PropertyName) left).getPropertyName());
         assertEquals(Double.valueOf(1.1), ((Literal) right).getValue());
 
-        Filter sourceGreater = (Filter) sourceAnd.getChildren().get(1);
+        Filter sourceGreater = sourceAnd.getChildren().get(1);
         assertTrue(sourceGreater instanceof PropertyIsGreaterThan);
 
         left = ((PropertyIsGreaterThan) sourceGreater).getExpression1();
@@ -644,7 +627,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
         Function fe = (Function) left;
         assertEquals("buffer", fe.getName());
 
-        Expression arg0 = (Expression) fe.getParameters().get(0);
+        Expression arg0 = fe.getParameters().get(0);
         assertTrue(arg0 instanceof PropertyName);
         assertEquals("location", ((PropertyName) arg0).getPropertyName());
     }
@@ -772,6 +755,7 @@ public class UnmappingFilterVisitorTest extends AppSchemaTestSupport {
     }
 
     @Test
+    @SuppressWarnings("PMD.SimplifiableTestAssertion")
     public void testBBox3D() throws Exception {
         BBOX bbox = ff.bbox("location", new ReferencedEnvelope3D(0, 10, 20, 50, 60, 70, null));
 

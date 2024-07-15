@@ -19,8 +19,8 @@ package org.geotools.filter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import org.geotools.api.filter.expression.Expression;
 import org.geotools.util.Converters;
-import org.opengis.filter.expression.Expression;
 
 /**
  * Support for Multi-valued properties when comparing
@@ -52,6 +52,7 @@ public abstract class MultiCompareFilterImpl extends CompareFilterImpl {
         this.matchAction = matchAction;
     }
 
+    @Override
     public MatchAction getMatchAction() {
         return matchAction;
     }
@@ -69,6 +70,7 @@ public abstract class MultiCompareFilterImpl extends CompareFilterImpl {
         return cast;
     }
 
+    @Override
     public final boolean evaluate(Object feature) {
         final Object object1 = eval(expression1, feature);
         final Object object2 = eval(expression2, feature);
@@ -83,11 +85,11 @@ public abstract class MultiCompareFilterImpl extends CompareFilterImpl {
         Collection<Object> leftValues =
                 collection1 instanceof Collection
                         ? collection1
-                        : Collections.<Object>singletonList(object1);
+                        : Collections.singletonList(object1);
         Collection<Object> rightValues =
                 collection2 instanceof Collection
                         ? collection2
-                        : Collections.<Object>singletonList(object2);
+                        : Collections.singletonList(object2);
 
         int count = 0;
 

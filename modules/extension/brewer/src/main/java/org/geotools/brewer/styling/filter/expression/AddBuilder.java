@@ -16,14 +16,14 @@
  */
 package org.geotools.brewer.styling.filter.expression;
 
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.expression.Add;
 import org.geotools.brewer.styling.builder.Builder;
 import org.geotools.factory.CommonFactoryFinder;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Add;
 
 public class AddBuilder implements Builder<Add> {
 
-    protected FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
+    protected FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
     boolean unset = false;
 
@@ -39,6 +39,7 @@ public class AddBuilder implements Builder<Add> {
         reset(expression);
     }
 
+    @Override
     public AddBuilder reset() {
         unset = false;
         expr1 = new ChildExpressionBuilder<>(this);
@@ -46,6 +47,7 @@ public class AddBuilder implements Builder<Add> {
         return this;
     }
 
+    @Override
     public AddBuilder reset(Add original) {
         unset = false;
         expr1 = new ChildExpressionBuilder<>(this, original.getExpression1());
@@ -53,6 +55,7 @@ public class AddBuilder implements Builder<Add> {
         return this;
     }
 
+    @Override
     public AddBuilder unset() {
         unset = true;
         expr1 = new ChildExpressionBuilder<>(this).unset();
@@ -60,6 +63,7 @@ public class AddBuilder implements Builder<Add> {
         return this;
     }
 
+    @Override
     public Add build() {
         if (unset) {
             return null;

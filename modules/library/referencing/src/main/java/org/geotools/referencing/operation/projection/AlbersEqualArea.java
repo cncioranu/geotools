@@ -32,21 +32,21 @@ import static java.lang.Math.sqrt;
 import static java.lang.Math.toDegrees;
 
 import java.awt.geom.Point2D;
+import java.text.MessageFormat;
 import java.util.Collection;
+import org.geotools.api.parameter.GeneralParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterDescriptorGroup;
+import org.geotools.api.parameter.ParameterNotFoundException;
+import org.geotools.api.parameter.ParameterValueGroup;
+import org.geotools.api.referencing.operation.ConicProjection;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.measure.Latitude;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.metadata.i18n.Vocabulary;
 import org.geotools.metadata.i18n.VocabularyKeys;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.NamedIdentifier;
-import org.opengis.parameter.GeneralParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterDescriptorGroup;
-import org.opengis.parameter.ParameterNotFoundException;
-import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.operation.ConicProjection;
-import org.opengis.referencing.operation.MathTransform;
 
 /**
  * Albers Equal Area Projection (EPSG code 9822). This is a conic projection with parallels being
@@ -134,11 +134,10 @@ public class AlbersEqualArea extends MapProjection {
 
         // Compute Constants
         if (abs(phi1 + phi2) < EPSILON) {
+            final Object arg0 = new Latitude(toDegrees(phi1));
+            final Object arg1 = new Latitude(toDegrees(phi2));
             throw new IllegalArgumentException(
-                    Errors.format(
-                            ErrorKeys.ANTIPODE_LATITUDES_$2,
-                            new Latitude(toDegrees(phi1)),
-                            new Latitude(toDegrees(phi2))));
+                    MessageFormat.format(ErrorKeys.ANTIPODE_LATITUDES_$2, arg0, arg1));
         }
         double sinphi = sin(phi1);
         double cosphi = cos(phi1);
@@ -174,6 +173,7 @@ public class AlbersEqualArea extends MapProjection {
     }
 
     /** {@inheritDoc} */
+    @Override
     public ParameterDescriptorGroup getParameterDescriptors() {
         return Provider.PARAMETERS;
     }
@@ -193,6 +193,7 @@ public class AlbersEqualArea extends MapProjection {
      * Transforms the specified (<var>&lambda;</var>,<var>&phi;</var>) coordinates (units in
      * radians) and stores the result in {@code ptDst} (linear distance on a unit sphere).
      */
+    @Override
     protected Point2D transformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         x *= n;
@@ -224,6 +225,7 @@ public class AlbersEqualArea extends MapProjection {
      * Transforms the specified (<var>x</var>,<var>y</var>) coordinates and stores the result in
      * {@code ptDst}.
      */
+    @Override
     protected Point2D inverseTransformNormalized(double x, double y, Point2D ptDst)
             throws ProjectionException {
         y = rho0 - y;
@@ -398,6 +400,7 @@ public class AlbersEqualArea extends MapProjection {
          * @return The created math transform.
          * @throws ParameterNotFoundException if a required parameter was not found.
          */
+        @Override
         protected MathTransform createMathTransform(final ParameterValueGroup parameters)
                 throws ParameterNotFoundException {
             return new AlbersEqualArea(parameters);

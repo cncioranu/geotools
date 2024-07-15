@@ -19,9 +19,9 @@ package org.geotools.coverageio.gdal.srp;
 import it.geosolutions.imageio.plugins.rpftoc.RPFTOCImageReaderSpi;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.coverage.grid.Format;
 import org.geotools.coverage.grid.io.GridFormatFactorySpi;
 import org.geotools.coverageio.BaseGridFormatFactorySPI;
-import org.opengis.coverage.grid.Format;
 
 /**
  * Implementation of the {@link Format} service provider interface for SRP (ASRP/USPR) files.
@@ -39,6 +39,7 @@ public final class SRPFormatFactory extends BaseGridFormatFactorySPI
      *
      * @return <code>true</code> if the plugin is available, <code>false</code> otherwise.
      */
+    @Override
     public boolean isAvailable() {
         boolean available = true;
 
@@ -71,6 +72,7 @@ public final class SRPFormatFactory extends BaseGridFormatFactorySPI
      *
      * @return A {@link SRPFormat}
      */
+    @Override
     public SRPFormat createFormat() {
         return new SRPFormat();
     }

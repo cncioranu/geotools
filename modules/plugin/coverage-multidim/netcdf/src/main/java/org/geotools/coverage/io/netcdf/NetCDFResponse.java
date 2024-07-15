@@ -43,6 +43,16 @@ import javax.media.jai.JAI;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.TileCache;
 import javax.media.jai.TileScheduler;
+import org.geotools.api.coverage.SampleDimension;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.datum.PixelInCell;
+import org.geotools.api.referencing.operation.MathTransform2D;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
@@ -58,12 +68,10 @@ import org.geotools.coverage.io.range.FieldType;
 import org.geotools.coverage.io.range.RangeType;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.coverage.util.FeatureUtilities;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.Query;
 import org.geotools.feature.visitor.FeatureCalc;
 import org.geotools.feature.visitor.MaxVisitor;
 import org.geotools.feature.visitor.MinVisitor;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.ImageWorker;
 import org.geotools.image.util.ImageUtilities;
@@ -76,14 +84,6 @@ import org.geotools.util.NumberRange;
 import org.geotools.util.Range;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.SampleDimension;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform2D;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * A RasterLayerResponse. An instance of this class is produced everytime a requestCoverage is
@@ -94,7 +94,6 @@ import org.opengis.referencing.operation.TransformException;
  * @author Stefan Alfons Krueger (alfonx), Wikisquare.de : Support for
  *     jar:file:foo.jar/bar.properties URLs
  */
-@SuppressWarnings("rawtypes")
 class NetCDFResponse extends CoverageResponse {
 
     private static final double EPS = 1E-6;
@@ -110,7 +109,7 @@ class NetCDFResponse extends CoverageResponse {
     private static final GridCoverageFactory COVERAGE_FACTORY = new GridCoverageFactory();
 
     /** The base envelope related to the input coverage */
-    private GeneralEnvelope coverageEnvelope;
+    private GeneralBounds coverageEnvelope;
 
     private ReferencedEnvelope targetBBox;
 
@@ -372,7 +371,7 @@ class NetCDFResponse extends CoverageResponse {
         // Setting up time filter
         // //
         if (time != null) {
-            final Range range = (Range) time;
+            final Range range = time;
             // schema with only one time attribute. Consider adding code for schema with begin,end
             // attributes
             filters.add(
@@ -393,7 +392,7 @@ class NetCDFResponse extends CoverageResponse {
         // Setting up elevation filter
         // //
         if (elevation != null) {
-            final Range range = (Range) elevation;
+            final Range range = elevation;
             // schema with only one elevation attribute. Consider adding code for schema with
             // begin,end attributes
             filters.add(
@@ -497,7 +496,7 @@ class NetCDFResponse extends CoverageResponse {
      * @throws TransformException In case transformation fails during the process.
      */
     private void initRasterBounds() throws TransformException {
-        final GeneralEnvelope tempRasterBounds = CRS.transform(finalWorldToGridCorner, targetBBox);
+        final GeneralBounds tempRasterBounds = CRS.transform(finalWorldToGridCorner, targetBBox);
         rasterBounds = tempRasterBounds.toRectangle2D().getBounds();
 
         // SG using the above may lead to problems since the reason is that may be a little (1 px)
@@ -526,7 +525,6 @@ class NetCDFResponse extends CoverageResponse {
     private void initTransformations() throws Exception {
         // compute final world to grid
         // base grid to world for the center of pixels
-        final AffineTransform g2w;
         CoverageProperties properties = request.spatialRequestHelper.getCoverageProperties();
         baseGridToWorld = (AffineTransform) properties.getGridToWorld2D();
         double[] coverageFullResolution = properties.getFullResolution();
@@ -534,7 +532,7 @@ class NetCDFResponse extends CoverageResponse {
         final double resY = coverageFullResolution[1];
         final double[] requestRes = request.spatialRequestHelper.getRequestedResolution();
 
-        g2w = new AffineTransform((AffineTransform) baseGridToWorld);
+        final AffineTransform g2w = new AffineTransform(baseGridToWorld);
         g2w.concatenate(CoverageUtilities.CENTER_TO_CORNER);
 
         if ((requestRes[0] < resX || requestRes[1] < resY)) {
@@ -823,20 +821,18 @@ class NetCDFResponse extends CoverageResponse {
             if (hints != null && hints.containsKey(JAI.KEY_TILE_CACHE)) {
                 final Object cache = hints.get(JAI.KEY_TILE_CACHE);
                 if (cache != null && cache instanceof TileCache)
-                    localHints.add(new RenderingHints(JAI.KEY_TILE_CACHE, (TileCache) cache));
+                    localHints.add(new RenderingHints(JAI.KEY_TILE_CACHE, cache));
             }
             if (hints != null && hints.containsKey(JAI.KEY_TILE_SCHEDULER)) {
                 final Object scheduler = hints.get(JAI.KEY_TILE_SCHEDULER);
                 if (scheduler != null && scheduler instanceof TileScheduler)
-                    localHints.add(
-                            new RenderingHints(JAI.KEY_TILE_SCHEDULER, (TileScheduler) scheduler));
+                    localHints.add(new RenderingHints(JAI.KEY_TILE_SCHEDULER, scheduler));
             }
             boolean addBorderExtender = true;
             if (hints != null && hints.containsKey(JAI.KEY_BORDER_EXTENDER)) {
                 final Object extender = hints.get(JAI.KEY_BORDER_EXTENDER);
                 if (extender != null && extender instanceof BorderExtender) {
-                    localHints.add(
-                            new RenderingHints(JAI.KEY_BORDER_EXTENDER, (BorderExtender) extender));
+                    localHints.add(new RenderingHints(JAI.KEY_BORDER_EXTENDER, extender));
                     addBorderExtender = false;
                 }
             }
@@ -850,7 +846,7 @@ class NetCDFResponse extends CoverageResponse {
             iw.affine(finalRaster2Model, interpolation, noData);
             return iw.getRenderedImage();
 
-        } catch (IllegalStateException e) {
+        } catch (org.geotools.api.referencing.operation.NoninvertibleTransformException e) {
             if (LOGGER.isLoggable(java.util.logging.Level.WARNING)) {
                 LOGGER.log(
                         java.util.logging.Level.WARNING,
@@ -863,23 +859,10 @@ class NetCDFResponse extends CoverageResponse {
                         e);
             }
             return null;
-        } catch (org.opengis.referencing.operation.NoninvertibleTransformException e) {
-            if (LOGGER.isLoggable(java.util.logging.Level.WARNING)) {
+        } catch (IllegalStateException | TransformException e) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.log(
-                        java.util.logging.Level.WARNING,
-                        new StringBuilder("Unable to load raster for granuleDescriptor ")
-                                .append(this.toString())
-                                .append(" with request ")
-                                .append(request.toString())
-                                .append(" Resulting in no granule loaded: Empty result")
-                                .toString(),
-                        e);
-            }
-            return null;
-        } catch (TransformException e) {
-            if (LOGGER.isLoggable(java.util.logging.Level.WARNING)) {
-                LOGGER.log(
-                        java.util.logging.Level.WARNING,
+                        Level.WARNING,
                         new StringBuilder("Unable to load raster for granuleDescriptor ")
                                 .append(this.toString())
                                 .append(" with request ")
@@ -918,32 +901,11 @@ class NetCDFResponse extends CoverageResponse {
             return;
         }
 
-        final int rasterWidth, rasterHeight;
         // highest resolution
-        rasterWidth = coverageRasterArea.width;
-        rasterHeight = coverageRasterArea.height;
+        final int rasterWidth = coverageRasterArea.width;
+        final int rasterHeight = coverageRasterArea.height;
 
-        // /////////////////////////////////////////////////////////////////////
-        // DECIMATION ON READING
-        // Setting subsampling factors with some checks
-        // 1) the subsampling factors cannot be zero
-        // 2) the subsampling factors cannot be such that the w or h are
-        // zero
-        // /////////////////////////////////////////////////////////////////////
-        int subSamplingFactorX = (int) Math.floor(requestedResolution[0] / fullResolution[0]);
-        subSamplingFactorX = subSamplingFactorX == 0 ? 1 : subSamplingFactorX;
-
-        while (rasterWidth / subSamplingFactorX <= 0 && subSamplingFactorX >= 0)
-            subSamplingFactorX--;
-        subSamplingFactorX = subSamplingFactorX <= 0 ? 1 : subSamplingFactorX;
-
-        int subSamplingFactorY = (int) Math.floor(requestedResolution[1] / fullResolution[1]);
-        subSamplingFactorY = subSamplingFactorY == 0 ? 1 : subSamplingFactorY;
-
-        while (rasterHeight / subSamplingFactorY <= 0 && subSamplingFactorY >= 0)
-            subSamplingFactorY--;
-        subSamplingFactorY = subSamplingFactorY <= 0 ? 1 : subSamplingFactorY;
-
-        readParameters.setSourceSubsampling(subSamplingFactorX, subSamplingFactorY, 0, 0);
+        ImageUtilities.setSubsamplingFactors(
+                readParameters, requestedResolution, fullResolution, rasterWidth, rasterHeight);
     }
 }

@@ -24,10 +24,15 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.capability.FunctionName;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.filter.expression.Function;
+import org.geotools.api.filter.expression.Literal;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.NameImpl;
 import org.geotools.filter.FunctionFactory;
@@ -38,22 +43,17 @@ import org.geotools.util.factory.GeoTools;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.capability.FunctionName;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.expression.Function;
-import org.opengis.filter.expression.Literal;
 
 public class FunctionFactoryTest {
 
     static FactoryIteratorProvider ffIteratorProvider;
 
     @BeforeClass
-    public static void setUp() {
+    public static void setUpClass() {
         ffIteratorProvider =
                 new FactoryIteratorProvider() {
 
+                    @Override
                     public <T> Iterator<T> iterator(Class<T> category) {
 
                         if (FunctionFactory.class == category) {
@@ -61,13 +61,14 @@ public class FunctionFactoryTest {
                             l.add(
                                     new FunctionFactory() {
 
-                                        @SuppressWarnings("unchecked")
+                                        @Override
                                         public List<FunctionName> getFunctionNames() {
                                             return Arrays.asList(
                                                     new FunctionNameImpl(
                                                             "foo", new String[] {"bar", "baz"}));
                                         }
 
+                                        @Override
                                         public Function function(
                                                 String name,
                                                 List<Expression> args,
@@ -75,6 +76,7 @@ public class FunctionFactoryTest {
                                             return function(new NameImpl(name), args, fallback);
                                         }
 
+                                        @Override
                                         public Function function(
                                                 Name name,
                                                 List<Expression> args,
@@ -103,7 +105,7 @@ public class FunctionFactoryTest {
     }
 
     @AfterClass
-    public static void tearDown() {
+    public static void tearDownClass() {
         GeoTools.removeFactoryIteratorProvider(ffIteratorProvider);
     }
 
@@ -135,15 +137,12 @@ public class FunctionFactoryTest {
         for (int i = 0; i < 100; i++) {
             Future<Exception> f =
                     es.submit(
-                            new Callable<Exception>() {
-
-                                public Exception call() throws Exception {
-                                    try {
-                                        ff.function("Length", ff.property("."));
-                                        return null;
-                                    } catch (Exception e) {
-                                        return e;
-                                    }
+                            () -> {
+                                try {
+                                    ff.function("Length", ff.property("."));
+                                    return null;
+                                } catch (Exception e) {
+                                    return e;
                                 }
                             });
             tests.add(f);

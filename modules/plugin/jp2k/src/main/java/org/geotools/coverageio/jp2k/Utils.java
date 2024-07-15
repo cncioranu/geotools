@@ -28,7 +28,7 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
-import org.geotools.data.DataSourceException;
+import org.geotools.api.data.DataSourceException;
 import org.geotools.util.URLs;
 import org.geotools.util.Utilities;
 
@@ -122,7 +122,6 @@ class Utils {
     /** Retrieves an {@link ImageInputStream} for the provided input {@link File} . */
     static ImageInputStream getInputStream(final File file) throws IOException {
         final ImageInputStream inStream = ImageIO.createImageInputStream(file);
-        if (inStream == null) return null;
         return inStream;
     }
 

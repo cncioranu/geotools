@@ -18,6 +18,9 @@ package org.geotools.coverage.processing.operation;
 
 import java.lang.reflect.Array;
 import javax.media.jai.Interpolation;
+import org.geotools.api.coverage.Coverage;
+import org.geotools.api.parameter.ParameterDescriptor;
+import org.geotools.api.parameter.ParameterValueGroup;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.Interpolator2D;
 import org.geotools.coverage.processing.Operation2D;
@@ -26,9 +29,6 @@ import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.parameter.DefaultParameterDescriptor;
 import org.geotools.parameter.DefaultParameterDescriptorGroup;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.Coverage;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValueGroup;
 
 /**
  * Specifies the interpolation type to be used to interpolate values for points which fall between
@@ -118,6 +118,7 @@ public class Interpolate extends Operation2D {
      * Applies an interpolation to a grid coverage. This method is invoked by {@link
      * org.geotools.coverage.processing.DefaultProcessor} for the {@code "Interpolate"} operation.
      */
+    @Override
     public Coverage doOperation(final ParameterValueGroup parameters, final Hints hints) {
         final GridCoverage2D source = (GridCoverage2D) parameters.parameter("Source").getValue();
         final Object type = parameters.parameter("Type").getValue();

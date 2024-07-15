@@ -69,20 +69,20 @@ public class MultiLineHandler implements ShapeHandler {
     }
 
     /** Get the type of shape stored (ShapeType.ARC,ShapeType.ARCM,ShapeType.ARCZ) */
+    @Override
     public ShapeType getShapeType() {
         return shapeType;
     }
 
     /** */
+    @Override
     public int getLength(Object geometry) {
         MultiLineString multi = (MultiLineString) geometry;
 
-        int numlines;
-        int numpoints;
         int length;
 
-        numlines = multi.getNumGeometries();
-        numpoints = multi.getNumPoints();
+        int numlines = multi.getNumGeometries();
+        int numpoints = multi.getNumPoints();
 
         if (shapeType == ShapeType.ARC) {
             length = 44 + (4 * numlines) + (numpoints * 16);
@@ -107,9 +107,10 @@ public class MultiLineHandler implements ShapeHandler {
     }
 
     private Object createNull() {
-        return geometryFactory.createMultiLineString((LineString[]) null);
+        return geometryFactory.createMultiLineString(null);
     }
 
+    @Override
     public Object read(ByteBuffer buffer, ShapeType type, boolean flatGeometry) {
         if (type == ShapeType.NULL) {
             return createNull();
@@ -196,7 +197,9 @@ public class MultiLineHandler implements ShapeHandler {
         if (shapeType == ShapeType.ARCZ && !flatGeometry) {
             // z min, max
             // buffer.position(buffer.position() + 2 * 8);
-            ((Buffer) doubleBuffer).position(doubleBuffer.position() + 2);
+            // ((Buffer) doubleBuffer).position(doubleBuffer.position() + 2);
+            double[] minmax = new double[2];
+            doubleBuffer.get(minmax);
             for (int part = 0; part < numParts; part++) {
                 start = partOffsets[part];
 
@@ -221,10 +224,15 @@ public class MultiLineHandler implements ShapeHandler {
                 }
             }
         }
-        if ((shapeType == ShapeType.ARCZ || shapeType == ShapeType.ARCM) && !flatGeometry) {
+        boolean isArcZWithM =
+                (doubleBuffer.remaining() >= numPoints + 2) && shapeType == ShapeType.ARCZ;
+        if ((isArcZWithM || shapeType == ShapeType.ARCM) && !flatGeometry) {
             // M min, max
             // buffer.position(buffer.position() + 2 * 8);
-            ((Buffer) doubleBuffer).position(doubleBuffer.position() + 2);
+            // ((Buffer) doubleBuffer).position(doubleBuffer.position() + 2);
+            double[] minmax = new double[2];
+            doubleBuffer.get(minmax);
+
             for (int part = 0; part < numParts; part++) {
                 start = partOffsets[part];
 
@@ -245,6 +253,11 @@ public class MultiLineHandler implements ShapeHandler {
                 double[] m = new double[length];
                 doubleBuffer.get(m);
                 for (int i = 0; i < length; i++) {
+                    // Page 2 of the spec says that values less than -10E38 are
+                    // NaNs
+                    if (m[i] < -10e38) {
+                        m[i] = Double.NaN;
+                    }
                     lines[part].setOrdinate(i, CoordinateSequence.M, m[i]);
                 }
             }
@@ -259,6 +272,7 @@ public class MultiLineHandler implements ShapeHandler {
         return geometryFactory.createMultiLineString(lineStrings);
     }
 
+    @Override
     public void write(ByteBuffer buffer, Object geometry) {
         MultiLineString multi = (MultiLineString) geometry;
 
@@ -285,8 +299,7 @@ public class MultiLineHandler implements ShapeHandler {
             }
         }
 
-        for (int lineN = 0; lineN < lines.length; lineN++) {
-            CoordinateSequence coords = lines[lineN];
+        for (CoordinateSequence coords : lines) {
             if (shapeType == ShapeType.ARCZ) {
                 JTSUtilities.zMinMax(coords, zExtreame);
             }
@@ -307,8 +320,7 @@ public class MultiLineHandler implements ShapeHandler {
                 buffer.putDouble(zExtreame[1]);
             }
 
-            for (int lineN = 0; lineN < lines.length; lineN++) {
-                final CoordinateSequence coords = lines[lineN];
+            for (final CoordinateSequence coords : lines) {
                 final int ncoords = coords.size();
                 double z;
                 for (int t = 0; t < ncoords; t++) {

@@ -30,6 +30,7 @@ public class SQLServerTestSetup extends JDBCTestSetup {
     }
 
     @Override
+    @SuppressWarnings("PMD.AvoidUsingHardCodedIP")
     protected Properties createExampleFixture() {
         Properties fixture = new Properties();
         fixture.put("driver", "com.microsoft.sqlserver.jdbc.SQLServerDriver");
@@ -42,17 +43,21 @@ public class SQLServerTestSetup extends JDBCTestSetup {
         return fixture;
     }
 
+    @Override
     protected void setUpDataStore(JDBCDataStore dataStore) {
         super.setUpDataStore(dataStore);
 
         dataStore.setDatabaseSchema(null);
     }
 
+    @Override
     protected void setUpData() throws Exception {
         // drop old data
         runSafe("DROP TABLE ft1");
 
         runSafe("DROP TABLE ft_from");
+
+        runSafe("DROP TABLE ft4");
 
         try {
             run("DROP TABLE ft2; COMMIT;");
@@ -104,6 +109,60 @@ public class SQLServerTestSetup extends JDBCTestSetup {
                 "INSERT INTO ft_from (geometry,\"ORIGIN_FROM\") VALUES ("
                         + "geometry::STGeomFromText('POINT(0 -90)',4326), 'SouthPole');";
         run(sql);
+
+        runft4();
+    }
+
+    private void runft4() throws Exception {
+        String sql =
+                "CREATE TABLE ft4 (id int IDENTITY(0,1) PRIMARY KEY, "
+                        + "geometry geometry, intProperty int, "
+                        + "doubleProperty float, stringProperty varchar(255))";
+        run(sql);
+
+        // change column collation to support case-insensitive comparison
+        sql =
+                "ALTER TABLE ft4 ALTER COLUMN stringProperty VARCHAR(255) COLLATE Latin1_General_CS_AS";
+        run(sql);
+
+        sql =
+                "INSERT INTO ft4 (geometry,intProperty,doubleProperty,stringProperty) VALUES ("
+                        + "geometry::STGeomFromText('POINT(0 0)',4326), 0, 0.0,'zero');";
+        run(sql);
+
+        sql =
+                "INSERT INTO ft4 (geometry,intProperty,doubleProperty,stringProperty) VALUES ("
+                        + "geometry::STGeomFromText('POINT(1 1)',4326), 1, 1.1,'one');";
+        run(sql);
+
+        sql =
+                "INSERT INTO ft4 (geometry,intProperty,doubleProperty,stringProperty) VALUES ("
+                        + "geometry::STGeomFromText('POINT(2 2)',4326), 1, 1.1,'one_2');";
+        run(sql);
+
+        sql =
+                "INSERT INTO ft4 (geometry,intProperty,doubleProperty,stringProperty) VALUES ("
+                        + "geometry::STGeomFromText('POINT(3 3)',4326), 1, 1.1,'one_2');";
+        run(sql);
+
+        sql =
+                "INSERT INTO ft4 (geometry,intProperty,doubleProperty,stringProperty) VALUES ("
+                        + "geometry::STGeomFromText('POINT(4 4)',4326), 2, 2.2,'two');";
+        run(sql);
+
+        sql =
+                "INSERT INTO ft4 (geometry,intProperty,doubleProperty,stringProperty) VALUES ("
+                        + "geometry::STGeomFromText('POINT(5 5)',4326), 2, 2.2,'two_2');";
+        run(sql);
+
+        sql =
+                "INSERT INTO ft4 (geometry,intProperty,doubleProperty,stringProperty) VALUES ("
+                        + "geometry::STGeomFromText('POINT(6 6)',4326), 3, 3.3,'three');";
+        run(sql);
+
+        // create the spatial index
+        run(
+                "CREATE SPATIAL INDEX _ft4_geometry_index on ft4(geometry) WITH (BOUNDING_BOX = (-10, -10, 10, 10))");
     }
 
     @Override

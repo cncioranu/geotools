@@ -17,14 +17,14 @@
 package org.geotools.referencing.operation.builder;
 
 import java.util.List;
+import org.geotools.api.geometry.MismatchedDimensionException;
+import org.geotools.api.geometry.MismatchedReferenceSystemException;
 import org.geotools.referencing.operation.matrix.GeneralMatrix;
-import org.opengis.geometry.MismatchedDimensionException;
-import org.opengis.geometry.MismatchedReferenceSystemException;
 
 /**
- * Builds {@linkplain org.opengis.referencing.operation.MathTransform MathTransform} setup as Affine
- * transformation from a list of {@linkplain MappedPosition MappedPosition}. The calculation uses
- * least square method. The Affine transform equation:
+ * Builds {@linkplain org.geotools.api.referencing.operation.MathTransform MathTransform} setup as
+ * Affine transformation from a list of {@linkplain MappedPosition MappedPosition}. The calculation
+ * uses least square method. The Affine transform equation:
  *
  * <pre>
  *  [ x']   [  m00  m01  m02  ] [ x ]   [ m00x + m01y + m02 ]
@@ -75,6 +75,7 @@ public class AffineTransformBuilder extends ProjectiveTransformBuilder {
      *
      * @return the minimum number of points required by this builder, which is 3.
      */
+    @Override
     public int getMinimumPointCount() {
         return 3;
     }
@@ -91,6 +92,7 @@ public class AffineTransformBuilder extends ProjectiveTransformBuilder {
      *
      * @return Matrix M.
      */
+    @Override
     protected GeneralMatrix getProjectiveMatrix() {
         GeneralMatrix M = new GeneralMatrix(3, 3);
         double[] param = calculateLSM();
@@ -104,6 +106,7 @@ public class AffineTransformBuilder extends ProjectiveTransformBuilder {
         return M;
     }
 
+    @Override
     protected void fillAMatrix() {
 
         super.A = new GeneralMatrix(2 * getSourcePoints().length, 6);

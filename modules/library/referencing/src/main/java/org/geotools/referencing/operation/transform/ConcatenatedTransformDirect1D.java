@@ -16,9 +16,9 @@
  */
 package org.geotools.referencing.operation.transform;
 
-import org.opengis.referencing.operation.MathTransform1D;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
-import org.opengis.referencing.operation.TransformException;
+import org.geotools.api.referencing.operation.MathTransform1D;
+import org.geotools.api.referencing.operation.NoninvertibleTransformException;
+import org.geotools.api.referencing.operation.TransformException;
 
 /**
  * Concatenated transform where both transforms are one-dimensional.
@@ -59,11 +59,13 @@ final class ConcatenatedTransformDirect1D extends ConcatenatedTransformDirect
     }
 
     /** Transforms the specified value. */
+    @Override
     public double transform(final double value) throws TransformException {
         return transform2.transform(transform1.transform(value));
     }
 
     /** Gets the derivative of this function at a value. */
+    @Override
     public double derivative(final double value) throws TransformException {
         final double value1 = transform1.derivative(value);
         final double value2 = transform2.derivative(transform1.transform(value));

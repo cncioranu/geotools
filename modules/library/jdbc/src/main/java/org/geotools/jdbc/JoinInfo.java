@@ -21,14 +21,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.geotools.data.Join;
-import org.geotools.data.Query;
+import org.geotools.api.data.Join;
+import org.geotools.api.data.Query;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.filter.visitor.DuplicatingFilterVisitor;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.expression.PropertyName;
 
 /**
  * Holds information about a join query.
@@ -375,6 +376,15 @@ public class JoinInfo {
             }
 
             return propertyName;
+        }
+
+        /**
+         * Makes the assumption that the Id filter is run against the primary feature type in the
+         * join
+         */
+        @Override
+        public Object visit(Id filter, Object extraData) {
+            return new JoinId(ft1, alias1, filter.getIdentifiers());
         }
     }
 }

@@ -19,7 +19,6 @@ package org.geotools.xsd;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -33,12 +32,12 @@ import org.eclipse.xsd.XSDSchema;
 import org.eclipse.xsd.util.XSDResourceImpl;
 import org.eclipse.xsd.util.XSDSchemaLocationResolver;
 import org.eclipse.xsd.util.XSDSchemaLocator;
+import org.geotools.api.feature.type.AttributeType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.feature.type.Schema;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.type.SchemaImpl;
 import org.geotools.xs.XS;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.Schema;
 
 /**
  * Xml Schema for a particular namespace.
@@ -164,7 +163,7 @@ public abstract class XSD {
         stack.addAll(getDependencies());
 
         while (!stack.isEmpty()) {
-            XSD xsd = (XSD) stack.pop();
+            XSD xsd = stack.pop();
 
             if (!equals(xsd) && !unpacked.contains(xsd)) {
                 unpacked.addFirst(xsd);
@@ -181,7 +180,18 @@ public abstract class XSD {
     /** Returns the XSD object representing the contents of the schema. */
     public final XSDSchema getSchema() throws IOException {
         if (schema == null) {
-            synchronized (this) {
+            // buildSchema in general will need to parse dependencies, which through
+            // schema locators will circle back to XSD.getSchema(), potentially causing
+            // a deadlock, if this synchronization uses synchronized(this). Example:
+            // 1) t1 loads OGC, holding a lock on it, and parses its own schema
+            //    holding a lock on Schemas.classes
+            // 2) t2 starts loading GML, holding a lock on it, and tries to parse its schema
+            //    waiting on Schemas.classes lock
+            // 3) t1 parsing finds an import from OGC filters to GML, the locators bring it
+            //    to call GML.getSchema(), and we have the deadlock.
+            // So the old synchronized(this) was replaced with synchronized(Schemas.class)
+            // to avert the possibility of the above cited lock
+            synchronized (Schemas.class) {
                 if (schema == null) {
                     LOGGER.fine("building schema for schema: " + getNamespaceURI());
                     schema = buildSchema();
@@ -203,8 +213,7 @@ public abstract class XSD {
         List<XSDSchemaLocator> locators = new ArrayList<>();
         List<XSDSchemaLocationResolver> resolvers = new ArrayList<>();
 
-        for (Iterator d = allDependencies().iterator(); d.hasNext(); ) {
-            XSD dependency = (XSD) d.next();
+        for (XSD dependency : allDependencies()) {
             SchemaLocator locator = dependency.createSchemaLocator();
 
             if (locator != null) {
@@ -253,6 +262,7 @@ public abstract class XSD {
     }
 
     /** Implementation of equals, equality is based soley on {@link #getNamespaceURI()}. */
+    @Override
     public final boolean equals(Object obj) {
         if (obj instanceof XSD) {
             XSD other = (XSD) obj;
@@ -263,10 +273,12 @@ public abstract class XSD {
         return false;
     }
 
+    @Override
     public final int hashCode() {
         return getNamespaceURI().hashCode();
     }
 
+    @Override
     public String toString() {
         return getNamespaceURI();
     }

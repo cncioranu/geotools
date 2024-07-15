@@ -20,9 +20,9 @@ package org.geotools.filter.function;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
+import org.geotools.api.filter.capability.FunctionName;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
-import org.opengis.filter.capability.FunctionName;
 
 public class FilterFunction_in4 extends FunctionExpressionImpl {
 
@@ -40,6 +40,7 @@ public class FilterFunction_in4 extends FunctionExpressionImpl {
         super(NAME);
     }
 
+    @Override
     public Object evaluate(Object feature) {
         Object arg0;
         Object arg1;
@@ -48,7 +49,7 @@ public class FilterFunction_in4 extends FunctionExpressionImpl {
         Object arg4;
 
         try { // attempt to get value and perform conversion
-            arg0 = (Object) getExpression(0).evaluate(feature);
+            arg0 = getExpression(0).evaluate(feature);
         } catch (Exception e) // probably a type error
         {
             throw new IllegalArgumentException(
@@ -56,7 +57,7 @@ public class FilterFunction_in4 extends FunctionExpressionImpl {
         }
 
         try { // attempt to get value and perform conversion
-            arg1 = (Object) getExpression(1).evaluate(feature);
+            arg1 = getExpression(1).evaluate(feature);
         } catch (Exception e) // probably a type error
         {
             throw new IllegalArgumentException(
@@ -64,7 +65,7 @@ public class FilterFunction_in4 extends FunctionExpressionImpl {
         }
 
         try { // attempt to get value and perform conversion
-            arg2 = (Object) getExpression(2).evaluate(feature);
+            arg2 = getExpression(2).evaluate(feature);
         } catch (Exception e) // probably a type error
         {
             throw new IllegalArgumentException(
@@ -72,7 +73,7 @@ public class FilterFunction_in4 extends FunctionExpressionImpl {
         }
 
         try { // attempt to get value and perform conversion
-            arg3 = (Object) getExpression(3).evaluate(feature);
+            arg3 = getExpression(3).evaluate(feature);
         } catch (Exception e) // probably a type error
         {
             throw new IllegalArgumentException(
@@ -80,7 +81,7 @@ public class FilterFunction_in4 extends FunctionExpressionImpl {
         }
 
         try { // attempt to get value and perform conversion
-            arg4 = (Object) getExpression(4).evaluate(feature);
+            arg4 = getExpression(4).evaluate(feature);
         } catch (Exception e) // probably a type error
         {
             throw new IllegalArgumentException(

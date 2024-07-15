@@ -21,6 +21,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -122,7 +123,7 @@ public class URIs {
         try {
             // TODO: URLEncoder also encodes ( and ) which are considered safe chars,
             // see also http://www.w3.org/International/O-URL-code.html
-            return URLDecoder.decode(new String(value.getBytes(), "UTF-8"), "UTF-8");
+            return URLDecoder.decode(new String(value.getBytes(), StandardCharsets.UTF_8), "UTF-8");
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException("This is unexpected", e);
         }
@@ -132,9 +133,9 @@ public class URIs {
      * Appends a query string to a url.
      *
      * <p>This method checks <code>url</code> to see if the appended query string requires a '?' or
-     * '&' to be prepended.
+     * '&amp;' to be prepended.
      *
-     * <p>This code can be used to make sure the url ends with ? or & by calling
+     * <p>This code can be used to make sure the url ends with ? or &amp; by calling
      * appendQueryString(url, "")
      *
      * @param url The base url.

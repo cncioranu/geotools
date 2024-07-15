@@ -18,10 +18,8 @@ package org.geotools.xsd;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -254,8 +252,7 @@ public abstract class Configuration {
 
     /** Searches the configuration and all dependent configuration for the specified property. */
     public final boolean hasProperty(QName property) {
-        for (Iterator c = allDependencies().iterator(); c.hasNext(); ) {
-            Configuration configuration = (Configuration) c.next();
+        for (Configuration configuration : allDependencies()) {
             if (configuration.getProperties().contains(property)) {
                 return true;
             }
@@ -278,7 +275,7 @@ public abstract class Configuration {
         stack.push(this);
 
         while (!stack.isEmpty()) {
-            Configuration c = (Configuration) stack.pop();
+            Configuration c = stack.pop();
 
             if (!unpacked.contains(c)) {
                 unpacked.addFirst(c);
@@ -292,8 +289,8 @@ public abstract class Configuration {
 
         // create a graph of the dependencies
         DepGraph g = new DepGraph();
-        for (Configuration c : (List<Configuration>) unpacked) {
-            for (Configuration d : (List<Configuration>) c.getDependencies()) {
+        for (Configuration c : unpacked) {
+            for (Configuration d : c.getDependencies()) {
                 g.addEdge(c, d);
             }
         }
@@ -301,12 +298,9 @@ public abstract class Configuration {
         PriorityQueue<DepNode> q =
                 new PriorityQueue<>(
                         g.nodes.size(),
-                        new Comparator<DepNode>() {
-                            public int compare(DepNode o1, DepNode o2) {
-                                return Integer.valueOf(o1.outgoing().size())
-                                        .compareTo(o2.outgoing().size());
-                            }
-                        });
+                        (o1, o2) ->
+                                Integer.valueOf(o1.outgoing().size())
+                                        .compareTo(o2.outgoing().size()));
         for (DepNode n : g.nodes.values()) {
             q.add(n);
         }
@@ -344,8 +338,7 @@ public abstract class Configuration {
         @SuppressWarnings("unchecked")
         C cast =
                 (C)
-                        dependencies
-                                .stream()
+                        dependencies.stream()
                                 .filter(dep -> clazz.isInstance(dep))
                                 .findFirst()
                                 .orElse(null);
@@ -396,15 +389,13 @@ public abstract class Configuration {
         PicoMap container = new PicoMap(bindings);
 
         // configure bindings of all dependencies
-        for (Iterator d = allDependencies().iterator(); d.hasNext(); ) {
-            Configuration dependency = (Configuration) d.next();
+        for (Configuration dependency : allDependencies()) {
             dependency.registerBindings(bindings);
 
             // call old api
             dependency.registerBindings((MutablePicoContainer) container);
         }
-        for (Iterator d = allDependencies().iterator(); d.hasNext(); ) {
-            Configuration dependency = (Configuration) d.next();
+        for (Configuration dependency : allDependencies()) {
             dependency.configureBindings(bindings);
 
             // call old api
@@ -421,8 +412,7 @@ public abstract class Configuration {
      * @since 2.7
      */
     public final void setupParser(Parser parser) {
-        for (Iterator it = allDependencies().iterator(); it.hasNext(); ) {
-            Configuration dep = (Configuration) it.next();
+        for (Configuration dep : allDependencies()) {
             dep.configureParser(parser);
         }
     }
@@ -434,8 +424,7 @@ public abstract class Configuration {
      * @since 2.7
      */
     public final void setupEncoder(Encoder encoder) {
-        for (Iterator it = allDependencies().iterator(); it.hasNext(); ) {
-            Configuration dep = (Configuration) it.next();
+        for (Configuration dep : allDependencies()) {
             dep.configureEncoder(encoder);
         }
     }
@@ -483,7 +472,7 @@ public abstract class Configuration {
      *
      * @param bindings Map containing all bindings, keyed by {@link QName}.
      */
-    protected void configureBindings(Map bindings) {
+    protected void configureBindings(Map<QName, Object> bindings) {
         // do nothing
     }
 
@@ -496,8 +485,8 @@ public abstract class Configuration {
         // configure bindings of all dependencies
         List dependencies = allDependencies();
 
-        for (Iterator d = dependencies.iterator(); d.hasNext(); ) {
-            Configuration dependency = (Configuration) d.next();
+        for (Object value : dependencies) {
+            Configuration dependency = (Configuration) value;
 
             // throw locator and location resolver into context
             XSDSchemaLocationResolver resolver = new SchemaLocationResolver(dependency.getXSD());
@@ -516,7 +505,7 @@ public abstract class Configuration {
 
             // set any parser properties
             synchronized (dependency.getProperties()) {
-                for (QName property : (Set<QName>) dependency.getProperties()) {
+                for (QName property : dependency.getProperties()) {
                     try {
                         container.registerComponentInstance(property, property);
                     } catch (DuplicateComponentKeyRegistrationException e) {
@@ -536,8 +525,8 @@ public abstract class Configuration {
         if (!context.getComponentAdapters().isEmpty()) {
             container = container.makeChildContainer();
 
-            for (Iterator ca = context.getComponentAdapters().iterator(); ca.hasNext(); ) {
-                ComponentAdapter adapter = (ComponentAdapter) ca.next();
+            for (Object o : context.getComponentAdapters()) {
+                ComponentAdapter adapter = (ComponentAdapter) o;
                 container.registerComponent(adapter);
             }
         }
@@ -574,6 +563,7 @@ public abstract class Configuration {
     protected void configureEncoder(Encoder encoder) {}
 
     /** Equals override, equality is based solely on {@link #getNamespaceURI()}. */
+    @Override
     public final boolean equals(Object obj) {
         if (obj instanceof Configuration) {
             Configuration other = (Configuration) obj;
@@ -584,6 +574,7 @@ public abstract class Configuration {
         return false;
     }
 
+    @Override
     public final int hashCode() {
         if (getNamespaceURI() != null) {
             return getNamespaceURI().hashCode();

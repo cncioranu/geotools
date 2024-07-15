@@ -18,14 +18,12 @@ package org.geotools.metadata;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.i18n.Errors;
 import org.geotools.util.CheckedArrayList;
 import org.geotools.util.CheckedHashSet;
 import org.geotools.util.UnmodifiableArrayList;
@@ -82,6 +80,7 @@ import org.geotools.util.logging.Logging;
 public abstract class ModifiableMetadata extends AbstractMetadata implements Cloneable {
     /** A null implementation for the {@link #FREEZING} constant. */
     private static final class Null extends ModifiableMetadata {
+        @Override
         public MetadataStandard getStandard() {
             return null;
         }
@@ -182,8 +181,8 @@ public abstract class ModifiableMetadata extends AbstractMetadata implements Clo
      *   <li>Otherwise, if the object is a {@linkplain Collection collection}, then the content is
      *       copied into a new collection of similar type, with values replaced by their
      *       unmodifiable variant.
-     *   <li>Otherwise, if the object implements the {@link org.opengis.util.Cloneable} interface,
-     *       then a clone is returned.
+     *   <li>Otherwise, if the object implements the {@link org.geotools.api.util.Cloneable}
+     *       interface, then a clone is returned.
      *   <li>Otherwise, the object is assumed immutable and returned unchanged.
      * </ul>
      *
@@ -238,8 +237,7 @@ public abstract class ModifiableMetadata extends AbstractMetadata implements Clo
                 return Collections.emptyMap();
             }
             map = new LinkedHashMap(map);
-            for (final Iterator<Map.Entry> it = map.entrySet().iterator(); it.hasNext(); ) {
-                final Map.Entry entry = it.next();
+            for (final Map.Entry entry : (Iterable<Map.Entry>) map.entrySet()) {
                 entry.setValue(unmodifiable(entry.getValue()));
             }
             return Collections.unmodifiableMap(map);
@@ -247,8 +245,8 @@ public abstract class ModifiableMetadata extends AbstractMetadata implements Clo
         /*
          * CASE 4 - The object is cloneable.
          */
-        if (object instanceof org.opengis.util.Cloneable) {
-            return ((org.opengis.util.Cloneable) object).clone();
+        if (object instanceof org.geotools.api.util.Cloneable) {
+            return ((org.geotools.api.util.Cloneable) object).clone();
         }
         /*
          * CASE 5 - Any other case. The object is assumed immutable and returned unchanged.
@@ -280,7 +278,7 @@ public abstract class ModifiableMetadata extends AbstractMetadata implements Clo
      */
     protected void checkWritePermission() throws UnmodifiableMetadataException {
         if (!isModifiable()) {
-            throw new UnmodifiableMetadataException(Errors.format(ErrorKeys.UNMODIFIABLE_METADATA));
+            throw new UnmodifiableMetadataException(ErrorKeys.UNMODIFIABLE_METADATA);
         }
         unmodifiable = null;
     }

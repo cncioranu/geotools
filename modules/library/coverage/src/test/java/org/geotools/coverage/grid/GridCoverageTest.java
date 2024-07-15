@@ -26,12 +26,13 @@ import java.awt.Rectangle;
 import java.io.IOException;
 import java.net.InetAddress;
 import javax.imageio.ImageReadParam;
-import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.geometry.GeneralBounds;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.TransformException;
 
 /**
  * Tests the {@link GridCoverage2D} implementation.
@@ -73,6 +74,8 @@ public final class GridCoverageTest extends GridCoverageTestBase {
      */
     @Test
     public void testSerialization() throws IOException, ClassNotFoundException {
+        // will fail on GitHub linux build, due to TCP port opening by SerializableRenderedImage
+        Assume.assumeFalse(Boolean.getBoolean("linux-github-build"));
         if (hostnameDefined) {
             GridCoverage2D coverage = EXAMPLES.get(0);
             GridCoverage2D serial = serialize(coverage);
@@ -96,17 +99,17 @@ public final class GridCoverageTest extends GridCoverageTestBase {
         Rectangle requestedDim = new Rectangle(700, 400);
 
         // TEST WHEN NO SUBSAMPLING IS REQUIRED
-        GeneralEnvelope requestedEnvelope = coverage.gridGeometry.envelope;
+        GeneralBounds requestedEnvelope = coverage.gridGeometry.envelope;
         // requestedEnvelope.setEnvelope(-517.2704081632651, -353.2270408163266, 697.7295918367349,
         // 350.3571428571428);
         reader.setReadParams("geotools_coverage", null, readP, requestedEnvelope, requestedDim);
         assertNotNull(readP);
         // 1 means no subsampling and no pixel skipping
-        assertTrue(readP.getSourceXSubsampling() == 1);
-        assertTrue(readP.getSourceYSubsampling() == 1);
+        assertEquals(1, readP.getSourceXSubsampling());
+        assertEquals(1, readP.getSourceYSubsampling());
 
         // MOCK ZOOMOUT TO FORCE SUBSAMPLING
-        GeneralEnvelope requestedEnvelopeZoomOut = coverage.gridGeometry.envelope.clone();
+        GeneralBounds requestedEnvelopeZoomOut = coverage.gridGeometry.envelope.clone();
         // select much larger geographical area for same screen size
         requestedEnvelopeZoomOut.setEnvelope(
                 -517.2704081632651, -353.2270408163266, 697.7295918367349, 350.3571428571428);

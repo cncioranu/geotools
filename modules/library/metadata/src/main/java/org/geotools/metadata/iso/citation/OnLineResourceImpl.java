@@ -22,10 +22,10 @@ package org.geotools.metadata.iso.citation;
 import java.net.URI;
 import java.net.URISyntaxException;
 import net.opengis.ows11.OnlineResourceType;
+import org.geotools.api.metadata.citation.OnLineFunction;
+import org.geotools.api.metadata.citation.OnLineResource;
+import org.geotools.api.util.InternationalString;
 import org.geotools.metadata.iso.MetadataEntity;
-import org.opengis.metadata.citation.OnLineFunction;
-import org.opengis.metadata.citation.OnLineResource;
-import org.opengis.util.InternationalString;
 
 /**
  * Information about on-line sources from which the dataset, specification, or community profile
@@ -98,6 +98,15 @@ public class OnLineResourceImpl extends MetadataEntity implements OnLineResource
     static {
         final OnLineResourceImpl r;
         ESRI = r = new OnLineResourceImpl("http://www.esri.com");
+        r.freeze();
+    }
+
+    /** The online resources for <A HREF="https://www.iau.org">IAU</A>. */
+    public static final OnLineResource IAU;
+
+    static {
+        final OnLineResourceImpl r;
+        IAU = r = new OnLineResourceImpl("https://www.iau.org");
         r.freeze();
     }
 
@@ -221,6 +230,7 @@ public class OnLineResourceImpl extends MetadataEntity implements OnLineResource
      * Returns the name of an application profile that can be used with the online resource. Returns
      * {@code null} if none.
      */
+    @Override
     public String getApplicationProfile() {
         return applicationProfile;
     }
@@ -236,6 +246,7 @@ public class OnLineResourceImpl extends MetadataEntity implements OnLineResource
      *
      * @since 2.4
      */
+    @Override
     public String getName() {
         return name;
     }
@@ -254,6 +265,7 @@ public class OnLineResourceImpl extends MetadataEntity implements OnLineResource
      * Returns the detailed text description of what the online resource is/does. Returns {@code
      * null} if none.
      */
+    @Override
     public InternationalString getDescription() {
         return description;
     }
@@ -268,6 +280,7 @@ public class OnLineResourceImpl extends MetadataEntity implements OnLineResource
      * Returns the code for function performed by the online resource. Returns {@code null} if
      * unspecified.
      */
+    @Override
     public OnLineFunction getFunction() {
         return function;
     }
@@ -282,6 +295,7 @@ public class OnLineResourceImpl extends MetadataEntity implements OnLineResource
      * Returns the location (address) for on-line access using a Uniform Resource Locator address or
      * similar addressing scheme such as http://www.statkart.no/isotc211.
      */
+    @Override
     public URI getLinkage() {
         return linkage;
     }
@@ -296,6 +310,7 @@ public class OnLineResourceImpl extends MetadataEntity implements OnLineResource
     }
 
     /** Returns the connection protocol to be used. Returns {@code null} if none. */
+    @Override
     public String getProtocol() {
         final URI linkage = this.linkage;
         return (linkage != null) ? linkage.getScheme() : null;

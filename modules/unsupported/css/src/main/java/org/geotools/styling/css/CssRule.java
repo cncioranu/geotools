@@ -29,8 +29,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import org.geotools.api.style.Style;
 import org.geotools.filter.visitor.SimplifyingFilterVisitor;
-import org.geotools.styling.Style;
 import org.geotools.styling.css.Value.Function;
 import org.geotools.styling.css.selector.PseudoClass;
 import org.geotools.styling.css.selector.Selector;
@@ -313,7 +313,7 @@ public class CssRule {
                         }
                     }
                     // if we collected any, add to the result
-                    if (zIndexProperties.size() > 0) {
+                    if (!zIndexProperties.isEmpty()) {
                         zProperties.put(entry.getKey(), zIndexProperties);
                     }
                 }
@@ -323,14 +323,13 @@ public class CssRule {
         List<CssRule> nestedByZIndex = Collections.emptyList();
         if (nestedRules != null) {
             nestedByZIndex =
-                    nestedRules
-                            .stream()
+                    nestedRules.stream()
                             .map(r -> r.getSubRuleByZIndex(zIndex, zIndexMode))
                             .filter(r -> r != null)
                             .collect(Collectors.toList());
         }
 
-        if (zProperties.size() > 0) {
+        if (!zProperties.isEmpty()) {
             // if the properties had an original z-index, mark it, we'll need it
             // to figure out if a combination of rules can be applied at a z-index > 0, or not
             if (zIndex != null && zIndexes.contains(zIndex)) {
@@ -342,7 +341,7 @@ public class CssRule {
                 rootProperties.add(
                         new Property(
                                 "z-index",
-                                Arrays.asList((Value) new Value.Literal(String.valueOf(zIndex)))));
+                                Arrays.asList(new Value.Literal(String.valueOf(zIndex)))));
             }
             CssRule zRule = new CssRule(this.getSelector(), zProperties, this.getComment());
             zRule.nestedRules = nestedByZIndex;
@@ -367,12 +366,12 @@ public class CssRule {
 
     /** Returns the z-index values, in the order they are submitted */
     void collectZIndexesInProperties(List<Property> properties, List<Integer> zIndexes) {
-        if (zIndexes.size() > 0) {
+        if (!zIndexes.isEmpty()) {
             zIndexes.clear();
         }
         for (Property property : properties) {
             if (isZIndex(property)) {
-                if (zIndexes.size() > 0) {
+                if (!zIndexes.isEmpty()) {
                     // we have two z-index in the same set of properties? keep the latest
                     zIndexes.clear();
                 }
@@ -395,7 +394,7 @@ public class CssRule {
                 }
             }
         }
-        // if we did not find the z-index property, the only z-index is teh default one (which is
+        // if we did not find the z-index property, the only z-index is the default one (which is
         if (zIndexes.isEmpty()) {
             zIndexes.add(null);
         }

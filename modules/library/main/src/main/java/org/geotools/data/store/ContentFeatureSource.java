@@ -30,30 +30,44 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.api.data.FeatureListener;
+import org.geotools.api.data.FeatureLock;
+import org.geotools.api.data.FeatureLockException;
+import org.geotools.api.data.FeatureReader;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.data.FeatureWriter;
+import org.geotools.api.data.Query;
+import org.geotools.api.data.QueryCapabilities;
+import org.geotools.api.data.ResourceInfo;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.data.Transaction;
+import org.geotools.api.feature.Feature;
+import org.geotools.api.feature.FeatureVisitor;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.filter.FilterFactory;
+import org.geotools.api.filter.Id;
+import org.geotools.api.filter.expression.PropertyName;
+import org.geotools.api.filter.identity.FeatureId;
+import org.geotools.api.filter.sort.SortBy;
+import org.geotools.api.geometry.BoundingBox;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.Diff;
 import org.geotools.data.DiffFeatureReader;
-import org.geotools.data.FeatureListener;
-import org.geotools.data.FeatureLock;
-import org.geotools.data.FeatureLockException;
-import org.geotools.data.FeatureReader;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.FeatureWriter;
 import org.geotools.data.FilteringFeatureReader;
 import org.geotools.data.InProcessLockingManager;
 import org.geotools.data.MaxFeatureReader;
-import org.geotools.data.Query;
-import org.geotools.data.QueryCapabilities;
 import org.geotools.data.ReTypeFeatureReader;
-import org.geotools.data.ResourceInfo;
-import org.geotools.data.Transaction;
 import org.geotools.data.crs.ForceCoordinateSystemFeatureReader;
 import org.geotools.data.crs.ReprojectFeatureReader;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.sort.SortedFeatureReader;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureCollection;
+import org.geotools.feature.FeatureTypes;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.filter.function.Collection_AverageFunction;
@@ -66,19 +80,6 @@ import org.geotools.filter.function.Collection_UniqueFunction;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.factory.Hints;
 import org.geotools.util.factory.Hints.Key;
-import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureVisitor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.Id;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.identity.FeatureId;
-import org.opengis.filter.sort.SortBy;
-import org.opengis.geometry.BoundingBox;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
  * Abstract implementation of FeatureSource.
@@ -202,6 +203,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      *
      * <p>Subclasses may wish to extend this method in order to type narrow its return type.
      */
+    @Override
     public ContentDataStore getDataStore() {
         return entry.getDataStore();
     }
@@ -217,6 +219,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      *
      * @return description of features contents
      */
+    @Override
     public ResourceInfo getInfo() {
         return new ResourceInfo() {
             final Set<String> words = new HashSet<>();
@@ -226,6 +229,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
                 words.add(ContentFeatureSource.this.getSchema().getTypeName());
             }
 
+            @Override
             public ReferencedEnvelope getBounds() {
                 try {
                     return ContentFeatureSource.this.getBounds();
@@ -234,22 +238,27 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
                 }
             }
 
+            @Override
             public CoordinateReferenceSystem getCRS() {
                 return ContentFeatureSource.this.getSchema().getCoordinateReferenceSystem();
             }
 
+            @Override
             public String getDescription() {
                 return null;
             }
 
+            @Override
             public Set<String> getKeywords() {
                 return words;
             }
 
+            @Override
             public String getName() {
                 return ContentFeatureSource.this.getSchema().getTypeName();
             }
 
+            @Override
             public URI getSchema() {
                 Name name = ContentFeatureSource.this.getSchema().getName();
                 URI namespace;
@@ -261,6 +270,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
                 }
             }
 
+            @Override
             public String getTitle() {
                 Name name = ContentFeatureSource.this.getSchema().getName();
                 return name.getLocalPart();
@@ -276,6 +286,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      * @since 2.5
      * @see FeatureSource#getName()
      */
+    @Override
     public Name getName() {
         return getSchema().getName();
     }
@@ -286,6 +297,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      * <p>This method delegates to {@link #buildFeatureType()}, which must be implemented by
      * subclasses. The result is cached in {@link ContentState#getFeatureType()}.
      */
+    @Override
     public final SimpleFeatureType getSchema() {
 
         // check schema override
@@ -345,6 +357,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      *   <code>return getBounds(Query.ALL)</code>.
      * </pre>
      */
+    @Override
     public final ReferencedEnvelope getBounds() throws IOException {
 
         // return all(entry.getState(transaction)).getBounds();
@@ -357,6 +370,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      * <p>This method calls through to {@link #getBoundsInternal(Query)} which subclasses must
      * implement. It also contains optimizations which check state for cached values.
      */
+    @Override
     public final ReferencedEnvelope getBounds(Query query) throws IOException {
         query = joinQuery(query);
         query = resolvePropertyNames(query);
@@ -373,7 +387,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
 
             // don't compute the bounds of the features that are modified or removed in the diff
             Iterator<String> i = diff.getModified().keySet().iterator();
-            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            FilterFactory ff = CommonFactoryFinder.getFilterFactory();
 
             Set<FeatureId> modifiedFids = new HashSet<>();
             while (i.hasNext()) {
@@ -465,6 +479,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      * <p>This method calls through to {@link #getCountInternal(Query)} which subclasses must
      * implement. It also contains optimizations which check state for cached values.
      */
+    @Override
     public final int getCount(Query query) throws IOException {
         query = joinQuery(query);
         query = resolvePropertyNames(query);
@@ -494,7 +509,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
 
                 // consider removed features that satisfy the filter
                 it = diff.getModified().values().iterator();
-                FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+                FilterFactory ff = CommonFactoryFinder.getFilterFactory();
                 Set<FeatureId> modifiedFids = new HashSet<>();
                 int modifiedPostCount = 0;
                 while (it.hasNext()) {
@@ -512,7 +527,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
 
                 // consider the updated feature if any, we need to know how
                 // many of those matched the filter before
-                if (modifiedFids.size() > 0) {
+                if (!modifiedFids.isEmpty()) {
                     Id idFilter = ff.id(modifiedFids);
                     Query q = new Query(query);
                     q.setFilter(ff.and(idFilter, query.getFilter()));
@@ -528,13 +543,13 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
 
         // offset
         int offset = query.getStartIndex() != null ? query.getStartIndex() : 0;
-        if (!canOffset() && offset > 0) {
+        if (!canOffset(query) && offset > 0) {
             // skip the first n records
             count = Math.max(0, count - offset);
         }
 
         // max feature limit
-        if (!canLimit()) {
+        if (!canLimit(query)) {
             if (query.getMaxFeatures() != -1 && query.getMaxFeatures() < Integer.MAX_VALUE) {
                 count = Math.min(query.getMaxFeatures(), count);
             }
@@ -550,6 +565,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
     protected abstract int getCountInternal(Query query) throws IOException;
 
     /** Returns the feature collection of all the features of the feature source. */
+    @Override
     public final ContentFeatureCollection getFeatures() throws IOException {
         Query query = joinQuery(Query.ALL);
         return new ContentFeatureCollection(this, query);
@@ -568,6 +584,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      * Returns the feature collection if the features of the feature source which meet the specified
      * query criteria.
      */
+    @Override
     public final ContentFeatureCollection getFeatures(Query query) throws IOException {
         query = joinQuery(query);
 
@@ -584,7 +601,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
         if (query.getStartIndex() != null
                 && (query.getSortBy() == null || query.getSortBy().length == 0)) {
             Query dq = new Query(query);
-            dq.setSortBy(new SortBy[] {SortBy.NATURAL_ORDER});
+            dq.setSortBy(SortBy.NATURAL_ORDER);
             query = dq;
         }
 
@@ -597,8 +614,8 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
         // to remove the retyping, or we won't be able to sort in memory
         FeatureReader<SimpleFeatureType, SimpleFeature> reader;
         boolean postRetypeRequired =
-                !canSort()
-                        && canRetype()
+                !canSort(query)
+                        && canRetype(query)
                         && query.getSortBy() != null
                         && query.getPropertyNames() != Query.ALL_NAMES;
         if (postRetypeRequired) {
@@ -630,7 +647,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
         }
 
         // filtering
-        if (!canFilter()) {
+        if (!canFilter(query)) {
             if (query.getFilter() != null && query.getFilter() != Filter.INCLUDE) {
                 reader = new FilteringFeatureReader<>(reader, query.getFilter());
             }
@@ -638,13 +655,13 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
 
         // sorting
         if (query.getSortBy() != null && query.getSortBy().length != 0) {
-            if (!canSort()) {
+            if (!canSort(query)) {
                 reader = new SortedFeatureReader(DataUtilities.simple(reader), query);
             }
         }
 
         // retyping
-        if (!canRetype() || postRetypeRequired) {
+        if (!canRetype(query) || postRetypeRequired) {
             if (query.getPropertyNames() != Query.ALL_NAMES) {
                 // rebuild the type and wrap the reader
                 SimpleFeatureType target =
@@ -661,7 +678,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
 
         // offset
         int offset = query.getStartIndex() != null ? query.getStartIndex() : 0;
-        if (!canOffset() && offset > 0) {
+        if (!canOffset(query) && offset > 0) {
             // skip the first n records
             for (int i = 0; i < offset && reader.hasNext(); i++) {
                 reader.next();
@@ -669,7 +686,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
         }
 
         // max feature limit
-        if (!canLimit()) {
+        if (!canLimit(query)) {
             if (query.getMaxFeatures() != -1 && query.getMaxFeatures() < Integer.MAX_VALUE) {
                 reader = new MaxFeatureReader<>(reader, query.getMaxFeatures());
             }
@@ -697,7 +714,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
             if (targetCRS != null) {
                 if (sourceCRS == null) {
                     throw new IOException("Cannot reproject data, the source CRS is not available");
-                } else if (!sourceCRS.equals(targetCRS)) {
+                } else if (FeatureTypes.shouldReproject(reader.getFeatureType(), targetCRS)) {
                     try {
                         reader = new ReprojectFeatureReader(reader, targetCRS);
                     } catch (Exception e) {
@@ -725,7 +742,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      * Returns all the properties used in the sortBy (excluding primary keys and the like, e.g.,
      * natural sorting)
      */
-    private Set<String> getSortPropertyNames(SortBy[] sortBy) {
+    private Set<String> getSortPropertyNames(SortBy... sortBy) {
         Set<String> result = new HashSet<>();
         for (SortBy sort : sortBy) {
             PropertyName p = sort.getPropertyName();
@@ -764,8 +781,8 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      */
     public void accepts(
             Query query,
-            org.opengis.feature.FeatureVisitor visitor,
-            org.opengis.util.ProgressListener progress)
+            org.geotools.api.feature.FeatureVisitor visitor,
+            org.geotools.api.util.ProgressListener progress)
             throws IOException {
 
         query = DataUtilities.simplifyFilter(query);
@@ -779,8 +796,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
         }
 
         // subclass could not handle, resort to manually walkign through
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader = getReader(query);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader = getReader(query)) {
             float size = progress instanceof NullProgressListener ? 0.0f : (float) getCount(query);
             float position = 0;
             progress.started();
@@ -808,7 +824,6 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
             }
         } finally {
             progress.complete();
-            reader.close();
         }
     }
 
@@ -844,10 +859,10 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      * <ul>
      *   <li>{@link #canReproject()} - handles {@link Query#getCoordinateSystemReproject()} internally.
      *       Example would be PostGIS using Proj to handle reproejction internally</li>
-     *   <li>{@link #canFilter()} - handles {@link Query#getFilter() internally.</li>
-     *   <li>{@link #canLimit()} - handles {@link Query#getMaxFeatures()} and {@link Query#getStartIndex()} internally.</li>
-     *   <li>{@link #canSort()} - handles {@link Query#getSortBy()} natively.</li>
-     *   <li>{@link #canRetype()} - handles {@link Query#getProperties()} natively. Example would
+     *   <li>{@link #canFilter(Query)} - handles {@link Query#getFilter() internally.</li>
+     *   <li>{@link #canLimit(Query)} - handles {@link Query#getMaxFeatures()} and {@link Query#getStartIndex()} internally.</li>
+     *   <li>{@link #canSort(Query)} - handles {@link Query#getSortBy()} natively.</li>
+     *   <li>{@link #canRetype(Query)} - handles {@link Query#getProperties()} natively. Example would
      *   be only parsing the properties the user asks for from an XML file</li>
      *   <li>{@link #canLock()} - handles read-locks natively</li>
      *   <li>{@link #canTransact()} - handles transactions natively</li>
@@ -884,6 +899,12 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
         return false;
     }
 
+    /** @deprecated use {@link #canLimit(Query)} instead. */
+    @Deprecated
+    protected boolean canLimit() {
+        return false;
+    }
+
     /**
      * Determines if the datastore can natively limit the number of features returned in a query.
      *
@@ -896,7 +917,13 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      *
      * @see MaxFeatureReader
      */
-    protected boolean canLimit() {
+    protected boolean canLimit(Query query) {
+        return this.canLimit();
+    }
+
+    /** @deprecated use {@link #canOffset(Query)} instead. */
+    @Deprecated
+    protected boolean canOffset() {
         return false;
     }
 
@@ -908,9 +935,15 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      * to return <code>true</code>. In this case it <b>must</b> do the cap or throw an exception.
      *
      * <p>Not overriding this method or returning <code>false</code> will case the feature reader
-     * created by the subclass to be be accesset offset times before being returned to the caller.
+     * created by the subclass to be accessed offset times before being returned to the caller.
      */
-    protected boolean canOffset() {
+    protected boolean canOffset(Query query) {
+        return this.canOffset();
+    }
+
+    /** @deprecated use {@link #canFilter(Query)} instead. */
+    @Deprecated
+    protected boolean canFilter() {
         return false;
     }
 
@@ -928,12 +961,18 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      * created by the subclass to be wrapped in a filtering feature reader when the query specifies
      * a filter. See {@link FilteringFeatureReader}.
      */
-    protected boolean canFilter() {
+    protected boolean canFilter(Query query) {
+        return this.canFilter();
+    }
+
+    /** @deprecated use {@link #canRetype(Query)} instead. */
+    @Deprecated
+    protected boolean canRetype() {
         return false;
     }
 
     /**
-     * Determines if the datasatore can natively perform "retyping" which includes limiting the
+     * Determines if the datastore can natively perform "retyping" which includes limiting the
      * number of attributes returned and reordering of those attributes
      *
      * <p>If the subclass can handle retyping natively it should override this method to return
@@ -945,7 +984,13 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      *
      * @see ReTypeFeatureReader
      */
-    protected boolean canRetype() {
+    protected boolean canRetype(Query query) {
+        return this.canRetype();
+    }
+
+    /** @deprecated use {@link #canSort(Query)} instead. */
+    @Deprecated
+    protected boolean canSort() {
         return false;
     }
 
@@ -960,8 +1005,8 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      *
      * @see SortedFeatureReader
      */
-    protected boolean canSort() {
-        return false;
+    protected boolean canSort(Query query) {
+        return this.canSort();
     }
 
     /**
@@ -1020,6 +1065,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      *
      * <p>This method calls through to {@link #getFeatures(Query)}.
      */
+    @Override
     public final ContentFeatureCollection getFeatures(Filter filter) throws IOException {
         return getFeatures(new Query(getSchema().getTypeName(), filter));
     }
@@ -1043,11 +1089,13 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      *
      * <p>Listeners are stored on a per-transaction basis.
      */
+    @Override
     public final void addFeatureListener(FeatureListener listener) {
         entry.getState(transaction).addListener(listener);
     }
 
     /** Removes a listener from the feature source. */
+    @Override
     public final void removeFeatureListener(FeatureListener listener) {
         entry.getState(transaction).removeListener(listener);
     }
@@ -1059,6 +1107,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
      *
      * @see FeatureSource#getSupportedHints()
      */
+    @Override
     @SuppressWarnings("unchecked")
     public final Set<RenderingHints.Key> getSupportedHints() {
         return (Set<RenderingHints.Key>) (Set<?>) hints;
@@ -1146,6 +1195,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
 
     // protected abstract SimpleFeatureCollection readonly(ContentState state, Filter filter);
 
+    @Override
     public QueryCapabilities getQueryCapabilities() {
         // lazy initialization, so that the subclass has all its data structures ready
         // when the method is called (it might need to consult them in order to decide
@@ -1157,11 +1207,13 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
         // we have to glaze the subclass query capabilities since we always support offset
         // and we support more sorting cases using the sorting wrappers
         return new QueryCapabilities() {
+            @Override
             public boolean isOffsetSupported() {
                 // we always support offset since we support sorting
                 return true;
             }
 
+            @Override
             public boolean supportsSorting(SortBy[] sortAttributes) {
                 if (queryCapabilities.supportsSorting(sortAttributes)) {
                     // natively supported
@@ -1172,10 +1224,12 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
                 }
             }
 
+            @Override
             public boolean isReliableFIDSupported() {
                 return queryCapabilities.isReliableFIDSupported();
             }
 
+            @Override
             public boolean isUseProvidedFIDSupported() {
                 return queryCapabilities.isUseProvidedFIDSupported();
             }
@@ -1216,8 +1270,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
 
         String typeName = getSchema().getTypeName();
 
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader = getReader(filter);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader = getReader(filter)) {
             int locked = 0;
             while (reader.hasNext()) {
                 SimpleFeature feature = reader.next();
@@ -1248,8 +1301,6 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
             }
 
             return locked;
-        } finally {
-            reader.close();
         }
     }
 
@@ -1276,8 +1327,7 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
         filter = resolvePropertyNames(filter);
         String typeName = getSchema().getTypeName();
 
-        FeatureReader<SimpleFeatureType, SimpleFeature> reader = getReader(filter);
-        try {
+        try (FeatureReader<SimpleFeatureType, SimpleFeature> reader = getReader(filter)) {
             while (reader.hasNext()) {
                 SimpleFeature feature = reader.next();
                 //
@@ -1291,8 +1341,6 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
                             .unLockFeatureID(typeName, feature.getID(), transaction, lock);
                 }
             }
-        } finally {
-            reader.close();
         }
     }
 

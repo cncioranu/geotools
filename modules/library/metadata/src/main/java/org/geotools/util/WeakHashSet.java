@@ -132,6 +132,7 @@ public class WeakHashSet<E> extends AbstractSet<E> implements CheckedCollection<
      *
      * @since 2.5
      */
+    @Override
     public Class<E> getElementType() {
         return type;
     }
@@ -199,8 +200,8 @@ public class WeakHashSet<E> extends AbstractSet<E> implements CheckedCollection<
         final Entry[] oldTable = table;
         newEntryTable(capacity);
         threshold = Math.round(capacity * LOAD_FACTOR);
-        for (int i = 0; i < oldTable.length; i++) {
-            for (Entry old = oldTable[i]; old != null; ) {
+        for (Entry entry : oldTable) {
+            for (Entry old = entry; old != null; ) {
                 final Entry e = old;
                 old = old.next; // We keep 'next' right now because its value will change.
                 final E obj_e = e.get();
@@ -236,8 +237,8 @@ public class WeakHashSet<E> extends AbstractSet<E> implements CheckedCollection<
      */
     private boolean valid() {
         int n = 0;
-        for (int i = 0; i < table.length; i++) {
-            for (Entry e = table[i]; e != null; e = e.next) {
+        for (Entry entry : table) {
+            for (Entry e = entry; e != null; e = e.next) {
                 n++;
             }
         }
@@ -250,6 +251,7 @@ public class WeakHashSet<E> extends AbstractSet<E> implements CheckedCollection<
     }
 
     /** Returns the count of element in this set. */
+    @Override
     public synchronized int size() {
         assert valid();
         return count;
@@ -385,8 +387,8 @@ public class WeakHashSet<E> extends AbstractSet<E> implements CheckedCollection<
         @SuppressWarnings("unchecked")
         final E[] elements = (E[]) Array.newInstance(type, count);
         int index = 0;
-        for (int i = 0; i < table.length; i++) {
-            for (Entry el = table[i]; el != null; el = el.next) {
+        for (Entry entry : table) {
+            for (Entry el = entry; el != null; el = el.next) {
                 if ((elements[index] = el.get()) != null) {
                     index++;
                 }

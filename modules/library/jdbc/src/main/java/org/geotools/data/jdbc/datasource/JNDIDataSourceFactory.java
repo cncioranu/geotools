@@ -20,9 +20,9 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import javax.sql.DataSource;
-import org.geotools.data.DataAccessFactory.Param;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.Parameter;
+import org.geotools.api.data.DataAccessFactory.Param;
+import org.geotools.api.data.DataSourceException;
+import org.geotools.api.data.Parameter;
 import org.geotools.util.factory.GeoTools;
 
 /**
@@ -48,41 +48,41 @@ public class JNDIDataSourceFactory extends AbstractDataSourceFactorySpi {
                     "The path where the connection pool must be located",
                     true);
 
-    private static final Param[] PARAMS = new Param[] {DSTYPE, JNDI_REFNAME};
+    private static final Param[] PARAMS = {DSTYPE, JNDI_REFNAME};
 
+    @Override
     public DataSource createDataSource(Map<String, ?> params) throws IOException {
         return createNewDataSource(params);
     }
 
+    @Override
     public boolean canProcess(Map<String, ?> params) {
         return super.canProcess(params) && "JNDI".equals(params.get("dstype"));
     }
 
+    @Override
     public DataSource createNewDataSource(Map<String, ?> params) throws IOException {
         String refName = (String) JNDI_REFNAME.lookUp(params);
         try {
-            return (DataSource)
-                    GeoTools.getInitialContext(GeoTools.getDefaultHints()).lookup(refName);
+            return (DataSource) GeoTools.jndiLookup(refName);
         } catch (Exception e) {
             throw new DataSourceException("Could not find the specified data source in JNDI", e);
         }
     }
 
+    @Override
     public String getDescription() {
         return "A JNDI based DataSource locator. Provide the JDNI location of a DataSource object in order to make it work";
     }
 
+    @Override
     public Param[] getParametersInfo() {
         return PARAMS;
     }
 
     /** Make sure a JNDI context is available */
+    @Override
     public boolean isAvailable() {
-        try {
-            GeoTools.getInitialContext(GeoTools.getDefaultHints());
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        return GeoTools.isJNDIAvailable();
     }
 }

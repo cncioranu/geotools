@@ -17,6 +17,9 @@
 
 package org.geotools.data.db2;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.List;
 import org.geotools.jdbc.JDBCDataStoreFactory;
 import org.geotools.jdbc.JDBCJNDIDataSourceOnlineTest;
@@ -25,6 +28,7 @@ import org.geotools.jdbc.JDBCJNDITestSetup;
 
 public class DB2JNDIDataSourceOnlineTest extends JDBCJNDIDataSourceOnlineTest {
 
+    @Override
     protected JDBCJNDITestSetup createTestSetup() {
         return new JDBCJNDITestSetup(new DB2TestSetup());
     }

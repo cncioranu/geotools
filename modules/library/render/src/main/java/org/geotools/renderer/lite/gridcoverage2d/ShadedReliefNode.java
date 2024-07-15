@@ -24,6 +24,7 @@ import it.geosolutions.jaiext.shadedrelief.ShadedReliefRIF;
 import java.awt.geom.AffineTransform;
 import java.awt.image.RenderedImage;
 import java.awt.image.renderable.RenderedImageFactory;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
 import javax.measure.Unit;
@@ -33,23 +34,21 @@ import javax.media.jai.OperationRegistry;
 import javax.media.jai.ROI;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.registry.RenderedRegistryMode;
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.api.filter.expression.Expression;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.style.ShadedRelief;
+import org.geotools.api.style.StyleVisitor;
+import org.geotools.api.util.InternationalString;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
-import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.image.ImageWorker;
 import org.geotools.renderer.i18n.ErrorKeys;
-import org.geotools.renderer.i18n.Errors;
-import org.geotools.styling.ShadedRelief;
-import org.geotools.styling.StyleVisitor;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.factory.Hints;
-import org.opengis.coverage.grid.GridCoverage;
-import org.opengis.filter.expression.Expression;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.util.InternationalString;
 import si.uom.SI;
 
 /**
@@ -84,10 +83,12 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter
         return reliefFactor;
     }
 
+    @Override
     public InternationalString getName() {
         return new SimpleInternationalString("Shaded Relief");
     }
 
+    @Override
     public void visit(final ShadedRelief sr) {
         // /////////////////////////////////////////////////////////////////////
         //
@@ -120,7 +121,8 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter
                         || Double.isNaN(reliefFactor)
                         || Double.isInfinite(reliefFactor)) {
                     throw new IllegalArgumentException(
-                            Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2, "reliefFactor", number));
+                            MessageFormat.format(
+                                    ErrorKeys.ILLEGAL_ARGUMENT_$2, "reliefFactor", number));
                 }
             }
         }
@@ -146,6 +148,7 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter
                         "Node which applies ShadedRelief following SLD 1.0 spec."));
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     protected GridCoverage2D execute() {
         final Hints hints = getHints();
@@ -236,20 +239,19 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter
                 props.put("GC_ROI", worker.getROI());
             }
 
-            final GridSampleDimension sd[];
+            final GridSampleDimension[] sd;
             if (numActualBands == numSourceBands) {
                 sd = source.getSampleDimensions();
             } else {
                 sd = new GridSampleDimension[numActualBands];
-                for (int i = 0; i < numActualBands; i++)
-                    sd[i] = (GridSampleDimension) source.getSampleDimension(0);
+                for (int i = 0; i < numActualBands; i++) sd[i] = source.getSampleDimension(0);
             }
 
             GridCoverage2D output =
                     factory.create(
                             "sr_coverage" + source.getName(),
                             finalImage,
-                            (GridGeometry2D) source.getGridGeometry(),
+                            source.getGridGeometry(),
                             sd,
                             new GridCoverage[] {source},
                             props);
@@ -265,7 +267,7 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter
                             factory.create(
                                     "sr_coverage" + source.getName().toString(),
                                     mapCoverage.getRenderedImage(),
-                                    (GridGeometry2D) source.getGridGeometry(),
+                                    source.getGridGeometry(),
                                     output.getSampleDimensions(),
                                     new GridCoverage[] {output},
                                     props);
@@ -273,8 +275,9 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter
             }
             return output;
         }
+        final Object arg0 = this.getName().toString();
         throw new IllegalStateException(
-                Errors.format(ErrorKeys.SOURCE_CANT_BE_NULL_$1, this.getName().toString()));
+                MessageFormat.format(ErrorKeys.SOURCE_CANT_BE_NULL_$1, arg0));
     }
 
     private RenderedImage performShadedRelief(

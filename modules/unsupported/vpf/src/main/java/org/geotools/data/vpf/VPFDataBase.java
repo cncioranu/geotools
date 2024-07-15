@@ -20,13 +20,13 @@ import static org.geotools.data.vpf.ifc.FileConstants.LIBRARY_ATTTIBUTE_TABLE;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Vector;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.data.vpf.file.VPFFile;
 import org.geotools.data.vpf.file.VPFFileFactory;
 import org.geotools.feature.SchemaException;
-import org.opengis.feature.simple.SimpleFeature;
 
 /**
  * This class is not completely implemented due to a decision that the VPFDataStore shall correspond
@@ -39,21 +39,19 @@ import org.opengis.feature.simple.SimpleFeature;
  */
 public class VPFDataBase {
     /** The libraries in the database */
-    private final List<VPFLibrary> libraries = new Vector<>();
+    private final List<VPFLibrary> libraries = new ArrayList<>();
     /**
      * Constructor
      *
      * @param directory A <code>File</code> representing the base directory of the database
      */
     public VPFDataBase(File directory) throws IOException, SchemaException {
-        VPFFile vpfTable;
-        String vpfTableName;
         SimpleFeature feature;
         VPFLibrary library;
 
         // read libraries info
-        vpfTableName = new File(directory, LIBRARY_ATTTIBUTE_TABLE).toString();
-        vpfTable = VPFFileFactory.getInstance().getFile(vpfTableName);
+        String vpfTableName = new File(directory, LIBRARY_ATTTIBUTE_TABLE).toString();
+        VPFFile vpfTable = VPFFileFactory.getInstance().getFile(vpfTableName);
 
         Iterator iter = vpfTable.readAllRows().iterator();
 

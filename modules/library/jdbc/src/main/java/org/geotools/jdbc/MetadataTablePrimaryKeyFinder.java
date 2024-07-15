@@ -99,6 +99,7 @@ public class MetadataTablePrimaryKeyFinder extends PrimaryKeyFinder {
     public PrimaryKey getPrimaryKey(JDBCDataStore store, String schema, String table, Connection cx)
             throws SQLException {
         ResultSet rs = null;
+        ResultSet tablesRs = null;
         PreparedStatement st = null;
 
         String metadataSchema = getMetadataSchema(store);
@@ -112,18 +113,29 @@ public class MetadataTablePrimaryKeyFinder extends PrimaryKeyFinder {
                 synchronized (this) {
                     if (metadataTableExists == null) {
                         try {
+                            // This is a database-agnostic way to check if the table exists without
+                            // resulting in error messages. It also checks for case sensitivity.
+                            tablesRs =
+                                    cx.getMetaData()
+                                            .getTables(
+                                                    null,
+                                                    metadataSchema,
+                                                    "%",
+                                                    store.getSQLDialect().getDesiredTablesType());
 
-                            StringBuffer sb = new StringBuffer();
-                            sb.append("SELECT * FROM ");
-                            if (metadataSchema != null) {
-                                store.getSQLDialect().encodeSchemaName(metadataSchema, sb);
-                                sb.append(".");
+                            metadataTableExists = false;
+
+                            while (tablesRs.next()) {
+                                String tblName = tablesRs.getString(3);
+                                if (tblName.toLowerCase().equals(tableName.toLowerCase())) {
+                                    metadataTableExists = true;
+                                    break;
+                                }
                             }
-                            sb.append(tableName).append(" WHERE 1 = 0");
-                            st = cx.prepareStatement(sb.toString());
-                            rs = st.executeQuery();
-                            metadataTableExists = true;
+
                         } catch (Exception e) {
+                            LOGGER.log(Level.WARNING, "Error retrieving database metadata: ", e);
+
                             // clean up the transaction status in case we are in auto-commit mode
                             if (e instanceof SQLException && !cx.getAutoCommit()) {
                                 cx.rollback();
@@ -132,10 +144,18 @@ public class MetadataTablePrimaryKeyFinder extends PrimaryKeyFinder {
                         } finally {
                             store.closeSafe(rs);
                             store.closeSafe(st);
+                            store.closeSafe(tablesRs);
                         }
                     }
                 }
             }
+
+            LOGGER.log(
+                    Level.FINE,
+                    metadataTableExists
+                            ? "Metadata table " + tableName + " was found"
+                            : "Metadata table " + tableName + " was not found");
+
             if (!metadataTableExists) {
                 return null;
             }
@@ -215,7 +235,7 @@ public class MetadataTablePrimaryKeyFinder extends PrimaryKeyFinder {
             }
 
             // see if we accumulated any info about this table
-            if (columns.size() > 0) return new PrimaryKey(table, columns);
+            if (!columns.isEmpty()) return new PrimaryKey(table, columns);
             else return null;
         } catch (SQLException e) {
             LOGGER.log(
